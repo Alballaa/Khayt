@@ -44,7 +44,7 @@ html[data-design="flow"] {
   --flow-lane-4: hsl(38  72% 54%);
   --flow-lane-5: hsl(158 44% 44%);
 
-  --success:     hsl(158 52% 36%);
+  --success:     hsl(158 52% 32%);
   --success-soft:hsl(158 46% 92%);
   --warn:        hsl(35 82% 44%);
   --warn-soft:   hsl(38 88% 93%);
@@ -87,7 +87,7 @@ html[data-design="flow"][data-theme="dark"] {
   --success-soft:hsl(158 40% 18%);
   --warn:        hsl(38 78% 60%);
   --warn-soft:   hsl(38 60% 19%);
-  --danger:      hsl(354 66% 62%);
+  --danger:      hsl(354 66% 65%);
   --danger-soft: hsl(354 46% 20%);
 
   --shadow-card: 0 1px 2px hsl(0 0% 0% / .34);

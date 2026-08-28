@@ -6,6 +6,16 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **Status colours are readable in every theme again.** In the Flow design, a
+  completed figure on the dashboard and a payment badge were shown in a green
+  and a red that did not have enough contrast against the surface behind them,
+  and in Blueprint the same was true of the amber used for warnings. They were
+  close to the line rather than badly wrong, but below the readability standard
+  Khayt holds itself to — and small coloured text is exactly where that matters.
+  Each has been nudged the smallest amount that clears it; nothing else about
+  the designs has changed.
+
+
 - **A model measured in inches, centimetres or metres is now the right size in the
   preview.** A 3MF file records the units its numbers are in, and the preview was
   reading every file as though it were in millimetres. A part drawn as 12×12×6
