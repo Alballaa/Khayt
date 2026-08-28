@@ -435,6 +435,11 @@
       if (!r || !r.ok) { result(esc((r && r.error) || t('brl.download_failed')), 'var(--danger,#e0492f)'); return; }
       var msg = t(r.saved.length === 1 ? 'brl.saved_file_one' : 'brl.saved_file_other', { n: r.saved.length, folder: folderOf(r) });
       if (r.failed && r.failed.length) msg += ' ' + t('brl.n_failed', { n: r.failed.length });
+      // `kept` is reported separately from `skipped`, and it has to be reported at
+      // all: now that a design whose bytes have not moved is not fetched again, a
+      // second sync of an unchanged library saves nothing — and "Saved 0 files"
+      // on its own reads as a failure of the thing that just worked perfectly.
+      if (r.kept && r.kept.length) msg += ' ' + t('brl.n_kept', { n: r.kept.length });
       if (r.skipped && r.skipped.length) msg += ' ' + t('brl.n_skipped', { n: r.skipped.length });
       result(esc(msg), r.failed && r.failed.length ? '#fbbf24' : 'var(--ok,#159d68)');
     } catch (e) { result(esc(e && e.message ? e.message : t('brl.download_failed')), 'var(--danger,#e0492f)'); }

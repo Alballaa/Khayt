@@ -3807,6 +3807,7 @@
   "brl.saved_file_one": "1 Datei im Ordner Downloads/{folder} gespeichert.",
   "brl.saved_file_other": "{n} Dateien im Ordner Downloads/{folder} gespeichert.",
   "brl.n_failed": "{n} fehlgeschlagen.",
+  "brl.n_kept": "{n} bereits aktuell.",
   "brl.n_skipped": "{n} übersprungen.",
   "intake.drop_hint": "STL, OBJ, 3MF oder G-Code hier ablegen — oder klicken zum Auswählen",
   "intake.drop_aria": "Modelldatei ablegen oder klicken, um eine auszuwählen",

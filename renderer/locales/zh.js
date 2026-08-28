@@ -3807,6 +3807,7 @@
   "brl.saved_file_one": "已将 1 个文件保存到 Downloads/{folder} 文件夹。",
   "brl.saved_file_other": "已将 {n} 个文件保存到 Downloads/{folder} 文件夹。",
   "brl.n_failed": "{n} 个失败。",
+  "brl.n_kept": "{n} 个已是最新。",
   "brl.n_skipped": "{n} 个已跳过。",
   "intake.drop_hint": "把 STL、OBJ、3MF 或 G-code 拖到这里 — 或点击选择",
   "intake.drop_aria": "拖入模型文件，或点击选择一个",

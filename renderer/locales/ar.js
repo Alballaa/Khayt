@@ -3809,6 +3809,7 @@
   "brl.saved_file_one": "تم حفظ ملف واحد في مجلد Downloads/{folder}.",
   "brl.saved_file_other": "تم حفظ {n} ملف في مجلد Downloads/{folder}.",
   "brl.n_failed": "فشل {n}.",
+  "brl.n_kept": "{n} محدَّثة بالفعل.",
   "brl.n_skipped": "تم تخطي {n}.",
   "intake.drop_hint": "أفلِت ملف STL أو OBJ أو 3MF أو G-code هنا — أو اضغط للاختيار",
   "intake.drop_aria": "أفلِت ملف نموذج، أو اضغط لاختيار واحد",

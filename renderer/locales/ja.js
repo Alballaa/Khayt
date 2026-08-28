@@ -3807,6 +3807,7 @@
   "brl.saved_file_one": "1 件のファイルを Downloads/{folder} フォルダーに保存しました。",
   "brl.saved_file_other": "{n} 件のファイルを Downloads/{folder} フォルダーに保存しました。",
   "brl.n_failed": "{n} 件が失敗しました。",
+  "brl.n_kept": "{n} 件は最新です。",
   "brl.n_skipped": "{n} 件をスキップしました。",
   "intake.drop_hint": "STL・OBJ・3MF・G-code をここにドロップ — またはクリックして選択",
   "intake.drop_aria": "モデルファイルをドロップ、またはクリックして選択",

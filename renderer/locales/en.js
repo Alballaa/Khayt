@@ -3810,6 +3810,7 @@
   "brl.saved_file_one": "Saved 1 file to your Downloads/{folder} folder.",
   "brl.saved_file_other": "Saved {n} files to your Downloads/{folder} folder.",
   "brl.n_failed": "{n} failed.",
+  "brl.n_kept": "{n} already up to date.",
   "brl.n_skipped": "{n} skipped.",
   "intake.drop_hint": "Drop an STL, OBJ, 3MF or G-code here — or click to choose",
   "intake.drop_aria": "Drop a model file, or click to choose one",
