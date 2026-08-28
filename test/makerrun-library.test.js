@@ -213,14 +213,21 @@ const jsonRes = (body, status = 200) => ({
 test('a library with designs comes back', () => withFetch(
   async () => jsonRes({ items: [{ slug: 'a' }, { slug: 'b' }] }),
   async () => {
-    const items = await lib.fetchLibrary('tok', { baseUrl: 'https://x' });
-    assert.strictEqual(items.length, 2);
+    // The ENVELOPE, not a bare array: `filtered` and `syncedAt` are load-bearing.
+    const res = await lib.fetchLibrary('tok', { baseUrl: 'https://x' });
+    assert.strictEqual(res.items.length, 2);
+    assert.strictEqual(res.count, 2);
+    assert.strictEqual(res.filtered, false);
   }));
 
 test('a genuinely empty library is still empty, not an error', () => withFetch(
   async () => jsonRes({ items: [] }),
   async () => {
-    assert.deepStrictEqual(await lib.fetchLibrary('tok', { baseUrl: 'https://x' }), []);
+    const res = await lib.fetchLibrary('tok', { baseUrl: 'https://x' });
+    assert.deepStrictEqual(res.items, []);
+    // `filtered: false` is what makes this "you have saved nothing" rather than
+    // "nothing changed". The two are the same `count: 0` and mean opposite things.
+    assert.strictEqual(res.filtered, false);
   }));
 
 test('a renamed field is refused, not flattened to empty', () => withFetch(
@@ -247,7 +254,11 @@ test('a bare array is accepted — it cannot be mistaken for anything else', () 
   // failure; that is the line between tolerance and the guessing #777 removed.
   async () => jsonRes([{ slug: 'a' }]),
   async () => {
-    assert.strictEqual((await lib.fetchLibrary('tok', { baseUrl: 'https://x' })).length, 1);
+    const res = await lib.fetchLibrary('tok', { baseUrl: 'https://x' });
+    assert.strictEqual(res.items.length, 1);
+    // A bare array carries neither field, and says so rather than inventing them.
+    assert.strictEqual(res.filtered, false);
+    assert.strictEqual(res.syncedAt, null);
   }));
 
 test('an ordinary failing status says what it means, not what number it was', () => {

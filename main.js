@@ -4410,8 +4410,16 @@ ipcMain.handle('hub:bedready-linked', () => {
 
 ipcMain.handle('hub:bedready-library', async () => {
   try {
-    const token = await makerrunAccount.getAccessToken(app.getPath('userData')); // refreshes if needed
-    return { ok: true, items: await makerrunLibrary.fetchLibrary(token) };
+    const userData = app.getPath('userData');
+    const token = await makerrunAccount.getAccessToken(userData); // refreshes if needed
+    const SyncState = require('./lib/makerrun-sync-state.js');
+    const state = SyncState.read(userData);
+    // `?since=` is used as a probe, never as a delta feed — it cannot report an
+    // unsave, so only "nothing changed" is acted on and anything else re-reads
+    // the whole list. See syncLibrary.
+    const r = await makerrunLibrary.syncLibrary(token, { state });
+    SyncState.write(userData, { ...state, syncedAt: r.syncedAt, items: r.items });
+    return { ok: true, items: r.items, unchanged: r.unchanged };
   } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
 });
 
@@ -4426,8 +4434,20 @@ ipcMain.handle('hub:bedready-download-all', async (_e, { items } = {}) => {
     // Keeps an existing Downloads/BedReady-Library rather than splitting a renamed library across two
     // folders. `folder` goes back so the UI names the folder it actually wrote to, not a guess.
     const dest = makerrunLibrary.downloadsDir(app.getPath('downloads'));
-    const r = await makerrunLibrary.downloadAll(items, dest);
-    if (r.saved.length) shell.openPath(dest).catch(() => {});
+    const userData = app.getPath('userData');
+    const SyncState = require('./lib/makerrun-sync-state.js');
+    let state = SyncState.read(userData);
+    // Remembered as each file lands rather than in one write at the end: a sync
+    // interrupted halfway must not re-download what it already fetched, and an
+    // all-or-nothing write is exactly the case where it would.
+    const r = await makerrunLibrary.downloadAll(items, dest, {
+      state,
+      onKept: (item, filePath) => { state = SyncState.remember(state, item, filePath); },
+    });
+    SyncState.write(userData, state);
+    // `kept` files are already there, so opening the folder is still the right
+    // thing when nothing was newly saved but something was kept.
+    if (r.saved.length || r.kept.length) shell.openPath(dest).catch(() => {});
     return { ok: true, dest, folder: require('path').basename(dest), ...r };
   } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
 });

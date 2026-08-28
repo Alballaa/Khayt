@@ -3807,6 +3807,7 @@
   "brl.saved_file_one": "1 fichier enregistré dans ton dossier Downloads/{folder}.",
   "brl.saved_file_other": "{n} fichiers enregistrés dans ton dossier Downloads/{folder}.",
   "brl.n_failed": "{n} en échec.",
+  "brl.n_kept": "{n} déjà à jour.",
   "brl.n_skipped": "{n} ignorés.",
   "intake.drop_hint": "Dépose ici un STL, OBJ, 3MF ou G-code — ou clique pour choisir",
   "intake.drop_aria": "Dépose un fichier de modèle, ou clique pour en choisir un",

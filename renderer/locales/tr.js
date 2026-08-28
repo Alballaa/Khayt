@@ -3807,6 +3807,7 @@
   "brl.saved_file_one": "1 dosya Downloads/{folder} klasörüne kaydedildi.",
   "brl.saved_file_other": "{n} dosya Downloads/{folder} klasörüne kaydedildi.",
   "brl.n_failed": "{n} başarısız.",
+  "brl.n_kept": "{n} zaten güncel.",
   "brl.n_skipped": "{n} atlandı.",
   "intake.drop_hint": "Buraya bir STL, OBJ, 3MF ya da G-code bırak — ya da seçmek için tıkla",
   "intake.drop_aria": "Bir model dosyası bırak veya seçmek için tıkla",

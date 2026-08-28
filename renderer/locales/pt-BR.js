@@ -3808,6 +3808,7 @@
   "brl.saved_file_one": "1 arquivo salvo na sua pasta Downloads/{folder}.",
   "brl.saved_file_other": "{n} arquivos salvos na sua pasta Downloads/{folder}.",
   "brl.n_failed": "{n} falharam.",
+  "brl.n_kept": "{n} já atualizados.",
   "brl.n_skipped": "{n} ignorados.",
   "intake.drop_hint": "Solte aqui um STL, OBJ, 3MF ou G-code — ou clique para escolher",
   "intake.drop_aria": "Solte um arquivo de modelo, ou clique para escolher um",

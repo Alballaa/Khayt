@@ -4,6 +4,23 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Changed
+
+- **Syncing your MakerRun library no longer downloads files you already have.**
+  Khayt used to fetch every design's file on every sync, because there was no way
+  to tell which ones had changed. MakerRun now sends a fingerprint of each file,
+  so Khayt downloads only what actually moved and says how many were already up
+  to date.
+
+  Checking for changes is cheaper too: Khayt asks "has anything changed since
+  last time" first, and only fetches the full list when the answer is yes. A
+  design you remove from your library still disappears from Khayt, because that
+  question can't report a removal and Khayt doesn't pretend otherwise.
+
+  Downloaded files are also checked against that fingerprint before being saved.
+  A file that arrives damaged is reported instead of being written into your
+  library under the right name.
+
 ### Fixed
 
 - **Status colours are readable in every theme again.** In the Flow design, a
