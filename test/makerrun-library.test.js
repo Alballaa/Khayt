@@ -183,3 +183,97 @@ test('the shared host is https and has no trailing slash', () => {
   assert.ok(!BASE.endsWith('/'), 'no trailing slash — paths are concatenated onto it');
   assert.equal(new URL(BASE).protocol, 'https:');
 });
+
+/*
+ * ── An unreadable answer is not an empty library ───────────────────────────
+ *
+ * `fetchLibrary` used to end
+ *
+ *     return data && Array.isArray(data.items) ? data.items : [];
+ *
+ * so every 200 whose shape it did not recognise became zero designs and no
+ * error. A shop with forty saved designs opens the library, sees nothing, and is
+ * told nothing — indistinguishable from a shop that has saved none.
+ *
+ * That is the carrier-webhook defect (#777) on a different integration:
+ * answering "received, handled" to something you could not read hides a broken
+ * integration completely. It is also a two-repo contract with nothing comparing
+ * the halves — makerrun.com owns the response shape, this file owns the reader —
+ * which is the Medusa field list again.
+ */
+
+/** A JSON response with a chosen status and body; `undefined` body = unparseable. */
+const jsonRes = (body, status = 200) => ({
+  status,
+  ok: status < 400,
+  headers: { get: () => null },
+  json: async () => { if (body === undefined) throw new Error('bad json'); return body; },
+});
+
+test('a library with designs comes back', () => withFetch(
+  async () => jsonRes({ items: [{ slug: 'a' }, { slug: 'b' }] }),
+  async () => {
+    const items = await lib.fetchLibrary('tok', { baseUrl: 'https://x' });
+    assert.strictEqual(items.length, 2);
+  }));
+
+test('a genuinely empty library is still empty, not an error', () => withFetch(
+  async () => jsonRes({ items: [] }),
+  async () => {
+    assert.deepStrictEqual(await lib.fetchLibrary('tok', { baseUrl: 'https://x' }), []);
+  }));
+
+test('a renamed field is refused, not flattened to empty', () => withFetch(
+  // The realistic server change: `items` becomes `designs`. Before this, the
+  // shop's whole library silently vanished.
+  async () => jsonRes({ designs: [{ slug: 'a' }] }),
+  async () => {
+    await assert.rejects(
+      () => lib.fetchLibrary('tok', { baseUrl: 'https://x' }),
+      /not with a library Khayt recognises/);
+  }));
+
+test('a body that is not JSON at all is refused', () => withFetch(
+  async () => jsonRes(undefined),
+  async () => {
+    await assert.rejects(
+      () => lib.fetchLibrary('tok', { baseUrl: 'https://x' }),
+      /not with a library Khayt recognises/);
+  }));
+
+test('a bare array is accepted — it cannot be mistaken for anything else', () => withFetch(
+  // Tolerated deliberately although the server does not send it today. Accepting
+  // an unambiguous shape can never produce a WRONG answer, only avoid a false
+  // failure; that is the line between tolerance and the guessing #777 removed.
+  async () => jsonRes([{ slug: 'a' }]),
+  async () => {
+    assert.strictEqual((await lib.fetchLibrary('tok', { baseUrl: 'https://x' })).length, 1);
+  }));
+
+test('an ordinary failing status says what it means, not what number it was', () => {
+  // Same rule as lib/updater.js's explainUpdateError: `HTTP 502` names a number a
+  // print shop cannot act on, and none of these is a fault of theirs.
+  assert.match(lib.explainLibraryStatus(500), /having trouble right now/i);
+  assert.match(lib.explainLibraryStatus(502), /having trouble right now/i);
+  // 503 is deliberately NOT folded in with the rest. A planned window is caught
+  // earlier, on error.code; a 503 reaching here is `unavailable` — a
+  // misconfigured server that retrying will not fix — so it keeps its number and
+  // says it needs reporting. See test/makerrun-maintenance.test.js, which caught
+  // a first draft that told the shop to wait for something that would not clear.
+  assert.match(lib.explainLibraryStatus(503), /HTTP 503/);
+  assert.doesNotMatch(lib.explainLibraryStatus(503), /nothing is wrong/i);
+  assert.match(lib.explainLibraryStatus(429), /slow down/i);
+  assert.match(lib.explainLibraryStatus(403), /sign in again/i);
+  assert.match(lib.explainLibraryStatus(404), /needs an update/i);
+  // Unrecognised keeps its number: a reassuring sentence over an unclassified
+  // fault hides a real one.
+  assert.match(lib.explainLibraryStatus(418), /HTTP 418/);
+});
+
+test('a 401 still says the session expired, before anything else is read', () => withFetch(
+  async () => jsonRes({ error: 'auth' }, 401),
+  async () => {
+    await assert.rejects(
+      () => lib.fetchLibrary('tok', { baseUrl: 'https://x' }),
+      /session expired/i);
+  }));
