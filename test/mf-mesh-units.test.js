@@ -110,3 +110,33 @@ test('mf-mesh and mf-convert agree about scale, which is the point', () => {
     assert.equal(mesh.unitScale(k), Number(v), `mf-convert maps ${k}→${v}; mf-mesh must agree`);
   }
 });
+
+test('mmPerUnit is on every return shape, not only the one with geometry', () => {
+  // #784 put mmPerUnit on the full return and not on emptyMesh(), so a 3MF that
+  // is empty or over the triangle budget came back with `mmPerUnit: undefined`.
+  //
+  // Nothing was numerically wrong on that path — there is no geometry to scale —
+  // which is exactly why it survived: the defect is that a consumer reading
+  // `mesh.mmPerUnit` gets a number on one path and undefined on the other, and
+  // `undefined * anything` is NaN. That is the Salla `Number(undefined)` shape
+  // one step earlier, and the printer audits' question in a new place: which
+  // return is the field on.
+  //
+  // Found by makerrun's engine-parity suite, which compares this extractor
+  // against the web reference it was ported from:
+  //   mmPerUnit differs (unit="millimeter" ×1): 1 !== undefined
+  //
+  // The hard cap forces the early return. It is 1 rather than 0 because
+  // extractMeshFromMembers defaults with `hardCap = hardCap || HARD_CAP`, so a
+  // zero is read as "not given" and replaced by the real cap — the fixture would
+  // then take the ordinary path and the test would pass while proving nothing.
+  const over = extractMeshFromBuffer(project('unit="inch"', [12, 12, 6]), 1000, 1);
+  assert.equal(over.skipped, true, 'the fixture should exercise the over-budget return');
+  assert.equal(over.positions.length, 0);
+  assert.equal(over.mmPerUnit, 25.4, 'the unit was read but not reported on this path');
+
+  // And the same file within budget, for contrast: same number, other return.
+  const ok = extractMeshFromBuffer(project('unit="inch"', [12, 12, 6]), 1000, 1000);
+  assert.equal(ok.skipped, false);
+  assert.equal(ok.mmPerUnit, 25.4);
+});
