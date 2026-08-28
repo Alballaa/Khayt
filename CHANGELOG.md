@@ -26,6 +26,16 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   a status number: MakerRun being busy, asking Khayt to slow down, or a session
   that needs signing in again.
 
+- **The customer intake form is now sent with the same protections as every
+  other page it links to.** The quote page and the tracking page were served
+  with a set of browser security headers; the intake form — the page a shop
+  actually shares with its customers, and the only public one that accepts what
+  they type — was not, and neither were a few of the small "link expired" and
+  "too many requests" pages.
+
+  Those protections are now applied to every response the shop's server sends,
+  rather than page by page, so a page added later cannot be left out.
+
 
 - **A model measured in inches, centimetres or metres is now the right size in the
   preview.** A 3MF file records the units its numbers are in, and the preview was
