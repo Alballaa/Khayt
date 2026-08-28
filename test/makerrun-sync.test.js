@@ -163,3 +163,75 @@ test('what is written is what comes back', () => {
   assert.strictEqual(back.items.length, 1);
   assert.strictEqual(back.files.d1.path, '/a');
 });
+
+// ── The licence and the designer's numbers, as the card reads them ──────────
+//
+// These live in the renderer, which is not loadable here, so the FUNCTIONS are
+// pulled out of the source and evaluated with the small surface they use. That
+// is weaker than driving the real UI and it is not nothing: the branch that
+// matters is a three-state one where the middle state is a non-answer, and the
+// expensive mistake is collapsing it into a boolean.
+
+const vm = require('node:vm');
+
+function cardHelpers() {
+  const src = fs.readFileSync(path.join(__dirname, '..', 'renderer', 'bedready-library.js'), 'utf8');
+  const grab = (name) => {
+    const i = src.indexOf(`  function ${name}(`);
+    assert.ok(i > 0, `${name} not found — this guard has rotted`);
+    const end = src.indexOf('\n  }\n', i);
+    return src.slice(i, end + 4);
+  };
+  const ctx = {
+    t: (k) => k,
+    esc: (v) => String(v),
+    assert,
+  };
+  vm.createContext(ctx);
+  vm.runInContext(`${grab('printFacts')}\n${grab('licenceLine')}`, ctx);
+  return ctx;
+}
+
+test('a licence that cannot be read says so, rather than guessing either way', () => {
+  const { licenceLine } = cardHelpers();
+  // null is a job for the shop, not a verdict. Guessing false blocks a print they
+  // may sell; guessing true tells them to sell one they may not.
+  assert.match(licenceLine({ commercialUse: null, license: 'Custom terms' }), /brl\.lic_check/);
+  assert.match(licenceLine({ commercialUse: true, license: 'CC0-1.0' }), /brl\.lic_commercial/);
+  assert.match(licenceLine({ commercialUse: false, license: 'CC-BY-NC-4.0' }), /brl\.lic_noncommercial/);
+  // The licence's own name stays reachable, so the shop can read the actual terms.
+  assert.match(licenceLine({ commercialUse: null, license: 'Custom terms' }), /title="Custom terms"/);
+});
+
+test('an API that has not sent commercialUse renders nothing at all', () => {
+  // Absent is not the same as null. An older server, or a payload shape change,
+  // must not make every design read as "check the licence".
+  const { licenceLine } = cardHelpers();
+  assert.strictEqual(licenceLine({ license: 'CC0-1.0' }), '');
+  assert.strictEqual(licenceLine(null), '');
+});
+
+test('a missing print number is a silence, never a zero', () => {
+  const { printFacts } = cardHelpers();
+  // A shop quoting from this would read 0 mm as a number rather than as nothing
+  // having been said.
+  assert.strictEqual(printFacts({ print: { layerHeightMm: 0, colorCount: 0, filamentTypes: [] } }), '');
+  assert.strictEqual(printFacts({ print: null }), '');
+  assert.strictEqual(printFacts({}), '');
+  const full = printFacts({ print: { layerHeightMm: 0.12, filamentTypes: ['PLA'], colorCount: 2, fromVerifiedProfile: true } });
+  assert.match(full, /0\.12 mm/);
+  assert.match(full, /PLA/);
+  assert.match(full, /2 conv\.colours/);
+});
+
+test('numbers a designer typed are marked apart from numbers read off a file', () => {
+  // fromVerifiedProfile is the difference between a measurement and a claim, and
+  // a shop pricing a job should be able to tell which it is looking at.
+  const { printFacts } = cardHelpers();
+  const measured = printFacts({ print: { layerHeightMm: 0.2, fromVerifiedProfile: true } });
+  const stated = printFacts({ print: { layerHeightMm: 0.2, fromVerifiedProfile: false } });
+  assert.match(measured, /brl\.print_from_file/);
+  assert.match(stated, /brl\.print_from_designer/);
+  assert.ok(!/\*/.test(measured), 'a measured figure carries no caveat mark');
+  assert.match(stated, /\*/, 'a stated figure is marked, not silently equal to a measured one');
+});

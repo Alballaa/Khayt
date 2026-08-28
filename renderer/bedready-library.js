@@ -192,12 +192,67 @@
       '<div style="padding:8px 10px;display:flex;flex-direction:column;gap:6px;flex:1;">' +
         '<div title="' + esc(name) + '" style="font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(name) + '</div>' +
         '<div style="font-size:11px;color:var(--text-muted,#869390);">' + esc(type) +
-          (can ? '' : ' · ' + esc(t('brl.link_only'))) + '</div>' +
+          printFacts(it) + (can ? '' : ' · ' + esc(t('brl.link_only'))) + '</div>' +
+        licenceLine(it) +
         (can ? '<div style="display:flex;gap:6px;margin-top:auto;">' +
                  (canImport() ? act('one-import', t('brl.add')) : '') +
                  act('one-download', t('brl.download_one')) +
                '</div>' : '') +
       '</div></div>';
+  }
+
+  /**
+   * The designer's own print numbers, appended to the type line.
+   *
+   * Every field is optional and each is rendered only if present — an absent
+   * layer height must read as "not stated", never as a zero, because a shop
+   * quoting from this would take 0 mm as a number rather than as a silence.
+   *
+   * `fromVerifiedProfile` decides the tooltip and nothing else. It says whether
+   * these came out of a file MakerRun opened or a form somebody filled in, and
+   * that is the difference between a measurement and a claim — worth saying on
+   * hover, not worth a badge competing with the design's name.
+   */
+  function printFacts(it) {
+    var p = it && it.print;
+    if (!p) return '';
+    var bits = [];
+    if (typeof p.layerHeightMm === 'number' && p.layerHeightMm > 0) bits.push(p.layerHeightMm + ' mm');
+    if (Array.isArray(p.filamentTypes) && p.filamentTypes.length) bits.push(p.filamentTypes.join('/'));
+    if (typeof p.colorCount === 'number' && p.colorCount > 1) bits.push(p.colorCount + ' ' + t('conv.colours'));
+    if (!bits.length) return '';
+    var src = p.fromVerifiedProfile ? t('brl.print_from_file') : t('brl.print_from_designer');
+    return '<span title="' + esc(src) + '"> · ' + esc(bits.join(' · ')) +
+      (p.fromVerifiedProfile ? '' : ' *') + '</span>';
+  }
+
+  /**
+   * Whether the licence permits selling the print — in three states, because the
+   * API answers in three.
+   *
+   * `null` is the important one and is NOT "unknown, assume no". MakerRun reads
+   * only the licences it knows plus the Creative Commons NC clause and returns
+   * null for anything else, deliberately: guessing false blocks a shop from a
+   * print it may sell, and guessing true tells it to sell one it may not. So
+   * null renders as "check the licence" — a job, not a verdict.
+   *
+   * A `true` is only ever about the COMMERCIAL clause. Attribution, share-alike
+   * and no-derivatives still bind, which is why this says "commercial use
+   * allowed" and not anything resembling "free to use". The licence's own name
+   * is on hover, so the shop can always reach the actual terms.
+   */
+  function licenceLine(it) {
+    if (!it || it.commercialUse === undefined) return '';
+    var v = it.commercialUse;
+    var label = v === true ? t('brl.lic_commercial')
+      : v === false ? t('brl.lic_noncommercial')
+      : t('brl.lic_check');
+    var colour = v === true ? 'var(--success,#159d68)'
+      : v === false ? 'var(--warning,#a8710a)'
+      : 'var(--text-muted,#869390)';
+    var name = it.license ? String(it.license) : '';
+    return '<div style="font-size:11px;color:' + colour + ';"' +
+      (name ? ' title="' + esc(name) + '"' : '') + '>' + esc(label) + '</div>';
   }
 
   function canImport() {
