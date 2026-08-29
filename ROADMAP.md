@@ -2,51 +2,40 @@
 
 Living priorities for maintainers. Not a public commitment calendar — reorder as the product needs.
 
-## Now (post-3.6.0, 3.7.0-beta.11 being cut — on `main`)
+## Now (post-3.6.0, 3.7.0-beta.12 being cut — on `main`)
 
 **Stable is v3.6.0** (2026-08-21) — the 3.6.0 line, promoted from
 `v3.6.0-rc.4` unchanged after a seven-day soak. rc.4 was the first candidate on
 this line that `main` did not overtake, so for once replace-vs-promote resolved
 to *promote*; rc.1, rc.2 and rc.3 were each replaced instead.
 
-**`v3.7.0-beta.11` is the cut being made now** (2026-08-29), and it is **the
+**`v3.7.0-beta.12` is the cut being made now** (2026-08-29), and it is **the
 promotion candidate** — the promise lives in
-[docs/RELEASE-HOLD.md](./docs/RELEASE-HOLD.md), not in the version string.
+[docs/RELEASE-HOLD.md](./docs/RELEASE-HOLD.md), not in the version string. Built
+for all three platforms, `BUILD_MAC` set: macOS current is a gate condition for
+promotion, and the build that becomes stable should not be the one cut behind.
 
-It was cut with an `rc` prerelease tag first, and that release is published and
-unreachable.
-electron-updater's ladder understands `alpha` and `beta` and nothing else, so an
-`rc` is a custom channel that only ever matches itself: a shop on `beta.10` asked
-for updates and was offered `beta.10`. Both directions — an `rc` install cannot
-come back to a newer beta either. That release should be deleted; it is inert
-today only because of the very bug that makes it unreachable, and it sorts above
-this candidate. The candidate nobody could install could not be
-soaked by anybody, which is the one thing a candidate is for.
+It carries one commit over `beta.11`, and it exists because of how that bug was
+found. Creating a cloud account emails a verification code, and the app showed
+the recovery key, said "Account created", and put the only box for that code
+behind a button in a settings panel the shop had just finished with. Every piece
+worked — the modal, the resend, the banner, the endpoint. Nobody asked at the
+moment the shop was holding the code, which is the whole feature.
 
-VERSIONING.md had asserted the opposite in writing, which is very likely why the
-3.6.0 line's four candidates never reached a beta user either; nobody noticed
-because promotion goes rc → stable and stable installs take the newest entry
-regardless. `test/updater-channel-ladder.test.js` now fails any version whose
-prerelease tag is off that ladder.
+Checked while fixing it, because a flow nobody walks end to end is rarely the
+only one: password reset opens its modal immediately, the team invite has its own
+dialog, and the customer portal page carries a `one-time-code` input. Verification
+was the only one of its family.
 
-**Built for all three platforms**, `BUILD_MAC` set for the tag. macOS has been on
-`beta.8` for two cuts, which is the ordinary state mid-line and is not the state
-for a build that becomes stable.
+**The newest *published* pre-release is `v3.7.0-beta.11`** (2026-08-29) — all
+three platforms, verified after the publish: every manifest reads `3.7.0-beta.11`
+and each of the five assets it names resolves.
 
-It carries 28 commits over 13 entries, and three of them are new surfaces rather
-than fixes — telemetry actually transmitting for the first time since 3.2.0, the
-delivery-estimate path from a shop's queue to a storefront basket, and the
-MakerRun library sync stopping re-downloading what it already holds. That is a
-lot for a candidate, which is the argument for soaking it as one.
-
-**Until the release run finishes that is an intention and not a fact** — this
-file's own rule applies to its own claim, so confirm with `gh release list` and a
-fetched manifest before treating rc.1 as available.
-
-**The newest *published* pre-release is `v3.7.0-beta.10`** (2026-08-27) — tagged
-from `a66b406` ([#778]), Windows + Linux only, with `latest-mac.yml` carried
-forward from `beta.8` in the relative `../v3.7.0-beta.8/` form. Verified after
-that publish: all three manifests fetch 200 and every asset they name resolves.
+*(A release was published earlier the same day under an `rc` prerelease tag, and
+has been deleted, tag and all. electron-updater's ladder knows `alpha` and `beta` and nothing else, so an
+`rc` was a custom channel no beta install could reach — a shop on `beta.10` asked
+for updates and was offered `beta.10`. It also sorted above every beta on the
+line. See VERSIONING.md and `test/updater-channel-ladder.test.js`.)*
 
 No hold is active — see [docs/RELEASE-HOLD.md](./docs/RELEASE-HOLD.md).
 
