@@ -101,3 +101,17 @@ test('a success says what was done to the picture', () => {
 test('leaving it alone says so too', () => {
   assert.match(F.describeResult({ keep: true }), /already within the limit/i);
 });
+
+test('a refusal names the kind of refusal, so the shop knows what to change', () => {
+  // "Too large to get under the limit" and "too many pixels to process" want
+  // different actions — recompress-or-crop versus export smaller — and one
+  // message for both would send half of the people the wrong way.
+  const bomb = F.describeResult({ ok: false, reason: 'too-many-pixels', originalWidth: 9000, originalHeight: 8000 });
+  assert.match(bomb, /too many pixels/i);
+  assert.match(bomb, /9000×8000/, 'says which image, in the terms the shop sees in its own file browser');
+  assert.match(bomb, /export it at a smaller size/i);
+
+  assert.match(F.describeResult({ ok: false, reason: 'unreadable' }), /could not read that as an image/i);
+  // And the ordinary case is unchanged.
+  assert.match(F.describeResult({ ok: false, reason: 'too-large' }), /crop it, or use a smaller picture/i);
+});

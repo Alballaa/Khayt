@@ -30,10 +30,20 @@ test('the job goes BEHIND the queue, not alongside it', () => {
 });
 
 test('a five-day week is longer in calendar days than a seven-day one', () => {
-  const five = L.promise({ jobHours: 40, dailyHours: 8, workingDaysPerWeek: 5, today: T });
-  const seven = L.promise({ jobHours: 40, dailyHours: 8, workingDaysPerWeek: 7, today: T });
+  // Measured across a job that CROSSES a weekend. At exactly one working week
+  // the two shops finish on the same date and should — a Monday-to-Friday job is
+  // five calendar days either way. The earlier version of this test used 40
+  // hours and passed only because the arithmetic was adding a weekend nobody
+  // waits through; it was asserting the bug.
+  const five = L.promise({ jobHours: 64, dailyHours: 8, workingDaysPerWeek: 5, today: T });
+  const seven = L.promise({ jobHours: 64, dailyHours: 8, workingDaysPerWeek: 7, today: T });
   assert.ok(five.printedBy > seven.printedBy,
     'a shop that is shut at the weekend cannot promise a weekday shop’s date');
+  // And at exactly one working week they agree, which is the case that used to
+  // be wrong in the other direction.
+  const fiveWeek = L.promise({ jobHours: 40, dailyHours: 8, workingDaysPerWeek: 5, today: T });
+  const sevenWeek = L.promise({ jobHours: 40, dailyHours: 8, workingDaysPerWeek: 7, today: T });
+  assert.equal(fiveWeek.printedBy, sevenWeek.printedBy);
 });
 
 test('finishing and dispatch are working days; transit is not', () => {
@@ -209,4 +219,40 @@ test('an unusable snapshot is refused, never treated as an idle shop', () => {
   assert.equal(L.fromSnapshot({ computedAt: '2026-08-31T09:00:00Z', staleAfterHours: 24 }, 1, T, 0), null,
     'no availableFrom is not an idle shop');
   assert.equal(L.fromSnapshot({ computedAt: 'not-a-date', availableFrom: T, staleAfterHours: 24 }, 1, T, 0), null);
+});
+
+test('a full week of work does not wait through the weekend after it', () => {
+  /* The first version returned `weeks * 7 + rem`, counting seven days for every
+     complete week including the LAST one. Five working days became seven
+     calendar days and ten became fourteen — the shop finishes on the Friday and
+     the promise said the following Monday, two days later for every week of work.
+
+     Erring late is what the safety margin is for: a number the shop chose and can
+     see. It is not something the arithmetic should be adding quietly on top. */
+  assert.equal(L.calendarDaysFor(5, 5), 5, 'a working week is five days, not seven');
+  assert.equal(L.calendarDaysFor(10, 5), 12, 'two weeks spans one weekend, not two');
+  assert.equal(L.calendarDaysFor(15, 5), 19);
+  // A week followed by more work DOES span its weekend.
+  assert.equal(L.calendarDaysFor(6, 5), 8);
+  assert.equal(L.calendarDaysFor(11, 5), 15);
+  // Part weeks are untouched, and so is a shop that works every day.
+  assert.equal(L.calendarDaysFor(4, 5), 4);
+  assert.equal(L.calendarDaysFor(10, 7), 10);
+  assert.equal(L.calendarDaysFor(6, 6), 6);
+  // Nothing to do takes no days, and never goes negative.
+  assert.equal(L.calendarDaysFor(0, 5), 0);
+  assert.ok(L.calendarDaysFor(0, 1) >= 0);
+});
+
+test('the correction never makes a promise earlier than the work takes', () => {
+  // Sweep it: for every shape a shop might have, the calendar span must be at
+  // least the working days themselves. An off-by-one in the other direction
+  // would promise a date before the work could possibly be done.
+  for (let w = 1; w <= 7; w++) {
+    for (let d = 0; d <= 40; d++) {
+      const c = L.calendarDaysFor(d, w);
+      assert.ok(c >= d, `${d} working days at ${w}/week gave ${c} calendar days`);
+      assert.ok(Number.isFinite(c) && c >= 0);
+    }
+  }
 });

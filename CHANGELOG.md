@@ -4,6 +4,15 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Fixed
+
+- **Delivery estimates were two days later than they needed to be, per week of
+  work.** The calculation counted a full seven days for every working week
+  including the last one, so five days' work was quoted as a week and two weeks
+  as sixteen days. Erring late is what the safety margin is for — a number you
+  choose and can see — and the arithmetic should not have been adding to it
+  quietly.
+
 ### Added
 
 - **Images can be fitted to an upload's size limit before the upload fails.**
