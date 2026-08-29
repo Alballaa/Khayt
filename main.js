@@ -4387,6 +4387,68 @@ ipcMain.handle('hub:cloud-member-remove', async (_e, { url, shopId, token, email
   } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
 });
 
+/* ── Publishing when this shop could have a new order ready ─────────────────
+ *
+ * A storefront asks at basket time and has no credential, so the figure has to
+ * be somewhere it can read without one — see khayt-cloud
+ * GET /v1/shops/{id}/lead-time. This is what puts it there.
+ *
+ * The queue itself never leaves: lib/lead-time-publish.js folds it into a single
+ * `availableFrom` and sums the shop's buffers into one `handlingDays` first.
+ *
+ * REPUBLISHED ON A TIMER EVEN WHEN NOTHING CHANGED, and that is the point rather
+ * than an oversight. The snapshot carries `staleAfterHours`, and a reader that
+ * finds it older than that stops quoting — correctly, because a queue shrinks as
+ * a shop prints and grows as orders arrive. So silence has to be refreshed or a
+ * storefront quietly stops answering; `differs()` decides whether the figure is
+ * NEWS, not whether to send it.
+ */
+let lastLeadTimeSnapshot = null;
+
+async function publishLeadTime() {
+  try {
+    const Publish = require('./lib/lead-time-publish.js');
+    const settings = (lanServerStore && lanServerStore.settings) || {};
+    const cloud = settings.cloud || {};
+    const now = new Date();
+    const snap = Publish.buildSnapshot({
+      settings,
+      printLog: (lanServerStore && lanServerStore.printLog) || [],
+      machines: settings.machines || (lanServerStore && lanServerStore.machines) || [],
+      // The SHOP's local day. lib/lead-time.js does its arithmetic in UTC and
+      // never asks a clock, so this is the one place the timezone is decided.
+      today: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`,
+      nowIso: now.toISOString(),
+    });
+
+    // Turned off, or never turned on. Withdraw once rather than every tick, so a
+    // shop that opts out stops answering instead of leaving a frozen date on a
+    // public URL — and so opting out does not become an hourly DELETE for ever.
+    if (!snap) {
+      if (lastLeadTimeSnapshot && cloud.url && cloud.shopId) {
+        const token = resolveStoreSecret(cloud.token, d => d?.settings?.cloud?.token);
+        if (token) await cloudClient.putLeadTime(cloud.url, cloud.shopId, token, null);
+      }
+      lastLeadTimeSnapshot = null;
+      return;
+    }
+    if (!cloud.url || !cloud.shopId) return;
+    const token = resolveStoreSecret(cloud.token, d => d?.settings?.cloud?.token);
+    if (!token) return;
+    await cloudClient.putLeadTime(cloud.url, cloud.shopId, token, snap);
+    lastLeadTimeSnapshot = snap;
+  } catch (_) { /* a promise nobody can read is better than an app that fell over */ }
+}
+
+// Once shortly after launch, then every six hours — comfortably inside the
+// default 24-hour staleness window, so a storefront keeps quoting even if a
+// publish or two fails. Unref'd so it can never hold the app open.
+function startLeadTimePublisher() {
+  setTimeout(publishLeadTime, 90 * 1000).unref?.();
+  const t = setInterval(publishLeadTime, 6 * 60 * 60 * 1000);
+  t.unref?.();
+}
+
 ipcMain.handle('hub:cloud-catalog-publish', async (_e, { url, shopId, token, catalog } = {}) => {
   try {
     token = resolveStoreSecret(token, d => d?.settings?.cloud?.token);
@@ -5138,6 +5200,7 @@ app.whenReady().then(() => {
   // ingest is dormant — it 404s, keeps the queue and waits. See the block above
   // TELEMETRY_QUEUE_FILE.
   startTelemetryFlush();
+  startLeadTimePublisher();
 
   const { session } = require('electron');
 
