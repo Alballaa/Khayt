@@ -4,6 +4,8 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.7.0-beta.12] - 2026-08-29
+
 ### Fixed
 
 - **Creating a Khayt Cloud account now asks for the verification code it just
