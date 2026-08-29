@@ -137,17 +137,39 @@ test('a delivered date is measured from the padded ship date', () => {
 
 // ── Publishing to a storefront ──────────────────────────────────────────────
 
-test('a snapshot carries inputs, not an answer', () => {
-  // A date is only true relative to the day it was computed on. Published on
-  // Monday and read on Wednesday it is two days optimistic, silently.
-  const snap = L.snapshot({ computedAt: '2026-08-31T09:00:00Z', queue: [{ hours: 40 }] });
-  assert.equal(snap.queuedHours, 40);
-  assert.ok(!('shipsBy' in snap), 'a published date would go stale by construction');
-  assert.ok(!('machineIds' in snap), 'a storefront does not need to know how many printers a shop has');
+test('the public payload carries no queue', () => {
+  /* It is read per shop slug with no credential, so it must answer the question
+     asked and disclose nothing else. Hours of booked work is a revenue proxy —
+     published hourly it is a competitor's view of how busy a shop is, week by
+     week — and it is not needed: a storefront needs to know when the shop could
+     START, not how much is in front of it. */
+  const snap = L.snapshot({ computedAt: '2026-08-31T09:00:00Z', today: T, queue: [{ hours: 40 }], dailyHours: 8 });
+  const wire = JSON.stringify(snap);
+  assert.ok(!('queuedHours' in snap), 'the queue must not leave the machine');
+  assert.ok(!wire.includes('40'), 'nor survive as a recognisable figure');
+  assert.ok(!('machineIds' in snap), 'nor how many printers there are');
+  // The three buffers are one number: how long a shop spends on QC versus
+  // packing is its business; the sum is all a customer's date depends on.
+  assert.equal(snap.handlingDays, 3);
+  assert.ok(!('finishingDays' in snap) && !('safetyDays' in snap));
+  // What it DOES carry is when the shop is next free, which is a fact already
+  // decided rather than an answer about an order nobody has placed.
+  assert.match(snap.availableFrom, /^\d{4}-\d{2}-\d{2}$/);
+  assert.ok(snap.availableFrom > T, '40 queued hours is not "free today"');
+});
+
+test('a busy shop and an idle one differ only in when they are free', () => {
+  const busy = L.snapshot({ computedAt: '2026-08-31T09:00:00Z', today: T, queue: [{ hours: 40 }] });
+  const idle = L.snapshot({ computedAt: '2026-08-31T09:00:00Z', today: T, queue: [] });
+  assert.ok(busy.availableFrom > idle.availableFrom);
+  assert.equal(idle.availableFrom, T, 'an idle shop can start today');
 });
 
 test('a fresh snapshot quotes, and the sum is the basket not the item', () => {
-  const snap = L.snapshot({ computedAt: '2026-08-31T09:00:00Z', queue: [{ hours: 8 }], dailyHours: 8, workingDaysPerWeek: 7, safetyDays: 0, finishingDays: 0, dispatchDays: 0 });
+  const snap = L.snapshot({
+    computedAt: '2026-08-31T09:00:00Z', today: T, queue: [], dailyHours: 8,
+    workingDaysPerWeek: 7, finishingDays: 0, dispatchDays: 0, safetyDays: 0,
+  });
   const now = Date.parse('2026-08-31T10:00:00Z');
   // Three items of 8h are one 24h promise, not three 8h ones: they print
   // sequentially and ship together.
@@ -157,24 +179,34 @@ test('a fresh snapshot quotes, and the sum is the basket not the item', () => {
   assert.equal(one.snapshotAgeHours, 1);
 });
 
+test('a shop whose availableFrom has passed is free now, not overdue', () => {
+  // A snapshot taken last week says the shop was free on Tuesday. Read today,
+  // that means "start now" — not a date in the past.
+  const snap = L.snapshot({ computedAt: '2026-08-31T09:00:00Z', today: T, queue: [] });
+  const later = L.fromSnapshot(snap, 8, '2026-09-01', Date.parse('2026-08-31T20:00:00Z'));
+  assert.ok(later.printedBy >= '2026-09-01', 'never quotes a date before the reader’s today');
+});
+
 test('a stale snapshot refuses rather than guessing', () => {
   // The queue shrinks as a shop prints and grows as orders arrive, so a stale
   // number can be wrong in either direction and there is no honest correction
   // from outside. A storefront handed null must say "we will confirm".
-  const snap = L.snapshot({ computedAt: '2026-08-31T09:00:00Z', queue: [{ hours: 8 }], staleAfterHours: 24 });
+  const snap = L.snapshot({ computedAt: '2026-08-31T09:00:00Z', today: T, queue: [], staleAfterHours: 24 });
   assert.ok(L.fromSnapshot(snap, 1, T, Date.parse('2026-08-31T20:00:00Z')), 'inside the window it answers');
   assert.equal(L.fromSnapshot(snap, 1, T, Date.parse('2026-09-02T20:00:00Z')), null, 'outside it, nothing');
 });
 
 test('a snapshot from the future is a broken clock, not a fresh one', () => {
-  const snap = L.snapshot({ computedAt: '2026-09-30T09:00:00Z', queue: [] });
+  const snap = L.snapshot({ computedAt: '2026-09-30T09:00:00Z', today: T, queue: [] });
   assert.equal(L.fromSnapshot(snap, 1, T, Date.parse('2026-08-31T09:00:00Z')), null);
 });
 
-test('an unusable snapshot is refused, never treated as an empty queue', () => {
-  // The dangerous failure: a missing figure read as "nothing queued", which
-  // promises the fastest possible date to every customer of a busy shop.
+test('an unusable snapshot is refused, never treated as an idle shop', () => {
+  // The dangerous failure: a missing figure read as "free now", which promises
+  // the fastest possible date to every customer of a busy shop.
   assert.equal(L.fromSnapshot(null, 1, T, 0), null);
   assert.equal(L.fromSnapshot({}, 1, T, 0), null);
-  assert.equal(L.fromSnapshot({ computedAt: 'not-a-date', staleAfterHours: 24 }, 1, T, 0), null);
+  assert.equal(L.fromSnapshot({ computedAt: '2026-08-31T09:00:00Z', staleAfterHours: 24 }, 1, T, 0), null,
+    'no availableFrom is not an idle shop');
+  assert.equal(L.fromSnapshot({ computedAt: 'not-a-date', availableFrom: T, staleAfterHours: 24 }, 1, T, 0), null);
 });
