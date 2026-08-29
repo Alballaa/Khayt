@@ -1539,14 +1539,20 @@ async function openStorefrontModal() {
   });
 }
 
-function showRecoveryKeyModal(recoveryKey) {
+/**
+ * @param {string} recoveryKey
+ * @param {Function} [onDone]  runs after the key is acknowledged. Sign-up uses it
+ *        to ask for the verification code NEXT, because the recovery key must be
+ *        dealt with first and one modal cannot open over another.
+ */
+function showRecoveryKeyModal(recoveryKey, onDone) {
   openFormModal({
     title: t('cloud.recovery_title') || 'Save your recovery key',
     saveLabel: t('cloud.recovery_saved') || 'I saved it',
     bodyHtml: `
       <p style="font-size:13px;">${escapeHtml(t('cloud.recovery_hint') || 'This recovers your cloud data if you forget your passphrase. Shown ONCE — store it safely; it cannot be recovered for you.')}</p>
       <input type="text" readonly value="${escapeHtml(recoveryKey)}" style="font-family:monospace;font-size:13px;" onclick="this.select()">`,
-    onSave: () => {}, // acknowledgement only — just close on "I saved it"
+    onSave: () => { if (typeof onDone === 'function') setTimeout(onDone, 0); },
   });
 }
 
@@ -2678,7 +2684,27 @@ function renderCloudSettings() {
     await window.hubAPI.cloudUnlock({ url: f.url, shopId: su.shopId, token: su.token, keyset: ks.keyset, passphrase: f.pass });
     const up = await window.hubAPI.cloudPutKeyset({ url: f.url, shopId: su.shopId, token: su.token, keyset: ks.keyset });
     if (!up.ok) { result('✗ ' + (up.error || 'could not save keyset'), 'var(--danger)'); return; }
-    showRecoveryKeyModal(ks.recoveryKey);
+    /* ASK FOR THE CODE WHILE THE SHOP IS HOLDING IT.
+     *
+     * Sign-up sends a verification email, and this used to end with a success
+     * toast and a warning banner in the cloud settings panel — a panel the shop
+     * has just finished with, behind the recovery-key modal it was reading. So
+     * the code arrived and there was visibly nowhere to type it. Reported
+     * exactly that way: "I got an email with a code but nowhere to enter it."
+     *
+     * The banner and its button stay: somebody who closes this, or whose email
+     * takes a few minutes, still needs a way back. But the moment the email is
+     * sent is the moment to ask, and the recovery key has to be acknowledged
+     * first — it is shown once and losing it loses the data. */
+    showRecoveryKeyModal(ks.recoveryKey, () => {
+      // Not when the server could not send it: there is no code coming, and a
+      // box waiting for one would be a worse lie than the toast below.
+      // No sender argument: /v1/signup does not return one (only /v1/request-verify
+      // does), and passing `su.sender` would be a parameter that is always
+      // undefined — a branch that reads as handled and cannot run. The modal
+      // renders correctly without it and simply omits the "sent from" line.
+      if (!su.emailFailed) showVerifyEmailModal(f.url, f.email);
+    });
     await enableCloudAutoSync({ initialPull: false }); // new shop: just push local
     renderCloudSettings();
     toast(t('cloud.account_created') || 'Account created — Khayt Cloud connected', 'success');

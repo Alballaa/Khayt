@@ -4,6 +4,15 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Fixed
+
+- **Creating a Khayt Cloud account now asks for the verification code it just
+  emailed you.** The code was sent, and the only place to type it was a small
+  "Verify email" button in Settings → Khayt Cloud — a panel you had just
+  finished with. Khayt now asks for the code straight after you have saved your
+  recovery key. The button stays, for when the email takes a few minutes or you
+  close the box.
+
 ## [3.7.0-beta.11] - 2026-08-29
 
 ### Fixed
