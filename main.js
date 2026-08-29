@@ -4418,8 +4418,17 @@ ipcMain.handle('hub:bedready-library', async () => {
     // unsave, so only "nothing changed" is acted on and anything else re-reads
     // the whole list. See syncLibrary.
     const r = await makerrunLibrary.syncLibrary(token, { state });
-    SyncState.write(userData, { ...state, syncedAt: r.syncedAt, items: r.items });
-    return { ok: true, items: r.items, unchanged: r.unchanged };
+    // THE CACHE IS ONLY REPLACED FROM A COMPLETE READ.
+    //
+    // An incomplete sync — paging that did not reach the end — is still worth
+    // showing, because a partial library beats none. It is NOT worth storing as
+    // the library: the next sync would compare against it and read the pages we
+    // never fetched as designs the shop had removed. Absence only means removal
+    // when the read was whole.
+    if (r.complete !== false) {
+      SyncState.write(userData, { ...state, syncedAt: r.syncedAt, items: r.items });
+    }
+    return { ok: true, items: r.items, unchanged: r.unchanged, partial: r.complete === false };
   } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
 });
 

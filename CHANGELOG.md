@@ -4,6 +4,22 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Fixed
+
+- **A MakerRun library with more than 200 saved designs now shows all of them.**
+  The library page returns 200 designs at a time, and Khayt was reading the first
+  batch as though it were the whole library — so a shop with 250 saved designs
+  saw 200 of them and was told nothing about the rest. Khayt now fetches every
+  page.
+
+  If it cannot reach the end for any reason it says the list is partial and
+  leaves what it had remembered alone, rather than treating designs it never
+  received as ones you had deleted.
+
+- **Removing a design from your MakerRun library now removes it from Khayt.**
+  Khayt can also see what left since it last looked, so an ordinary sync of a
+  changed library is one request rather than two.
+
 ### Added
 
 - **A design from your MakerRun library now shows whether you can sell the
