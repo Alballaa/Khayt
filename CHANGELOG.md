@@ -4,6 +4,8 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.7.0-rc.1] - 2026-08-29
+
 ### Fixed
 
 - **Delivery estimates were two days later than they needed to be, per week of
