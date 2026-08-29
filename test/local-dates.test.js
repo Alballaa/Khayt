@@ -97,6 +97,9 @@ test('the ban recognises months and years, not only days', () => {
  */
 const LIB_UTC_IS_DELIBERATE = {
   'lib/schedule.js': 'setUTCDate then read UTC — day arithmetic, both ends UTC, cannot drift',
+  'lib/lead-time.js': 'same shape as schedule.js: anchors to T00:00:00Z and reads UTC back, so the '
+    + 'arithmetic cannot drift. The LOCAL day enters as the caller-supplied `today`, which is where '
+    + 'the timezone decision belongs — this module never asks a clock.',
   'lib/sample-data.js': 'anchors to T00:00:00Z and does UTC arithmetic; demo data besides',
   'lib/payment-plan.js': 'addDays anchors to T00:00:00.000Z; the no-argument branch is unreachable',
   'lib/telemetry-scrub.js': 'telemetry is aggregated in UTC by design, not shown as a local day',
