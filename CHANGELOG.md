@@ -6,6 +6,23 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Added
 
+- **Images can be fitted to an upload's size limit before the upload fails.**
+  Storefronts cap what they accept — Medusa allows 1 MB per image — and a
+  rejected picture is normally discovered at the end of making a listing, after
+  everything else is written. Khayt can now take a photo and produce a version
+  that will be accepted.
+
+  It tries the least damaging thing first: an image already small enough is left
+  exactly as it is, then quality is reduced before any size is, and a picture
+  with a transparent background stays a PNG for as long as that is possible. If
+  it cannot get under the limit without ruining the picture it says so instead —
+  you can crop or re-shoot, but you cannot undo a photo that was quietly
+  flattened.
+
+  It always says what it did: converted, resized, recompressed, and from what
+  size to what size.
+
+
 - **Khayt can tell a customer when their order would actually be ready.**
   Settings now has **Delivery estimates**: how many printing hours you get
   through on a working day, how many days a week you work, and how long

@@ -391,6 +391,128 @@ ipcMain.handle('hub:delete-product-image', async (_e, filename) => {
 ipcMain.handle('hub:reveal-products-folder', async () => shell.openPath(productsDir()));
 
 // --- Order print photos (new in 1.3) ---
+/* ── Fitting an image under an upload limit ─────────────────────────────────
+ *
+ * Storefronts cap what they accept — Medusa at 1 MB an image — and a rejected
+ * upload is found at the END of making a listing, after the description is
+ * written and the price is set. Khayt holds the photos, so it can answer before
+ * anyone finds out the hard way.
+ *
+ * lib/image-fit.js decides; this encodes. Electron's own nativeImage does the
+ * work, so no image library joins the build for this — which matters, because a
+ * native dependency is a thing that breaks on one platform at packaging time and
+ * is discovered by a user.
+ */
+/**
+ * Does this image actually use its alpha channel?
+ *
+ * Scans until it finds a pixel that is not fully opaque, so a transparent image
+ * usually answers in the first few rows and an opaque one costs a single pass
+ * over the bitmap — a few milliseconds, once, against five PNG encodes of a
+ * multi-megapixel image if we guess wrong.
+ *
+ * Sampling would be cheaper and is not safe here: a logo with one small cut-out
+ * corner is exactly the image whose transparency matters most, and exactly the
+ * one a sparse sample would miss.
+ */
+function hasTransparency(img) {
+  try {
+    const bmp = img.toBitmap(); // BGRA
+    for (let i = 3; i < bmp.length; i += 4) if (bmp[i] !== 255) return true;
+    return false;
+  } catch (_) {
+    // Unreadable bitmap: assume transparency rather than flatten something we
+    // could not inspect. The cost is a worse-looking image; the alternative is
+    // silently destroying one.
+    return true;
+  }
+}
+
+function fitImageBuffer(buf, opts) {
+  const Fit = require('./lib/image-fit.js');
+  const { nativeImage } = require('electron');
+  const o = opts || {};
+  const budget = Math.max(1024, Number(o.budgetBytes) || 1024 * 1024);
+
+  const img = nativeImage.createFromBuffer(buf);
+  if (img.isEmpty()) return { ok: false, reason: 'unreadable', bytes: buf.length };
+  const size = img.getSize();
+  const originalFormat = buf.length > 8 && buf[0] === 0x89 && buf[1] === 0x50 ? 'png' : 'jpeg';
+
+  const plan = Fit.fitPlan({
+    bytes: buf.length, width: size.width, height: size.height,
+    format: originalFormat,
+    // LOOKED AT, NOT ASSUMED.
+    //
+    // The first version took "it is a PNG" for "it has transparency", and a
+    // photograph saved as PNG — a screenshot, an export, most of what people
+    // actually have — then walked the whole PNG ladder because PNG never gets
+    // small enough. Measured on a 13 MB 3000×2200 photo: it fitted at 800×587
+    // PNG, when JPEG at 2000px fits with room to spare and looks far better.
+    // Assuming cost that image most of its resolution to protect an alpha
+    // channel it did not have.
+    hasAlpha: originalFormat === 'png' && hasTransparency(img),
+    budgetBytes: budget, maxEdge: o.maxEdge,
+  });
+
+  const base = {
+    originalBytes: buf.length, originalWidth: size.width, originalHeight: size.height,
+    originalFormat, note: plan.note,
+  };
+  if (plan.keep) {
+    return { ok: true, keep: true, buffer: buf, bytes: buf.length, format: originalFormat,
+      width: size.width, height: size.height, ...base };
+  }
+
+  for (const step of plan.steps) {
+    const longest = Math.max(size.width, size.height) || step.maxEdge;
+    const scaled = longest > step.maxEdge
+      ? img.resize(size.width >= size.height
+        ? { width: step.maxEdge, quality: 'best' }
+        : { height: step.maxEdge, quality: 'best' })
+      : img;
+    const out = step.format === 'png' ? scaled.toPNG() : scaled.toJPEG(step.quality);
+    if (out && out.length && out.length <= budget) {
+      const s = scaled.getSize();
+      return { ok: true, keep: false, buffer: out, bytes: out.length, format: step.format,
+        quality: step.quality, width: s.width, height: s.height, ...base };
+    }
+  }
+
+  /* NOTHING IN THE PLAN FIT, so this refuses rather than returning the smallest
+   * attempt. The floor exists because a shop can crop or re-shoot a picture and
+   * cannot undo what we quietly did to its only one. */
+  return { ok: false, reason: 'too-large', ...base, bytes: buf.length };
+}
+
+/**
+ * Fit one image for upload. `dataUrl` in, `dataUrl` out, plus what was done.
+ *
+ * Returns the sentence as well as the numbers: a photo that was silently
+ * recompressed is one a shop will one day notice looks worse than the file on
+ * its disk, and wonder what else Khayt changed without saying.
+ */
+ipcMain.handle('hub:fit-image', async (_e, { dataUrl, budgetBytes, maxEdge } = {}) => {
+  try {
+    const Fit = require('./lib/image-fit.js');
+    const m = /^data:image\/[a-z+.-]+;base64,(.+)$/i.exec(String(dataUrl || ''));
+    if (!m) return { ok: false, error: 'Not an image.' };
+    const buf = Buffer.from(m[1], 'base64');
+    // A cap on what we will even attempt: decoding an arbitrarily large image
+    // into memory on the main process is a way to take the app down.
+    if (buf.length > 64 * 1024 * 1024) return { ok: false, error: 'That image is too large to process.' };
+    const r = fitImageBuffer(buf, { budgetBytes, maxEdge });
+    if (!r.ok) return { ok: false, error: Fit.describeResult(r), reason: r.reason };
+    return {
+      ok: true, keep: !!r.keep,
+      dataUrl: `data:image/${r.format};base64,${r.buffer.toString('base64')}`,
+      bytes: r.bytes, originalBytes: r.originalBytes,
+      width: r.width, height: r.height, format: r.format,
+      message: Fit.describeResult(r),
+    };
+  } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+});
+
 ipcMain.handle('hub:save-order-photo', async (_e, orderId, idx, dataUrl) => {
   const { ext, buffer } = decodeDataUrl(dataUrl);
   const safeId = path.basename(String(orderId || '')).replace(/[^a-zA-Z0-9_-]/g, '_');

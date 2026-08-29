@@ -44,6 +44,10 @@ contextBridge.exposeInMainWorld('hubAPI', {
 
   // Order print photos (userData/order-photos/)
   saveOrderPhoto:   (orderId, idx, dataUrl) => ipcRenderer.invoke('hub:save-order-photo', orderId, idx, dataUrl),
+  /* Fit an image under an upload's size limit. Returns the image AND a sentence
+     saying what was done to it — a photo silently recompressed is one somebody
+     later notices looks worse than the file on their disk. */
+  fitImage:         (opts) => ipcRenderer.invoke('hub:fit-image', opts),
   loadOrderPhoto:   (filename) => ipcRenderer.invoke('hub:load-order-photo', filename),
   deleteOrderPhoto: (filename) => ipcRenderer.invoke('hub:delete-order-photo', filename),
 
