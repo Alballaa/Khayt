@@ -460,6 +460,7 @@
   "common.optional": "opcional",
   "common.none": "nenhum",
   "common.close": "Fechar",
+  "common.unexpected_error": "Algo deu errado e esta ação parou no meio",
   "common.copy": "Copiar",
   "common.copied": "Copiado!",
   "common.print": "Imprimir",

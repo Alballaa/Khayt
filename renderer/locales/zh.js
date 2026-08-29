@@ -459,6 +459,7 @@
   "common.optional": "可选",
   "common.none": "无",
   "common.close": "关闭",
+  "common.unexpected_error": "出现错误，此操作已中途停止",
   "common.copy": "复制",
   "common.copied": "已复制！",
   "common.print": "打印",

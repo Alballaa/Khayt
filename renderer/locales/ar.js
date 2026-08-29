@@ -552,6 +552,7 @@
   "common.optional": "اختياري",
   "common.none": "لا يوجد",
   "common.close": "إغلاق",
+  "common.unexpected_error": "حدث خطأ وتوقّف هذا الإجراء في منتصفه",
   "common.copy": "نسخ",
   "common.copied": "تم النسخ!",
   "common.print": "طباعة",

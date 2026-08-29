@@ -2,34 +2,67 @@
 
 Living priorities for maintainers. Not a public commitment calendar — reorder as the product needs.
 
-## Now (post-3.6.0, 3.7.0-beta.12 being cut — on `main`)
+## Now (post-3.6.0, 3.7.0-beta.13 being cut — on `main`)
 
 **Stable is v3.6.0** (2026-08-21) — the 3.6.0 line, promoted from
 `v3.6.0-rc.4` unchanged after a seven-day soak. rc.4 was the first candidate on
 this line that `main` did not overtake, so for once replace-vs-promote resolved
 to *promote*; rc.1, rc.2 and rc.3 were each replaced instead.
 
-**`v3.7.0-beta.12` is the cut being made now** (2026-08-29), and it is **the
-promotion candidate** — the promise lives in
+**`v3.7.0-beta.13` is the cut being made now** (2026-08-29), and it **replaces
+`beta.12` as the promotion candidate** — the promise lives in
 [docs/RELEASE-HOLD.md](./docs/RELEASE-HOLD.md), not in the version string. Built
 for all three platforms, `BUILD_MAC` set: macOS current is a gate condition for
 promotion, and the build that becomes stable should not be the one cut behind.
 
-It carries one commit over `beta.11`, and it exists because of how that bug was
-found. Creating a cloud account emails a verification code, and the app showed
-the recovery key, said "Account created", and put the only box for that code
-behind a button in a settings panel the shop had just finished with. Every piece
-worked — the modal, the resend, the banner, the endpoint. Nobody asked at the
-moment the shop was holding the code, which is the whole feature.
+**`beta.12` must not be promoted.** Signing in to Khayt Cloud did not work in it,
+and neither did creating an account: `syncScopeToShop` is declared in
+`app-state.js` and was never added to that file's export list, so the three
+handlers that call it — sign-up, log-in and join-a-team — reached the server, got
+a valid answer, and died one line later on a ReferenceError. Nothing was saved.
+Nothing was shown. The panel sat on "Connecting…" for as long as anyone cared to
+wait, which is how it was reported.
 
-Checked while fixing it, because a flow nobody walks end to end is rarely the
-only one: password reset opens its modal immediately, the team invite has its own
-dialog, and the customer portal page carries a `one-time-code` input. Verification
-was the only one of its family.
+It had been that way since #514, shipped in `v3.4.2`. **beta.12's headline fix
+was downstream of it and can never have run** — the verification-code dialog that
+release was cut for opens two lines after the throw. The bug was real, the fix
+was right, and it shipped unreachable, verified by launching the app rather than
+by walking the flow.
 
-**The newest *published* pre-release is `v3.7.0-beta.11`** (2026-08-29) — all
-three platforms, verified after the publish: every manifest reads `3.7.0-beta.11`
-and each of the five assets it names resolves.
+Two things came out of that and matter more than either bug:
+
+*An unhandled rejection was reported to Sentry and nowhere else.* Sentry is off
+unless a build configures it, so in a shop's hands the error went nowhere at all.
+The renderer now says so on screen, deduped by message — and the handlers are
+installed FIRST rather than as the 148th of 149 scripts, so boot itself is
+covered for the first time.
+
+*A cross-file call into an IIFE-private function had only half a guard.*
+`test/cross-file-wiring.test.js` checked `typeof X === 'function'` calls, which
+fail silently; a bare `X()` fails loudly and invisibly. It now checks both, and
+found a second one the same day (`renderDepositAuditBanner`).
+
+Found while reviewing the rest of the desktop↔cloud relationship, each with its
+own guard:
+
+- Saving Settings rebuilt `settings` from the form and dropped every key the form
+  does not name — nineteen of them, `cloud` included. That is what actually
+  signed the reporting shop out. It spreads first now, so omission preserves.
+- `login()` discarded `verified`, which the server has always sent, so every
+  device believed the account was unverified.
+- `signup()` discarded `emailConfigured`, so a self-hosted server with no mail
+  asked for a code that was never sent.
+
+The rest of the surface was checked against the live server and holds: the
+deployed `index.php` is byte-identical to this repo, all 36 routes the client can
+call exist (only the dormant `/v1/telemetry` 404s), the encrypted round-trip is
+lossless with no plaintext server-side, a stale push is refused with `serverRev`,
+and a wrong passphrase, a bad token and a cross-shop read all fail closed.
+
+**The newest *published* pre-release is `v3.7.0-beta.12`** (2026-08-29) — all
+three platforms, verified after the publish: every manifest reads `3.7.0-beta.12`
+and each of the five assets it names resolves. It runs; it just cannot sign in to
+the cloud, which is why `beta.13` follows it the same day.
 
 *(A release was published earlier the same day under an `rc` prerelease tag, and
 has been deleted, tag and all. electron-updater's ladder knows `alpha` and `beta` and nothing else, so an

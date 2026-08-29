@@ -459,6 +459,7 @@
   "common.optional": "optional",
   "common.none": "none",
   "common.close": "Close",
+  "common.unexpected_error": "Something went wrong and this action stopped partway",
   "common.copy": "Copy",
   "common.copied": "Copied!",
   "common.print": "Print",

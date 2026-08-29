@@ -4,6 +4,31 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.7.0-beta.13] - 2026-08-29
+
+### Fixed
+
+- **Signing in to Khayt Cloud no longer sticks on "Connecting…".** Logging in,
+  creating an account and joining a team all reached the server, got a valid
+  answer, and then stopped one line later on an internal error that nothing
+  reported. Nothing was saved and nothing was shown, so the only symptom was a
+  panel that never finished. All three now complete.
+- **Saving Settings no longer signs you out of Khayt Cloud.** Entering a
+  business name or a logo rebuilt your settings from the form and dropped
+  everything the form does not show — your cloud account among them, along with
+  your slicer setup and your privacy choices. Settings the page does not display
+  are now carried through untouched.
+- **The "Email not verified" warning no longer appears for accounts that are
+  verified.** Khayt asked the server on every sign-in and then discarded the
+  answer, so every device started out believing your email was unverified.
+- **When a self-hosted server has no email set up, sign-up says so** instead of
+  asking for a verification code that was never sent.
+- **An action that fails now says so.** When something goes wrong mid-way, Khayt
+  tells you rather than leaving the screen mid-flight — including during start-up,
+  which previously had no reporting at all.
+- Clicking **Restore** on a deposit the audit can no longer find refreshes the
+  banner instead of doing nothing.
+
 ## [3.7.0-beta.12] - 2026-08-29
 
 ### Fixed

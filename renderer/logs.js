@@ -733,6 +733,12 @@ function exportOrdersCsv() {
 }
   const api = {
     clientsWithAnyOrder,
+    // wire-events.js calls this bare when the shop clicks Restore on a deposit
+    // the audit no longer finds — the "the banner is stale, redraw it" path.
+    // Private to this IIFE, that was a ReferenceError that killed the click
+    // handler instead, leaving the stale row on screen. Same class as the cloud
+    // login freeze; test/cross-file-wiring.test.js now covers bare calls.
+    renderDepositAuditBanner,
     getFilteredLogs,
     clearLogFilters,
     renderLogs,

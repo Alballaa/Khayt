@@ -56,6 +56,15 @@ function declarations() {
 
 const isWrapped = (f) => /^\s*\(function\s*\(/m.test(SRC.get(f));
 
+/** True when `name` is declared at column 0 below the file's IIFE opening line. */
+function declaredInsideWrapper(f, name) {
+  const s = SRC.get(f);
+  const open = s.search(/^\s*\(function\s*\(/m);
+  if (open === -1) return false;
+  const at = s.search(new RegExp(`^(?:async )?function ${name}\\s*\\(`, 'm'));
+  return at !== -1 && at > open;
+}
+
 /**
  * Every name a file makes globally reachable, by any mechanism used in this
  * codebase. Missing one of these produces false positives, which is worse than
@@ -128,4 +137,88 @@ test('the check can actually see the export mechanisms in use', () => {
     if (!SRC.has(file)) continue;
     assert.ok(exportedBy(file).has(name), `${name} should be seen as exported from ${file}`);
   }
+});
+
+/**
+ * The louder half of the same class: a BARE cross-file call.
+ *
+ * `typeof X === 'function'` degrades to silence. A plain `X()` into an
+ * IIFE-private function is a ReferenceError that aborts the whole handler at
+ * that line — so the work before it has happened, the work after it never
+ * does, and the UI is left mid-flight with nothing on screen.
+ *
+ * That is how `syncScopeToShop` shipped: declared in app-state.js, absent from
+ * its export list, called bare by sign-up, log-in and join-a-team. The account
+ * was assigned in memory, the very next line's saveAll() never ran, and the
+ * cloud panel sat on "Connecting…" for as long as anyone cared to wait.
+ * Reported as "trying to log onto the cloud and stuck at connecting".
+ *
+ * The guarded check above could not see it, because the call carries no guard.
+ */
+function bareCalls() {
+  const used = new Map(); // name -> Set(files that call it)
+  for (const [f, s] of SRC) {
+    // Strip comments and strings so prose and message text cannot register as calls.
+    const code = s
+      .replace(/\/\*[\s\S]*?\*\//g, ' ')
+      .replace(/(^|[^:])\/\/[^\n]*/g, '$1')
+      .replace(/`(?:\\.|[^`\\])*`/g, '``')
+      .replace(/\/(?![*/])(?:\\.|\[(?:\\.|[^\]\\])*\]|[^/\\\n])+\/[gimsuy]*/g, '/RE/')
+      .replace(/'(?:\\.|[^'\\\n])*'/g, "''")
+      .replace(/"(?:\\.|[^"\\\n])*"/g, '""');
+    for (const m of code.matchAll(/(^|[^\w.$'"`])([A-Za-z_]\w*)\s*\(/g)) {
+      // `function foo(`, `new foo(`, and `.foo(` are not bare calls to a global.
+      const before = code.slice(Math.max(0, m.index - 12), m.index + m[1].length);
+      if (/\b(?:function|new|class)\s*$/.test(before)) continue;
+      if (!used.has(m[2])) used.set(m[2], new Set());
+      used.get(m[2]).add(f);
+    }
+  }
+  return used;
+}
+
+test('every bare cross-file call reaches a function that is actually exported', () => {
+  const used = bareCalls();
+  const decl = declarations();
+  const unreachable = [];
+  let checked = 0;
+
+  for (const [name, callers] of used) {
+    const where = decl.get(name);
+    if (!where) continue;                 // not declared in renderer/ — nothing to check
+    if (where.length > 1) continue;       // declared in several files; a caller may mean its own
+    const file = where[0];
+    if (!isWrapped(file)) continue;       // not IIFE-wrapped: the declaration is global
+    // Wrapped is not the same as inside the wrapper. Several files open their
+    // IIFE partway down and declare true globals above it — app-state.js does
+    // exactly that for 400 lines. Only a declaration BELOW the opening line is
+    // private to it, and only one at column 0 is the module's own top level;
+    // an indented `function destroy()` belongs to some factory inside.
+    if (!declaredInsideWrapper(file, name)) continue;
+    const external = [...callers].filter((c) => c !== file);
+    if (!external.length) continue;       // only called from its own file
+    // A caller that declares the name itself, or takes it as a parameter, is
+    // calling its own — not reaching across a file boundary.
+    const shadows = external.filter((c) => new RegExp(
+      `(?:function|const|let|var)\\s+${name}\\b|\\b${name}\\s*=\\s*(?:\\(|function|async)`,
+    ).test(SRC.get(c)));
+    const reaching = external.filter((c) => !shadows.includes(c));
+    if (!reaching.length) continue;
+    checked++;
+    if (!exportedBy(file).has(name)) {
+      unreachable.push(`${name} (declared in ${file}, called bare from ${reaching.sort().join(', ')})`);
+    }
+  }
+
+  assert.ok(checked > 20, `expected many bare cross-file calls, found ${checked}`);
+  assert.deepEqual(unreachable.sort(), [],
+    `these calls throw ReferenceError and abort their caller mid-handler:\n  ${unreachable.sort().join('\n  ')}`);
+});
+
+test('syncScopeToShop specifically is reachable from settings.js', () => {
+  // The three call sites are sign-up, log-in and join-a-team — every route a
+  // shop has into the cloud. Named on its own so a regression here reads as the
+  // login bug it is, rather than as one line in a list.
+  assert.ok(exportedBy('app-state.js').has('syncScopeToShop'),
+    'app-state.js must export syncScopeToShop — settings.js calls it bare on all three cloud entry paths');
 });

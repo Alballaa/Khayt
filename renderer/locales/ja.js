@@ -459,6 +459,7 @@
   "common.optional": "任意",
   "common.none": "なし",
   "common.close": "閉じる",
+  "common.unexpected_error": "エラーが発生し、この操作は途中で停止しました",
   "common.copy": "コピー",
   "common.copied": "コピーしました！",
   "common.print": "印刷",

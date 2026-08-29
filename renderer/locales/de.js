@@ -459,6 +459,7 @@
   "common.optional": "optional",
   "common.none": "keine",
   "common.close": "Schließen",
+  "common.unexpected_error": "Etwas ist schiefgelaufen — die Aktion wurde mittendrin abgebrochen",
   "common.copy": "Kopieren",
   "common.copied": "Kopiert!",
   "common.print": "Drucken",

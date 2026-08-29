@@ -78,10 +78,18 @@ async function main() {
     return {
       present: BUSINESS.filter((b) => srcs.includes(b)),
       shimFirst: srcs[0] === 'bedready-shim.js',
+      // The error reporter goes immediately after the shim, not before it: the
+      // shim declares the business globals this flavour does not ship, and
+      // anything loading first would be running against undeclared identifiers.
+      // The shim is pure declarations and cannot reject, so nothing is lost by
+      // being second — but Bed Ready must not be the flavour whose boot errors
+      // go unreported, which is what "just leave it at the bottom" would mean.
+      reporterSecond: srcs[1] === 'error-report.js',
     };
   });
   assert(`no business <script> tags in document (${bizScripts.present.join(',') || 'none'})`, bizScripts.present.length === 0);
   assert('bedready-shim.js is the first script', bizScripts.shimFirst === true);
+  assert('error-report.js is the second script', bizScripts.reporterSecond === true);
 
   console.log('\n[maker modules present + shared core]');
   const maker = await window.evaluate(() => ({

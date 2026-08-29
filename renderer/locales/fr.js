@@ -459,6 +459,7 @@
   "common.optional": "optionnel",
   "common.none": "aucun",
   "common.close": "Fermer",
+  "common.unexpected_error": "Une erreur s’est produite et l’action s’est arrêtée en cours",
   "common.copy": "Copier",
   "common.copied": "Copié !",
   "common.print": "Imprimer",
