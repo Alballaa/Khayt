@@ -2,19 +2,32 @@
 
 Living priorities for maintainers. Not a public commitment calendar — reorder as the product needs.
 
-## Now (post-3.6.0, 3.7.0-rc.1 being cut — on `main`)
+## Now (post-3.6.0, 3.7.0-beta.11 being cut — on `main`)
 
 **Stable is v3.6.0** (2026-08-21) — the 3.6.0 line, promoted from
 `v3.6.0-rc.4` unchanged after a seven-day soak. rc.4 was the first candidate on
 this line that `main` did not overtake, so for once replace-vs-promote resolved
 to *promote*; rc.1, rc.2 and rc.3 were each replaced instead.
 
-**`v3.7.0-rc.1` is the cut being made now** (2026-08-29) — and it is an **rc**
-rather than a `beta.11` on purpose. The line has run ten betas in six days, and a
-gate whose condition is *real shop use* has never been met by any of them because
-each was superseded within hours. A candidate is the same code with a different
-promise: it IS the thing proposed for stable, and its soak is the soak. Nothing
-follows it unless something is actually wrong.
+**`v3.7.0-beta.11` is the cut being made now** (2026-08-29), and it is **the
+promotion candidate** — the promise lives in
+[docs/RELEASE-HOLD.md](./docs/RELEASE-HOLD.md), not in the version string.
+
+It was cut with an `rc` prerelease tag first, and that release is published and
+unreachable.
+electron-updater's ladder understands `alpha` and `beta` and nothing else, so an
+`rc` is a custom channel that only ever matches itself: a shop on `beta.10` asked
+for updates and was offered `beta.10`. Both directions — an `rc` install cannot
+come back to a newer beta either. That release should be deleted; it is inert
+today only because of the very bug that makes it unreachable, and it sorts above
+this candidate. The candidate nobody could install could not be
+soaked by anybody, which is the one thing a candidate is for.
+
+VERSIONING.md had asserted the opposite in writing, which is very likely why the
+3.6.0 line's four candidates never reached a beta user either; nobody noticed
+because promotion goes rc → stable and stable installs take the newest entry
+regardless. `test/updater-channel-ladder.test.js` now fails any version whose
+prerelease tag is off that ladder.
 
 **Built for all three platforms**, `BUILD_MAC` set for the tag. macOS has been on
 `beta.8` for two cuts, which is the ordinary state mid-line and is not the state

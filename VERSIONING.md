@@ -5,7 +5,22 @@ Khayt uses [Semantic Versioning 2.0.0](https://semver.org/) as `MAJOR.MINOR.PATC
 **Current release lines** (last verified 2026-08-27 against `gh release list` and a fetch of every published manifest):
 
 - **Stable:** `3.6.x` — latest tag **v3.6.0**, published 2026-08-21 ([releases/latest](https://github.com/khaytapp/Khayt/releases/latest)), promoted from `v3.6.0-rc.4` unchanged. Supersedes v3.5.3 (2026-08-01)
-- **Beta / RC:** the `3.7.0` line is open and has moved to a CANDIDATE — **`v3.7.0-rc.1` is being cut** (2026-08-29), for all three platforms. Latest *published* pre-release is **v3.7.0-beta.10** (2026-08-27). An rc rather than a `beta.11` deliberately: the line ran ten betas in six days and none of them ever soaked, because each was superseded within hours. A candidate is the same code with a different promise — it is the thing proposed for stable, and nothing follows it unless something is wrong. The line has run `beta.1` (delta cloud writes), `beta.2` (a print library that can outgrow its disk), `beta.3` (a macOS build of `beta.2`), `beta.4` (storage-provider signup links), `beta.5` (printers and models, first all-platform cut on this line), `beta.6` and `beta.9` (the vendor audits), `beta.7` (Medusa and both kinds of Duet), `beta.8` (installable designs and cost per model) and `beta.10` (the audit method's last three surfaces). The `3.6.0` line closed when `v3.6.0-rc.4` was promoted to stable on 2026-08-21; it ran `beta.1`–`beta.19` then `rc.1`–`rc.4`, and `-rc` and `-beta` are the same channel to the updater. See [docs/BETA-RELEASE.md](./docs/BETA-RELEASE.md)
+- **Beta / RC:** the `3.7.0` line is open and has moved to a CANDIDATE — **`v3.7.0-beta.11` is being cut** (2026-08-29), for all three platforms, and it is the promotion candidate. Latest *published* pre-release is **v3.7.0-beta.10** (2026-08-27). **A candidate is named `-beta.N` here, and the candidacy lives in docs/RELEASE-HOLD.md rather than in the version string** — see the channel warning below. The line has run `beta.1` (delta cloud writes), `beta.2` (a print library that can outgrow its disk), `beta.3` (a macOS build of `beta.2`), `beta.4` (storage-provider signup links), `beta.5` (printers and models, first all-platform cut on this line), `beta.6` and `beta.9` (the vendor audits), `beta.7` (Medusa and both kinds of Duet), `beta.8` (installable designs and cost per model) and `beta.10` (the audit method's last three surfaces). The `3.6.0` line closed when `v3.6.0-rc.4` was promoted to stable on 2026-08-21; it ran `beta.1`–`beta.19` then `rc.1`–`rc.4`.
+
+  > **`-rc` IS NOT THE SAME CHANNEL AS `-beta`, and this file used to say it was.**
+  > electron-updater's `GitHubProvider` walks `releases.atom` and its ladder knows
+  > `alpha` and `beta` only; every other prerelease name is a *custom channel* that
+  > matches itself and nothing else. Measured against the real feed with the real
+  > library on 2026-08-29: an install on `3.7.0-beta.10` offered an `rc` build is
+  > told about `v3.7.0-beta.10` — the version it already has — and an install on an
+  > `rc` is never offered a newer `beta`. The 3.6.0 line's four candidates were
+  > therefore very likely never installed by a beta user; nobody noticed, because
+  > promotion goes rc → stable and stable installs take the newest entry regardless.
+  > `test/updater-channel-ladder.test.js` fails any version off that ladder.
+  >
+  > The release published under that tag on 2026-08-29 should be deleted rather
+  > than left standing: nothing can install it, and it sorts above the candidate
+  > that replaced it. See [docs/BETA-RELEASE.md](./docs/BETA-RELEASE.md)
 - **macOS runs behind on purpose.** A mac build bills at roughly 10× the others, so `BUILD_MAC` is set only for the cuts that bring it current rather than for every one. As of `v3.7.0-beta.10` macOS is on **`beta.8`**, two cuts back, and `carry-mac-manifest` republishes that release's `latest-mac.yml` under each newer tag — in the **relative** `../v3.7.0-beta.8/` form, so the assets it names resolve from the newer feed. A verbatim copy would name files the newer release does not contain.
 - **The `beta.4` trap is resolved, and the lesson is not.** `main` carried version `3.7.0-beta.4` for most of 2026-08-23 with no `v3.7.0-beta.4` tag on the remote, so release CI never ran and no installer existed while `package.json` looked finished. It was tagged from `11ef165` and published the same day. **A merged version bump is evidence the *cut* landed and nothing more** — check with `git ls-remote --tags origin` or `gh release list`, never by reading `package.json`.
 - **Bed Ready:** a different app from the same repo, on its **own** version line
