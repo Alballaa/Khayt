@@ -22,13 +22,35 @@ const fs = require('fs');
 const path = require('path');
 
 const CLIENT = fs.readFileSync(path.join(__dirname, '..', 'lib', 'cloud-client.js'), 'utf8');
-const PHP = path.join(__dirname, '..', 'khayt-cloud', 'index.php');
 
-/** The keys in the server's `send(200, [...])` for one endpoint. */
-function serverFields(uri) {
+/**
+ * What each endpoint answers with, PINNED HERE.
+ *
+ * The server lives in its own repo, checked out at khayt-cloud/ and gitignored,
+ * so reading index.php works on a maintainer's machine and throws ENOENT in CI —
+ * where this check matters most. Skipping when the file is missing would make it
+ * a guard that never runs anywhere it counts, which is the failure this whole
+ * file exists to catch. So the contract is written down, and the cross-check
+ * below keeps the pin honest whenever the server repo IS present.
+ *
+ * Adding a field to one of these endpoints means adding it here and carrying it
+ * in lib/cloud-client.js. That is the point: a new field the client silently
+ * drops is invisible from both ends.
+ */
+const SERVER_SENDS = {
+  '/v1/login': ['shopId', 'token', 'keyset', 'verified', 'role'],
+  '/v1/signup': ['accountId', 'shopId', 'token', 'emailConfigured', 'emailFailed'],
+  '/v1/accept-invite': ['accountId', 'shopId', 'token', 'role', 'keyset'],
+};
+
+const PHP = path.join(__dirname, '..', 'khayt-cloud', 'index.php');
+const havePhp = fs.existsSync(PHP);
+
+/** The keys in the server's `send(200, [...])` for one endpoint, when we can see it. */
+function phpFields(uri) {
   const src = fs.readFileSync(PHP, 'utf8');
   const at = src.indexOf(`$uri === '${uri}'`);
-  assert.notEqual(at, -1, `${uri} is not routed in index.php any more — update this test`);
+  assert.notEqual(at, -1, `${uri} is not routed in index.php any more — update SERVER_SENDS`);
   const block = src.slice(at, src.indexOf("\n    }", at));
   const send = block.match(/send\(200,\s*\[([\s\S]*?)\]\);/);
   assert.ok(send, `${uri} no longer answers with a send(200, [...]) literal`);
@@ -47,7 +69,7 @@ function clientFields(fn) {
 
 for (const [uri, fn] of [['/v1/login', 'login'], ['/v1/signup', 'signup'], ['/v1/accept-invite', 'acceptInvite']]) {
   test(`${uri}: the client carries every field the server sends`, () => {
-    const sent = serverFields(uri);
+    const sent = SERVER_SENDS[uri];
     const kept = clientFields(fn);
     const dropped = sent.filter((f) => !kept.includes(f));
     assert.deepEqual(dropped, [],
@@ -66,4 +88,14 @@ test('login specifically carries verified, and absent does not mean verified', (
   // to be wrong: it hides the banner AND the button that fixes it.
   assert.match(body, /verified:\s*r\.body\.verified\s*===\s*true/,
     'an absent verified must resolve to false, not to a silent claim of verified');
+});
+
+test('the pinned server contract still matches index.php, where it is checked out', { skip: havePhp ? false : 'khayt-cloud/ is a separate repo and is not present' }, () => {
+  // Guards the pin. Without this, SERVER_SENDS could drift from the server it
+  // claims to describe and the checks above would keep passing against a
+  // fiction — the same shape as the bug they exist to catch, one level up.
+  for (const [uri, pinned] of Object.entries(SERVER_SENDS)) {
+    assert.deepEqual(phpFields(uri).sort(), [...pinned].sort(),
+      `SERVER_SENDS['${uri}'] no longer matches index.php — update the pin and carry any new field in cloud-client.js`);
+  }
 });
