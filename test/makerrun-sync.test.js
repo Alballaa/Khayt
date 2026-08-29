@@ -67,7 +67,7 @@ test('anything OTHER than "nothing changed" triggers a full fetch', async () => 
   const cached = { syncedAt: 'T1', items: [item(), item({ designId: 'gone' })], files: {} };
   const r = await lib.syncLibrary('tok', { state: cached, fetchLibrary: fake });
   assert.deepStrictEqual(calls, ['T1', null], 'the probe, then an authoritative full fetch');
-  assert.strictEqual(r.fetched, 2);
+  assert.strictEqual(r.fetched, 'full');
   assert.strictEqual(r.items.length, 1, 'the full list replaces the cache, so an unsaved design disappears');
   assert.strictEqual(r.syncedAt, 'T3');
 });
@@ -234,4 +234,106 @@ test('numbers a designer typed are marked apart from numbers read off a file', (
   assert.match(stated, /brl\.print_from_designer/);
   assert.ok(!/\*/.test(measured), 'a measured figure carries no caveat mark');
   assert.match(stated, /\*/, 'a stated figure is marked, not silently equal to a measured one');
+});
+
+// ── Paging, and what absence is allowed to mean ─────────────────────────────
+//
+// The endpoint capped at 200 and said nothing about it until 2026-08-28. A shop
+// with 250 saved designs received 200 and had no way to know — harmless while
+// nobody mirrored the list, and data loss the moment somebody did, because the
+// 50 never received look exactly like 50 that were removed.
+
+/** A fake endpoint over a fixed library, honouring since/offset like the real one. */
+function server(library, opts = {}) {
+  const calls = [];
+  const page = opts.pageSize || 200;
+  const fn = async (_t, o = {}) => {
+    calls.push({ since: o.since || null, offset: o.offset || 0 });
+    const src = o.since ? (opts.changed || []) : library;
+    const slice = src.slice(o.offset || 0, (o.offset || 0) + page);
+    return {
+      items: slice,
+      count: slice.length,
+      filtered: !!o.since,
+      syncedAt: opts.syncedAt || 'T2',
+      total: src.length,
+      offset: o.offset || 0,
+      truncated: (o.offset || 0) + slice.length < src.length,
+      removed: o.since ? (opts.removed || []) : null,
+      removalsCompleteSince: 'removalsCompleteSince' in opts ? opts.removalsCompleteSince : '2026-01-01T00:00:00Z',
+    };
+  };
+  fn.calls = calls;
+  return fn;
+}
+
+const many = (n) => Array.from({ length: n }, (_, i) => item({ designId: 'd' + i, slug: 's' + i }));
+
+test('a library larger than one page is fetched whole', async () => {
+  const fake = server(many(250), { pageSize: 200 });
+  const r = await lib.syncLibrary('tok', { state: State.EMPTY, fetchLibrary: fake });
+  assert.strictEqual(r.items.length, 250, 'a shop with 250 designs must see 250');
+  assert.strictEqual(r.complete, true);
+  assert.deepStrictEqual(fake.calls.map((c) => c.offset), [0, 200]);
+});
+
+test('a sync that could not reach the end is reported incomplete', async () => {
+  // So the caller does not store it — the pages never fetched would read as
+  // removals on the next comparison.
+  const endless = async () => ({
+    items: [item()], count: 1, filtered: false, syncedAt: 'T2',
+    total: 99999, offset: 0, truncated: true, removed: null, removalsCompleteSince: null,
+  });
+  const r = await lib.syncLibrary('tok', { state: State.EMPTY, fetchLibrary: endless });
+  assert.strictEqual(r.complete, false, 'a server that never stops truncating must not look complete');
+  assert.ok(r.items.length <= lib.MAX_PAGES, 'paging is bounded');
+});
+
+// ── Removals ────────────────────────────────────────────────────────────────
+
+test('a delta that reports removals costs one request, not two', async () => {
+  // The whole point of `removed`: a design that left is absent from a delta, and
+  // so is one that did not change. Same absence, two meanings — until now.
+  const cached = { syncedAt: '2026-06-01T00:00:00Z', items: many(3), files: {} };
+  const fake = server(many(3), { changed: [item({ designId: 'd0', title: 'Renamed' })], removed: ['d1'] });
+  const r = await lib.syncLibrary('tok', { state: cached, fetchLibrary: fake });
+  assert.strictEqual(fake.calls.length, 1, 'the delta was authoritative, so no second request');
+  assert.strictEqual(r.items.length, 2, 'd1 left');
+  assert.ok(!r.items.some((i) => i.designId === 'd1'));
+  assert.strictEqual(r.items.find((i) => i.designId === 'd0').title, 'Renamed', 'the changed item replaced its cached copy');
+});
+
+test('a cursor older than the tombstone window falls back to a full sync', async () => {
+  // Tombstones are pruned at 180 days, so `removed` cannot be complete for a
+  // cursor older than the boundary the server states. Believing a short list
+  // would be the same lie as the absence it replaces.
+  const cached = { syncedAt: '2025-01-01T00:00:00Z', items: many(3), files: {} };
+  const fake = server(many(2), {
+    changed: [item({ designId: 'd0' })], removed: [],
+    removalsCompleteSince: '2026-03-01T00:00:00Z',
+  });
+  const r = await lib.syncLibrary('tok', { state: cached, fetchLibrary: fake });
+  assert.strictEqual(fake.calls.length, 2, 'probe, then an authoritative full sync');
+  assert.strictEqual(r.items.length, 2);
+});
+
+test('a truncated delta is never authoritative for deletion', async () => {
+  // `removed` is computed per REQUEST, not per query, and the pages not fetched
+  // are absent for the same reason a removed design is.
+  const cached = { syncedAt: '2026-06-01T00:00:00Z', items: many(300), files: {} };
+  const fake = server(many(300), { pageSize: 200, changed: many(250), removed: ['d1'] });
+  const r = await lib.syncLibrary('tok', { state: cached, fetchLibrary: fake });
+  assert.ok(fake.calls.length > 1, 'a truncated delta forces the full path');
+  assert.strictEqual(r.items.length, 300, 'nothing was deleted on the strength of a partial answer');
+});
+
+test('a server that sends no removalsCompleteSince gets no delta trust', () => {
+  // Absent is not "no boundary, trust everything". An older deployment that has
+  // not got the field must not have its deltas treated as complete.
+  const cached = { syncedAt: '2026-06-01T00:00:00Z', items: many(3), files: {} };
+  const fake = server(many(2), { changed: [item()], removed: ['d1'], removalsCompleteSince: null });
+  return lib.syncLibrary('tok', { state: cached, fetchLibrary: fake }).then((r) => {
+    assert.strictEqual(fake.calls.length, 2, 'no boundary stated means no delta applied');
+    assert.strictEqual(r.items.length, 2);
+  });
 });
