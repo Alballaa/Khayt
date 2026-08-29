@@ -417,7 +417,19 @@ ipcMain.handle('hub:reveal-products-folder', async () => shell.openPath(products
  */
 function hasTransparency(img) {
   try {
-    const bmp = img.toBitmap(); // BGRA
+    /* Checked on a DOWNSCALED copy, never the original.
+     *
+     * toBitmap() allocates width × height × 4 in the JS heap, so a legitimate
+     * 100-megapixel phone photo would be a 400 MB allocation just to answer a
+     * yes/no question. Any transparency that matters to a listing survives a
+     * reduction to 1000px; a single stray transparent pixel does not, and a
+     * single stray transparent pixel is not what "does this image use alpha"
+     * means. */
+    const s = img.getSize();
+    const small = Math.max(s.width, s.height) > 1000
+      ? img.resize(s.width >= s.height ? { width: 1000 } : { height: 1000 })
+      : img;
+    const bmp = small.toBitmap(); // BGRA
     for (let i = 3; i < bmp.length; i += 4) if (bmp[i] !== 255) return true;
     return false;
   } catch (_) {
@@ -437,6 +449,27 @@ function fitImageBuffer(buf, opts) {
   const img = nativeImage.createFromBuffer(buf);
   if (img.isEmpty()) return { ok: false, reason: 'unreadable', bytes: buf.length };
   const size = img.getSize();
+
+  /* ── A PIXEL CAP, NOT ONLY A BYTE CAP ──────────────────────────────────────
+   *
+   * The caller caps what it will accept at 64 MB of ENCODED image, which sounds
+   * like a limit and is not one: compressed formats decide how much memory they
+   * become. Measured on this machine, a solid-colour 4000×4000 PNG is 55 KB
+   * encoded and 61 MB decoded — 1,135 decoded bytes per encoded byte — so 64 MB
+   * of that shape asks for roughly 71 GB.
+   *
+   * This runs in the MAIN process, so exhausting it takes the whole app down
+   * rather than a tab. `getSize()` answers before any pixels are allocated,
+   * which is what makes refusing cheap.
+   *
+   * 60 megapixels is past any real camera a shop would photograph a product with
+   * and nowhere near the shapes that make this a weapon.
+   */
+  const megapixels = (size.width * size.height) / 1e6;
+  if (!Number.isFinite(megapixels) || megapixels > 60) {
+    return { ok: false, reason: 'too-many-pixels', bytes: buf.length,
+      originalWidth: size.width, originalHeight: size.height };
+  }
   const originalFormat = buf.length > 8 && buf[0] === 0x89 && buf[1] === 0x50 ? 'png' : 'jpeg';
 
   const plan = Fit.fitPlan({
@@ -4536,7 +4569,12 @@ async function publishLeadTime() {
     const snap = Publish.buildSnapshot({
       settings,
       printLog: (lanServerStore && lanServerStore.printLog) || [],
-      machines: settings.machines || (lanServerStore && lanServerStore.machines) || [],
+      /* Machines live at the STORE ROOT, not under settings — the same place
+         lib/lan-server.js reads them from. An earlier `settings.machines ||`
+         here was a fallback that could never fire: it read as a handled case,
+         always fell through, and would have hidden a real change of location
+         behind a branch that looked like it covered one. */
+      machines: (lanServerStore && lanServerStore.machines) || [],
       // The SHOP's local day. lib/lead-time.js does its arithmetic in UTC and
       // never asks a clock, so this is the one place the timezone is decided.
       today: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`,
