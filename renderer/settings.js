@@ -4593,6 +4593,21 @@ function loadSettingsIntoForm() {
   // Easy-wins: Calculator settings
   const qvEl = $('#set_quoteValidityDays');
   if (qvEl) qvEl.value = settings.quoteValidityDays ?? 7;
+  // Delivery estimates. Read from settings.leadTime with the same conservative
+  // defaults the engine uses — a blank field must not become "no limit", which
+  // for hours per day would promise a shop working round the clock.
+  {
+    const lt = settings.leadTime || {};
+    const put = (id, v) => { const el = $(id); if (el) el.value = v; };
+    put('#set_leadDailyHours', lt.dailyHours != null ? lt.dailyHours : 8);
+    put('#set_leadDaysPerWeek', lt.workingDaysPerWeek != null ? lt.workingDaysPerWeek : 5);
+    put('#set_leadFinishingDays', lt.finishingDays != null ? lt.finishingDays : 1);
+    put('#set_leadDispatchDays', lt.dispatchDays != null ? lt.dispatchDays : 1);
+    put('#set_leadSafetyDays', lt.safetyDays != null ? lt.safetyDays : 1);
+    const pub = $('#set_leadPublish');
+    if (pub) pub.checked = !!lt.publishToCloud;
+  }
+
   const qfEnEl = $('#set_quoteFollowUpEnabled');
   if (qfEnEl) qfEnEl.checked = !!(settings.quoteFollowUp && settings.quoteFollowUp.enabled);
   const qfWinEl = $('#set_quoteFollowUpWindow');
@@ -4903,6 +4918,21 @@ function saveSettingsFromForm() {
     betaUpdates:       !!$('#set_betaUpdates')?.checked,
     // Easy-wins batch: Calculator
     quoteValidityDays: Math.max(1, num($('#set_quoteValidityDays')?.value, 7)),
+    /* Delivery estimates. Clamped to the same ranges the cloud endpoint enforces,
+       so a value that would be refused on publish is refused here where somebody
+       can see why — rather than silently failing to publish later.
+       `staleAfterHours` is not on the form: it is how long the shop's own figure
+       should be believed for, which is a property of the publish schedule rather
+       than a business decision, so it is preserved rather than edited. */
+    leadTime: {
+      ...(settings.leadTime || {}),
+      dailyHours:         Math.max(1, Math.min(24, num($('#set_leadDailyHours')?.value, 8))),
+      workingDaysPerWeek: Math.max(1, Math.min(7, num($('#set_leadDaysPerWeek')?.value, 5))),
+      finishingDays:      Math.max(0, Math.min(90, num($('#set_leadFinishingDays')?.value, 1))),
+      dispatchDays:       Math.max(0, Math.min(90, num($('#set_leadDispatchDays')?.value, 1))),
+      safetyDays:         Math.max(0, Math.min(90, num($('#set_leadSafetyDays')?.value, 1))),
+      publishToCloud:     !!$('#set_leadPublish')?.checked,
+    },
     // Quote follow-up automation — preserve advanced fields, update toggle + window from form
     quoteFollowUp: {
       ...(settings.quoteFollowUp || { graceDays: 1, cooldownDays: 2, maxCount: 2 }),
