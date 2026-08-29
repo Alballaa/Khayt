@@ -55,9 +55,14 @@ test('no transit asked for means no delivery date invented', () => {
 test('a same-day shop can say so', () => {
   // Zero is a real answer for finishing and dispatch, not a missing one — which
   // is why they default only when nothing usable is given.
-  const r = L.promise({ jobHours: 1, finishingDays: 0, dispatchDays: 0, today: T });
+  // Note it must also waive the safety day: that is padding on the PROMISE, so a
+  // shop claiming same-day dispatch is claiming it without slack, deliberately.
+  const r = L.promise({ jobHours: 1, finishingDays: 0, dispatchDays: 0, safetyDays: 0, today: T });
   assert.equal(r.readyBy, r.printedBy);
   assert.equal(r.shipsBy, r.printedBy);
+  // And with the default safety day it does NOT collapse, which is the point.
+  const padded = L.promise({ jobHours: 1, finishingDays: 0, dispatchDays: 0, today: T });
+  assert.ok(padded.shipsBy > padded.printedBy);
 });
 
 test('a missing setting defaults, and does not become NaN', () => {
@@ -106,6 +111,70 @@ test('what the date rests on comes back with it', () => {
   // presenting a date as though it were a fact about the future.
   const r = L.promise({ jobHours: 1, dailyHours: 6, workingDaysPerWeek: 6, today: T });
   assert.deepEqual(r.basis, {
-    dailyHours: 6, workingDaysPerWeek: 6, finishingDays: 1, dispatchDays: 1, transitDays: 0,
+    dailyHours: 6, workingDaysPerWeek: 6, finishingDays: 1, dispatchDays: 1,
+    safetyDays: 1, transitDays: 0,
   });
+});
+
+// ── The safety day ──────────────────────────────────────────────────────────
+
+test('the safety day moves the promise and nothing else', () => {
+  // A shop's own plan and the date it gives a stranger are different documents.
+  // Padding the plan would make the shop schedule against slack it added for
+  // customers, and it would see a "printed by" date it never chose.
+  const r = L.promise({ jobHours: 8, safetyDays: 1, today: T });
+  assert.ok(r.shipsBy > r.shipsByUnpadded, 'the promise is later than the plan');
+  assert.equal(r.basis.safetyDays, 1, 'and the padding is visible, not folded away');
+  const none = L.promise({ jobHours: 8, safetyDays: 0, today: T });
+  assert.equal(none.shipsBy, none.shipsByUnpadded);
+});
+
+test('a delivered date is measured from the padded ship date', () => {
+  // Otherwise the safety day is silently spent by the carrier.
+  const r = L.promise({ jobHours: 1, safetyDays: 2, transitDays: 3, today: T });
+  assert.equal(r.deliveredBy, L.addDaysIso(r.shipsBy, 3));
+});
+
+// ── Publishing to a storefront ──────────────────────────────────────────────
+
+test('a snapshot carries inputs, not an answer', () => {
+  // A date is only true relative to the day it was computed on. Published on
+  // Monday and read on Wednesday it is two days optimistic, silently.
+  const snap = L.snapshot({ computedAt: '2026-08-31T09:00:00Z', queue: [{ hours: 40 }] });
+  assert.equal(snap.queuedHours, 40);
+  assert.ok(!('shipsBy' in snap), 'a published date would go stale by construction');
+  assert.ok(!('machineIds' in snap), 'a storefront does not need to know how many printers a shop has');
+});
+
+test('a fresh snapshot quotes, and the sum is the basket not the item', () => {
+  const snap = L.snapshot({ computedAt: '2026-08-31T09:00:00Z', queue: [{ hours: 8 }], dailyHours: 8, workingDaysPerWeek: 7, safetyDays: 0, finishingDays: 0, dispatchDays: 0 });
+  const now = Date.parse('2026-08-31T10:00:00Z');
+  // Three items of 8h are one 24h promise, not three 8h ones: they print
+  // sequentially and ship together.
+  const one = L.fromSnapshot(snap, 8, T, now);
+  const three = L.fromSnapshot(snap, 24, T, now);
+  assert.ok(three.shipsBy > one.shipsBy);
+  assert.equal(one.snapshotAgeHours, 1);
+});
+
+test('a stale snapshot refuses rather than guessing', () => {
+  // The queue shrinks as a shop prints and grows as orders arrive, so a stale
+  // number can be wrong in either direction and there is no honest correction
+  // from outside. A storefront handed null must say "we will confirm".
+  const snap = L.snapshot({ computedAt: '2026-08-31T09:00:00Z', queue: [{ hours: 8 }], staleAfterHours: 24 });
+  assert.ok(L.fromSnapshot(snap, 1, T, Date.parse('2026-08-31T20:00:00Z')), 'inside the window it answers');
+  assert.equal(L.fromSnapshot(snap, 1, T, Date.parse('2026-09-02T20:00:00Z')), null, 'outside it, nothing');
+});
+
+test('a snapshot from the future is a broken clock, not a fresh one', () => {
+  const snap = L.snapshot({ computedAt: '2026-09-30T09:00:00Z', queue: [] });
+  assert.equal(L.fromSnapshot(snap, 1, T, Date.parse('2026-08-31T09:00:00Z')), null);
+});
+
+test('an unusable snapshot is refused, never treated as an empty queue', () => {
+  // The dangerous failure: a missing figure read as "nothing queued", which
+  // promises the fastest possible date to every customer of a busy shop.
+  assert.equal(L.fromSnapshot(null, 1, T, 0), null);
+  assert.equal(L.fromSnapshot({}, 1, T, 0), null);
+  assert.equal(L.fromSnapshot({ computedAt: 'not-a-date', staleAfterHours: 24 }, 1, T, 0), null);
 });

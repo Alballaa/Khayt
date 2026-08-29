@@ -239,6 +239,23 @@ function defaultSettings() {
     savedFilters:     [],
     betaAcknowledged: true, // legacy field — kept so old saved data doesn't break
     betaUpdates:       false, // opt-in: include beta pre-releases in auto-update checks
+    /* How long a job takes to reach a customer — the shop's own working pattern.
+     *
+     * Used to answer "when could this be ready" BEFORE somebody orders, so the
+     * numbers here are a promise rather than a plan. `safetyDays` is added to
+     * every promise and to nothing else: it must not move the internal schedule
+     * board, or the shop ends up planning against padding it added for customers.
+     *
+     * dailyHours defaults low and workingDaysPerWeek defaults to five, because a
+     * default that flatters the date is a default that breaks a promise. */
+    leadTime: {
+      dailyHours:         8,   // printing hours actually achieved on a working day
+      workingDaysPerWeek: 5,
+      finishingDays:      1,   // post-processing and QC after the last layer
+      dispatchDays:       1,   // packing and handover to the carrier
+      safetyDays:         1,   // added to every promise, never to the schedule
+      publishToCloud:     false,
+    },
     // Easy-wins batch: Calculator
     quoteValidityDays: 7,
     // Quote follow-up automation (auto-nudge OFF by default; dashboard card always on)
