@@ -1965,6 +1965,28 @@
         </div>
 
         <div class="card settings-card">
+        <div class="settings-section-head" data-i18n="set.lead_title">Delivery estimates</div>
+        <p style="font-size:12px; color:var(--text-muted); margin:0 0 10px;" data-i18n="set.lead_hint">Khayt works out when a new order could be printed, finished and posted, from your queue and the hours below. Print time alone is not a delivery date.</p>
+        <div class="inline-pair" style="flex-wrap:wrap; align-items:flex-end;">
+          <div><label data-i18n="set.lead_daily_hours">Printing hours per working day</label><input type="number" id="set_leadDailyHours" min="1" max="24" step="1" placeholder="8"></div>
+          <div><label data-i18n="set.lead_days_week">Working days per week</label><input type="number" id="set_leadDaysPerWeek" min="1" max="7" step="1" placeholder="5"></div>
+        </div>
+        <div class="inline-pair" style="flex-wrap:wrap; align-items:flex-end; margin-top:12px;">
+          <div><label data-i18n="set.lead_finishing">Finishing &amp; QC (days)</label><input type="number" id="set_leadFinishingDays" min="0" max="90" step="1" placeholder="1"></div>
+          <div><label data-i18n="set.lead_dispatch">Packing &amp; handover (days)</label><input type="number" id="set_leadDispatchDays" min="0" max="90" step="1" placeholder="1"></div>
+          <div><label data-i18n="set.lead_safety">Safety margin (days)</label><input type="number" id="set_leadSafetyDays" min="0" max="90" step="1" placeholder="1"></div>
+        </div>
+        <p style="font-size:12px; color:var(--text-muted); margin:8px 0 0;" data-i18n="set.lead_safety_hint">The safety margin is added to what a customer is told and to nothing else — your own schedule board still shows your real dates.</p>
+        <div style="margin-top:14px;">
+          <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+            <input type="checkbox" id="set_leadPublish" style="width:auto; margin:0;">
+            <span data-i18n="set.lead_publish">Let my online store show an estimated date</span>
+          </label>
+          <p style="font-size:12px; color:var(--text-muted); margin:6px 0 0;" data-i18n="set.lead_publish_hint">Publishes only when you could start a new order and the hours above — never how much work you have. Needs Khayt Cloud connected.</p>
+        </div>
+        </div>
+
+        <div class="card settings-card">
         <div class="settings-section-head" data-i18n="set.wip_limits">WIP Limits per column</div>
         <div class="inline-pair" style="flex-wrap:wrap;">
           <div><label>Pending</label><input type="number" id="set_wip_pending" min="0" step="1" placeholder="0 = unlimited"></div>

@@ -4,6 +4,24 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Added
+
+- **Khayt can tell a customer when their order would actually be ready.**
+  Settings now has **Delivery estimates**: how many printing hours you get
+  through on a working day, how many days a week you work, and how long
+  finishing, packing and a safety margin take. From those and the jobs already in
+  your queue, Khayt works out when a new order could be printed, finished and
+  posted.
+
+  The safety margin is added to what a customer is told and to nothing else —
+  your own schedule board keeps showing your real dates.
+
+  If you switch on **Let my online store show an estimated date**, Khayt sends
+  that to Khayt Cloud so a storefront can show it in the basket, before someone
+  orders. What it sends is when you could start and the hours above — never how
+  much work you have. It refreshes on its own, and if it goes quiet your store
+  stops showing a date rather than showing a stale one.
+
 ### Fixed
 
 - **A MakerRun library with more than 200 saved designs now shows all of them.**
