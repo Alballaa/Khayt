@@ -47,8 +47,20 @@ test('the code is asked for AFTER the recovery key is acknowledged', () => {
 
 test('no code is asked for when the server could not send one', () => {
   // A box waiting for a code that was never sent is a worse lie than the warning
-  // toast beside it.
-  assert.match(signupHandler(), /if \(!su\.emailFailed\) showVerifyEmailModal\(/);
+  // toast beside it. TWO reasons none is coming, and both have to be checked:
+  //
+  //   emailFailed          the server tried and the provider refused
+  //   emailConfigured:false  this server has no mail set up at all
+  //
+  // Only the first was checked, because lib/cloud-client.js's signup() dropped
+  // the second from the response — so a self-hosted server with no SMTP sailed
+  // straight into the dialog. The reset flow has always distinguished them.
+  const h = signupHandler();
+  assert.match(h, /su\.emailConfigured !== false && !su\.emailFailed/,
+    'sign-up must check BOTH email facts before asking for a code');
+  // And the shop must be told which of the two it was, not left guessing.
+  assert.match(SRC, /su\.emailConfigured === false/,
+    'the no-mail-server case needs its own message, not the "provider refused" one');
 });
 
 test('the banner and its button stay, as the way back', () => {

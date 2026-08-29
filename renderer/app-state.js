@@ -841,6 +841,14 @@ function pruneExpiredNotifs() {
     collectStoreCollections,
     buildStoreSnapshot,
     buildExportPayload,
+    // Called BARE (not behind a typeof guard) from settings.js, by all three
+    // ways a shop gets a shop id: sign-up, log-in and join-a-team. Missing from
+    // this list, that is a ReferenceError mid-handler — the account is assigned
+    // in memory, the saveAll() on the next line never runs, and the panel sits
+    // on "Connecting…" forever with nothing logged where the shop can see it.
+    // Reported exactly that way: "trying to log onto the cloud and stuck at
+    // connecting". test/cross-file-wiring.test.js now checks bare calls too.
+    syncScopeToShop,
     applyStoreFromSnapshot,
     replaceStoreFromSnapshot,
     ensureOrderTrackingTokens,

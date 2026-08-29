@@ -291,6 +291,13 @@ jobs:
       - name: E2E smoke (print library tiering to cloud storage)
         run: xvfb-run -a npm run test:e2e:cloudstorage
 
+      # The one suite that would have caught the cloud sign-up freeze: everything
+      # in that flow passed its own tests while the flow itself never reached the
+      # shop. It runs against a loopback stand-in server, so it needs no
+      # credentials and no network.
+      - name: E2E smoke (cloud sign-up reaches the code entry)
+        run: xvfb-run -a npm run test:e2e:cloudsignup
+
       - name: E2E smoke (consumable reorder)
         run: xvfb-run -a npm run test:e2e:consumables
 

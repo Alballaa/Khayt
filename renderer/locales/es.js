@@ -459,6 +459,7 @@
   "common.optional": "opcional",
   "common.none": "ninguno",
   "common.close": "Cerrar",
+  "common.unexpected_error": "Algo salió mal y esta acción se detuvo a medias",
   "common.copy": "Copiar",
   "common.copied": "¡Copiado!",
   "common.print": "Imprimir",

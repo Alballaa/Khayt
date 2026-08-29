@@ -2,21 +2,8 @@
  * Application boot: setup wizard and DOMContentLoaded initialization.
  */
 
-// Forward uncaught renderer errors to the main process, where Sentry runs (the
-// renderer is non-bundled with a strict CSP, so it can't load the SDK directly).
-// No-op unless Sentry is active in main.
-if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') (function () {
-  const report = (message, stack, extra) => {
-    try { window.hubAPI?.reportError?.(Object.assign({ message, stack }, extra)); } catch (e) { /* ignore */ }
-  };
-  window.addEventListener('error', (e) => {
-    report((e.error && e.error.message) || e.message || 'error', e.error && e.error.stack, { url: e.filename, line: e.lineno });
-  });
-  window.addEventListener('unhandledrejection', (e) => {
-    const r = e.reason;
-    report((r && r.message) || String(r) || 'unhandledrejection', r && r.stack);
-  });
-})();
+// Uncaught errors and dead promises are handled in error-report.js, which is
+// loaded first so that boot itself is covered. See the comment there.
 
 function detectSystemLang() {
   const raw = (navigator.language || 'en').toLowerCase();

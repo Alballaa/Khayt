@@ -2703,7 +2703,12 @@ function renderCloudSettings() {
       // does), and passing `su.sender` would be a parameter that is always
       // undefined — a branch that reads as handled and cannot run. The modal
       // renders correctly without it and simply omits the "sent from" line.
-      if (!su.emailFailed) showVerifyEmailModal(f.url, f.email);
+      // Two separate reasons no code is coming, and both have to be checked.
+      // emailFailed is "we tried, the provider refused". emailConfigured:false
+      // is "this server has no mail set up at all" — the self-hosting case,
+      // which used to fall through to the dialog because the client parser
+      // dropped the field, leaving a box waiting for a code that did not exist.
+      if (su.emailConfigured !== false && !su.emailFailed) showVerifyEmailModal(f.url, f.email);
     });
     await enableCloudAutoSync({ initialPull: false }); // new shop: just push local
     renderCloudSettings();
@@ -2711,7 +2716,9 @@ function renderCloudSettings() {
     // Sign-up succeeds either way, but the welcome/verification email may not
     // have gone. Saying so now beats the shop discovering it when the code they
     // are waiting for never arrives.
-    if (su.emailFailed) {
+    if (su.emailConfigured === false) {
+      toast(t('cloud.reset_no_email') || 'This server has no email set up — contact the admin', 'warning', 8000);
+    } else if (su.emailFailed) {
       toast(t('cloud.email_refused_signup')
         || 'Account created, but the verification email could not be sent — contact the admin', 'warning', 8000);
     }
@@ -4822,6 +4829,22 @@ function saveSettingsFromForm() {
   const accepted = $$('#acceptedPaymentsList input[data-pm]')
     .filter(cb => cb.checked).map(cb => cb.dataset.pm);
   settings = {
+    /* START FROM WHAT IS ALREADY THERE.
+     *
+     * This literal REPLACES settings wholesale, so every key it does not name
+     * is destroyed — silently, on a save the shop made for an unrelated reason.
+     * The hand-maintained "preserve" entries further down are what that costs:
+     * a list that has to be extended every time anyone adds a setting, and was
+     * not. Nineteen keys were being dropped by the time this was found,
+     * including `cloud` — so entering a business name signed the shop out of
+     * Khayt Cloud and destroyed its sync keyset — plus `slicers`, the `privacy`
+     * choices, and the migration flags, which then re-ran.
+     *
+     * Spreading first makes omission the safe case. The explicit entries below
+     * still win; several of them do real work (lanApi migrates, tax recomputes,
+     * wipLimits rebuilds) and are not merely preserving.
+     */
+    ...settings,
     bizEn:     $('#set_bizEn').value.trim(),
     bizAr:     $('#set_bizAr').value.trim(),
     vat:       $('#set_vat').value.trim(),

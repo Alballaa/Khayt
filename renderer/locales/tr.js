@@ -459,6 +459,7 @@
   "common.optional": "İsteğe bağlı",
   "common.none": "Yok",
   "common.close": "Kapat",
+  "common.unexpected_error": "Bir sorun oluştu ve bu işlem yarıda kaldı",
   "common.copy": "Kopyala",
   "common.copied": "Kopyalandı!",
   "common.print": "Yazdır",
