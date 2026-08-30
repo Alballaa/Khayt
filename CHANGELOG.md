@@ -4,6 +4,8 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.7.0-beta.14] - 2026-08-30
+
 ### Added
 
 - **Klipper and Moonraker printers can hand Khayt their own job history.** A
