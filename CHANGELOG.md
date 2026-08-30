@@ -6,6 +6,13 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **Several photos on one product are now several files.** Every picture on a
+  product was being written to the same filename, so only the last one survived
+  and removing any of them would have taken the others with it. Products saved
+  with one picture are unaffected.
+
+### Fixed
+
 - **The catalogue accepts photos again.** Picking an image did nothing at all —
   no error, no photo. Introduced in 3.7.0-beta.14 with the multi-image editor.
 

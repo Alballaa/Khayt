@@ -96,13 +96,70 @@ try {
   const kinds = await page.evaluate(() => [...document.querySelectorAll('.pi-kind')].map((s) => s.value));
   ok(kinds[0] === 'print', 'labelling a photo as the actual print sticks, and promoting moves it to the front');
 
-  await page.evaluate(() => document.querySelectorAll('.pi-remove')[0].click());
+  // Remove the LAST one, not the first: the first is now the photo just labelled
+  // as the actual print, and deleting it would leave nothing for the save check
+  // below to look at. (It did, on the first run of this file.)
+  await page.evaluate(() => {
+    const b = document.querySelectorAll('.pi-remove');
+    b[b.length - 1].click();
+  });
   await page.waitForTimeout(600);
   ok(await page.evaluate(() => document.querySelectorAll('#productImageStrip > div').length) === 2,
     'removing one leaves the rest');
+  ok(await page.evaluate(() => document.querySelector('.pi-kind').value) === 'print',
+    'and does not disturb the others');
 
+  /* SAVE IT, AND CHECK THE DISK.
+   *
+   * The editor showing three thumbnails proves nothing about what was written.
+   * The filename used to be built from the PRODUCT id alone, so every photo on
+   * a product wrote to the same file: the store held three image records, the
+   * disk held one picture, and deleting any of them would have unlinked the
+   * file the others still used. Nothing on screen showed it.
+   */
+  await page.evaluate(() => {
+    const m = document.querySelector('.modal');
+    const n = m.querySelector('[data-f="nameEn"]');
+    n.value = 'Smoke Widget';
+    n.dispatchEvent(new Event('input', { bubbles: true }));
+    m.querySelector('[data-act="add-part"]').click();
+  });
+  await page.waitForTimeout(400);
+  await page.evaluate(() => document.querySelector('.modal [data-act="save"]').click());
+  await page.waitForTimeout(2200);
+
+  // Flushed, then read from DISK after the app closes. Reading `window.products`
+  // was tried first and silently skipped — that global is not reachable from an
+  // automation context, so the check passed by not running, which is the exact
+  // shape of guard this file exists to replace.
+  await page.evaluate(() => { if (typeof flushSave === 'function') flushSave(); else saveAll(); });
+  await page.waitForTimeout(1500);
   ok(errors.length === 0, `no renderer errors${errors.length ? ':\n    ' + errors.join('\n    ') : ''}`);
-  console.log('\n✅ the catalogue accepts photos.');
+  await app.close();
+  app = null;
+  await new Promise((r) => setTimeout(r, 1200));
+
+  const store = JSON.parse(fs.readFileSync(path.join(userData, 'khayt-store.json'), 'utf8'));
+  const prod = (store.products || []).find((p) => p.nameEn === 'Smoke Widget');
+  ok(!!prod, 'the product saved');
+  const paths = (prod.images || []).map((i) => i.path);
+  ok(paths.length === 2, `both pictures are stored (${paths.length})`);
+  /* Each picture must have its OWN file.
+   *
+   * The filename used to be built from the PRODUCT id alone, so every photo on
+   * a product wrote to the same file: the store held three image records, the
+   * disk held one picture, and deleting any of them would have unlinked the
+   * file the others still used. Nothing on screen showed it. */
+  ok(new Set(paths).size === paths.length, `each picture has its own file (${paths.join(', ')})`);
+  ok(prod.imagePath === paths[0], 'the legacy field mirrors the primary');
+  ok((prod.images || []).some((i) => i.kind === 'print'), 'the label survived the save');
+
+  const dir = path.join(userData, 'products');
+  const onDisk = fs.existsSync(dir) ? fs.readdirSync(dir) : [];
+  ok(onDisk.length === paths.length, `the files are actually on disk (${onDisk.length}: ${onDisk.join(', ')})`);
+  for (const p of paths) ok(onDisk.includes(p), `${p} was written`);
+
+  console.log('\n✅ the catalogue accepts photos, and each one is its own file.');
 } catch (e) {
   failed = true;
   console.error('\n❌ ' + (e && e.message ? e.message : e));
