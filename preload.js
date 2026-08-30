@@ -37,7 +37,7 @@ contextBridge.exposeInMainWorld('hubAPI', {
   calibSaveProfile:     (opts) => ipcRenderer.invoke('hub:calib-save-profile', opts),
 
   // Product images (full-resolution on disk in userData/products/)
-  saveProductImage:   (productId, dataUrl) => ipcRenderer.invoke('hub:save-product-image', productId, dataUrl),
+  saveProductImage:   (productId, dataUrl, imageId) => ipcRenderer.invoke('hub:save-product-image', productId, dataUrl, imageId),
   loadProductImage:   (filename) => ipcRenderer.invoke('hub:load-product-image', filename),
   deleteProductImage: (filename) => ipcRenderer.invoke('hub:delete-product-image', filename),
   revealProductsFolder: () => ipcRenderer.invoke('hub:reveal-products-folder'),

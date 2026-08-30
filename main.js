@@ -375,10 +375,24 @@ ipcMain.handle('hub:fetch-exchange-rates', async (_e, base) => {
 });
 
 // --- Product images (existing) ---
-ipcMain.handle('hub:save-product-image', async (_e, productId, dataUrl) => {
+ipcMain.handle('hub:save-product-image', async (_e, productId, dataUrl, imageId) => {
   const { ext, buffer } = decodeDataUrl(dataUrl);
   const safeId = path.basename(String(productId || '')).replace(/[^a-zA-Z0-9_-]/g, '_');
-  const filename = `${safeId}.${ext}`;
+  /* ONE FILE PER IMAGE, NOT ONE PER PRODUCT.
+   *
+   * This built the name from the product id alone, which was right while a
+   * product had a single picture and silently wrong the moment it could have
+   * several: every photo wrote to `PROD-xyz.jpeg`, so the last one overwrote
+   * all the others and every image record pointed at the same file. The editor
+   * looked correct — three thumbnails, three rows in the store — and on disk
+   * there was one picture. Deleting any one of them would have unlinked the
+   * file the other two were still using.
+   *
+   * Existing single-image products keep their original name, so nothing has to
+   * be migrated: they are referenced by the path already stored against them.
+   */
+  const safeImg = path.basename(String(imageId || '')).replace(/[^a-zA-Z0-9_-]/g, '_');
+  const filename = safeImg ? `${safeId}-${safeImg}.${ext}` : `${safeId}.${ext}`;
   await fs.promises.writeFile(path.join(productsDir(), filename), buffer);
   return filename;
 });

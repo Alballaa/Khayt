@@ -3590,7 +3590,9 @@ function openProductEditor(productId = null) {
         for (const img of stagedImages) {
           if (!img.full) continue;
           try {
-            img.path = await window.hubAPI.saveProductImage(draft.id, img.full);
+            // The image id, so several photos on one product do not all write
+            // to the same file — see the handler in main.js.
+            img.path = await window.hubAPI.saveProductImage(draft.id, img.full, img.id);
           } catch (err) {
             console.error('save image failed', err);
             toast(t('pe.image_save_failed') || 'One picture could not be saved', 'warning');
