@@ -298,6 +298,12 @@ jobs:
       - name: E2E smoke (cloud sign-up reaches the code entry)
         run: xvfb-run -a npm run test:e2e:cloudsignup
 
+      # The suite that would have caught the catalogue refusing every photo:
+      # the module was right, the wiring test found the listener, and the bug
+      # lived in the one line between them.
+      - name: E2E smoke (the catalogue accepts photos)
+        run: xvfb-run -a npm run test:e2e:productimages
+
       - name: E2E smoke (consumable reorder)
         run: xvfb-run -a npm run test:e2e:consumables
 
