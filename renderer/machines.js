@@ -92,6 +92,7 @@ function renderMachines() {
         ${(m.printerApi && m.printerApi.type && m.printerApi.type !== 'none') ? `<button class="btn small ghost" data-act="slice-print" data-id="${m.id}" title="${escapeHtml(t('slicer.send_title') || 'Slice & print')}" style="font-size:11px;">${_mIco('printer', '🖨')}</button>` : ''}
         <button class="btn small pro-only" data-act="maint-log" data-id="${m.id}" title="${escapeHtml(t('maint.btn'))}" aria-label="${escapeHtml(t('maint.btn'))}"><span aria-hidden="true">🔧</span></button>
         <button class="btn small ghost pro-only" data-act="log-nozzle-change" data-id="${m.id}" title="${escapeHtml(t('mach.log_nozzle'))}" style="font-size:11px;" aria-label="${escapeHtml(t('mach.log_nozzle'))}"><span aria-hidden="true">🔩</span></button>
+        ${m.printerApi?.type === 'moonraker' ? `<button class="btn small ghost pro-only" data-act="import-history" data-id="${m.id}" title="${escapeHtml(t('mach.import_history_hint') || 'Read every job this printer has run. Read-only — safe while it is printing.')}" style="font-size:11px;" aria-label="${escapeHtml(t('mach.import_history') || 'Import print history')}"><span aria-hidden="true">📥</span></button>` : ''}
         <button class="btn small" data-act="edit-mach" data-id="${m.id}">${escapeHtml(t('common.edit'))}</button>
         <button class="btn danger small" data-act="del-mach" data-id="${m.id}">${escapeHtml(t('common.delete'))}</button>
         ${nozzleHtml}
@@ -1464,12 +1465,55 @@ function renderNozzleWearSettings() {
   });
 }
 
+
+/**
+ * Read the printer's own job history and keep it on the machine.
+ *
+ * STRICTLY READ-ONLY — a single GET to Moonraker's history endpoint — so this is
+ * safe to run while the printer is mid-job, which is exactly when a shop tends
+ * to want it.
+ *
+ * Why it matters: the nozzle-wear counter reads completed ORDERS, and a printer
+ * runs far more than orders. Test prints, reprints, calibration and everything
+ * nobody paid for are all real filament through the same nozzle. A machine can
+ * be at two and a half times its replacement threshold while the order log says
+ * it is comfortably inside — and the warning fires late, which ruins parts
+ * rather than wasting nozzles.
+ */
+async function importPrinterHistory(machineId) {
+  const m = machines.find((x) => x.id === machineId);
+  if (!m) return;
+  if (!window.hubAPI?.printerHistory) { toast(t('mach.import_history_unavailable') || 'This build cannot read printer history', 'error'); return; }
+  toast(t('mach.import_history_running') || 'Reading the printer’s job history…', 'info');
+  const r = await window.hubAPI.printerHistory({ machine: m, limit: 500 });
+  if (!r || !r.ok) { toast('✗ ' + ((r && r.error) || 'could not read the history'), 'error', 7000); return; }
+
+  const before = (m.printerHistory && m.printerHistory.jobs) || [];
+  const jobs = KhaytMoonrakerHistory.merge(before, r.jobs || []);
+  const added = jobs.length - before.length;
+  m.printerHistory = { source: 'moonraker', importedAt: new Date().toISOString(), jobs };
+  m.rev = (m.rev || 0) + 1;
+  m.updatedAt = new Date().toISOString();
+  saveAll();
+  renderMachines();
+  if (typeof renderDashboard === 'function') renderDashboard();
+
+  const since = KhaytMoonrakerHistory.totalsSince(jobs, m.nozzle?.installedAt || '');
+  const all = KhaytMoonrakerHistory.totalsSince(jobs, '');
+  toast(`${t('mach.import_history_done') || 'Imported'} ${jobs.length} ${t('mach.jobs') || 'jobs'}`
+    + (added ? ` (+${added})` : '')
+    + ` · ${all.grams.toFixed(0)}g · ${all.hours.toFixed(0)}h`
+    + (m.nozzle?.installedAt ? ` · ${since.grams.toFixed(0)}g ${t('mach.since_nozzle') || 'since this nozzle'}` : ''),
+    'success', 9000);
+}
+
   const api = {
 
     MACHINE_COLORS,
     machineGramsSinceNozzle,
     machineNozzleWear,
     renderNozzleWearSettings,
+    importPrinterHistory,
     renderMachines,
     sliceAndPrintForMachine,
     renderMachineDropdown,
