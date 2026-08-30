@@ -75,6 +75,7 @@ const { normalizeStoreSnapshot, STORE_VERSION } = require('./lib/store-validate'
 const upgradeBackup = require('./lib/upgrade-backup');
 const { createStoreIo } = require('./lib/store-io');
 const { parseGcodeText } = require('./lib/gcode-parse');
+const moonrakerHistory = require('./lib/moonraker-history');
 const { createSilhouette } = require('./lib/gcode-geometry');
 const { intake: intakeModel } = require('./lib/model-intake');
 const { extractActuals } = require('./lib/printer-actuals');
@@ -3840,6 +3841,47 @@ ipcMain.handle('hub:get-printer-status', () => printerStatusCache);
  * LAN device on the user's behalf, so it must not be steerable off the validated
  * address.
  */
+/**
+ * Read a Klipper/Moonraker machine's OWN job history.
+ *
+ * Khayt's print log is what a shop sold; this is what the printer actually ran —
+ * test prints, reprints, calibration and everything nobody paid for. The
+ * nozzle-wear counter needs the second, and had only ever seen the first.
+ *
+ * STRICTLY READ-ONLY, and deliberately so: this is safe to run mid-print, which
+ * is exactly when a shop is most likely to want it. Same host guard as every
+ * other printer call — isAllowedPrinterHost keeps it on the LAN.
+ */
+async function fetchPrinterHistory(machine, limit) {
+  const { type, host, port, apiKey } = (machine && machine.printerApi) || {};
+  if (type !== 'moonraker') {
+    return { ok: false, error: 'Only Klipper/Moonraker printers keep a job history Khayt can read' };
+  }
+  const printerHost = String(host || '').replace(/[^a-zA-Z0-9.\-]/g, '');
+  if (!isAllowedPrinterHost(printerHost)) return { ok: false, error: 'Invalid printer host' };
+  const portNum = parseInt(port || defaultPrinterPort(type), 10);
+  if (!Number.isInteger(portNum) || portNum < 1 || portNum > 65535) {
+    return { ok: false, error: 'Invalid port number' };
+  }
+  const n = Number.isInteger(limit) && limit > 0 && limit <= 1000 ? limit : 500;
+  const headers = {};
+  if (apiKey) headers['X-Api-Key'] = apiKey;
+  try {
+    const res = await fetch(`http://${printerHost}:${portNum}/server/history/list?limit=${n}`, {
+      headers, redirect: 'manual', signal: AbortSignal.timeout(30000),
+    });
+    if (!res.ok) return { ok: false, error: `Printer answered HTTP ${res.status}` };
+    const body = await res.json();
+    const raw = (body && body.result) || {};
+    // Mapped in the main process so the renderer never sees the slicer's
+    // thumbnails: a hundred base64 previews would land in the store file, which
+    // is pushed to the cloud encrypted on every sync.
+    return { ok: true, jobs: moonrakerHistory.mapJobs(raw), count: raw.count ?? null };
+  } catch (e) {
+    return { ok: false, error: String((e && e.message) || e) };
+  }
+}
+
 async function sendPrinterCommand(machine, command) {
   const { type, host, port, apiKey, printerSlug } = (machine && machine.printerApi) || {};
   const printerHost = String(host || '').replace(/[^a-zA-Z0-9.\-]/g, '');
@@ -3948,6 +3990,11 @@ async function sendPrinterCommand(machine, command) {
 
 ipcMain.handle('hub:printer-command', async (_e, { machine, command } = {}) =>
   sendPrinterCommand(machine, command));
+// Read-only: safe to call while the printer is mid-job, which is when a shop is
+// most likely to reach for it.
+ipcMain.handle('hub:printer-history', async (_e, { machine, limit } = {}) =>
+  fetchPrinterHistory(machine, limit));
+
 
 /**
  * The filament stock a machine runs, for turning extruded millimetres into

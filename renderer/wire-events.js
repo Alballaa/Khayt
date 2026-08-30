@@ -1634,6 +1634,7 @@ function wireEvents() {
     if (btn.dataset.act === 'edit-mach') openMachineEditor(btn.dataset.id);
     if (btn.dataset.act === 'del-mach') deleteMachine(btn.dataset.id);
     if (btn.dataset.act === 'log-nozzle-change') logNozzleChange(btn.dataset.id);
+    if (btn.dataset.act === 'import-history') importPrinterHistory(btn.dataset.id);
     if (btn.dataset.act === 'slice-print') sliceAndPrintForMachine(btn.dataset.id);
   });
 

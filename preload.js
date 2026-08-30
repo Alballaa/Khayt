@@ -269,6 +269,7 @@ contextBridge.exposeInMainWorld('hubAPI', {
   // Pause / resume / cancel the running job. Main validates the host and the
   // command name; nothing here is trusted.
   printerCommand:      (machine, command) => ipcRenderer.invoke('hub:printer-command', { machine, command }),
+  printerHistory: (payload) => ipcRenderer.invoke('hub:printer-history', payload),
   onPrinterStatusUpdate: (() => {
     // Single persistent listener — swaps the callback instead of stacking listeners
     let _cb = null;

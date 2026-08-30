@@ -6,6 +6,15 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Added
 
+- **Klipper and Moonraker printers can hand Khayt their own job history.** A
+  printer runs far more than orders — test prints, reprints, calibration, work
+  nobody paid for — and all of it is real filament through the same nozzle. The
+  button on the machine card reads that history and uses it for nozzle wear,
+  which it is a better answer for than the order log. Reading is a single GET, so
+  it is safe to run while the printer is mid-job.
+
+### Added
+
 - **A product can hold several photos, and each one says what it is** — a render,
   the actual printed part, a detail, a scale shot, packaging. The question a
   customer is really asking of a listing is whether that is a render or what
