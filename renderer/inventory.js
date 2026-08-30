@@ -2871,7 +2871,22 @@ function renderCatalog() {
 
     return `
       <div class="product-card" data-id="${p.id}">
-        <div class="product-photo">${photo}</div>
+        <div class="product-photo">${photo}
+          ${(() => {
+            /* A quiet nudge, not a scolding.
+             *
+             * The question a customer asks of a listing is "is that a render or
+             * is that what arrives", and getting it wrong is a refund. A shop
+             * cannot answer it across a whole catalog by eye, so the grid says
+             * which listings have no photograph of the real printed part —
+             * only once there IS a picture, because "add a photo" is a
+             * different and more obvious problem.
+             */
+            const imgs = KhaytProductImages.normalise(p).images;
+            if (!imgs.length || KhaytProductImages.hasRealPhoto(p)) return '';
+            return `<span class="product-norealphoto" title="${escapeHtml(t('pe.no_real_photo_hint') || 'None of these pictures is marked as a photo of the printed part.')}" style="position:absolute;inset-inline-start:6px;top:6px;background:var(--warning,#d97706);color:#fff;font-size:10px;padding:1px 5px;border-radius:4px;">${escapeHtml(t('pe.no_real_photo') || 'render only')}</span>`;
+          })()}
+        </div>
         <div class="product-body">
           <h4 class="product-name">${escapeHtml(displayName || '—')}</h4>
           ${altName ? `<div class="product-name-ar">${escapeHtml(altName)}</div>` : ''}
@@ -3065,6 +3080,21 @@ function openProductEditor(productId = null) {
   let stagedThumbnail = draft.thumbnail || null;
   let stagedFullDataUrl = null; // only set if a new photo was picked
 
+  /**
+   * Every picture on this product, as a working list.
+   *
+   * The editor used to hold ONE thumbnail and one staged data URL, so picking a
+   * new photo replaced the old and deleted it on save. A shop selling a printed
+   * part needs a render, a photo of the real thing, a scale shot and a detail —
+   * and had to choose one.
+   *
+   * `full` is set only for pictures added in THIS session; the ones already on
+   * disk keep their path and are not rewritten.
+   */
+  KhaytProductImages.apply(draft);
+  let stagedImages = (draft.images || []).map((img) => ({ ...img, full: null }));
+  const removedImages = [];   // unlinked on save, not before — cancelling must not delete
+
   // Documents that belong to the PRODUCT, not to an order.
   //
   // Assembly instructions and safety sheets are properties of the thing being
@@ -3117,6 +3147,22 @@ function openProductEditor(productId = null) {
           <h4>${escapeHtml(t('pe.part_n', { n: i + 1 }))}</h4>
           <button class="btn danger small" data-act="rm-part" data-pi="${i}">${escapeHtml(t('pe.remove_part'))}</button>
         </div>
+        <!-- The print file this part comes from.
+             A catalog part was born with printWeight 0 and printTime 0 and the
+             shop typed both, while the print library held exactly those numbers
+             — parsed out of the g-code at import. The order editor already had
+             this picker and copied only the FILENAME. -->
+        <div style="display:flex;gap:8px;align-items:flex-end;margin-bottom:8px;">
+          <div style="flex:1;">
+            <label>${escapeHtml(t('pe.print_file') || 'Print file')}</label>
+            <select data-f="printFileId" class="part-printfile" data-pi="${i}">
+              <option value="">${escapeHtml(t('pe.no_print_file') || '— none —')}</option>
+              ${(typeof printFiles !== 'undefined' ? printFiles : []).map((f) =>
+                `<option value="${escapeHtml(f.id)}"${part.printFileId === f.id ? ' selected' : ''}>${escapeHtml(f.name || f.originalName || f.id)}</option>`).join('')}
+            </select>
+          </div>
+          <button class="btn small part-fill" data-pi="${i}" ${part.printFileId ? '' : 'disabled'}>${escapeHtml(t('pe.fill_from_file') || 'Fill from file')}</button>
+        </div>
         <div class="pair-3">
           <div>
             <label>${escapeHtml(t('calc.part.name'))}</label>
@@ -3146,19 +3192,44 @@ function openProductEditor(productId = null) {
       </div>`;
   }
 
-  const bodyHtml = `
+  /**
+   * The picture strip. The first one is the primary: it is what the grid, the
+   * storefront and the invoice use, so the order is a decision rather than an
+   * accident of upload order.
+   */
+  const imagesHtml = () => `
     <div class="photo-uploader">
-      <div class="photo-drop ${stagedThumbnail ? 'has-photo' : ''}" data-act="pick-photo">
-        ${stagedThumbnail
-            ? `<img src="${stagedThumbnail}" alt="">`
+      <div class="photo-drop ${stagedImages.length ? 'has-photo' : ''}" data-act="pick-photo">
+        ${stagedImages[0]
+            ? `<img src="${stagedImages[0].thumbnail || ''}" alt="">`
             : `<span>${escapeHtml(t('pe.photo_drop'))}</span>`}
       </div>
       <div class="photo-actions">
-        <button class="btn small" data-act="pick-photo">${escapeHtml(stagedThumbnail ? t('pe.photo_change') : t('pe.photo'))}</button>
-        ${stagedThumbnail ? `<button class="btn danger small" data-act="remove-photo">${escapeHtml(t('pe.photo_remove'))}</button>` : ''}
+        <button class="btn small" data-act="pick-photo">${escapeHtml(stagedImages.length ? (t('pe.photo_add') || 'Add another photo') : t('pe.photo'))}</button>
       </div>
     </div>
-    <input type="file" id="productPhotoInput" accept="image/jpeg,image/png,image/webp" style="display:none;">
+    ${stagedImages.length ? `
+    <div id="productImageStrip" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;">
+      ${stagedImages.map((img, i) => `
+        <div style="width:120px;border:1px solid var(--border);border-radius:8px;padding:6px;${i === 0 ? 'outline:2px solid var(--primary);' : ''}">
+          <img src="${escapeHtml(img.thumbnail || '')}" alt="" style="width:100%;height:74px;object-fit:cover;border-radius:5px;display:block;">
+          <select class="pi-kind" data-id="${escapeHtml(img.id)}" style="width:100%;font-size:11px;margin-top:5px;padding:2px;">
+            ${KhaytProductImages.KINDS.map((k) => `<option value="${k.key}"${img.kind === k.key ? ' selected' : ''} title="${escapeHtml(k.hint)}">${escapeHtml(t('pe.kind_' + k.key) || k.label)}</option>`).join('')}
+          </select>
+          <div style="display:flex;gap:4px;margin-top:4px;">
+            ${i === 0
+              ? `<span style="font-size:10px;color:var(--primary);flex:1;text-align:center;padding-top:3px;">${escapeHtml(t('pe.primary') || 'Main')}</span>`
+              : `<button class="btn ghost small pi-primary" data-id="${escapeHtml(img.id)}" style="flex:1;font-size:10px;padding:2px;">${escapeHtml(t('pe.make_primary') || 'Make main')}</button>`}
+            <button class="btn danger small pi-remove" data-id="${escapeHtml(img.id)}" style="font-size:10px;padding:2px 6px;" aria-label="${escapeHtml(t('pe.photo_remove'))}" title="${escapeHtml(t('pe.photo_remove'))}">×</button>
+          </div>
+        </div>`).join('')}
+    </div>
+    <p style="font-size:11px;color:var(--text-muted);margin:6px 0 0;">${escapeHtml(t('pe.kind_hint') || 'Say which pictures are photos of the real printed part. Customers are asking, and a render that looks like a photo is a refund.')}</p>` : ''}
+    <input type="file" id="productPhotoInput" accept="image/jpeg,image/png,image/webp" multiple style="display:none;">
+`;
+
+  const bodyHtml = `
+    <div id="productImagesBlock">${imagesHtml()}</div>
 
     <div class="inline-pair" style="margin-top: 16px;">
       <div>
@@ -3381,65 +3452,112 @@ function openProductEditor(productId = null) {
         if (rm) { draft.components.splice(+rm.dataset.ci, 1); refreshComponents(); }
       });
 
-      // Photo upload
-      const photoInput = modal.querySelector('#productPhotoInput');
-      const photoDrop  = modal.querySelector('.photo-drop');
-
-      const pickPhoto = () => photoInput.click();
-      modal.querySelectorAll('[data-act="pick-photo"]').forEach(el => el.addEventListener('click', pickPhoto));
-
-      photoInput.addEventListener('change', async (e) => {
-        const file = e.target.files?.[0];
-        e.target.value = '';
-        if (!file) return;
-        if (file.size > 8 * 1024 * 1024) { toast(t('pe.image_too_big'), 'error'); return; }
-        try {
-          stagedThumbnail   = await resizeImage(file, 240, 0.85);
-          stagedFullDataUrl = await resizeImage(file, 1600, 0.88);
-          // Re-render the uploader area
-          photoDrop.classList.add('has-photo');
-          photoDrop.innerHTML = `<img src="${stagedThumbnail}" alt="">`;
-        } catch (err) {
-          console.error(err);
-          toast('Image error', 'error');
-        }
+      /**
+       * Fill a part in from the print file it is printed from.
+       *
+       * Bound on the modal rather than on each row, because the parts list is
+       * re-rendered whenever a part is added or removed and per-row listeners
+       * would be lost — which is the ordinary way a button stops working with
+       * nothing to show for it.
+       */
+      modal.addEventListener('click', (e) => {
+        const btn = e.target.closest('.part-fill');
+        if (!btn) return;
+        const pi = +btn.dataset.pi;
+        const part = draft.parts && draft.parts[pi];
+        if (!part || !part.printFileId) return;
+        const rec = (typeof printFiles !== 'undefined' ? printFiles : []).find((f) => f.id === part.printFileId);
+        const patch = KhaytPartFromPrintFile.partPatch(rec, part.setupId);
+        Object.assign(part, patch.fields);
+        // Say what was filled AND what was not. A silent partial fill leaves
+        // zeros that look like numbers somebody typed.
+        toast(KhaytPartFromPrintFile.describe(patch, t), Object.keys(patch.from).length ? 'success' : 'info', 6000);
+        refreshParts();
+      });
+      modal.addEventListener('change', (e) => {
+        const sel = e.target.closest('.part-printfile');
+        if (!sel) return;
+        const part = draft.parts && draft.parts[+sel.dataset.pi];
+        if (!part) return;
+        part.printFileId = sel.value || null;
+        // A new file means the old setup no longer applies.
+        part.setupId = null;
+        refreshParts();
       });
 
-      // Drag-and-drop
-      ['dragover', 'dragenter'].forEach(ev => photoDrop.addEventListener(ev, (e) => {
-        e.preventDefault();
-        photoDrop.classList.add('dragover');
-      }));
-      ['dragleave', 'drop'].forEach(ev => photoDrop.addEventListener(ev, () => {
-        photoDrop.classList.remove('dragover');
-      }));
-      photoDrop.addEventListener('drop', async (e) => {
-        e.preventDefault();
-        const file = e.dataTransfer.files?.[0];
-        if (file && file.type.startsWith('image/')) {
+      // ── Pictures ──────────────────────────────────────────────────────────
+      //
+      // Everything below re-renders the whole strip rather than patching one
+      // node. There are at most a handful of pictures and the alternative is a
+      // second place that has to know the markup — which is how the old single
+      // slot drifted out of step with `draft` in the first place.
+      const imagesBlock = modal.querySelector('#productImagesBlock');
+
+      const addFiles = async (files) => {
+        for (const file of [...(files || [])]) {
+          if (!file.type.startsWith('image/')) continue;
+          if (file.size > 8 * 1024 * 1024) { toast(t('pe.image_too_big'), 'error'); continue; }
           try {
-            stagedThumbnail   = await resizeImage(file, 240, 0.85);
-            stagedFullDataUrl = await resizeImage(file, 1600, 0.88);
-            photoDrop.classList.add('has-photo');
-            photoDrop.innerHTML = `<img src="${stagedThumbnail}" alt="">`;
-          } catch (err) { console.error(err); }
+            stagedImages.push({
+              id: KhaytProductImages.imageId(draft.id, stagedImages.length + Date.now() % 1000),
+              path: '',
+              thumbnail: await resizeImage(file, 240, 0.85),
+              full: await resizeImage(file, 1600, 0.88),
+              // Unlabelled arrives as a render: it is the claim that cannot
+              // mislead a customer into expecting a photo of a real part.
+              kind: KhaytProductImages.DEFAULT_KIND,
+              caption: '',
+            });
+          } catch (err) { console.error(err); toast('Image error', 'error'); }
         }
-      });
+        redrawImages();
+      };
 
-      // Remove photo
-      const removeBtn = modal.querySelector('[data-act="remove-photo"]');
-      if (removeBtn) removeBtn.addEventListener('click', () => {
-        stagedThumbnail = null;
-        stagedFullDataUrl = null;
-        draft.thumbnail = null;
-        // If editing, also queue deletion of disk image
-        if (draft.imagePath && window.hubAPI?.deleteProductImage) {
-          window.hubAPI.deleteProductImage(draft.imagePath).catch(() => {});
-        }
-        draft.imagePath = null;
-        photoDrop.classList.remove('has-photo');
-        photoDrop.innerHTML = `<span>${escapeHtml(t('pe.photo_drop'))}</span>`;
-      });
+      function redrawImages() {
+        imagesBlock.innerHTML = imagesHtml();
+        wireImages();
+      }
+
+      function wireImages() {
+        const photoInput = modal.querySelector('#productPhotoInput');
+        const photoDrop = modal.querySelector('.photo-drop');
+        modal.querySelectorAll('[data-act="pick-photo"]').forEach((el) =>
+          el.addEventListener('click', () => photoInput.click()));
+        photoInput.addEventListener('change', async (e) => {
+          const files = e.target.files; e.target.value = '';
+          await addFiles(files);
+        });
+        ['dragover', 'dragenter'].forEach((ev) => photoDrop.addEventListener(ev, (e) => {
+          e.preventDefault(); photoDrop.classList.add('dragover');
+        }));
+        ['dragleave', 'drop'].forEach((ev) => photoDrop.addEventListener(ev, () => {
+          photoDrop.classList.remove('dragover');
+        }));
+        photoDrop.addEventListener('drop', async (e) => {
+          e.preventDefault();
+          await addFiles(e.dataTransfer.files);
+        });
+
+        modal.querySelectorAll('.pi-kind').forEach((sel) => sel.addEventListener('change', () => {
+          const img = stagedImages.find((x) => x.id === sel.dataset.id);
+          if (img && KhaytProductImages.KIND_KEYS.includes(sel.value)) img.kind = sel.value;
+        }));
+        modal.querySelectorAll('.pi-primary').forEach((b) => b.addEventListener('click', () => {
+          const i = stagedImages.findIndex((x) => x.id === b.dataset.id);
+          if (i > 0) stagedImages.unshift(stagedImages.splice(i, 1)[0]);
+          redrawImages();
+        }));
+        modal.querySelectorAll('.pi-remove').forEach((b) => b.addEventListener('click', () => {
+          const i = stagedImages.findIndex((x) => x.id === b.dataset.id);
+          if (i === -1) return;
+          const [gone] = stagedImages.splice(i, 1);
+          // Queued, NOT unlinked now: cancelling the dialog must leave the file
+          // where it was. The same rule the document list already follows.
+          if (gone.path) removedImages.push(gone.path);
+          redrawImages();
+        }));
+      }
+      wireImages();
     },
 
     async onSave(modal) {
@@ -3453,16 +3571,36 @@ function openProductEditor(productId = null) {
         return false;
       }
 
-      // Save full image to disk if a new one was picked
-      if (stagedFullDataUrl && window.hubAPI?.saveProductImage) {
-        try {
-          const filename = await window.hubAPI.saveProductImage(draft.id, stagedFullDataUrl);
-          draft.imagePath = filename;
-        } catch (err) {
-          console.error('save image failed', err);
+      // ── Write the pictures ────────────────────────────────────────────────
+      //
+      // Only the ones added in this session have a `full` to write; the rest
+      // keep the path they already had. A failed write drops that ONE picture
+      // rather than the save — losing a whole product edit because one image
+      // could not be written would be a much worse trade.
+      if (window.hubAPI?.saveProductImage) {
+        for (const img of stagedImages) {
+          if (!img.full) continue;
+          try {
+            img.path = await window.hubAPI.saveProductImage(draft.id, img.full);
+          } catch (err) {
+            console.error('save image failed', err);
+            toast(t('pe.image_save_failed') || 'One picture could not be saved', 'warning');
+          }
         }
       }
-      if (stagedThumbnail !== undefined) draft.thumbnail = stagedThumbnail;
+      draft.images = stagedImages
+        .filter((img) => img.path || img.thumbnail)
+        .map(({ id, path, thumbnail, kind, caption }) => ({ id, path, thumbnail, kind, caption }));
+      // Keeps imagePath/thumbnail pointing at images[0] for everything that
+      // still reads them — the storefront, the portal, label printing.
+      KhaytProductImages.apply(draft);
+
+      // Only now unlink what the shop removed. Cancelling must leave them.
+      if (window.hubAPI?.deleteProductImage) {
+        for (const path of removedImages) {
+          window.hubAPI.deleteProductImage(path).catch(() => {});
+        }
+      }
 
       // Compute default pricing from parts + margin (same math as the calculator) so
       // the product carries a ready price without a separate quoting step.

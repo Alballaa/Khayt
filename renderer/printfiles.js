@@ -824,6 +824,12 @@
 
   async function enrichPrintFile(rec, fullPath) {
     const hub = api(); if (!hub) return;
+    // A record can legitimately have NO file: the library also holds entries
+    // made from a printer's own history, where there is nothing on disk to
+    // parse. Reading `.ext` off null threw a TypeError from OUTSIDE the try
+    // below, so enrichment died before the thumbnail and geometry work that
+    // does not need a file either.
+    if (!rec || !rec.sourceFile) return;
     const ext = rec.sourceFile.ext;
     try {
       if (ext === 'gcode' || ext === 'gco' || ext === '3mf') {
