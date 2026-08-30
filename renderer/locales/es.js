@@ -3620,6 +3620,8 @@
   "dash.attn_offline": "{name} dejó de responder",
   "dash.attn_error": "{name} informó un error",
   "dash.attn_overdue": "{name} está atrasado",
+  "dash.attn_nozzle": "{name}: boquilla para cambiar",
+  "fm.nozzle_due": "Boquilla pasada de {g} g: las piezas empezarán a salir mal",
   "queue.grp_attention": "Requiere atención",
   "queue.grp_running": "En marcha",
   "queue.grp_finishing": "Postproceso y control",

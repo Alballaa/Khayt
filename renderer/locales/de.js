@@ -3620,6 +3620,8 @@
   "dash.attn_offline": "{name} antwortet nicht mehr",
   "dash.attn_error": "{name} meldet einen Fehler",
   "dash.attn_overdue": "{name} ist überfällig",
+  "dash.attn_nozzle": "{name}: Düse fällig",
+  "fm.nozzle_due": "Düse über {g} g — Teile werden zunehmend falsch",
   "queue.grp_attention": "Erfordert Aufmerksamkeit",
   "queue.grp_running": "Läuft",
   "queue.grp_finishing": "Nachbearbeitung & QS",

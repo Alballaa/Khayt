@@ -233,6 +233,8 @@
       settings: (typeof settings !== 'undefined') ? settings : {},
       now: Date.now(),
       attention: global.KhaytAttention,
+      // So an overdue nozzle reaches the attention bar on every theme.
+      nozzleWear: global.KhaytNozzleWear,
       tiers: (typeof KhaytTiers !== 'undefined') ? KhaytTiers : undefined,
       money: (typeof payStatus === 'function' && typeof orderOwedBase === 'function')
         ? { payStatus, owedFor: orderOwedBase } : undefined,

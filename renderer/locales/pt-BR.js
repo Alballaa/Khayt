@@ -3621,6 +3621,8 @@
   "dash.attn_offline": "{name} parou de responder",
   "dash.attn_error": "{name} reportou um erro",
   "dash.attn_overdue": "{name} está atrasado",
+  "dash.attn_nozzle": "{name}: bico para trocar",
+  "fm.nozzle_due": "Bico passou de {g} g — as peças começarão a sair erradas",
   "queue.grp_attention": "Precisa de atenção",
   "queue.grp_running": "Em execução",
   "queue.grp_finishing": "Pós e QC",

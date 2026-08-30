@@ -3620,6 +3620,8 @@
   "dash.attn_offline": "{name} が応答しなくなりました",
   "dash.attn_error": "{name} でエラーが発生しました",
   "dash.attn_overdue": "{name} が納期を過ぎています",
+  "dash.attn_nozzle": "{name}：ノズル交換時期",
+  "fm.nozzle_due": "ノズルが {g} g を超えました。造形品の精度が落ち始めます",
   "queue.grp_attention": "対応が必要",
   "queue.grp_running": "進行中",
   "queue.grp_finishing": "後処理・品質確認",

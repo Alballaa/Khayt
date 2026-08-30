@@ -6,6 +6,16 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **An overdue nozzle now shows on the dashboard.** The warning existed on the
+  machine card and on no dashboard at all: every theme draws its own, and none
+  of them rendered the maintenance list it lived in. It reaches the attention
+  bar on every theme that has one.
+- **The Meridian dashboard's attention bar works.** It called a function that
+  does not exist, so it had shown "All clear" since the day it shipped —
+  through offline printers and late orders alike.
+
+### Fixed
+
 - **A nozzle threshold you have set is never changed for you.** Picking a
   printer model, or changing which nozzle is fitted, could overwrite the figure
   you chose whenever it happened to match one of Khayt's own suggestions — and

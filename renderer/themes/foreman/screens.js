@@ -82,6 +82,8 @@
       settings: (typeof settings !== 'undefined') ? settings : {},
       now: Date.now(),
       attention: global.KhaytAttention,
+      // So an overdue nozzle reaches the attention bar on every theme.
+      nozzleWear: global.KhaytNozzleWear,
       tiers: (typeof KhaytTiers !== 'undefined') ? KhaytTiers : undefined,
       money: (typeof payStatus === 'function' && typeof orderOwedBase === 'function')
         ? { payStatus, owedFor: orderOwedBase } : undefined,
@@ -108,6 +110,17 @@
           detail: it.state === 'error'
             ? tr('fm.machine_error', 'Reporting an error — nothing will print until it is cleared')
             : tr('fm.machine_offline', 'Not answering — it has stopped, this is not a missed poll'),
+          action: { label: tr('fm.go_printers', 'Printers'), tab: 'machines-tab' },
+        });
+      } else if (it.kind === 'nozzle') {
+        // A nozzle past the threshold the shop set. `due`, not `crit`: it does
+        // not stop the printer, it makes the parts wrong — worse to find late,
+        // and still not a reason to outrank a machine that has gone down.
+        rows.push({
+          key: `n:${it.id}`, sev: 'due', machineId: it.id,
+          title: it.name || it.id,
+          detail: tr('fm.nozzle_due', 'Nozzle past {g} g — parts will start coming out wrong')
+            .replace('{g}', String(it.threshold)),
           action: { label: tr('fm.go_printers', 'Printers'), tab: 'machines-tab' },
         });
       } else if (it.kind === 'order') {
