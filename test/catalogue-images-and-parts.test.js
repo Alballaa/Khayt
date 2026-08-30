@@ -191,3 +191,49 @@ test('a missing record does not throw', () => {
   assert.doesNotThrow(() => PF.partPatch({}));
   assert.doesNotThrow(() => PF.describe(null));
 });
+
+/* ── what the storefront publishes ────────────────────────────────────────
+ *
+ * This lived inside the storefront modal's closure, which is unreachable from
+ * an automation context — so it shipped with no way to check it short of
+ * publishing a real catalog to a real shop. Moved into the module so it can be
+ * asserted, which is the whole reason it is here.
+ */
+
+const img = (id, kind, bytes = 100) => ({ id, path: `${id}.jpg`, kind, thumbnail: 'data:image/jpeg;base64,' + 'A'.repeat(bytes) });
+
+test('the primary photo leads, and the real-print photo is next', () => {
+  // If only one survives the budget it should be the one the shop chose; if two
+  // do, the second should be the honest one.
+  const p = { id: 'P', images: [img('a', 'render'), img('b', 'scale'), img('c', 'print'), img('d', 'detail')] };
+  const out = PI.storefrontPhotos(p);
+  assert.deepEqual(out.map((x) => x.kind), ['render', 'print', 'scale']);
+});
+
+test('each published photo says what it is', () => {
+  const out = PI.storefrontPhotos({ id: 'P', images: [img('a', 'print')] });
+  assert.deepEqual(out, [{ src: 'data:image/jpeg;base64,' + 'A'.repeat(100), kind: 'print' }]);
+});
+
+test('the budget is real: too many, and too big, are both refused', () => {
+  const many = { id: 'P', images: ['a', 'b', 'c', 'd', 'e'].map((k) => img(k, 'render')) };
+  assert.equal(PI.storefrontPhotos(many).length, 3, 'at most three per listing');
+  const huge = { id: 'P', images: [img('a', 'render', 300000), img('b', 'print', 50)] };
+  const out = PI.storefrontPhotos(huge);
+  assert.equal(out.length, 1, 'an oversized picture is dropped, not truncated');
+  assert.equal(out[0].kind, 'print');
+});
+
+test('a product with no usable picture publishes none rather than a broken one', () => {
+  assert.deepEqual(PI.storefrontPhotos({ id: 'P' }), []);
+  assert.deepEqual(PI.storefrontPhotos({ id: 'P', images: [{ id: 'a', path: 'x.jpg', kind: 'render' }] }), [],
+    'a picture with no data URI cannot be published — the storefront never sees the disk');
+  assert.deepEqual(PI.storefrontPhotos({ id: 'P', images: [{ id: 'a', thumbnail: 'https://example.com/x.jpg' }] }), [],
+    'and a remote URL is not a data URI');
+});
+
+test('a legacy single-image product still publishes its photo', () => {
+  const out = PI.storefrontPhotos({ id: 'P', thumbnail: 'data:image/jpeg;base64,AAAA', imagePath: 'a.jpg' });
+  assert.equal(out.length, 1);
+  assert.equal(out[0].kind, 'render');
+});

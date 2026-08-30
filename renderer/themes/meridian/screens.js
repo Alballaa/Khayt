@@ -255,12 +255,34 @@
     const mach = scopedMachines();
     const { lanes, staged, start } = buildLanes(orders, mach, now);
 
+    /* KhaytAttention.compute DOES NOT EXIST, and never has.
+     *
+     * The module exports `selectAttention`; `compute` is a name nothing
+     * defines. The `typeof … && …compute` guard reads as defensive and is
+     * really the bug: it made a missing FUNCTION indistinguishable from a
+     * missing MODULE, so this passed `null` to the bar on every render and
+     * Meridian has shown "All clear" since the day it shipped — with printers
+     * offline and orders late.
+     *
+     * Same shape as Flow's, which that file's own header already records: a
+     * guarded call into the attention engine that could never fire.
+     *
+     * Routed through KhaytDashboardFacts like every other theme, rather than
+     * calling the engine directly — test/theme-facts.test.js enforces that, and
+     * it is how the nozzle-wear injection reaches all of them at once.
+     */
+    const attnData = (typeof KhaytDashboardFacts !== 'undefined')
+      ? KhaytDashboardFacts.dashboardFacts({
+        orders, machines: mach,
+        statusCache: (typeof machineStatusCache !== 'undefined' && machineStatusCache) || {},
+        settings: (typeof settings !== 'undefined') ? settings : {},
+        now: now.getTime(),
+        attention: (typeof KhaytAttention !== 'undefined') ? KhaytAttention : undefined,
+        nozzleWear: (typeof KhaytNozzleWear !== 'undefined') ? KhaytNozzleWear : undefined,
+      }).attn
+      : null;
     const attn = (typeof KhaytDashboard !== 'undefined' && KhaytDashboard.buildAttentionBar)
-      ? KhaytDashboard.buildAttentionBar(
-        (typeof KhaytAttention !== 'undefined' && KhaytAttention.compute)
-          ? KhaytAttention.compute({ orders, machines: mach }) : null,
-        mach.length,
-      ) : '';
+      ? KhaytDashboard.buildAttentionBar(attnData, mach.length) : '';
 
     const lanesHtml = lanes.length
       ? lanes.map((l) => laneHtml(l, start, now)).join('')

@@ -232,3 +232,53 @@ test('a zero threshold means "not tracked", not "always overdue"', () => {
   assert.ok(r.threshold > 0);
   assert.ok(Number.isFinite(r.pct));
 });
+
+/* ── the attention bar ─────────────────────────────────────────────────────
+ *
+ * The dashboard has a maintenance section listing overdue nozzles, and NO
+ * SHIPPED THEME RENDERS IT: every theme replaces renderDashboard with its own
+ * and none of them draws `.dash-section`. Confirmed by driving two of them —
+ * zero `.dash-section` elements on either, with a machine well past its
+ * threshold. The warning existed on the machine card and nowhere on the one
+ * screen a shop leaves open.
+ *
+ * The attention bar is what the themes DO render, so that is where it goes.
+ */
+const AT = require('../lib/attention.js');
+
+test('a nozzle past its threshold reaches the attention bar', () => {
+  const machines = [{ id: 'M1', name: 'U1', nozzle: { installedAt: '2026-08-01', gramsThreshold: 2000 } }];
+  const nozzleWear = () => ({ over: true, wear: 4980, threshold: 2000 });
+  const r = AT.selectAttention({ machines, orders: [], statusCache: {}, now: Date.parse('2026-09-01'), nozzleWear });
+  const item = r.items.find((i) => i.kind === 'nozzle');
+  assert.ok(item, 'an overdue nozzle is something the operator must act on');
+  assert.equal(item.severity, 'warn',
+    'warn, not crit: it does not stop the printer, it makes the parts wrong');
+  assert.equal(item.name, 'U1');
+  assert.equal(item.grams, 4980);
+});
+
+test('a nozzle inside its threshold does not', () => {
+  const machines = [{ id: 'M1', name: 'U1', nozzle: { installedAt: '2026-08-01', gramsThreshold: 50000 } }];
+  const r = AT.selectAttention({ machines, orders: [], statusCache: {}, now: Date.now(),
+    nozzleWear: () => ({ over: false, wear: 4980, threshold: 50000 }) });
+  assert.equal(r.items.filter((i) => i.kind === 'nozzle').length, 0);
+});
+
+test('a machine with no nozzle logged is never nagged about one', () => {
+  const r = AT.selectAttention({ machines: [{ id: 'M1', name: 'X' }], orders: [], statusCache: {},
+    now: Date.now(), nozzleWear: () => ({ over: true, wear: 9e9, threshold: 1 }) });
+  assert.equal(r.items.filter((i) => i.kind === 'nozzle').length, 0,
+    'installedAt gates it: a nozzle nobody has logged has no window to measure');
+});
+
+test('attention still works for callers that pass no wear function', () => {
+  // lib/attention.js is pure and must not reach for a global; a caller that
+  // does not supply one gets exactly today's behaviour.
+  const r = AT.selectAttention({ machines: [{ id: 'M1', name: 'X', nozzle: { installedAt: '2026-08-01' } }],
+    orders: [], statusCache: {}, now: Date.now() });
+  assert.equal(r.items.filter((i) => i.kind === 'nozzle').length, 0);
+  assert.doesNotThrow(() => AT.selectAttention({ machines: [{ id: 'M1', nozzle: { installedAt: 'x' } }],
+    orders: [], statusCache: {}, nozzleWear: () => { throw new Error('boom'); } }),
+    'and a wear function that throws must not take the whole bar down');
+});

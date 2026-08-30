@@ -36,13 +36,13 @@ test('the catalog grid says which listings show no real photo', () => {
 test('the storefront publishes the labelled photos, not just one', () => {
   const src = read('renderer/settings.js');
   const build = src.slice(src.indexOf('const buildCatalog = '), src.indexOf('#storeCopy'));
-  assert.match(build, /it\.photos = photos\.map/, 'more than one picture reaches the storefront');
-  assert.match(build, /kind: img\.kind/, 'and each one says what it is');
-  assert.match(build, /it\.photo = photos\[0\]\.thumbnail/,
+  assert.match(build, /KhaytProductImages\.storefrontPhotos\(p\)/,
+    'the storefront asks the module, so the selection is testable rather than sealed in a modal');
+  assert.match(build, /it\.photos = photos/, 'more than one picture reaches the storefront');
+  assert.match(build, /it\.photo = photos\[0\]\.src/,
     'the single-photo field stays, so an un-updated storefront page still renders');
-  // Budgeted: the whole catalog is one blob against a 25 MB server limit.
-  assert.match(build, /MAX_PHOTOS = 3/);
-  assert.match(build, /PER_PHOTO = 200000/);
+  // The budget itself is asserted in catalogue-images-and-parts.test.js, where
+  // it can be exercised rather than pattern-matched.
 });
 
 test('every lib module the renderer uses is loaded by both entry points', () => {

@@ -3620,6 +3620,8 @@
   "dash.attn_offline": "{name} 已停止响应",
   "dash.attn_error": "{name} 报告了错误",
   "dash.attn_overdue": "{name} 已逾期",
+  "dash.attn_nozzle": "{name}：喷嘴需更换",
+  "fm.nozzle_due": "喷嘴已超过 {g} g——打印件将开始出现偏差",
   "queue.grp_attention": "需要处理",
   "queue.grp_running": "进行中",
   "queue.grp_finishing": "后处理与质检",

@@ -1490,31 +1490,19 @@ async function openStorefrontModal() {
              * A listing used to carry a single picture and no indication of
              * whether it was a render or the real thing — the one question a
              * customer is actually asking, and the one whose wrong answer is a
-             * refund. Products can now hold several labelled pictures, so the
-             * storefront carries them.
+             * refund.
              *
-             * BUDGETED, because the whole catalog is one blob and the server
-             * takes 25 MB for all of it. Three per item at 200 KB each is
-             * roughly 600 KB, which leaves room for a catalog of forty listings
-             * without going near the limit. `photo` stays as the first one, so
-             * a storefront page that has not been updated still renders.
-             *
-             * Ordered primary first, then any picture of the ACTUAL PRINT, then
-             * the rest: if only one survives the budget it should be the one the
-             * shop chose, and if two do the second should be the honest one.
+             * The selection and the budget live in lib/product-images.js so
+             * they can be tested: this modal is unreachable from an automation
+             * context, so anything decided in here ships unverified. `photo`
+             * stays as the first one, so a storefront page that has not been
+             * updated still renders.
              */
             if (withPhotos) {
-              const PER_PHOTO = 200000, MAX_PHOTOS = 3;
-              const all = KhaytProductImages.normalise(p).images
-                .filter((img) => typeof img.thumbnail === 'string'
-                  && /^data:image\//.test(img.thumbnail) && img.thumbnail.length <= PER_PHOTO);
-              const ordered = all.length
-                ? [all[0], ...all.slice(1).filter((i) => i.kind === 'print'), ...all.slice(1).filter((i) => i.kind !== 'print')]
-                : [];
-              const photos = ordered.slice(0, MAX_PHOTOS);
+              const photos = KhaytProductImages.storefrontPhotos(p);
               if (photos.length) {
-                it.photo = photos[0].thumbnail;
-                it.photos = photos.map((img) => ({ src: img.thumbnail, kind: img.kind }));
+                it.photo = photos[0].src;
+                it.photos = photos;
               }
             }
             return it;

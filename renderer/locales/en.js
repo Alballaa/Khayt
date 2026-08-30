@@ -3623,6 +3623,8 @@
   "dash.attn_offline": "{name} stopped answering",
   "dash.attn_error": "{name} reported an error",
   "dash.attn_overdue": "{name} is overdue",
+  "dash.attn_nozzle": "{name}: nozzle due for replacement",
+  "fm.nozzle_due": "Nozzle past {g} g — parts will start coming out wrong",
   "queue.grp_attention": "Needs attention",
   "queue.grp_running": "Running",
   "queue.grp_finishing": "Post & QC",

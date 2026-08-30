@@ -3622,6 +3622,8 @@
   "dash.attn_offline": "توقفت {name} عن الاستجابة",
   "dash.attn_error": "أبلغت {name} عن خطأ",
   "dash.attn_overdue": "تأخر تسليم {name}",
+  "dash.attn_nozzle": "{name}: الفوهة تحتاج استبدالاً",
+  "fm.nozzle_due": "الفوهة تجاوزت {g} غم — ستبدأ القطع بالخروج خاطئة",
   "queue.grp_attention": "يحتاج تدخلاً",
   "queue.grp_running": "قيد التشغيل",
   "queue.grp_finishing": "التشطيب ومراقبة الجودة",

@@ -164,6 +164,12 @@ function buildAttentionBar(attn, machineCount) {
     if (a.kind === 'machine') {
       return t(a.state === 'error' ? 'dash.attn_error' : 'dash.attn_offline', { name: a.name });
     }
+    // A nozzle past the threshold the shop set. Named explicitly rather than
+    // falling through to "overdue", which is about an ORDER's promised date and
+    // would read as a late job on a machine that is printing perfectly well.
+    if (a.kind === 'nozzle') {
+      return t('dash.attn_nozzle', { name: a.name }) || `${a.name}: nozzle due for replacement`;
+    }
     return t('dash.attn_overdue', { name: a.name });
   };
 
@@ -244,6 +250,9 @@ function renderDashboard() {
       orders: dashOrders,
       statusCache: (typeof machineStatusCache !== 'undefined' ? machineStatusCache : {}),
       now: Date.now(),
+      // A nozzle past the threshold the shop set belongs on the one screen they
+      // leave open. Passed in rather than reached for: lib/attention.js is pure.
+      nozzleWear: (m) => KhaytNozzleWear.nozzleWear(printLog, m, settings),
     })
     : null;
 
@@ -1138,6 +1147,7 @@ function renderMaterialUsageChart() {
         orders: scopedOrders,
         statusCache: (typeof machineStatusCache !== 'undefined' ? machineStatusCache : {}),
         now: Date.now(),
+        nozzleWear: (m) => KhaytNozzleWear.nozzleWear(scopedOrders, m, settings),
       });
       bar.outerHTML = buildAttentionBar(next, scopedMachines.length);
     }

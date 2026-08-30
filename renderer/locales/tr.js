@@ -3620,6 +3620,8 @@
   "dash.attn_offline": "{name} yanıt vermiyor",
   "dash.attn_error": "{name} bir hata bildirdi",
   "dash.attn_overdue": "{name} gecikti",
+  "dash.attn_nozzle": "{name}: nozul değişmeli",
+  "fm.nozzle_due": "Nozul {g} g'ı geçti — parçalar hatalı çıkmaya başlar",
   "queue.grp_attention": "İlgi bekliyor",
   "queue.grp_running": "Çalışıyor",
   "queue.grp_finishing": "Son işlem ve kontrol",

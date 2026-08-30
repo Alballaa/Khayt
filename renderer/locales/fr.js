@@ -3620,6 +3620,8 @@
   "dash.attn_offline": "{name} ne répond plus",
   "dash.attn_error": "{name} a signalé une erreur",
   "dash.attn_overdue": "{name} est en retard",
+  "dash.attn_nozzle": "{name} : buse à remplacer",
+  "fm.nozzle_due": "Buse au-delà de {g} g — les pièces vont commencer à sortir fausses",
   "queue.grp_attention": "Nécessite une action",
   "queue.grp_running": "En cours",
   "queue.grp_finishing": "Post-traitement et contrôle",
