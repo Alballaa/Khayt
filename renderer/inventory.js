@@ -3524,7 +3524,16 @@ function openProductEditor(productId = null) {
         modal.querySelectorAll('[data-act="pick-photo"]').forEach((el) =>
           el.addEventListener('click', () => photoInput.click()));
         photoInput.addEventListener('change', async (e) => {
-          const files = e.target.files; e.target.value = '';
+          // COPY THE LIST BEFORE CLEARING THE INPUT.
+          //
+          // `e.target.files` is a LIVE FileList, not a snapshot: setting
+          // `value = ''` empties the very collection this was about to read, so
+          // addFiles() got nothing and picking a photo silently did nothing at
+          // all. The single-slot code this replaced took `files[0]` first — a
+          // real File reference — so clearing after was safe there and is not
+          // safe here. Reported as "the catalogue won't accept images".
+          const files = [...e.target.files];
+          e.target.value = '';
           await addFiles(files);
         });
         ['dragover', 'dragenter'].forEach((ev) => photoDrop.addEventListener(ev, (e) => {

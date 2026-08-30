@@ -4,6 +4,11 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Fixed
+
+- **The catalogue accepts photos again.** Picking an image did nothing at all —
+  no error, no photo. Introduced in 3.7.0-beta.14 with the multi-image editor.
+
 ## [3.7.0-beta.14] - 2026-08-30
 
 ### Added
