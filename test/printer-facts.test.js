@@ -250,3 +250,28 @@ test('picking a printer model applies its nozzle material', () => {
   assert.doesNotMatch(fill, /material:\s*s\.nozzle\.material \|\| 'brass'/,
     'an unknown fitment must not be defaulted to brass here — the catalog omits it on purpose');
 });
+
+test('a threshold the shop set is never rewritten', () => {
+  /* The app cannot tell a default from a decision, and it used to guess.
+   *
+   * Picking a printer model, or changing the nozzle-material dropdown,
+   * overwrote any threshold that MATCHED A SUGGESTION — on the theory that such
+   * a value must be untouched. A shop that deliberately typed 5,000 has typed
+   * the same number brass suggests, and the old table's brass default of 2,000
+   * is still sitting in stores from before that figure changed.
+   *
+   * It guessed wrong on a real machine: a U1 carrying a deliberate 2,000 g
+   * threshold came out of an update reading 50,000 g — hardened steel's figure
+   * on a stainless nozzle — and the replacement warning it had been showing
+   * went quiet. Nothing told the shop.
+   */
+  const src = fs.readFileSync(path.join(__dirname, '..', 'renderer', 'machines.js'), 'utf8');
+  // No path may decide a stored value is "really" a default and replace it.
+  assert.doesNotMatch(src, /suggestions\.includes\(\+\w*[Ff]ield\.value\)/,
+    'a stored threshold must not be overwritten because it happens to equal a suggestion');
+  assert.doesNotMatch(src, /\+field\.value === KhaytNozzleWear\.defaultThresholdFor\(previous/,
+    'nor because it equals the PREVIOUS material\'s suggestion');
+  // Filling an empty one is fine, and is the only thing allowed.
+  assert.match(src, /if \(thEl && !thEl\.value\)/, 'an empty threshold may still be filled in');
+  assert.match(src, /if \(field && !field\.value\)/, 'and so may an empty one in the log-nozzle dialog');
+});

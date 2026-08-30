@@ -75,6 +75,31 @@ function renderMachines() {
       <div class="nozzle-progress" style="max-width:200px;margin-top:3px;">
         <div class="nozzle-progress-bar" style="width:${nozzlePct.toFixed(1)}%;background:${nozzleOver ? 'var(--danger)' : 'var(--primary)'};"></div>
       </div>` : '';
+    /* THE CHECKED SPECS, AND THE SUPPORT LINK.
+     *
+     * All of this was collected, stored on the machine and displayed nowhere —
+     * including the support URL, which was the thing actually asked for and
+     * which had every one of its forty-nine addresses checked for a 200. Data
+     * that reaches the store and never reaches the screen is the same as data
+     * that was never collected, and it is harder to notice.
+     *
+     * Only what is known: a printer the catalog has not been swept for shows
+     * nothing here rather than a row of dashes.
+     */
+    const specBits = [];
+    if (m.maxHotendC) specBits.push(`${m.maxHotendC}°C ${escapeHtml(t('mach.hotend') || 'hotend')}`);
+    if (m.maxBedC) specBits.push(`${m.maxBedC}°C ${escapeHtml(t('mach.bed') || 'bed')}`);
+    if (m.chamber === 'active') specBits.push(`${m.maxChamberC || '?'}°C ${escapeHtml(t('mach.chamber') || 'chamber')}`);
+    else if (m.chamber === 'passive') specBits.push(escapeHtml(t('mach.chamber_passive') || 'enclosed'));
+    if (m.filamentMm && m.filamentMm !== 1.75) specBits.push(`${m.filamentMm} mm ${escapeHtml(t('mach.filament') || 'filament')}`);
+    if (m.toolheads > 1) specBits.push(`${m.toolheads} ${escapeHtml(t('mach.toolheads') || 'toolheads')}`);
+    if (m.lcdK) specBits.push(`${escapeHtml(m.lcdK)} ${escapeHtml(t('mach.screen') || 'screen')}`);
+    if (m.xyMicrons) specBits.push(`${m.xyMicrons} µm XY`);
+    const specsHtml = (specBits.length || m.support) ? `
+      <div style="margin-top:4px; font-size:11px; color:var(--text-muted);">
+        ${specBits.join(' · ')}
+        ${m.support ? `${specBits.length ? ' · ' : ''}<a href="#" class="mach-support" data-url="${escapeHtml(m.support)}" style="color:var(--primary);">${escapeHtml(t('mach.support') || 'Support')} ↗</a>` : ''}
+      </div>` : '';
     // Feature 3: compat materials
     const compatHtml = (m.compatMaterials && m.compatMaterials.length > 0)
       ? `<span style="font-size:10.5px;color:var(--text-muted);margin-inline-start:6px;">[${escapeHtml(m.compatMaterials.join(', '))}]</span>`
@@ -96,12 +121,20 @@ function renderMachines() {
         <button class="btn small" data-act="edit-mach" data-id="${m.id}">${escapeHtml(t('common.edit'))}</button>
         <button class="btn danger small" data-act="del-mach" data-id="${m.id}">${escapeHtml(t('common.delete'))}</button>
         ${nozzleHtml}
+        ${specsHtml}
         ${(typeof KhaytWebcam !== 'undefined' && KhaytWebcam.hasCamera(m)) ? `
         <div class="mach-cam" data-cam="${escapeHtml(m.id)}" style="margin-top:8px;position:relative;width:160px;height:120px;background:var(--bg-elev);border-radius:8px;overflow:hidden;display:flex;align-items:center;justify-content:center;">
           <span style="font-size:11px;color:var(--text-muted);">${escapeHtml(t('cam.loading') || 'Camera…')}</span>
         </div>` : ''}
       </div>`;
   }).join('');
+  // The support link opens in the shop's browser, not in the app window.
+  // Wired here rather than in the markup because the list is rebuilt on every
+  // render and an inline handler would be a CSP violation in this renderer.
+  list.querySelectorAll('.mach-support').forEach((a) => a.addEventListener('click', (e) => {
+    e.preventDefault();
+    window.hubAPI?.openExternal?.(a.dataset.url);
+  }));
   updateNotifBadge();
 }
 
@@ -429,10 +462,22 @@ function openMachineEditor(machineId = null) {
             draft.nozzle = Object.assign({ installedAt: '', gramsAtInstall: 0 }, draft.nozzle, { material: s.nozzle.material });
             const matEl = modal.querySelector('#machNozzleMaterial');
             if (matEl) matEl.value = s.nozzle.material;
-            // And move the threshold with it, unless the shop has typed one.
+            /* FILL AN EMPTY THRESHOLD. NEVER REWRITE ONE THAT IS SET.
+             *
+             * This used to overwrite any value that MATCHED A SUGGESTION, on the
+             * theory that such a value must be untouched. It is not a safe
+             * theory: a shop that deliberately typed 5,000 has typed the same
+             * number brass suggests, and the old table's brass default of 2,000
+             * is still sitting in stores from before it changed. Either way the
+             * app cannot tell a default from a decision, and it guessed.
+             *
+             * It guessed wrong on a real machine: a U1 carrying a deliberate
+             * 2,000 g threshold came out of an update reading 50,000 g — which
+             * is hardened steel's figure on a stainless nozzle — and the
+             * replacement warning it had been showing went quiet. A maintenance
+             * setting a shop chose is not the app's to move. */
             const thEl = modal.querySelector('#machNozzleGramsThreshold');
-            const suggestions = Object.values(KhaytNozzleWear.MATERIAL_LIFE_G);
-            if (thEl && (!thEl.value || suggestions.includes(+thEl.value))) {
+            if (thEl && !thEl.value) {
               const g = KhaytNozzleWear.defaultThresholdFor(s.nozzle.material, settings);
               thEl.value = g;
               draft.nozzle.gramsThreshold = g;
@@ -752,18 +797,19 @@ function openMachineEditor(machineId = null) {
       modal.querySelector('#machNozzleDiameter')?.addEventListener('input', e => { draft.nozzleDiameter = parseFloat(e.target.value) || null; });
       modal.querySelector('#machExtruderType')?.addEventListener('input', e => { draft.extruderType = e.target.value; });
       modal.querySelector('#machNozzleMaterial')?.addEventListener('change', e => {
-        const previous = draft.nozzle.material;
         draft.nozzle.material = e.target.value;
-        // Move the threshold with the material ONLY while it still holds the
-        // previous material's suggestion. A number the shop typed is a decision
-        // and must survive changing the dropdown — the same rule the low-stock
-        // colour picker follows, for the same reason.
+        // SUGGEST, DO NOT REWRITE. Changing which nozzle is fitted does not
+        // give the app permission to change a threshold the shop set — see the
+        // comment in fillSpecs. The hint says what this material is usually
+        // good for and leaves the decision alone.
         const field = modal.querySelector('#machNozzleGramsThreshold');
-        if (!field) return;
+        const hint = modal.querySelector('#machNozzleHint');
         const suggested = KhaytNozzleWear.defaultThresholdFor(e.target.value, settings);
-        if (+field.value === KhaytNozzleWear.defaultThresholdFor(previous, settings)) {
-          field.value = suggested;
-          draft.nozzle.gramsThreshold = suggested;
+        if (field && !field.value) { field.value = suggested; draft.nozzle.gramsThreshold = suggested; }
+        else if (hint) {
+          hint.textContent = (t('mach.nozzle_suggest') || 'Usually about')
+            + ` ${suggested.toLocaleString()} g `
+            + (t('mach.nozzle_suggest_tail') || 'for this nozzle — yours is yours to set.');
         }
       });
       modal.querySelector('#machNozzleInstalledAt')?.addEventListener('change', e => { draft.nozzle.installedAt = e.target.value; });
@@ -938,9 +984,9 @@ function logNozzleChange(machineId) {
       const field = modal.querySelector('#nlThreshold');
       if (sel) sel.value = machine.nozzle?.material || 'brass';
       sel?.addEventListener('change', () => {
-        if (!field) return;
-        const suggestions = Object.values(KhaytNozzleWear.MATERIAL_LIFE_G);
-        if (suggestions.includes(+field.value)) field.value = KhaytNozzleWear.defaultThresholdFor(sel.value, settings);
+        // Only when the shop has left it blank. Fitting a different nozzle is
+        // not consent to rewrite a figure they chose.
+        if (field && !field.value) field.value = KhaytNozzleWear.defaultThresholdFor(sel.value, settings);
       });
     },
     async onSave(modal) {
