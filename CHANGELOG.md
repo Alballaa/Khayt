@@ -6,6 +6,20 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **A nozzle threshold you have set is never changed for you.** Picking a
+  printer model, or changing which nozzle is fitted, could overwrite the figure
+  you chose — on one machine a deliberate 2,000 g became 50,000 g and the
+  replacement warning it had been showing went quiet. Khayt now only fills the
+  box in when it is empty, and suggests rather than rewrites.
+
+### Added
+
+- The machine card shows what the catalogue knows about your printer — hotend
+  and bed maxima, chamber, toolheads, screen and XY pixel size for resin — and
+  **a link to that printer's support page.**
+
+### Fixed
+
 - **Several photos on one product are now several files.** Every picture on a
   product was being written to the same filename, so only the last one survived
   and removing any of them would have taken the others with it. Products saved
