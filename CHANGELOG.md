@@ -8,9 +8,9 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 - **A nozzle threshold you have set is never changed for you.** Picking a
   printer model, or changing which nozzle is fitted, could overwrite the figure
-  you chose — on one machine a deliberate 2,000 g became 50,000 g and the
-  replacement warning it had been showing went quiet. Khayt now only fills the
-  box in when it is empty, and suggests rather than rewrites.
+  you chose whenever it happened to match one of Khayt's own suggestions — and
+  plenty of deliberate figures do. Khayt now only fills the box in when it is
+  empty, and suggests rather than rewrites.
 
 ### Added
 

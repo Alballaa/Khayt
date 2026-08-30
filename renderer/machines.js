@@ -468,14 +468,16 @@ function openMachineEditor(machineId = null) {
              * theory that such a value must be untouched. It is not a safe
              * theory: a shop that deliberately typed 5,000 has typed the same
              * number brass suggests, and the old table's brass default of 2,000
-             * is still sitting in stores from before it changed. Either way the
-             * app cannot tell a default from a decision, and it guessed.
+             * is still sitting in stores from before that figure changed. The
+             * app cannot tell a default from a decision, so it was guessing —
+             * about a maintenance setting, silently, with no way for the shop to
+             * know it had happened.
              *
-             * It guessed wrong on a real machine: a U1 carrying a deliberate
-             * 2,000 g threshold came out of an update reading 50,000 g — which
-             * is hardened steel's figure on a stainless nozzle — and the
-             * replacement warning it had been showing went quiet. A maintenance
-             * setting a shop chose is not the app's to move. */
+             * (This was first written up as the cause of a real threshold change
+             * on a shop's U1. It was not: the shop had typed that number itself.
+             * The behaviour is still wrong and still worth removing, and the
+             * incident that prompted the look was not evidence for it — recorded
+             * here so the next reader does not inherit a false story.) */
             const thEl = modal.querySelector('#machNozzleGramsThreshold');
             if (thEl && !thEl.value) {
               const g = KhaytNozzleWear.defaultThresholdFor(s.nozzle.material, settings);

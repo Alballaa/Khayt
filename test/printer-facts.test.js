@@ -258,12 +258,13 @@ test('a threshold the shop set is never rewritten', () => {
    * overwrote any threshold that MATCHED A SUGGESTION — on the theory that such
    * a value must be untouched. A shop that deliberately typed 5,000 has typed
    * the same number brass suggests, and the old table's brass default of 2,000
-   * is still sitting in stores from before that figure changed.
+   * is still sitting in stores from before that figure changed. The app cannot
+   * tell a default from a decision, so it was guessing about a maintenance
+   * setting, silently.
    *
-   * It guessed wrong on a real machine: a U1 carrying a deliberate 2,000 g
-   * threshold came out of an update reading 50,000 g — hardened steel's figure
-   * on a stainless nozzle — and the replacement warning it had been showing
-   * went quiet. Nothing told the shop.
+   * No incident is claimed here. A threshold change on a real machine prompted
+   * the look and turned out to be the shop typing its own number; the guessing
+   * is wrong on its own terms and that is the whole reason this holds.
    */
   const src = fs.readFileSync(path.join(__dirname, '..', 'renderer', 'machines.js'), 'utf8');
   // No path may decide a stored value is "really" a default and replace it.
