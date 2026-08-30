@@ -5,7 +5,7 @@ Khayt publishes **two release channels** on GitHub:
 | Channel | Latest | GitHub | Auto-update |
 |---------|--------|--------|-------------|
 | **Stable** | `v3.6.0` | [Latest release](https://github.com/khaytapp/Khayt/releases/latest) | Default (beta off) |
-| **Beta / RC** | `v3.7.0-beta.12` (`v3.7.0-beta.13` being cut — the promotion candidate; **beta.12 cannot sign in to Khayt Cloud, do not promote it**) | [Pre-releases](https://github.com/khaytapp/Khayt/releases) (filter *Pre-release*) | Opt-in via Settings |
+| **Beta / RC** | `v3.7.0-beta.13` (`v3.7.0-beta.14` being cut — the promotion candidate) | [Pre-releases](https://github.com/khaytapp/Khayt/releases) (filter *Pre-release*) | Opt-in via Settings |
 
 > Verified 2026-08-27 after the publish, against published tags and fetched
 > manifests: `latest.yml` and `latest-linux.yml` read `3.7.0-beta.10`,

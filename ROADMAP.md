@@ -2,67 +2,60 @@
 
 Living priorities for maintainers. Not a public commitment calendar — reorder as the product needs.
 
-## Now (post-3.6.0, 3.7.0-beta.13 being cut — on `main`)
+## Now (post-3.6.0, 3.7.0-beta.14 being cut — on `main`)
 
 **Stable is v3.6.0** (2026-08-21) — the 3.6.0 line, promoted from
 `v3.6.0-rc.4` unchanged after a seven-day soak. rc.4 was the first candidate on
 this line that `main` did not overtake, so for once replace-vs-promote resolved
 to *promote*; rc.1, rc.2 and rc.3 were each replaced instead.
 
-**`v3.7.0-beta.13` is the cut being made now** (2026-08-29), and it **replaces
-`beta.12` as the promotion candidate** — the promise lives in
+**`v3.7.0-beta.14` is the cut being made now** (2026-08-30), and it **replaces
+`beta.13` as the promotion candidate** — the promise lives in
 [docs/RELEASE-HOLD.md](./docs/RELEASE-HOLD.md), not in the version string. Built
-for all three platforms, `BUILD_MAC` set: macOS current is a gate condition for
-promotion, and the build that becomes stable should not be the one cut behind.
+for all three platforms, `BUILD_MAC` set.
 
-**`beta.12` must not be promoted.** Signing in to Khayt Cloud did not work in it,
-and neither did creating an account: `syncScopeToShop` is declared in
-`app-state.js` and was never added to that file's export list, so the three
-handlers that call it — sign-up, log-in and join-a-team — reached the server, got
-a valid answer, and died one line later on a ReferenceError. Nothing was saved.
-Nothing was shown. The panel sat on "Connecting…" for as long as anyone cared to
-wait, which is how it was reported.
+It answers a question a shop asked about its own machine — *when it says replace
+nozzle after, where are you getting that from?* — and the honest answer was
+"nowhere", three times over.
 
-It had been that way since #514, shipped in `v3.4.2`. **beta.12's headline fix
-was downstream of it and can never have run** — the verification-code dialog that
-release was cut for opens two lines after the throw. The bug was real, the fix
-was right, and it shipped unreachable, verified by launching the app rather than
-by walking the flow.
+**THE COUNTER HAD NEVER COUNTED ANYTHING.** The machine card summed `p.weight`,
+which is not a field a part has, so every job contributed `+undefined || 0` and
+the bar sat at zero. Verified against a real shop: twelve completed jobs, 2,461 g
+through a 2,000 g threshold, card reading 0 g. The warning had never fired for
+anybody, which is also why nobody reported it.
 
-Two things came out of that and matter more than either bug:
+**THE NUMBERS WERE INVENTED.** The first replacement table was plausible,
+labelled "rules of thumb", and checked against nothing — and two figures were
+wrong in a direction that mattered. Glow-in-the-dark was rated the most abrasive
+filament there is; a controlled test measured no orifice change after 330 g of
+it. Brass was given 2 kg against published figures of 3–15 kg. Every figure now
+carries its source, the four that remain guesses say so in amber, and the whole
+table is editable because the published tests disagree by an order of magnitude.
+See docs/NOZZLE-WEAR.md.
 
-*An unhandled rejection was reported to Sentry and nowhere else.* Sentry is off
-unless a build configures it, so in a shop's hands the error went nowhere at all.
-The renderer now says so on screen, deduped by message — and the handlers are
-installed FIRST rather than as the 148th of 149 scripts, so boot itself is
-covered for the first time.
+**THE COUNTER WAS ASKING THE WRONG RECORD.** Completed *orders* answer "what did
+we sell", not "what went through this nozzle" — test prints, reprints and
+calibration are all real filament and none of them is an order. Klipper machines
+have kept that history all along at `/server/history/list` and Khayt had never
+asked. On the machine this was found with: 2,461 g by orders, **4,980 g by the
+printer's own record**, against a 2,000 g threshold. Read-only, one GET, proven
+against a live printer at 88% of a thirteen-hour job.
 
-*A cross-file call into an IIFE-private function had only half a guard.*
-`test/cross-file-wiring.test.js` checked `typeof X === 'function'` calls, which
-fail silently; a bare `X()` fails loudly and invisibly. It now checks both, and
-found a second one the same day (`renderDepositAuditBanner`).
+Also on this cut: the printer catalog carries checked facts for 39 of its 49
+printers — nozzle material, temperatures, chamber, filament diameter and a
+support link whose URL was verified — so picking a model sets a maintenance
+threshold that matches what is fitted. Toolchangers, IDEX and resin machines are
+described as what they are rather than as ordinary direct-drive FDM printers.
 
-Found while reviewing the rest of the desktop↔cloud relationship, each with its
-own guard:
+And the catalog: a product can hold several photos, each labelled with what it
+is, because the question a customer asks of a listing is whether that is a render
+or what arrives. A catalog part can be linked to a print file and filled in from
+it, and says what it could not fill rather than leaving zeros that look typed.
 
-- Saving Settings rebuilt `settings` from the form and dropped every key the form
-  does not name — nineteen of them, `cloud` included. That is what actually
-  signed the reporting shop out. It spreads first now, so omission preserves.
-- `login()` discarded `verified`, which the server has always sent, so every
-  device believed the account was unverified.
-- `signup()` discarded `emailConfigured`, so a self-hosted server with no mail
-  asked for a code that was never sent.
-
-The rest of the surface was checked against the live server and holds: the
-deployed `index.php` is byte-identical to this repo, all 36 routes the client can
-call exist (only the dormant `/v1/telemetry` 404s), the encrypted round-trip is
-lossless with no plaintext server-side, a stale push is refused with `serverRev`,
-and a wrong passphrase, a bad token and a cross-shop read all fail closed.
-
-**The newest *published* pre-release is `v3.7.0-beta.12`** (2026-08-29) — all
-three platforms, verified after the publish: every manifest reads `3.7.0-beta.12`
-and each of the five assets it names resolves. It runs; it just cannot sign in to
-the cloud, which is why `beta.13` follows it the same day.
+**The newest *published* pre-release is `v3.7.0-beta.13`** (2026-08-29) — all
+three platforms, verified after the publish, and verified further than usual:
+the published `.dmg` was downloaded and driven through a real sign-in against
+production, because `beta.12` passed every check and could not sign in.
 
 *(A release was published earlier the same day under an `rc` prerelease tag, and
 has been deleted, tag and all. electron-updater's ladder knows `alpha` and `beta` and nothing else, so an
