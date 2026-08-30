@@ -4,6 +4,8 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.7.0-beta.15] - 2026-08-30
+
 ### Fixed
 
 - **An overdue nozzle now shows on the dashboard.** The warning existed on the

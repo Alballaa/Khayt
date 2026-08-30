@@ -2,60 +2,58 @@
 
 Living priorities for maintainers. Not a public commitment calendar — reorder as the product needs.
 
-## Now (post-3.6.0, 3.7.0-beta.14 being cut — on `main`)
+## Now (post-3.6.0, 3.7.0-beta.15 being cut — on `main`)
 
 **Stable is v3.6.0** (2026-08-21) — the 3.6.0 line, promoted from
 `v3.6.0-rc.4` unchanged after a seven-day soak. rc.4 was the first candidate on
 this line that `main` did not overtake, so for once replace-vs-promote resolved
 to *promote*; rc.1, rc.2 and rc.3 were each replaced instead.
 
-**`v3.7.0-beta.14` is the cut being made now** (2026-08-30), and it **replaces
-`beta.13` as the promotion candidate** — the promise lives in
-[docs/RELEASE-HOLD.md](./docs/RELEASE-HOLD.md), not in the version string. Built
-for all three platforms, `BUILD_MAC` set.
+**`v3.7.0-beta.15` is the cut being made now** (2026-08-30) and it **replaces
+`beta.14` as the promotion candidate** — the promise lives in
+[docs/RELEASE-HOLD.md](./docs/RELEASE-HOLD.md), not in the version string. All
+three platforms, `BUILD_MAC` set.
 
-It answers a question a shop asked about its own machine — *when it says replace
-nozzle after, where are you getting that from?* — and the honest answer was
-"nowhere", three times over.
+**`beta.14` cannot accept a catalogue photo.** The multi-image editor shipped
+with a live `FileList` read after the input was cleared, so picking an image did
+nothing at all — no photo, no error, no console message. Every unit test passed;
+the bug lived in the one line between a correct module and a wiring test that
+found the listener.
 
-**THE COUNTER HAD NEVER COUNTED ANYTHING.** The machine card summed `p.weight`,
-which is not a field a part has, so every job contributed `+undefined || 0` and
-the bar sat at zero. Verified against a real shop: twelve completed jobs, 2,461 g
-through a 2,000 g threshold, card reading 0 g. The warning had never fired for
-anybody, which is also why nobody reported it.
+Repairing that surfaced a worse one underneath it: **every photo on a product
+was written to the same filename.** The editor showed three thumbnails, the
+store held three records, the disk held one picture, and removing any of them
+would have unlinked the file the others still used. Found by reading the disk
+rather than the screen.
 
-**THE NUMBERS WERE INVENTED.** The first replacement table was plausible,
-labelled "rules of thumb", and checked against nothing — and two figures were
-wrong in a direction that mattered. Glow-in-the-dark was rated the most abrasive
-filament there is; a controlled test measured no orifice change after 330 g of
-it. Brass was given 2 kg against published figures of 3–15 kg. Every figure now
-carries its source, the four that remain guesses say so in amber, and the whole
-table is editable because the published tests disagree by an order of magnitude.
-See docs/NOZZLE-WEAR.md.
+Then, asked whether this was ready to cut, driving the screens rather than
+re-running the suite found two more:
 
-**THE COUNTER WAS ASKING THE WRONG RECORD.** Completed *orders* answer "what did
-we sell", not "what went through this nozzle" — test prints, reprints and
-calibration are all real filament and none of them is an order. Klipper machines
-have kept that history all along at `/server/history/list` and Khayt had never
-asked. On the machine this was found with: 2,461 g by orders, **4,980 g by the
-printer's own record**, against a 2,000 g threshold. Read-only, one GET, proven
-against a live printer at 88% of a thirteen-hour job.
+*The dashboard nozzle alert was dead on every theme.* Every theme replaces
+`renderDashboard` with its own and none of them draws `.dash-section`, so the
+warning existed on the machine card and on no dashboard. It goes through the
+attention bar now, which the themes do render — verified on all seven.
 
-Also on this cut: the printer catalog carries checked facts for 39 of its 49
-printers — nozzle material, temperatures, chamber, filament diameter and a
-support link whose URL was verified — so picking a model sets a maintenance
-threshold that matches what is fitted. Toolchangers, IDEX and resin machines are
-described as what they are rather than as ordinary direct-drive FDM printers.
+*Meridian's attention bar had never worked.* It called `KhaytAttention.compute`,
+a function that does not exist, behind a `typeof` guard that made the missing
+function indistinguishable from a missing module. It has shown "All clear" since
+it shipped, through offline printers and late orders alike.
 
-And the catalog: a product can hold several photos, each labelled with what it
-is, because the question a customer asks of a listing is whether that is a render
-or what arrives. A catalog part can be linked to a print file and filled in from
-it, and says what it could not fill rather than leaving zeros that look typed.
+**Also corrected: a story, not a defect.** A U1's nozzle threshold changed from
+2,000 g to 50,000 g minutes after an update, and I attributed it to code written
+the same day. The shop had typed that number. A reproduction of the ordinary
+path had already come back clean and that should have ended the theory. The
+CHANGELOG entry claiming it, and the comments repeating it, are gone — the
+behaviour it prompted was independently wrong and is still fixed.
 
-**The newest *published* pre-release is `v3.7.0-beta.13`** (2026-08-29) — all
-three platforms, verified after the publish, and verified further than usual:
-the published `.dmg` was downloaded and driven through a real sign-in against
-production, because `beta.12` passed every check and could not sign in.
+Five things this session were built, tested and never plugged in — the support
+link that was explicitly asked for among them. The pattern each time: a correct
+module, a wiring test that finds the listener, and nothing driving the actual
+screen. A green suite is not evidence that a feature exists.
+
+**The newest *published* pre-release is `v3.7.0-beta.14`** (2026-08-30) — all
+three platforms, verified after the publish and driven against a live printer.
+**Do not recommend it**: the catalogue cannot accept a photo in that build.
 
 *(A release was published earlier the same day under an `rc` prerelease tag, and
 has been deleted, tag and all. electron-updater's ladder knows `alpha` and `beta` and nothing else, so an
