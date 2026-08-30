@@ -12,11 +12,21 @@ function _mIcoL(name, emoji, size) { return (_mBdr && window.BedReadyIcons) ? `<
 const MACHINE_COLORS = ['#5b9cf0','#2bb673','#f5a623','#ef4d5e','#a78bfa','#fb923c','#34d399','#f472b6'];
 
 /* Feature 4: Grams printed on a machine since last nozzle install */
+/**
+ * Nozzle wear for one machine. See lib/nozzle-wear.js for the model.
+ *
+ * This used to sum `p.weight` — a field a part does not have. `+undefined || 0`
+ * meant every job contributed nothing, so the bar sat at zero and the "Replace
+ * nozzle" warning had never fired for anyone. A real shop: twelve completed
+ * jobs, 2,461 g through a 2,000 g threshold, card reading 0 g.
+ */
+function machineNozzleWear(machine) {
+  return KhaytNozzleWear.nozzleWear(printLog, machine, settings);
+}
+
+/** Grams through the nozzle since it was fitted. Kept for callers that want the raw figure. */
 function machineGramsSinceNozzle(machine) {
-  const sinceDate = machine.nozzle?.installedAt || '';
-  return printLog
-    .filter(o => o.machineId === machine.id && o.status === 'completed' && (o.date || '') >= sinceDate)
-    .reduce((s, o) => s + (o.parts || []).reduce((ps, p) => ps + (+p.weight || 0), 0), 0);
+  return machineNozzleWear(machine).grams;
 }
 
 function renderMachines() {
@@ -41,14 +51,25 @@ function renderMachines() {
       ? `<span class="machine-jobs-badge" style="background:var(--warning); color:#000;">🔧 ${escapeHtml(t('mach.downtime_badge'))}</span>`
       : '';
     // Feature 4: Nozzle info
-    const nozzleGrams = machineGramsSinceNozzle(m);
-    const nozzleThreshold = m.nozzle?.gramsThreshold || 2000;
-    const nozzlePct = Math.min(100, nozzleThreshold > 0 ? (nozzleGrams / nozzleThreshold) * 100 : 0);
-    const nozzleOver = nozzleGrams >= nozzleThreshold && nozzleThreshold > 0;
+    const nz = machineNozzleWear(m);
+    const nozzleThreshold = nz.threshold;
+    const nozzlePct = nz.pct;
+    const nozzleOver = nz.over;
+    // Show the wear figure, because that is what the threshold measures — but
+    // when they differ, show what was actually printed beside it and name the
+    // filament responsible. A bar reading 2,400 g after 300 g of printing is
+    // alarming and unexplained on its own; "300 g printed · PLA-CF counts 8×"
+    // is the same fact with its reason attached.
+    const nozzleCount = nz.abrasive
+      ? `${nz.wear.toFixed(0)}g/${nozzleThreshold}g ${escapeHtml(t('mach.nozzle_wear_suffix') || 'wear')}`
+      : `${nz.grams.toFixed(0)}g/${nozzleThreshold}g`;
+    const nozzleWhy = nz.abrasive && nz.worst
+      ? ` <span title="${escapeHtml(t('mach.nozzle_abrasive_hint') || 'Abrasive filament wears a nozzle faster than its weight suggests.')}">· ${nz.grams.toFixed(0)}g ${escapeHtml(t('mach.nozzle_printed') || 'printed')} · ${escapeHtml(nz.worst.material)} ${nz.worst.mult}×</span>`
+      : '';
     const nozzleHtml = m.nozzle?.installedAt ? `
       <div style="margin-top:4px; font-size:11px; color:var(--text-muted);">
         ${_mIcoL('nozzle', '🔩', 13)}${escapeHtml(m.nozzle.material || 'brass')} nozzle${m.nozzleDiameter ? ` · ${m.nozzleDiameter}mm` : ''}${m.extruderType ? ` · ${escapeHtml(m.extruderType)}` : ''}
-        · ${nozzleGrams.toFixed(0)}g/${nozzleThreshold}g
+        · ${nozzleCount}${nozzleWhy}
         ${nozzleOver ? `<span class="machine-jobs-badge" style="background:var(--danger);color:#fff;">${_mIcoL('nozzle', '🔩', 12)}${escapeHtml(t('mach.nozzle_replace'))}</span>` : ''}
       </div>
       <div class="nozzle-progress" style="max-width:200px;margin-top:3px;">
@@ -237,7 +258,8 @@ function openMachineEditor(machineId = null) {
           </div>
           <div>
             <label style="margin:0;">${escapeHtml(t('mach.nozzle_threshold'))}</label>
-            <input type="number" id="machNozzleGramsThreshold" value="${draft.nozzle?.gramsThreshold || 2000}" min="0" step="100" style="font-size:12.5px;">
+            <input type="number" id="machNozzleGramsThreshold" value="${draft.nozzle?.gramsThreshold || KhaytNozzleWear.defaultThresholdFor(draft.nozzle?.material, settings)}" min="0" step="100" style="font-size:12.5px;">
+            <p id="machNozzleHint" style="font-size:11px;color:var(--text-muted);margin:4px 0 0;">${escapeHtml(t('mach.nozzle_threshold_hint') || 'A starting point for this nozzle material — set your own once you know how yours wears.')}</p>
           </div>
           <div>
             <label style="margin:0;">${escapeHtml('Lifetime grams at install')}</label>
@@ -351,7 +373,7 @@ function openMachineEditor(machineId = null) {
     onMount(modal) {
       if (!draft.downtimeBlocks) draft.downtimeBlocks = [];
       if (!draft.compatMaterials) draft.compatMaterials = [];
-      if (!draft.nozzle) draft.nozzle = { material: 'brass', installedAt: '', gramsThreshold: 2000, gramsAtInstall: 0 };
+      if (!draft.nozzle) draft.nozzle = { material: 'brass', installedAt: '', gramsThreshold: KhaytNozzleWear.defaultThresholdFor('brass', settings), gramsAtInstall: 0 };
       if (!draft.printerApi) draft.printerApi = { type: 'none', host: '', port: '', apiKey: '', accessCode: '', serial: '', printerSlug: '' };
       modal.querySelector('#machName').addEventListener('input', e => { draft.name = e.target.value; });
 
@@ -393,12 +415,46 @@ function openMachineEditor(machineId = null) {
           if (nameEl && !nameEl.value.trim()) { nameEl.value = name; draft.name = name; }
           if (s.nozzleDiameter) { const el = modal.querySelector('#machNozzleDiameter'); if (el) el.value = s.nozzleDiameter; draft.nozzleDiameter = s.nozzleDiameter; }
           if (s.extruderType)  { const el = modal.querySelector('#machExtruderType');  if (el) el.value = s.extruderType;  draft.extruderType  = s.extruderType; }
+          /* THE NOZZLE MATERIAL IS THE POINT OF THE CATALOG KNOWING IT.
+           *
+           * A Bambu X1C ships hardened steel and a Prusa MK4S ships brass — a
+           * ten-fold difference in expected life — and without this line both
+           * still landed on the brass default, so the whole printer-facts sweep
+           * changed nothing a shop could see. Only when the catalog actually
+           * checked it: an unswept printer must keep asking rather than inherit
+           * a maintenance threshold nobody chose.
+           */
+          if (s.nozzle && s.nozzle.material) {
+            draft.nozzle = Object.assign({ installedAt: '', gramsAtInstall: 0 }, draft.nozzle, { material: s.nozzle.material });
+            const matEl = modal.querySelector('#machNozzleMaterial');
+            if (matEl) matEl.value = s.nozzle.material;
+            // And move the threshold with it, unless the shop has typed one.
+            const thEl = modal.querySelector('#machNozzleGramsThreshold');
+            const suggestions = Object.values(KhaytNozzleWear.MATERIAL_LIFE_G);
+            if (thEl && (!thEl.value || suggestions.includes(+thEl.value))) {
+              const g = KhaytNozzleWear.defaultThresholdFor(s.nozzle.material, settings);
+              thEl.value = g;
+              draft.nozzle.gramsThreshold = g;
+            }
+          }
+          // Carried so the machine card can offer the vendor's support page, and
+          // so the checked specs are on the machine rather than only in a table.
+          if (s.support) draft.support = s.support;
+          for (const f of ['maxHotendC', 'maxBedC', 'chamber', 'maxChamberC', 'filamentMm', 'feed', 'toolheads']) {
+            if (s[f] != null) draft[f] = s[f];
+          }
           if (pmHint) {
             const bits = [];
             if (s.bed) bits.push(`${s.bed.x}×${s.bed.y}×${s.bed.z} mm`);
             if (s.nozzleDiameter) bits.push(`${s.nozzleDiameter} mm`);
             if (s.maxColors > 1) bits.push(`${s.maxColors}×`);
             if (s.powerDraw != null) bits.push(`~${s.powerDraw} W`);
+            // The checked specs, so the shop can see what the catalog knows —
+            // and, just as usefully, what it does not.
+            if (s.nozzle && s.nozzle.material) bits.push(s.nozzle.material);
+            if (s.maxHotendC) bits.push(`${s.maxHotendC}°C`);
+            if (s.chamber === 'active') bits.push(`${s.maxChamberC || '?'}°C ${t('mach.chamber') || 'chamber'}`);
+            if (s.filamentMm && s.filamentMm !== 1.75) bits.push(`${s.filamentMm} mm`);
             pmHint.textContent = bits.join(' · ') || (t('mach.printer_model_hint') || '');
           }
         };
@@ -694,9 +750,23 @@ function openMachineEditor(machineId = null) {
       // Nozzle field listeners (Feature 4)
       modal.querySelector('#machNozzleDiameter')?.addEventListener('input', e => { draft.nozzleDiameter = parseFloat(e.target.value) || null; });
       modal.querySelector('#machExtruderType')?.addEventListener('input', e => { draft.extruderType = e.target.value; });
-      modal.querySelector('#machNozzleMaterial')?.addEventListener('change', e => { draft.nozzle.material = e.target.value; });
+      modal.querySelector('#machNozzleMaterial')?.addEventListener('change', e => {
+        const previous = draft.nozzle.material;
+        draft.nozzle.material = e.target.value;
+        // Move the threshold with the material ONLY while it still holds the
+        // previous material's suggestion. A number the shop typed is a decision
+        // and must survive changing the dropdown — the same rule the low-stock
+        // colour picker follows, for the same reason.
+        const field = modal.querySelector('#machNozzleGramsThreshold');
+        if (!field) return;
+        const suggested = KhaytNozzleWear.defaultThresholdFor(e.target.value, settings);
+        if (+field.value === KhaytNozzleWear.defaultThresholdFor(previous, settings)) {
+          field.value = suggested;
+          draft.nozzle.gramsThreshold = suggested;
+        }
+      });
       modal.querySelector('#machNozzleInstalledAt')?.addEventListener('change', e => { draft.nozzle.installedAt = e.target.value; });
-      modal.querySelector('#machNozzleGramsThreshold')?.addEventListener('input', e => { draft.nozzle.gramsThreshold = parseFloat(e.target.value) || 2000; });
+      modal.querySelector('#machNozzleGramsThreshold')?.addEventListener('input', e => { draft.nozzle.gramsThreshold = parseFloat(e.target.value) || KhaytNozzleWear.defaultThresholdFor(draft.nozzle?.material, settings); });
       modal.querySelector('#machNozzleGramsAtInstall')?.addEventListener('input', e => { draft.nozzle.gramsAtInstall = parseFloat(e.target.value) || 0; });
       modal.querySelectorAll('input[name="machColor"]').forEach(radio => {
         radio.addEventListener('change', () => {
@@ -782,7 +852,7 @@ function openMachineEditor(machineId = null) {
         draft.nozzle = {
           material: nozzleMatEl.value || 'brass',
           installedAt: nozzleInstEl?.value || '',
-          gramsThreshold: parseFloat(nozzleThreshEl?.value) || 2000,
+          gramsThreshold: parseFloat(nozzleThreshEl?.value) || KhaytNozzleWear.defaultThresholdFor(nozzleMatEl?.value, settings),
           gramsAtInstall: parseFloat(nozzleAtInstEl?.value) || 0,
         };
       }
@@ -854,14 +924,28 @@ function logNozzleChange(machineId) {
       <label>${escapeHtml(t('mach.nozzle_installed'))}</label>
       <input type="date" id="nlInstalledAt" value="${localDateStr()}">
       <label style="margin-top:10px;">${escapeHtml(t('mach.nozzle_threshold'))}</label>
-      <input type="number" id="nlThreshold" value="${machine.nozzle?.gramsThreshold || 2000}" min="0" step="100">
+      <input type="number" id="nlThreshold" value="${machine.nozzle?.gramsThreshold || KhaytNozzleWear.defaultThresholdFor(machine.nozzle?.material, settings)}" min="0" step="100">
+      <p style="font-size:11px;color:var(--text-muted);margin:4px 0 0;">${escapeHtml(t('mach.nozzle_threshold_hint') || 'A starting point for this nozzle material — set your own once you know how yours wears.')}</p>
       <p style="font-size:12px;color:var(--text-muted);margin-top:8px;">
         Lifetime grams at install: <strong>${totalGrams.toFixed(0)}g</strong>
       </p>`,
+    onMount(modal) {
+      // Pre-select what is actually fitted — the dropdown always opened on brass
+      // regardless — and let the threshold follow a change of nozzle, but only
+      // while it still holds a suggested value. A typed number is a decision.
+      const sel = modal.querySelector('#nlNozzleMat');
+      const field = modal.querySelector('#nlThreshold');
+      if (sel) sel.value = machine.nozzle?.material || 'brass';
+      sel?.addEventListener('change', () => {
+        if (!field) return;
+        const suggestions = Object.values(KhaytNozzleWear.MATERIAL_LIFE_G);
+        if (suggestions.includes(+field.value)) field.value = KhaytNozzleWear.defaultThresholdFor(sel.value, settings);
+      });
+    },
     async onSave(modal) {
       const mat       = modal.querySelector('#nlNozzleMat').value;
       const installed = modal.querySelector('#nlInstalledAt').value;
-      const threshold = parseFloat(modal.querySelector('#nlThreshold').value) || 2000;
+      const threshold = parseFloat(modal.querySelector('#nlThreshold').value) || KhaytNozzleWear.defaultThresholdFor(mat, settings);
       const idx = machines.findIndex(m => m.id === machineId);
       if (idx < 0) return false;
       machines[idx].nozzle = {
@@ -1293,10 +1377,99 @@ async function sliceAndPrintForMachine(machineId) {
   }
 }
 
+
+/* ============================================================
+   Nozzle wear reference — the published table, and the shop's overrides
+   ============================================================ */
+
+/**
+ * Render the wear table with its sources, editable.
+ *
+ * The figures behind the nozzle warning came from published tests, and the
+ * published tests disagree with each other by an order of magnitude — E3D
+ * measured real damage to brass at 250 g of carbon-filled PETG while other
+ * sources put the same nozzle at 1–2 kg. Neither is wrong; they are answering
+ * "when is it measurably worn" and "when do parts stop being acceptable".
+ *
+ * A shop cannot resolve that from a number in a dropdown, so the table shows
+ * WHERE EACH FIGURE CAME FROM and lets the shop replace any of it. Rows with no
+ * source are marked as estimates, because a number nobody checked should not
+ * look like one somebody did — which is exactly how the first version of this
+ * table shipped.
+ */
+function renderNozzleWearSettings() {
+  const el = $('#nozzleWearSection');
+  if (!el || typeof KhaytNozzleWear === 'undefined') return;
+  const s = KhaytNozzleWear.suggestions(settings);
+
+  const sourceCell = (row) => {
+    if (row.source) {
+      return `<a href="#" class="nw-src" data-url="${escapeHtml(row.source.url)}" title="${escapeHtml(row.source.what)}" style="color:var(--primary);">${escapeHtml(row.source.name.split('—')[0].trim())}</a>`;
+    }
+    return `<span title="${escapeHtml(row.note)}" style="color:var(--warning,#d97706);">${escapeHtml(t('nw.estimated') || 'estimate, unverified')}</span>`;
+  };
+
+  const rows = (list, kind, unit) => list.map((row) => `
+    <tr>
+      <td style="padding:4px 8px 4px 0;">${escapeHtml(row.label)}</td>
+      <td style="padding:4px 8px 4px 0;white-space:nowrap;">
+        <input type="number" class="nw-input" data-kind="${kind}" data-key="${escapeHtml(row.key)}"
+               value="${row.override != null ? row.override : ''}" placeholder="${kind === 'life' ? row.grams : row.multiplier}"
+               min="0" step="${kind === 'life' ? '500' : '0.5'}" style="width:88px;font-size:12px;padding:2px 6px;">
+        <span style="color:var(--text-muted);font-size:11px;">${escapeHtml(unit)}</span>
+      </td>
+      <td style="padding:4px 8px 4px 0;font-size:11.5px;color:var(--text-muted);">${sourceCell(row)}</td>
+      <td style="padding:4px 0;font-size:11px;color:var(--text-muted);">${escapeHtml(row.note)}</td>
+    </tr>`).join('');
+
+  el.innerHTML = `
+    <p style="font-size:12px;color:var(--text-muted);margin:0 0 10px;line-height:1.55;">
+      ${escapeHtml(t('nw.intro') || 'These figures decide when Khayt says a nozzle is due for replacement. They come from published tests, which disagree with each other — so treat them as a starting point and put your own numbers in once you know how your filament wears yours. Leave a box empty to use the published figure.')}
+      <br><span style="font-size:11px;">${escapeHtml(t('nw.checked') || 'Sources checked')}: ${escapeHtml(s.checkedOn)}</span>
+    </p>
+    <div style="overflow-x:auto;">
+      <table style="font-size:12px;border-collapse:collapse;min-width:520px;">
+        <tr><th colspan="4" style="text-align:start;padding:6px 0 2px;font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--text-muted);">${escapeHtml(t('nw.life') || 'Nozzle life on ordinary filament')}</th></tr>
+        ${rows(s.life, 'life', 'g')}
+        <tr><th colspan="4" style="text-align:start;padding:12px 0 2px;font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--text-muted);">${escapeHtml(t('nw.abrasive') || 'How much faster filled filament wears it')}</th></tr>
+        ${rows(s.abrasive, 'abrasive', '×')}
+      </table>
+    </div>
+    <button class="btn small ghost" id="btnNozzleWearReset" style="margin-top:10px;">${escapeHtml(t('nw.reset') || 'Reset to the published figures')}</button>`;
+
+  el.querySelectorAll('.nw-input').forEach((input) => {
+    input.addEventListener('change', () => {
+      settings.nozzleWear = settings.nozzleWear || { life: {}, abrasive: {} };
+      const bucket = settings.nozzleWear[input.dataset.kind] = settings.nozzleWear[input.dataset.kind] || {};
+      const v = parseFloat(input.value);
+      // An empty box means "use the published figure", which has to DELETE the
+      // override rather than store 0 — a stored 0 would read as a real setting
+      // and the model would fall back anyway, leaving the box looking set.
+      if (Number.isFinite(v) && v > 0) bucket[input.dataset.key] = v;
+      else delete bucket[input.dataset.key];
+      saveAll();
+      renderMachines();
+      toast(t('set.saved'), 'success');
+    });
+  });
+  el.querySelector('#btnNozzleWearReset')?.addEventListener('click', () => {
+    settings.nozzleWear = { life: {}, abrasive: {} };
+    saveAll();
+    renderNozzleWearSettings();
+    renderMachines();
+    toast(t('set.saved'), 'success');
+  });
+  el.querySelectorAll('.nw-src').forEach((a) => {
+    a.addEventListener('click', (e) => { e.preventDefault(); window.hubAPI?.openExternal?.(a.dataset.url); });
+  });
+}
+
   const api = {
 
     MACHINE_COLORS,
     machineGramsSinceNozzle,
+    machineNozzleWear,
+    renderNozzleWearSettings,
     renderMachines,
     sliceAndPrintForMachine,
     renderMachineDropdown,

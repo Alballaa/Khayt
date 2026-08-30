@@ -4,6 +4,36 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Fixed
+
+- **The nozzle replacement warning now counts what you have actually printed.**
+  It read a field a part does not have, so it counted nothing and the warning
+  had never appeared for anyone. On a real shop's data it read 0 g where the
+  true figure was 2,461 g, past a 2,000 g threshold. It now counts print plus
+  support, times quantity, on completed jobs since the nozzle went in.
+
+### Added
+
+- **Nozzle life now depends on the nozzle.** Brass, stainless, hardened steel,
+  ruby and tungsten carbide have very different lives and Khayt used one figure
+  for all of them. Every figure comes from a published test and says which one —
+  see Settings → Printers → *Nozzle wear reference*, where you can replace any
+  of it with your own numbers, and [docs/NOZZLE-WEAR.md](./docs/NOZZLE-WEAR.md)
+  for the readings behind them. The four figures that are still estimates say so.
+- **Abrasive filament counts for more.** 300 g of carbon-fibre PLA costs a brass
+  nozzle far more than 300 g of plain PLA, and the counter now reflects that.
+  Glow-in-the-dark is included but rated mild — a controlled test measured no
+  wear from it at all, which is the opposite of its reputation.
+- **The printer catalogue knows more, for 39 of its 49 printers**: what nozzle it
+  ships with, maximum hotend and bed temperature, whether the chamber is heated,
+  filament diameter, and a support link that was checked to resolve. Picking your
+  model fills all of it in, and every field stays editable.
+- Toolchangers, IDEX and multi-material machines are described as such. A
+  Snapmaker U1 was recorded as a plain direct-drive printer, and so was a
+  five-toolhead Prusa XL.
+- Resin printers are described as resin printers — screen size, resolution and
+  XY pixel size, instead of a nozzle diameter of zero.
+
 ## [3.7.0-beta.13] - 2026-08-29
 
 ### Fixed

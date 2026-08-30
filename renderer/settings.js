@@ -4709,6 +4709,8 @@ function loadSettingsIntoForm() {
   renderDigestSettings();
   renderAiSettings();
   renderSlicerSettings();
+  // The nozzle wear table lives beside the printers it applies to.
+  if (typeof renderNozzleWearSettings === 'function') renderNozzleWearSettings();
   renderCloudSettings();
   // Feature 7 (new 8-pack): Operator lock section
   renderOperatorLockSettings();

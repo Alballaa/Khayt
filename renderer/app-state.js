@@ -122,6 +122,10 @@ function defaultSettings() {
     enableVat:       false,
     vatRate:         15,
     bizLogo:         '',
+    // Per-shop overrides for the nozzle wear table. Empty means "use the
+    // published figures" — see lib/nozzle-wear-data.js for where those come
+    // from and which of them are still estimates.
+    nozzleWear:      { life: {}, abrasive: {} },
     taglineEn:       '',
     taglineAr:       '',
     invAccentColor:  '#5E2E14',
