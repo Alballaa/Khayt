@@ -1843,6 +1843,10 @@
         <div id="machinesList"></div>
         <button class="btn primary" id="btnAddMachine" style="margin-top:10px;" data-i18n="mach.add">+ Add Printer</button>
         </div>
+        <div class="card settings-card" id="nozzleWearCard">
+          <div class="settings-section-head" data-i18n="nw.title">Nozzle wear reference</div>
+          <div id="nozzleWearSection"></div>
+        </div>
 
         <div class="card settings-card">
         <div class="settings-section-head" data-i18n="slicerProfiles">Slicer Profiles</div>
@@ -2618,6 +2622,8 @@
 <script src="app-state.js"></script>
 <script src="app-security.js"></script>
 <script src="search-utils.js"></script>
+<script src="../lib/nozzle-wear-data.js"></script>
+<script src="../lib/nozzle-wear.js"></script>
 <script src="../lib/queue-groups.js"></script>
 <script src="../lib/print-kits.js"></script>
 <script src="../lib/consumable-categories.js"></script>
@@ -2674,6 +2680,7 @@
 <script src="../lib/color-mix.js"></script>
 <script src="../lib/slicers.js"></script>
 <script src="../lib/printer-profiles.js"></script>
+<script src="../lib/printer-facts.js"></script>
 <script src="../lib/printer-catalog.js"></script>
 <script src="../lib/printer-relocate.js"></script>
 <script src="../lib/privacy.js"></script>

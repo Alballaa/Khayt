@@ -574,7 +574,12 @@ function renderDashboard() {
         return s.due || s.warning;
       });
       // Feature 4: Nozzle replace alerts
-      const nozzleAlerts = machines.filter(m => m.nozzle?.installedAt && m.nozzle?.gramsThreshold > 0 && machineGramsSinceNozzle(m) >= m.nozzle.gramsThreshold);
+      // Wear, not raw grams, and against the threshold the model resolves — a
+      // machine with no gramsThreshold set used to be excluded outright by
+      // `> 0`, so the one shop most likely to have left the field alone was the
+      // one that never got the warning. installedAt still gates it: a nozzle
+      // nobody has ever logged has no window to measure.
+      const nozzleAlerts = machines.filter(m => m.nozzle?.installedAt && KhaytNozzleWear.nozzleWear(printLog, m, settings).over);
       const totalAlerts = maintMachines.length + nozzleAlerts.length;
       if (totalAlerts === 0) return '';
       return `<div class="dash-section dash-maint-section pro-only">
@@ -597,12 +602,12 @@ function renderDashboard() {
           </div>`;
         }).join('')}
         ${nozzleAlerts.map(m => {
-          const grams = machineGramsSinceNozzle(m);
+          const nz = KhaytNozzleWear.nozzleWear(printLog, m, settings);
           return `<div class="dash-order-row">
             <div class="dash-order-info">
               <span class="machine-dot" style="background:${safeCssColor(m.color)};display:inline-block;width:10px;height:10px;border-radius:50%;margin-inline-end:6px;vertical-align:middle;"></span>
               <strong>${escapeHtml(m.name)}</strong>
-              <span class="dash-order-id">🔩 ${grams.toFixed(0)}g / ${m.nozzle.gramsThreshold}g</span>
+              <span class="dash-order-id">🔩 ${nz.wear.toFixed(0)}g / ${nz.threshold}g${nz.abrasive && nz.worst ? ` · ${nz.grams.toFixed(0)}g ${escapeHtml(t('mach.nozzle_printed') || 'printed')}, ${escapeHtml(nz.worst.material)} ${nz.worst.mult}×` : ''}</span>
             </div>
             <div class="dash-order-meta">
               <span class="due-badge overdue">${escapeHtml(t('mach.nozzle_replace'))}</span>
