@@ -4,6 +4,23 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Added
+
+- **A product can hold several photos, and each one says what it is** — a render,
+  the actual printed part, a detail, a scale shot, packaging. The question a
+  customer is really asking of a listing is whether that is a render or what
+  arrives, and getting it wrong is a refund. The catalogue marks listings that
+  have no photo of the real thing, and the storefront publishes up to three.
+- **A catalogue part can be linked to a print file and filled in from it**:
+  weight and time from the slicer, material and layer height from the setup you
+  have had most success with. It tells you what it could not fill rather than
+  leaving zeros that look typed.
+
+### Fixed
+
+- A print file recorded from a printer's own history, rather than imported, no
+  longer stops partway through being read.
+
 ### Fixed
 
 - **The nozzle replacement warning now counts what you have actually printed.**
