@@ -4,6 +4,18 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Fixed
+
+- **A product description you type is saved.** It was silently discarded on every
+  save, in every shop — the box accepted the text and the product kept nothing.
+  Anything you wrote before this is still on the product and now appears in the
+  editor again.
+- **Shops writing a language other than English or Arabic can use the catalogue
+  at all.** Product names were dropped the same way descriptions were, and the
+  save refused outright with "Give the product a name first" even when the name
+  was filled in — so the product editor did not work in seven of the nine
+  languages Khayt offers.
+
 ## [3.7.0-beta.17] - 2026-08-31
 
 ### Added
