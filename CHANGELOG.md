@@ -31,6 +31,14 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **The default working week is Sunday to Thursday, five days.** It was Monday to
+  Thursday — four days, matching no working week anywhere: the Gulf works Sunday
+  to Thursday and most of Europe and the Americas work Monday to Friday. Due
+  dates, machine queue estimates and the schedule were all worked out against a
+  day less than a shop actually has. If you have already set your own hours,
+  nothing changes.
+- **Day names in Working Hours are translated.** Mon–Sun were English in every
+  language.
 - **A product description you type is saved.** It was silently discarded on every
   save, in every shop — the box accepted the text and the product kept nothing.
   Anything you wrote before this is still on the product and now appears in the

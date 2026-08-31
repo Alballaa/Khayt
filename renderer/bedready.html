@@ -1837,6 +1837,10 @@
 <script src="util.js"></script>
 <script src="sync.js"></script>
 <script src="cloud-sync.js"></script>
+<!-- Before app-state.js on purpose: app-state reads the default working
+     week while it evaluates, so loading this after it left the constant
+     undefined and the app failed to boot. -->
+<script src="../lib/working-week.js"></script>
 <script src="app-state.js"></script>
 <script src="app-security.js"></script>
 <script src="search-utils.js"></script>

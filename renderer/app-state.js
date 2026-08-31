@@ -1,6 +1,16 @@
 /**
  * App collections, persistence (load/save), and store validators.
  */
+/* The working week, however this file was loaded — script tag in the renderer,
+ * `require` in a test. Without this the default is unreachable under Node and
+ * every caller throws; with a hand-written fallback object it would be the
+ * fifth copy of the literal lib/working-week.js exists to remove.
+ *
+ * At FILE top level, not inside the IIFE: several of this file's functions are
+ * declared above it on purpose, and a const inside the closure is invisible to
+ * them. */
+const _WW = (typeof KhaytWorkingWeek !== 'undefined') ? KhaytWorkingWeek
+  : (typeof require === 'function' ? require('../lib/working-week.js') : null);
 /* ---------- Storage keys (versioned) ---------- */
 const K = {
   LOG:       '3d_print_log_v4',
@@ -182,7 +192,9 @@ function defaultSettings() {
     quoteNumNext:    1,
     invNumFormat:    '{prefix}-{year}-{seq4}',
     // New Feature 7: Working hours schedule
-    workingHours:    { mon: 8, tue: 8, wed: 8, thu: 8, fri: 0, sat: 0, sun: 0 },
+    // Sunday to Thursday — see lib/working-week.js. This said Monday to
+    // Thursday, a four-day week matching no calendar anywhere.
+    workingHours:    { ..._WW.DEFAULT_WORKING_HOURS },
     holidays:        [],
     // Business Mode (simple | professional)
     mode:            'simple',

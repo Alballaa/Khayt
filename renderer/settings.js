@@ -1,6 +1,16 @@
 /**
  * Settings tab: form load/save, integrations, ZATCA, LAN API, BNPL, backups.
  */
+/* The working week, however this file was loaded — script tag in the renderer,
+ * `require` in a test. Without this the default is unreachable under Node and
+ * every caller throws; with a hand-written fallback object it would be the
+ * fifth copy of the literal lib/working-week.js exists to remove.
+ *
+ * At FILE top level, not inside the IIFE: several of this file's functions are
+ * declared above it on purpose, and a const inside the closure is invisible to
+ * them. */
+const _WW = (typeof KhaytWorkingWeek !== 'undefined') ? KhaytWorkingWeek
+  : (typeof require === 'function' ? require('../lib/working-week.js') : null);
 (function (global) {
 // Bed Ready swaps decorative emoji for its bespoke drafting glyphs; Khayt keeps the emoji.
 const _sBdr = (typeof document !== 'undefined' && document.documentElement && document.documentElement.dataset.app === 'bedready');
@@ -4709,7 +4719,7 @@ function loadSettingsIntoForm() {
   $('#set_monthlyGoal').value     = settings.monthlyGoal ?? 0;
   $('#set_supplierPhone').value   = settings.supplierPhone || '';
   // New Feature 7: Working hours
-  const wh = settings.workingHours || { mon: 8, tue: 8, wed: 8, thu: 8, fri: 0, sat: 0, sun: 0 };
+  const wh = _WW.workingHours(settings);
   ['mon','tue','wed','thu','fri','sat','sun'].forEach(d => {
     const el = $(`#wh_${d}`);
     if (el) el.value = wh[d] ?? 0;
