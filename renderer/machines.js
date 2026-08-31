@@ -222,7 +222,21 @@ async function refreshMachineCameras() {
       }
       const r = await window.hubAPI.webcamSnapshot({ machineId: m.id });
       if (r && r.ok && r.dataUrl) {
-        el.innerHTML = `<img src="${r.dataUrl}" alt="" style="${style}">`;
+        /* safeImageSrc, NOT the raw string.
+         *
+         * `dataUrl` is built from the camera's own Content-Type header, and the
+         * branch above already escapes `streamUrl` — this one did not. A device
+         * answering the snapshot URL with
+         *
+         *     Content-Type: image/png" onerror="…
+         *
+         * passed the prefix check in checkSnapshotHeaders, survived fetch with
+         * the quote intact, and closed the src attribute here: the browser saw
+         * an onerror handler and ran it, in a renderer that holds window.hubAPI.
+         * safeImageSrc requires `;base64,` immediately after a known image type,
+         * so the crafted value resolves to '' instead. */
+        const src = safeImageSrc(r.dataUrl);
+        el.innerHTML = src ? `<img src="${src}" alt="" style="${style}">` : '';
       } else {
         // "Camera offline" was shown for every failure, including the one that
         // means the opposite: the printer answered promptly, about a camera it
