@@ -189,6 +189,8 @@
   "set.mode_enthusiast_desc": "Só as minhas impressoras — custo por impressão, minha biblioteca de arquivos, sem faturamento",
   "wiz.option_hobby": "Hobbyista / pessoal",
   "wiz.option_hobby_desc": "Só as minhas impressoras — custo por impressão, minha biblioteca de arquivos, sem faturamento",
+  "plib.no_preview": "Este arquivo não tem pré-visualização incorporada pelo fatiador.",
+  "plib.no_file": "Nenhum arquivo neste computador — este registro veio do histórico da própria impressora, então não há o que pré-visualizar.",
   "plib.subtitle": "Sua biblioteca de STL, 3MF e G-code — prévias, configurações testadas, abrir no seu fatiador.",
   "plib.add": "Adicionar arquivo",
   "plib.zip_empty": "Nenhum arquivo de impressão nesse pacote.",

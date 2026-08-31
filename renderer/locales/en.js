@@ -189,6 +189,8 @@
   "set.mode_enthusiast_desc": "Just my printers — cost per print, my file library, no invoicing",
   "wiz.option_hobby": "Hobbyist / personal",
   "wiz.option_hobby_desc": "Just my printers — cost per print, my file library, no invoicing",
+  "plib.no_preview": "This file has no preview embedded by the slicer.",
+  "plib.no_file": "No file on this computer — this record came from the printer's own history, so there is nothing to preview.",
   "plib.subtitle": "Your STL, 3MF and G-code library — previews, tested settings, open in your slicer.",
   "plib.add": "Add file",
   "plib.zip_empty": "No print files in that archive.",

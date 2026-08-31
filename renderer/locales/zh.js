@@ -189,6 +189,8 @@
   "set.mode_enthusiast_desc": "仅限我的打印机——单次打印成本、我的文件库，无开票功能",
   "wiz.option_hobby": "业余爱好者／个人",
   "wiz.option_hobby_desc": "仅限我的打印机——单次打印成本、我的文件库，无开票功能",
+  "plib.no_preview": "此文件不含切片软件嵌入的预览图。",
+  "plib.no_file": "此电脑上没有该文件 — 该记录来自打印机自身的历史记录，因此没有可预览的内容。",
   "plib.subtitle": "你的STL、3MF和G-code文件库——预览、经测试的设置、在切片软件中打开。",
   "plib.add": "添加文件",
   "plib.zip_empty": "该压缩包中没有打印文件。",

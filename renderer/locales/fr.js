@@ -189,6 +189,8 @@
   "set.mode_enthusiast_desc": "Juste mes imprimantes — coût par impression, ma bibliothèque de fichiers, sans facturation",
   "wiz.option_hobby": "Amateur / personnel",
   "wiz.option_hobby_desc": "Juste mes imprimantes — coût par impression, ma bibliothèque de fichiers, sans facturation",
+  "plib.no_preview": "Ce fichier ne contient pas d'aperçu intégré par le trancheur.",
+  "plib.no_file": "Aucun fichier sur cet ordinateur — cette fiche provient de l'historique de l'imprimante, il n'y a donc rien à afficher.",
   "plib.subtitle": "Votre bibliothèque STL, 3MF et G-code — aperçus, réglages testés, ouverture dans votre slicer.",
   "plib.add": "Ajouter un fichier",
   "plib.zip_empty": "Aucun fichier d'impression dans cette archive.",

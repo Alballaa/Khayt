@@ -189,6 +189,8 @@
   "set.mode_enthusiast_desc": "Nur meine Drucker – Kosten pro Druck, meine Dateibibliothek, keine Rechnungsstellung",
   "wiz.option_hobby": "Hobbyist / privat",
   "wiz.option_hobby_desc": "Nur meine Drucker – Kosten pro Druck, meine Dateibibliothek, keine Rechnungsstellung",
+  "plib.no_preview": "Diese Datei enthält keine vom Slicer eingebettete Vorschau.",
+  "plib.no_file": "Keine Datei auf diesem Computer — dieser Eintrag stammt aus dem Verlauf des Druckers, es gibt also nichts anzuzeigen.",
   "plib.subtitle": "Deine Bibliothek für STL, 3MF und G-code – Vorschauen, getestete Einstellungen, im Slicer öffnen.",
   "plib.add": "Datei hinzufügen",
   "plib.zip_empty": "Keine Druckdateien in diesem Archiv.",

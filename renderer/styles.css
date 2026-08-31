@@ -5432,3 +5432,30 @@ body.khayt-workbench .wb-glist li.is-openable { cursor: pointer; }
   background: var(--bg-elev);
   color: var(--text);
 }
+
+/* ── Hover descriptions ─────────────────────────────────────────────────────
+ *
+ * Replaces the native `title` tooltip, whose ~1s delay the browser owns and no
+ * stylesheet can shorten. See renderer/tooltips.js. Themed through the same
+ * tokens as everything else, so it does not arrive as a white box in Nocturne.
+ */
+.khayt-tip {
+  position: fixed;
+  z-index: 10000;
+  max-width: 280px;
+  padding: 6px 9px;
+  border-radius: var(--radius, 6px);
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border-soft);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
+  font-size: 12px;
+  line-height: 1.35;
+  /* A tooltip must never eat the click it is describing. */
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 90ms ease;
+}
+.khayt-tip.is-on { opacity: 1; visibility: visible; }
+@media (prefers-reduced-motion: reduce) { .khayt-tip { transition: none; } }
