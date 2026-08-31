@@ -1,6 +1,20 @@
 /**
  * App collections, persistence (load/save), and store validators.
  */
+/* Make sure the working week is loaded, WITHOUT declaring a binding for it.
+ *
+ * lib/working-week.js assigns globalThis.KhaytWorkingWeek itself, so the script
+ * tag has already done this in the renderer, and `require` does it under Node,
+ * where these files are pulled in directly by tests.
+ *
+ * The obvious version — a shared `const` at the top of each file — is a trap.
+ * Classic scripts share ONE global lexical scope, so the second file to declare
+ * the same top-level const throws "already been declared" and kills every script
+ * after it. That is what happened: settings.js never reached its export list,
+ * and the app died wiring a button whose handler had silently ceased to exist. */
+if (typeof KhaytWorkingWeek === 'undefined' && typeof require === 'function') {
+  require('../lib/working-week.js');
+}
 /* ---------- Storage keys (versioned) ---------- */
 const K = {
   LOG:       '3d_print_log_v4',
@@ -182,7 +196,9 @@ function defaultSettings() {
     quoteNumNext:    1,
     invNumFormat:    '{prefix}-{year}-{seq4}',
     // New Feature 7: Working hours schedule
-    workingHours:    { mon: 8, tue: 8, wed: 8, thu: 8, fri: 0, sat: 0, sun: 0 },
+    // Sunday to Thursday — see lib/working-week.js. This said Monday to
+    // Thursday, a four-day week matching no calendar anywhere.
+    workingHours:    { ...KhaytWorkingWeek.DEFAULT_WORKING_HOURS },
     holidays:        [],
     // Business Mode (simple | professional)
     mode:            'simple',

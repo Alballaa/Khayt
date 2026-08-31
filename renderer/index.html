@@ -1613,15 +1613,15 @@
         <div class="card settings-card">
         <div class="settings-section-head pro-only" data-i18n="set.working_hours">Working Hours</div>
         <div class="pro-only">
-          <p style="font-size:11.5px; color:var(--text-muted); margin:0 0 10px;">Available print hours per day of week (0 = closed)</p>
+          <p style="font-size:11.5px; color:var(--text-muted); margin:0 0 10px;" data-i18n="set.wh_hint">Available print hours per day of week (0 = closed)</p>
           <div id="workingHoursGrid" style="display:grid; grid-template-columns:repeat(7,1fr); gap:8px; margin-bottom:12px;">
-            <div style="text-align:center;"><label style="font-size:11px; margin:0; color:var(--text-muted);">Mon</label><input type="number" id="wh_mon" min="0" max="24" step="0.5" value="8" style="text-align:center; padding:4px;"></div>
-            <div style="text-align:center;"><label style="font-size:11px; margin:0; color:var(--text-muted);">Tue</label><input type="number" id="wh_tue" min="0" max="24" step="0.5" value="8" style="text-align:center; padding:4px;"></div>
-            <div style="text-align:center;"><label style="font-size:11px; margin:0; color:var(--text-muted);">Wed</label><input type="number" id="wh_wed" min="0" max="24" step="0.5" value="8" style="text-align:center; padding:4px;"></div>
-            <div style="text-align:center;"><label style="font-size:11px; margin:0; color:var(--text-muted);">Thu</label><input type="number" id="wh_thu" min="0" max="24" step="0.5" value="8" style="text-align:center; padding:4px;"></div>
-            <div style="text-align:center;"><label style="font-size:11px; margin:0; color:var(--text-muted);">Fri</label><input type="number" id="wh_fri" min="0" max="24" step="0.5" value="0" style="text-align:center; padding:4px;"></div>
-            <div style="text-align:center;"><label style="font-size:11px; margin:0; color:var(--text-muted);">Sat</label><input type="number" id="wh_sat" min="0" max="24" step="0.5" value="0" style="text-align:center; padding:4px;"></div>
-            <div style="text-align:center;"><label style="font-size:11px; margin:0; color:var(--text-muted);">Sun</label><input type="number" id="wh_sun" min="0" max="24" step="0.5" value="0" style="text-align:center; padding:4px;"></div>
+            <div style="text-align:center;"><label style="font-size:11px; margin:0; color:var(--text-muted);" data-i18n="day.mon">Mon</label><input type="number" id="wh_mon" min="0" max="24" step="0.5" value="8" style="text-align:center; padding:4px;"></div>
+            <div style="text-align:center;"><label style="font-size:11px; margin:0; color:var(--text-muted);" data-i18n="day.tue">Tue</label><input type="number" id="wh_tue" min="0" max="24" step="0.5" value="8" style="text-align:center; padding:4px;"></div>
+            <div style="text-align:center;"><label style="font-size:11px; margin:0; color:var(--text-muted);" data-i18n="day.wed">Wed</label><input type="number" id="wh_wed" min="0" max="24" step="0.5" value="8" style="text-align:center; padding:4px;"></div>
+            <div style="text-align:center;"><label style="font-size:11px; margin:0; color:var(--text-muted);" data-i18n="day.thu">Thu</label><input type="number" id="wh_thu" min="0" max="24" step="0.5" value="8" style="text-align:center; padding:4px;"></div>
+            <div style="text-align:center;"><label style="font-size:11px; margin:0; color:var(--text-muted);" data-i18n="day.fri">Fri</label><input type="number" id="wh_fri" min="0" max="24" step="0.5" value="0" style="text-align:center; padding:4px;"></div>
+            <div style="text-align:center;"><label style="font-size:11px; margin:0; color:var(--text-muted);" data-i18n="day.sat">Sat</label><input type="number" id="wh_sat" min="0" max="24" step="0.5" value="0" style="text-align:center; padding:4px;"></div>
+            <div style="text-align:center;"><label style="font-size:11px; margin:0; color:var(--text-muted);" data-i18n="day.sun">Sun</label><input type="number" id="wh_sun" min="0" max="24" step="0.5" value="8" style="text-align:center; padding:4px;"></div>
           </div>
           <label data-i18n="set.holidays">Closure dates</label>
           <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
@@ -2614,6 +2614,10 @@
 <script src="online.js"></script>
 <script src="sync.js"></script>
 <script src="cloud-sync.js"></script>
+<!-- Before app-state.js on purpose: app-state reads the default working
+     week while it evaluates, so loading this after it left the constant
+     undefined and the app failed to boot. -->
+<script src="../lib/working-week.js"></script>
 <script src="app-state.js"></script>
 <script src="app-security.js"></script>
 <script src="search-utils.js"></script>

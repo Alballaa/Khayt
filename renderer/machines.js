@@ -1,6 +1,20 @@
 /**
  * Machine profiles, maintenance log, service status, WhatsApp templates.
  */
+/* Make sure the working week is loaded, WITHOUT declaring a binding for it.
+ *
+ * lib/working-week.js assigns globalThis.KhaytWorkingWeek itself, so the script
+ * tag has already done this in the renderer, and `require` does it under Node,
+ * where these files are pulled in directly by tests.
+ *
+ * The obvious version — a shared `const` at the top of each file — is a trap.
+ * Classic scripts share ONE global lexical scope, so the second file to declare
+ * the same top-level const throws "already been declared" and kills every script
+ * after it. That is what happened: settings.js never reached its export list,
+ * and the app died wiring a button whose handler had silently ceased to exist. */
+if (typeof KhaytWorkingWeek === 'undefined' && typeof require === 'function') {
+  require('../lib/working-week.js');
+}
 (function (global) {
 // Bed Ready swaps decorative emoji for its bespoke drafting glyphs; Khayt keeps the emoji.
 const _mBdr = (typeof document !== 'undefined' && document.documentElement && document.documentElement.dataset.app === 'bedready');
@@ -1443,7 +1457,7 @@ function openWaSendModal(orderId) {
 }
 
 function estimateMachineQueueClearDate(machineId, excludeOrderId) {
-  const wh = settings.workingHours || { mon: 8, tue: 8, wed: 8, thu: 8, fri: 0, sat: 0, sun: 0 };
+  const wh = KhaytWorkingWeek.workingHours(settings);
   const holidays = settings.holidays || [];
   const dayKeys = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
 

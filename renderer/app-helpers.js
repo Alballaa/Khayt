@@ -1,6 +1,20 @@
 /**
  * Shared order/client helpers, tags, priorities, date filters, CSV import, locale.
  */
+/* Make sure the working week is loaded, WITHOUT declaring a binding for it.
+ *
+ * lib/working-week.js assigns globalThis.KhaytWorkingWeek itself, so the script
+ * tag has already done this in the renderer, and `require` does it under Node,
+ * where these files are pulled in directly by tests.
+ *
+ * The obvious version — a shared `const` at the top of each file — is a trap.
+ * Classic scripts share ONE global lexical scope, so the second file to declare
+ * the same top-level const throws "already been declared" and kills every script
+ * after it. That is what happened: settings.js never reached its export list,
+ * and the app died wiring a button whose handler had silently ceased to exist. */
+if (typeof KhaytWorkingWeek === 'undefined' && typeof require === 'function') {
+  require('../lib/working-week.js');
+}
 // ── Shared helpers ────────────────────────────────────────────────────────────
 /** Localised name — picks AR or EN depending on current language. */
 
@@ -351,7 +365,7 @@ const DAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
 /** Count available working hours from now until targetDate (exclusive), using
  *  settings.workingHours per day-of-week and skipping settings.holidays. */
 function availableHoursUntil(targetDate) {
-  const wh = settings.workingHours || { mon: 8, tue: 8, wed: 8, thu: 8, fri: 0, sat: 0, sun: 0 };
+  const wh = KhaytWorkingWeek.workingHours(settings);
   const holidays = new Set(settings.holidays || []);
   const cursor = new Date();
   cursor.setHours(0, 0, 0, 0);
@@ -371,7 +385,7 @@ function availableHoursUntil(targetDate) {
 
 /** Get daily working hours for today (used in clearDays forecast) */
 function avgDailyWorkingHours() {
-  const wh = settings.workingHours || { mon: 8, tue: 8, wed: 8, thu: 8, fri: 0, sat: 0, sun: 0 };
+  const wh = KhaytWorkingWeek.workingHours(settings);
   const days = Object.values(wh);
   const totalWeeklyHours = days.reduce((s, h) => s + (h > 0 ? h : 0), 0);
   // Divide by 7 to get calendar-day average (correct for delivery-date estimation)
