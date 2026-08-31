@@ -36,6 +36,12 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **Customers are greeted by name in campaigns and reminders.** If you write in
+  a language other than English or Arabic, the `{{name}}` merge field and the
+  waiting-list reminder came out blank — so a campaign went to your whole client
+  list opening "Hi ,". Client names were also missing from the kiosk view, order
+  documents and the waiting list, and typing an existing client's name offered
+  to create a second copy of them instead of finding the one you had.
 - **Publishing a catalogue with a lot of photos works again.** A shop with
   roughly fourteen or more photo-rich products was refused outright — the whole
   catalogue, because of the pictures on part of it. Khayt now trims to fit,

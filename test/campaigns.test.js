@@ -69,3 +69,24 @@ test('fillTemplate merges name / orders / spend / last_order', () => {
   const out = C.fillTemplate('Hi {{name}}, {{orders}} orders, {{spend}} spent since {{last_order}}', rec, (n) => n + ' SAR');
   assert.equal(out, 'Hi Acme, 2 orders, 550 SAR spent since 2026-06-12');
 });
+
+test('a campaign greets a customer by name whatever language the shop writes in', () => {
+  /* {{name}} goes out in a message a real customer reads. It was
+   * `c.name || c.nameEn || c.nameAr`, which is empty for a shop writing German
+   * or Turkish — so the campaign it sent opened "Hi ," with the greeting intact
+   * and the name missing, to every client on the list at once.
+   */
+  const shop = { contentLangs: ['de', 'fr'], lang: 'de' };
+  const de = { client: { name_de: 'Müller GmbH' }, stats: {} };
+  assert.equal(C.fillTemplate('Hallo {{name}},', de, null, shop), 'Hallo Müller GmbH,');
+
+  // English and Arabic shops are untouched.
+  const ar = { client: { nameAr: 'أكمي' }, stats: {} };
+  assert.equal(C.fillTemplate('Hi {{name}},', ar, null, { contentLangs: ['en', 'ar'], lang: 'ar' }), 'Hi أكمي,');
+
+  // A caller that passes no settings still resolves rather than sending a blank.
+  assert.equal(C.fillTemplate('Hallo {{name}},', de, null), 'Hallo Müller GmbH,');
+
+  // A client with no name at all is the one case a blank is honest.
+  assert.equal(C.fillTemplate('Hi {{name}}!', { client: {}, stats: {} }, null, shop), 'Hi !');
+});
