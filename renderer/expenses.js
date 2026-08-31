@@ -169,7 +169,7 @@ async function emailOrderToClient(orderId, isQuote = false) {
   const client = order.clientId ? clients.find(c => c.id === order.clientId) : null;
   if (!client?.email) { toast(t('ord.no_email'), 'error'); return; }
   const clientName = localName(client) || order.project || '';
-  const shopName = settings.bizEn || 'Khayt';
+  const shopName = shopName() || 'Khayt';
   const subjectText = isQuote
     ? `Quote #${order.id} — ${order.project}`
     : `Invoice for order #${order.id} — ${order.project}`;

@@ -300,7 +300,7 @@ function openReminderModal(itemId) {
       if (!email) { toast('Email address required', 'error'); return; }
       const cfg = settings.emailConfig;
       const body = `<p>${escapeHtml(msg).replace(/\n/g, '<br>')}</p>`;
-      const subject = `Reminder: ${(item.project || 'Your project').replace(/[\r\n]/g, ' ')} at ${(settings.bizEn || 'Khayt').replace(/[\r\n]/g, ' ')}`;
+      const subject = `Reminder: ${(item.project || 'Your project').replace(/[\r\n]/g, ' ')} at ${(shopName() || 'Khayt').replace(/[\r\n]/g, ' ')}`;
       const result = await window.hubAPI?.sendEmail?.({ to: email, subject, body, smtpConfig: cfg });
       if (result?.ok) {
         item.status = 'reminded';

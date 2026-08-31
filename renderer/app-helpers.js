@@ -3,6 +3,30 @@
  */
 // ── Shared helpers ────────────────────────────────────────────────────────────
 /** Localised name — picks AR or EN depending on current language. */
+
+/**
+ * The shop's own text in a given language — business name, address, footer…
+ *
+ * These were read as `settings.bizEn || settings.bizAr` in eighteen files, which
+ * is correct for a shop writing English and Arabic and returns an empty string
+ * for one writing Turkish. The fallback runs the language asked for, then the
+ * shop's chosen content languages, then anything filled in at all: an invoice
+ * with a Turkish business name on it beats one with a blank where the name goes.
+ */
+function shopField(base, lang) {
+  if (typeof KhaytContentLanguages === 'undefined') {
+    const s = (typeof settings !== 'undefined' && settings) || {};
+    return s[base + 'En'] || s[base + 'Ar'] || '';
+  }
+  return KhaytContentLanguages.read(
+    (typeof settings !== 'undefined' ? settings : {}), base,
+    lang || (typeof i18n !== 'undefined' ? i18n.current : 'en'),
+    (typeof settings !== 'undefined' ? settings : null));
+}
+
+/** The shop's name in the current language, or the best one it has. */
+function shopName(lang) { return shopField('biz', lang); }
+
 function localName(obj) {
   // Reads through the content-language model so a shop writing Turkish or
   // German sees its own name rather than a blank: the fallback runs the
@@ -476,6 +500,12 @@ function openActivityLog() {
     logActivity,
     openActivityLog,
     localName,
+    // Declared above the IIFE, like localName, so they are globals in the
+    // browser — but a module required under Node sees only what this list
+    // exports, which is how renderInvoice threw "shopField is not defined"
+    // in test/render-paths.test.js and not in the app.
+    shopField,
+    shopName,
     payStatus,
     csvEsc,
     downloadBlob,

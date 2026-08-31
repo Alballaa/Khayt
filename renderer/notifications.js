@@ -431,7 +431,7 @@ async function checkDueDateNotifications() {
     return Math.round((d - today) / 86400000) === 1;
   });
 
-  const bizName = settings.bizEn || settings.bizAr || 'Khayt';
+  const bizName = shopField('biz') || 'Khayt';
 
   if (overdue.length > 0) {
     new Notification(t('notif.overdue_title', { n: overdue.length }), {

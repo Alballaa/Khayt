@@ -306,7 +306,7 @@ async function aiSuggestPrice() {
   if (useAi) {
     const status = toast(t('ai.price_thinking') || 'Analyzing your pricing history…', 'info', 8000);
     try {
-      const system = KhaytAiPrice.buildPriceSystem({ shopName: settings.bizEn || settings.bizAr || 'Khayt', lang: settings.lang });
+      const system = KhaytAiPrice.buildPriceSystem({ shopName: shopField('biz') || 'Khayt', lang: settings.lang });
       const request = KhaytAiPrice.buildPriceRequest(comps, { material, grams, hours, cost, currency: cur });
       const r = await khaytAiExtract({ apiKey: ai.apiKey, model: ai.model || 'claude-opus-5', task: 'price', system, request, schema: KhaytAiPrice.PRICE_SCHEMA });
       if (r && r.ok) reco = KhaytAiPrice.pickPrice(r, reco) || reco;
@@ -1485,7 +1485,7 @@ function updateResinFieldsVisibility() {
         try {
           const r = await khaytAiExtract({
             apiKey: ai.apiKey, model: ai.model || 'claude-opus-5', task: 'assistant',
-            system: KhaytAiAssistant.buildAssistantSystem({ shopName: settings.bizEn || settings.bizAr || 'Khayt', lang: settings.lang }),
+            system: KhaytAiAssistant.buildAssistantSystem({ shopName: shopField('biz') || 'Khayt', lang: settings.lang }),
             request: KhaytAiAssistant.buildAssistantRequest(ctx, q, convo.slice(0, -1)),
             schema: KhaytAiAssistant.ASSISTANT_SCHEMA,
           });

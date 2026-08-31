@@ -87,7 +87,7 @@ function renderEmailNotificationSettings() {
         </div>
         <div>
           <label style="margin-top:0;">${escapeHtml(t('set.email_from_name'))}</label>
-          <input type="text" id="emailFromName" value="${escapeHtml(cfg.fromName || '')}" placeholder="${escapeHtml(settings.bizEn || 'Khayt')}" style="font-size:12.5px;">
+          <input type="text" id="emailFromName" value="${escapeHtml(cfg.fromName || '')}" placeholder="${escapeHtml(shopName() || 'Khayt')}" style="font-size:12.5px;">
         </div>
       </div>
     </div>
@@ -480,7 +480,7 @@ function buildDigestEmailHtml() {
     .slice(0, 5);
 
   const waitingCount = waitingList.length;
-  const shopName = escapeHtml(settings.bizEn || settings.bizAr || 'Khayt');
+  const shopName = escapeHtml(shopField('biz') || 'Khayt');
   const currency = escapeHtml(settings.currency || 'SAR');
 
   return `<!DOCTYPE html>
@@ -1462,7 +1462,7 @@ async function openStorefrontModal() {
       const buildCatalog = (withPhotos) => {
         captureConfig();
         return {
-          shopName: (settings.bizEn || settings.bizAr || 'Khayt').trim(),
+          shopName: (shopField('biz') || 'Khayt').trim(),
           currency: cur,
           lang: (typeof i18n !== 'undefined' && i18n.current) || 'en',
           note: sf.note,
@@ -2941,6 +2941,66 @@ function renderCloudSettings() {
  * Capped at two on purpose. Three name fields and three description fields is a
  * form nobody finishes, and the storefront shows one language at a time anyway.
  */
+
+/**
+ * The shop's own text, one field per language it writes content in.
+ *
+ * Business name, tagline, address, invoice footer and terms were five
+ * hard-coded English/Arabic pairs. A Turkish shop could not enter its business
+ * name in Turkish — the interface translated for it and the invoice a customer
+ * receives did not — and an Arabic-only shop faced five English boxes it had to
+ * leave blank.
+ *
+ * The ids stay `set_bizEn` and `set_bizAr` for English and Arabic, and become
+ * `set_biz_tr` for anything else, matching lib/content-languages.js. That is
+ * what lets loadSettingsIntoForm and the save path keep working unchanged for
+ * every shop that stays on the two languages this always had.
+ */
+function renderContentFields() {
+  if (typeof KhaytContentLanguages === 'undefined') return;
+  const CL = KhaytContentLanguages;
+  const langs = CL.contentLangs(settings);
+
+  const build = (host, base, label, kind) => {
+    const el = $(host);
+    if (!el) return;
+    el.innerHTML = langs.map((lang) => {
+      const key = CL.fieldKey(base, lang);
+      const rtl = lang === 'ar' ? ' dir="rtl"' : '';
+      const val = escapeHtml(settings[key] || '');
+      const cap = `${escapeHtml(label)} · ${escapeHtml(CL.languageName(lang))}`;
+      const input = kind === 'textarea'
+        ? `<textarea id="set_${key}" rows="3"${rtl} style="resize:vertical;">${val}</textarea>`
+        : `<input type="text" id="set_${key}"${rtl} value="${val}">`;
+      return `<div><label>${cap}</label>${input}</div>`;
+    }).join('');
+  };
+
+  build('#bizNameFields', 'biz', t('set.biz_name') || 'Business name');
+  build('#taglineFields', 'tagline', t('set.tagline') || 'Tagline');
+  build('#addressFields', 'addr', t('set.address') || 'Address');
+  build('#footerFields', 'footer', t('set.footer') || 'Invoice footer');
+  build('#invTermsFields', 'invTerms', t('set.inv_terms') || 'Terms & notes', 'textarea');
+}
+
+/** Read the shop's per-language text back out of whatever fields are on screen. */
+function readContentFields() {
+  const out = {};
+  if (typeof KhaytContentLanguages === 'undefined') return out;
+  const CL = KhaytContentLanguages;
+  for (const base of ['biz', 'tagline', 'addr', 'footer', 'invTerms']) {
+    for (const lang of CL.SUPPORTED) {
+      const key = CL.fieldKey(base, lang);
+      const el = document.getElementById('set_' + key);
+      // Only fields that are ON SCREEN. A language the shop has stopped using
+      // keeps whatever it had — removing a language must not erase the text,
+      // because putting the language back should bring it with it.
+      if (el) out[key] = el.value.trim();
+    }
+  }
+  return out;
+}
+
 function renderContentLangsPicker() {
   const el = $('#contentLangsPicker');
   if (!el || typeof KhaytContentLanguages === 'undefined') return;
@@ -2969,7 +3029,8 @@ function renderContentLangsPicker() {
     }
     settings.contentLangs = picked;
     saveAll();
-    renderContentLangsPicker();
+    renderContentFields();
+  renderContentLangsPicker();
     toast(t('set.saved'), 'success');
   }));
 }
@@ -3082,7 +3143,7 @@ function renderDigestSettings() {
     const to = (el.querySelector('#digestRecipient').value.trim()) || settings.email || '';
     if (!to) { if (resEl) resEl.textContent = 'No recipient email.'; return; }
     const body = buildDigestEmailHtml();
-    const subject = `${settings.bizEn || 'Khayt'} — Test Digest`;
+    const subject = `${shopName() || 'Khayt'} — Test Digest`;
     const result = await window.hubAPI?.sendEmail?.({ to, subject, body, smtpConfig: cfg });
     if (resEl) {
       if (result?.ok) { resEl.textContent = 'Test sent!'; resEl.style.color = 'var(--success)'; }
@@ -3319,7 +3380,7 @@ function renderEventWebhookSettings() {
     const sample = (typeof KhaytWebhooks !== 'undefined')
       ? KhaytWebhooks.buildWebhookEvent('created',
           { id: 'SAMPLE-1', project: 'Test order', status: 'pending', paymentStatus: 'unpaid', price: 100 },
-          { at: new Date().toISOString(), shopName: settings.bizEn || settings.bizAr || 'Khayt', clientName: 'Test client', currency: (typeof currencySymbol === 'function') ? currencySymbol() : '' })
+          { at: new Date().toISOString(), shopName: shopField('biz') || 'Khayt', clientName: 'Test client', currency: (typeof currencySymbol === 'function') ? currencySymbol() : '' })
       : { id: 'SAMPLE-1', event: 'order.created' };
     const res = await window.hubAPI?.webhookPost?.({ url, secret, payload: sample });
     if (res?.ok) toast('✅ Webhook delivered!', 'success');
@@ -3702,7 +3763,7 @@ function renderZatcaPhase2Settings() {
       <div class="inline-pair">
         <div>
           <label data-i18n="zatca2.org">Organization name (for CSR)</label>
-          <input type="text" id="z2_org" value="${escapeHtml(z2.org || settings.bizEn || '')}" placeholder="My Shop LLC">
+          <input type="text" id="z2_org" value="${escapeHtml(z2.org || shopName() || '')}" placeholder="My Shop LLC">
         </div>
         <div>
           <label data-i18n="zatca2.industry">Industry (for CSR)</label>
@@ -3829,7 +3890,7 @@ function renderZatcaPhase2Settings() {
   // Generate CSR
   el.querySelector('#btnZ2GenCsr')?.addEventListener('click', async () => {
     const cn = el.querySelector('#z2_cn').value.trim();
-    const org = el.querySelector('#z2_org').value.trim() || settings.bizEn || '';
+    const org = el.querySelector('#z2_org').value.trim() || shopName() || '';
     const vat = settings.vat || '';
     if (!cn) { toast(t('zatca2.cn_required'), 'warning'); return; }
     const res = await window.hubAPI?.zatcaGenCsr?.({
@@ -4556,21 +4617,19 @@ function syncTaxControls() {
 }
 
 function loadSettingsIntoForm() {
-  $('#set_bizEn').value     = settings.bizEn     || '';
-  $('#set_bizAr').value     = settings.bizAr     || '';
+  // The per-language text fields are built by renderContentFields() from the
+  // shop's chosen languages, and carry their own values — there is no fixed set
+  // of ids to populate here any more.
+  renderContentFields();
   $('#set_vat').value       = settings.vat       || '';
   $('#set_cr').value        = settings.cr        || '';
   $('#set_phone').value     = settings.phone     || '';
   $('#set_email').value     = settings.email     || '';
-  $('#set_addrEn').value    = settings.addrEn    || '';
-  $('#set_addrAr').value    = settings.addrAr    || '';
   $('#set_lang').value      = settings.lang      || 'en';
   $('#set_theme').value     = settings.theme     || 'dark';
   if (typeof populateDesignSelects === 'function') populateDesignSelects();
   if (typeof syncDesignSettingsUi === 'function') syncDesignSettingsUi();
   $('#set_invPrefix').value = settings.invPrefix || 'INV';
-  $('#set_footerEn').value  = settings.footerEn  || '';
-  $('#set_footerAr').value  = settings.footerAr  || '';
   $('#set_autoDeduct').checked = settings.autoDeduct !== false;
   $('#set_lowStock').value  = settings.lowStockThreshold ?? 200;
   // 1.3 additions
@@ -4586,8 +4645,6 @@ function loadSettingsIntoForm() {
   $('#set_vatRate').value       = settings.vatRate ?? 15;
   $('#set_quotePrefix').value   = settings.quotePrefix || 'QUO';
   $('#set_useIcloud').checked   = !!settings.useIcloud;
-  $('#set_taglineEn').value     = settings.taglineEn   || '';
-  $('#set_taglineAr').value     = settings.taglineAr   || '';
   $('#set_invAccent').value     = safeCssColor(settings.invAccentColor, '#5E2E14');
   if ($('#set_invTemplate')) $('#set_invTemplate').value = settings.invTemplate || 'classic';
   const lscEl = $('#set_lowStockColor');
@@ -4617,8 +4674,6 @@ function loadSettingsIntoForm() {
     biEl.dataset.langRowBound = '1';
     biEl.addEventListener('change', syncInvLanguageControls);
   }
-  $('#set_invTermsEn').value    = settings.invTermsEn  || '';
-  $('#set_invTermsAr').value    = settings.invTermsAr  || '';
   $('#set_monthlyGoal').value     = settings.monthlyGoal ?? 0;
   $('#set_supplierPhone').value   = settings.supplierPhone || '';
   // New Feature 7: Working hours
@@ -4927,21 +4982,21 @@ function saveSettingsFromForm() {
      * wipLimits rebuilds) and are not merely preserving.
      */
     ...settings,
-    bizEn:     $('#set_bizEn').value.trim(),
-    bizAr:     $('#set_bizAr').value.trim(),
+    /* The shop's own text, per language, read from whatever fields are on
+     * screen — business name, tagline, address, invoice footer and terms. They
+     * were ten hard-coded lines here, which is why a shop could only ever have
+     * an English and an Arabic one. A language the shop has stopped using keeps
+     * whatever it had: removing a language must not erase the text. */
+    ...readContentFields(),
     vat:       $('#set_vat').value.trim(),
     cr:        $('#set_cr').value.trim(),
     phone:     $('#set_phone').value.trim(),
     email:     $('#set_email').value.trim(),
-    addrEn:    $('#set_addrEn').value.trim(),
-    addrAr:    $('#set_addrAr').value.trim(),
     lang:      $('#set_lang').value,
     theme:       $('#set_theme').value,
     designTheme: $('#set_designTheme')?.value || settings.designTheme || 'studio',
     accent:      $('#set_accent')?.value || settings.accent || 'cyan',
     invPrefix: $('#set_invPrefix').value.trim() || 'INV',
-    footerEn:  $('#set_footerEn').value.trim(),
-    footerAr:  $('#set_footerAr').value.trim(),
     autoDeduct: $('#set_autoDeduct').checked,
     lowStockThreshold: Math.max(0, num($('#set_lowStock').value, 200)),
     // 1.3 additions
@@ -4963,8 +5018,6 @@ function saveSettingsFromForm() {
     enableVat:     $('#set_enableVat').checked,
     vatRate:       Math.max(0, num($('#set_vatRate').value, 15)),
     bizLogo:       settings.bizLogo || '',
-    taglineEn:     $('#set_taglineEn').value.trim(),
-    taglineAr:     $('#set_taglineAr').value.trim(),
     invAccentColor:$('#set_invAccent').value || '#5E2E14',
     invTemplate:   $('#set_invTemplate')?.value || 'classic',
     invoiceBilingual: $('#set_invoiceBilingual')?.value || 'auto',
@@ -4982,8 +5035,6 @@ function saveSettingsFromForm() {
     lowStockColor: (settings.lowStockColor === ''
       && $('#set_lowStockColor')?.value === themeLowStockColor())
       ? '' : ($('#set_lowStockColor')?.value || ''),
-    invTermsEn:    $('#set_invTermsEn').value.trim(),
-    invTermsAr:    $('#set_invTermsAr').value.trim(),
     quotePrefix:   $('#set_quotePrefix').value.trim() || 'QUO',
     useIcloud:     $('#set_useIcloud').checked,
     monthlyGoal:   Math.max(0, num($('#set_monthlyGoal').value, 0)),
@@ -5574,7 +5625,7 @@ async function resetAllData() {
 }
 
 async function fullWipeData() {
-  const phrase = (settings.businessName || settings.bizEn || 'WIPE').trim() || 'WIPE';
+  const phrase = (settings.businessName || shopName() || 'WIPE').trim() || 'WIPE';
   const ok = await verifyDestructiveGate({
     phrase,
     title: t('set.full_wipe'),

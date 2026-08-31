@@ -229,7 +229,7 @@ function quoteForClient(clientId) {
 /* Feature 6: Client job intake form (PDF/HTML export) */
 async function generateIntakeForm(clientId) {
   const client = clientId ? clients.find(c => c.id === clientId) : null;
-  const shopName  = settings.bizEn || settings.bizAr || 'Khayt';
+  const shopName  = shopField('biz') || 'Khayt';
   const shopPhone = settings.phone || '';
   const shopEmail = settings.email || '';
   const clientName = client ? localName(client) : '';
@@ -331,7 +331,7 @@ async function generateIntakeForm(clientId) {
     </div>
   </div>
 
-  <div class="footer">${escapeHtml(shopName)} · ${escapeHtml(settings.addrEn || '')}</div>
+  <div class="footer">${escapeHtml(shopName)} · ${escapeHtml(shopField('addr') || '')}</div>
 </body>
 </html>`;
 
@@ -1396,7 +1396,7 @@ function exportClientPortal(clientId) {
     </div>`;
   };
 
-  const bizName = (settings.bizEn || settings.bizAr || 'Khayt');
+  const bizName = (shopField('biz') || 'Khayt');
   const portalIsAr = i18n.current === 'ar';
   const portalLang = portalIsAr ? 'ar' : 'en';
   const PL = {

@@ -2448,7 +2448,7 @@ async function generateOrderLabel(orderId) {
   const client = order.clientId ? clients.find(c => c.id === order.clientId) : null;
   const clientName = client ? localName(client) : (order.client || '');
   const machine = order.machineId ? machines.find(m => m.id === order.machineId) : null;
-  const shopName = settings.bizEn || settings.bizAr || 'Khayt';
+  const shopName = shopField('biz') || 'Khayt';
   const accentColor = safeCssColor(settings.invAccentColor, '#5E2E14');
 
   // QR code — encode the order ID
@@ -2557,7 +2557,7 @@ async function generatePackingSlip(orderId) {
   const clientPhone = client?.phone || '';
   const deliveryAddr = order.deliveryAddress
     || (client?.addresses?.[0]?.address || '');
-  const shopName = settings.bizEn || settings.bizAr || 'Khayt';
+  const shopName = shopField('biz') || 'Khayt';
   const shopPhone = settings.phone || '';
   const shopEmail = settings.email || '';
   const accentColor = safeCssColor(settings.invAccentColor, '#5E2E14');
