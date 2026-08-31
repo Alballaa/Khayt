@@ -36,6 +36,11 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **Publishing a catalogue with a lot of photos works again.** A shop with
+  roughly fourteen or more photo-rich products was refused outright — the whole
+  catalogue, because of the pictures on part of it. Khayt now trims to fit,
+  taking spare photos before any listing's only one, so the storefront publishes
+  with fewer pictures instead of not at all.
 - **The phone, the quote link and the recovery file know your business name.**
   They read English-or-Arabic directly, so a shop writing Turkish or German got
   a quote page headed "Khayt", a recovery code file that named no business, and
