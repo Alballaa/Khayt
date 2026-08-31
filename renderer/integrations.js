@@ -1188,7 +1188,8 @@ function buildPortalPayload(order) {
     seller: {
       name: shopField('biz') || 'Khayt',
       vat: settings.vat || '',
-      address: settings.address || '',
+      // Same dead key as the ZATCA builds: the field is `addr`, per language.
+      address: shopField('addr') || '',
     },
     paid: (typeof payStatus === 'function' ? payStatus(order) === 'paid' : order.paymentStatus === 'paid'),
   };

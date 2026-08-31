@@ -584,7 +584,10 @@ async function prepareZatcaPhase2Payload(order) {
     issueDate: issueDt[0],
     issueTime: (issueDt[1] || '00:00:00').split('.')[0],
     sellerName: shopName() || '',
-    sellerStreet: settings.address || '',
+    // ZATCA requires the seller's address. `settings.address` is not a key
+    // this app has ever written — the field is `addr`, per language — so every
+    // Phase-2 XML went to the authority with the street blank.
+    sellerStreet: shopField('addr') || '',
     sellerCity: z2.city || 'Riyadh',
     vatNumber: settings.vat || '',
     buyerName: order.client || '',
@@ -765,7 +768,7 @@ async function renderInvoiceForOrder(order) {
           issueDate:     issueDt[0],
           issueTime:     (issueDt[1] || '00:00:00').split('.')[0],
           sellerName:    shopName() || '',
-          sellerStreet:  settings.address || '',
+          sellerStreet:  shopField('addr') || '',   // see the note on the other XML build
           sellerCity:    z2.city || 'Riyadh',
           vatNumber:     settings.vat || '',
           buyerName:     order.client || '',

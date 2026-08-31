@@ -36,6 +36,13 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **Your address appears on ZATCA e-invoices again.** Every Phase-2 invoice was
+  submitted with the seller's street blank, and the customer portal's printable
+  copy showed no address either — all three read a settings field that has never
+  existed. They now read the address you actually entered.
+- **An order raised on your phone is numbered like one raised at the desk.** It
+  used a prefix setting that was never saved anywhere, so it always came out as
+  `ORD-…` and ignored the prefix you had set.
 - **Customers are greeted by name in campaigns and reminders.** If you write in
   a language other than English or Arabic, the `{{name}}` merge field and the
   waiting-list reminder came out blank — so a campaign went to your whole client
