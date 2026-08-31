@@ -1393,6 +1393,15 @@ function openOrderEditor(orderId) {
     <input type="date" data-f="dueDate" value="${escapeHtml(draft.dueDate)}" style="max-width:180px;">
     <small id="oe_due_hint" style="color:var(--text-muted);display:none;margin-top:3px;">📅 ${escapeHtml(t('ord.due_suggestion'))}</small>
 
+    <!-- A workshop prints things that are not jobs. Marking one keeps it out of
+         the money without pretending it never ran: it still wears the nozzle and
+         still occupies the machine. See lib/business-scope.js. -->
+    <label style="display:flex;align-items:center;gap:8px;margin-top:14px;font-weight:normal;cursor:pointer;">
+      <input type="checkbox" data-f="nonBusiness" ${draft.nonBusiness ? 'checked' : ''} style="width:auto;margin:0;">
+      <span>${escapeHtml(t('oe.non_business') || 'Not business — keep out of revenue and reports')}</span>
+    </label>
+    <small style="color:var(--text-muted);display:block;margin-top:3px;">${escapeHtml(t('oe.non_business_hint') || 'A test, a gift, something for the shop itself. It still counts towards nozzle wear and still occupies the machine.')}</small>
+
     <div class="inline-pair" style="margin-top:14px;">
       <div>
         <label>${escapeHtml(t('oe.courier'))}</label>
@@ -1607,6 +1616,11 @@ function openOrderEditor(orderId) {
           if (hint) hint.style.display = 'block';
         }
       });
+      /* A checkbox is `checked`, not `value` — a generic [data-f] handler reads
+       * "on" when ticked and never writes anything when unticked, so the flag
+       * would set and refuse to clear. */
+      const nbEl = modal.querySelector('[data-f="nonBusiness"]');
+      if (nbEl) nbEl.addEventListener('change', () => { draft.nonBusiness = nbEl.checked ? true : undefined; });
       modal.querySelector('[data-f="dueDate"]').addEventListener('change', (e) => {
         draft.dueDate = e.target.value;
       });
@@ -1992,6 +2006,9 @@ function openOrderEditor(orderId) {
       order.invoiceNotes = draft.invoiceNotes || undefined;
       order.tags = draft.tags.length > 0 ? draft.tags : undefined;
       order.dueDate = draft.dueDate || null;
+      // `true` or gone — never `false`. Every existing order predates this, so
+      // an absent key must mean one thing rather than two.
+      KhaytBusinessScope.setNonBusiness(order, !!draft.nonBusiness);
       order.priority = draft.priority;
       order.priorityLevel = draft.priorityLevel || (draft.priority ? 'high' : 'normal');
       order.operatorId = draft.operatorId || undefined;

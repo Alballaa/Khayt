@@ -559,6 +559,8 @@
   "pay.gift_card_credit": "Gift card credit applied",
   "pay.order_fully_covered": "Order is already fully covered",
   "oe.title": "Edit order",
+  "oe.non_business": "Not business — keep out of revenue and reports",
+  "oe.non_business_hint": "A test, a gift, something for the shop itself. It still counts towards nozzle wear and still occupies the machine.",
   "oe.due_date": "Due date",
   "oe.due_overdue": "Overdue by {n}d",
   "oe.due_today": "Due today",
