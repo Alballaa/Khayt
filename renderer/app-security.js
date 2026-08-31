@@ -97,7 +97,12 @@
     const formatted = formatRecoveryCode(code);
     const date = localDateStr();
     const brand = (typeof document !== 'undefined' && document.documentElement.dataset.app === 'bedready') ? 'Bed Ready' : 'Khayt';
-    const biz = settings?.businessName || settings?.bizEn || brand;
+    // The recovery file is what a locked-out shop reads to prove whose it is,
+    // and `bizEn` is empty for a shop writing Turkish or German — so it named
+    // the business "Khayt". shopField() resolves the shop's own languages.
+    const biz = settings?.businessName
+      || (typeof shopField === 'function' ? shopField('biz') : '')
+      || brand;
     return [
       brand + ' Recovery Code',
       `Business: ${biz}`,
