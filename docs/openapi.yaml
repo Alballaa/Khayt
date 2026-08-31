@@ -126,7 +126,21 @@ components:
       type: object
       properties:
         id: { type: string }
-        nameEn: { type: string }
+        name:
+          type: string
+          description: >-
+            The client's name, resolved through the shop's own content languages.
+            Prefer this. A shop may write in any two of nine languages, so a
+            German-and-French shop has neither nameEn nor nameAr filled in and
+            reading those alone returns a blank row.
+        nameEn:
+          type: string
+          description: >-
+            Kept for the shipped iOS Companion, which decodes these two and
+            nothing else. Where a shop writes NEITHER English nor Arabic, the
+            resolved name is placed here so that build shows something rather
+            than a blank; a shop with real English text keeps exactly what it
+            wrote. This projection is read-only.
         nameAr: { type: string }
         phone: { type: string }
         email: { type: string }

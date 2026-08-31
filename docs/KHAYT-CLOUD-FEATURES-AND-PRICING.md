@@ -69,7 +69,7 @@ the desktop can ask the cloud to do.
 | **Customer portal** | `publishPortal`, `unpublishPortal`, `listPublished`, `portalMessages`, `portalReply` |
 | **Storefront** | `putCatalog`, `getCatalog`, `storefrontStats` (views / carts / orders), `getReviewSummary` |
 | **Order intake** | `listIntake`, `deleteIntake` — customers submitting work |
-| **Marketplace links** | per-platform import webhook + product feed URLs (Shopify, Etsy, Salla, Zid, WooCommerce…) |
+| **Marketplace links** | per-platform import webhook + product feed URLs (Shopify, Etsy, Salla, Zid, WooCommerce…), CSV/XML/JSON per platform, with product images served as real URLs — see [STOREFRONT-SYNC.md](./STOREFRONT-SYNC.md) |
 | **Cameras** | `/v1/cameras`, `/v1/cameras/snap` |
 | **Organisations** | `getOrg`, `putOrg`, `createOrgInvite`, `joinOrgRemote`, `listOrgMembers`, `getOrgKeysets`, `getBranchStore`, plus org keyset crypto |
 | **Billing** | `billingMe` |

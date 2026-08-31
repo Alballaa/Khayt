@@ -279,3 +279,26 @@ test('every settings section head and hint is translatable', () => {
       `${shell}: section head(s) render English in every language:\n  ${bare.join('\n  ')}`);
   }
 });
+
+test('the README states the number of languages that actually ship', () => {
+  /* It said "7 UI languages" and listed seven, while renderer/locales/ held
+   * nine — Turkish and Portuguese had been added and the sentence was not.
+   *
+   * A count in prose is the kind of fact nothing re-reads. This is the cheapest
+   * possible guard for it: the number, and every language named beside it.
+   */
+  const fs = require('fs');
+  const path = require('path');
+  const root = path.join(__dirname, '..');
+  const shipped = fs.readdirSync(path.join(root, 'renderer', 'locales')).filter((f) => f.endsWith('.js'));
+  const readme = fs.readFileSync(path.join(root, 'README.md'), 'utf8');
+
+  const m = readme.match(/^- (\d+) UI languages: (.+)$/m);
+  assert.ok(m, 'the README must state how many languages ship');
+  assert.equal(Number(m[1]), shipped.length,
+    `README says ${m[1]} UI languages; renderer/locales/ has ${shipped.length}`);
+  // And the names beside the number have to be that many too — a count fixed
+  // without the list is the same sentence still lying, more quietly.
+  assert.equal(m[2].split(',').length, shipped.length,
+    'the list beside the number must name every language that ships');
+});

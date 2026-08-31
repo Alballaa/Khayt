@@ -91,3 +91,15 @@ Until this was fixed the sum read `p.weight`, which is not a field a part has,
 so every job contributed `+undefined || 0`. Checked against a real shop: twelve
 completed jobs, **2,461 g** through a 2,000 g threshold, card reading **0 g**.
 The warning had never fired for anybody.
+
+### A print marked "not business" still counts here
+
+An order can be marked as not applicable to the business — a calibration cube, a
+gift, a bracket for the shop's own shelf — which keeps it out of revenue, order
+counts and every report (`lib/business-scope.js`).
+
+It does **not** keep it out of this. The nozzle does not know who the print was
+for: the same grams of the same abrasive filament went through it either way, and
+a counter that ignored half a machine's work would warn late, in the direction
+that ruins parts. The flag is scoped to money and trade counts for exactly this
+reason, and there is a test asserting `lib/nozzle-wear.js` never consults it.

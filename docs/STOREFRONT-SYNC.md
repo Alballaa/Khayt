@@ -1,0 +1,121 @@
+# Publishing a catalogue, and where it goes
+
+One action publishes everything. There is no second form to fill in, and no
+per-platform export.
+
+**Settings → Storefront → Publish.** That writes one record in the cloud, and two
+different things read it:
+
+- the **public storefront page** a customer opens (`/shop/{shopId}`), and
+- the **product feed** every other platform imports from (`/v1/shops/{shopId}/feed/{platform}`).
+
+Both are built from the same published catalogue, so anything missing from one is
+missing from the other for the same reason.
+
+---
+
+## What a publish carries
+
+| | |
+|---|---|
+| Shop name, currency, note, lead time | from Settings |
+| Minimum order, deposit %, tax rate, shipping | from the storefront form |
+| Product name and description | **in both of your content languages** |
+| Up to three photos per listing | each labelled — render, actual print, detail, scale, packaging |
+| Price | **from the catalogue** |
+
+### The price comes from the catalogue
+
+The price box on the storefront form is an **override**, for the few items you
+want priced differently there. Leave it empty and the item publishes at the price
+the catalogue worked out — cost, margin, and whatever rounding or manual price
+you set on the product.
+
+This used to read the storefront box and nothing else, so a shop that had already
+priced its whole catalogue published a storefront where everything cost nothing.
+A deliberate `0` is still a price and is published as one.
+
+### Both languages
+
+A shop picks one or two of the nine languages Khayt speaks
+(Settings → Preferences → *Product languages*). The catalogue declares which ones
+it is written in, and the storefront page offers them: a visitor's `?lang=`, then
+their browser's language, then the shop's first.
+
+The page's own buttons and labels are still English and Arabic only. A shop
+writing German gets German products under English chrome — a known limit, written
+down here rather than discovered.
+
+---
+
+## Feed URLs
+
+**Settings → Integrations → Copy feed link**, per platform. The format follows the
+platform:
+
+| Platform | Format |
+|---|---|
+| Shopify, WooCommerce, PrestaShop, Shopware, and the CN/JP marketplaces | CSV |
+| Google, Meta / Facebook / Instagram | XML (Google Merchant fields) |
+| anything else | JSON |
+
+`?format=csv\|xml\|json` overrides it.
+
+### Images are real URLs
+
+`/v1/shops/{shopId}/feed-image/{itemId}/{n}` — served straight out of the
+published catalogue, public and unauthenticated, because a feed is only useful if
+the platform importing it can fetch the picture without credentials. `n` is
+optional and means the primary photo.
+
+Every feed used to publish an **empty** image for every product: the emitters
+printed a photo only when it was already an `http` URL, and a catalogue photo is
+a data URI. Nothing a shop photographed reached any platform. Labelled extras are
+published as `additional_image_link` where the platform takes them, so the shot
+of the *actual printed part* travels with the listing.
+
+Unpublishing takes the pictures down with it — they are served from the published
+catalogue, not from separate storage.
+
+### Size
+
+A published catalogue is capped at **8 MB** after sanitising. Three photos at
+200 KB is 600 KB a listing, so Khayt trims photos to fit rather than failing the
+publish: spare photos go before any listing's only one, heaviest listing first. A
+storefront with fewer pictures is a storefront; a `413` is not.
+
+---
+
+## Medusa
+
+Medusa is **inbound only** — `dir: ['in']` in the integrations registry, the one
+storefront in the directory without `'out'`. It is a self-hosted framework rather
+than a hosted store, so it has no webhook settings to paste a URL into: orders
+reach Khayt through a subscriber file you install in your own project
+(Settings → Integrations offers the code; see `lib/medusa-subscriber.js`).
+
+**There is no catalogue push to Medusa.** But the feed does not care what is
+asking for it, and unmapped platforms default to JSON:
+
+```
+GET https://cloud.khaytapp.com/v1/shops/{shopId}/feed/medusa
+```
+
+A Medusa project can pull that on a schedule. It is the same public,
+read-only feed every other platform uses.
+
+---
+
+## If something is missing from a listing
+
+Almost always one of these, and each is visible in the app before you publish:
+
+- **No price** — the product has no cost yet (no parts, or parts with no weight),
+  so there is nothing to compute from.
+- **No image** — the product has no photos in the catalogue. The storefront
+  publishes what the product carries.
+- **No description** — descriptions are per language now; an empty one publishes
+  empty and imports blank wherever it goes.
+- **Nothing at all** — the catalogue has not been republished since the change
+  you are looking for. The feed is built from the stored payload, so it shows
+  what was last pushed, not what is on screen.
