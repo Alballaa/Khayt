@@ -206,7 +206,9 @@ test('nothing falls back from an English field to an Arabic one and stops there'
    * not the bug: it is one field, not a two-language pick that excludes seven.
    */
   const offenders = [];
-  const RE = /\w+\.(?:name|desc|description)En\s*\|\|\s*\w+\.(?:name|desc|description)Ar/g;
+  // Either order. Neither direction is live today; a guard that only knows the
+  // one that happened to be written is half a guard.
+  const RE = /\w+\.(?:name|desc|description)(?:En|Ar)\s*\|\|\s*\w+\.(?:name|desc|description)(?:En|Ar)/g;
   for (const [file, src] of jsFiles()) {
     // app-helpers.js holds localName()'s own module-absent fallback; lan-server
     // asks `hasEnAr` on purpose, to decide whether to backfill a legacy field.
@@ -314,4 +316,43 @@ test('an unfilled second language prints nothing, not the first name again', () 
 test('the second line does not throw on junk', () => {
   assert.equal(CL.readAlt(null, 'name', 'en', { contentLangs: ['en', 'ar'] }), '');
   assert.equal(CL.readAlt({}, 'name', 'en', null), '');
+});
+
+/* ── settings keys that were never settings ───────────────────────────────
+ *
+ * Not a language bug, found by the same sweep: `settings.address` is read in
+ * three places and written in none. The field is `addr`, per language. Two of
+ * those three reads fill sellerStreet in the ZATCA e-invoice XML, so every
+ * Phase-2 invoice went to the tax authority with the seller's street blank.
+ *
+ * `settings.orderPrefix` was the same shape: read once, in the LAN server, so
+ * an order raised on the phone ignored the prefix the shop had set and came out
+ * numbered differently from every order raised at the desk.
+ *
+ * A read with a sensible default (`|| 'QUO'`, `|| 0.01`) is not this. These two
+ * had no default worth having: an empty compliance field, and a constant that
+ * disagreed with the rest of the app.
+ */
+test('no settings key is read that nothing ever writes', () => {
+  const RETIRED = ['address', 'orderPrefix'];
+  const sources = [...jsFiles().map(([, s]) => s), fs.readFileSync(path.join(__dirname, '..', 'main.js'), 'utf8')];
+  const all = sources.join('\n');
+  for (const key of RETIRED) {
+    const read = new RegExp(`settings\\??\\.${key}\\b`);
+    assert.equal(read.test(all), false,
+      `settings.${key} is read but nothing writes it — it is always the fallback`);
+  }
+  // And the two that replaced them are real: written, with a form field.
+  const state = fs.readFileSync(path.join(__dirname, '..', 'renderer', 'app-state.js'), 'utf8');
+  assert.match(state, /invPrefix:\s*'INV'/, 'the prefix the desktop actually mints orders with');
+});
+
+test('the phone numbers an order the way the desk does', () => {
+  // Different prefixes meant one shop's orders arrived under two schemes
+  // depending on which device raised them.
+  const lan = fs.readFileSync(path.join(__dirname, '..', 'lib', 'lan-server.js'), 'utf8');
+  const desk = fs.readFileSync(path.join(__dirname, '..', 'renderer', 'order-flows.js'), 'utf8');
+  const of = (src) => (src.match(/asQuote \? \(settings\.quotePrefix \|\| 'QUO'\) : \(settings\.(\w+) \|\| '(\w+)'\)/) || []).slice(1);
+  assert.deepEqual(of(lan), of(desk), 'the phone and the desk must mint the same order prefix');
+  assert.deepEqual(of(desk), ['invPrefix', 'INV']);
 });
