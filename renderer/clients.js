@@ -1145,7 +1145,12 @@ function renderClientSuggestions() {
     </div>`;
   }).join('');
 
-  const newRow = (term && !clients.some(c => (c.nameEn || c.nameAr || '').toLowerCase() === term))
+  // Matching on English-or-Arabic only meant a shop writing German compared the
+  // typed name against an empty string and offered to create a duplicate of a
+  // client it already had. Every language the record carries is checked.
+  const nameMatches = (c) => KhaytContentLanguages.allKeys('name')
+    .some((k) => String(c[k] || '').trim().toLowerCase() === term);
+  const newRow = (term && !clients.some(nameMatches))
     ? `<div class="suggest-item new" data-act="cl-new" data-name="${escapeHtml(input.value)}">+ ${escapeHtml(t('calc.quote.client_save_new'))}: “${escapeHtml(input.value)}”</div>`
     : '';
 
@@ -1560,7 +1565,7 @@ function openCampaignModal() {
         modal.querySelector('#campCount').textContent = recips.length;
         const sample = recips[0];
         modal.querySelector('#campPreview').textContent = sample
-          ? (t('camp.preview') || 'Preview') + ' → ' + sample.contact + ':\n' + KhaytCampaigns.fillTemplate(modal.querySelector('#campBody').value, sample, fmtMoney)
+          ? (t('camp.preview') || 'Preview') + ' → ' + sample.contact + ':\n' + KhaytCampaigns.fillTemplate(modal.querySelector('#campBody').value, sample, fmtMoney, settings)
           : '';
       };
       // Debounce: segmentation is O(clients × orders), so don't recompute per keystroke.
@@ -1586,10 +1591,10 @@ function openCampaignModal() {
       for (let i = 0; i < recips.length; i++) {
         const r = recips[i];
         res.textContent = `${t('camp.sending') || 'Sending'} ${i + 1}/${recips.length}…`; res.style.color = 'var(--text-muted)';
-        const msg = KhaytCampaigns.fillTemplate(body, r, fmtMoney);
+        const msg = KhaytCampaigns.fillTemplate(body, r, fmtMoney, settings);
         try {
           let ok;
-          if (ch === 'email') ok = await window.hubAPI.sendEmail({ to: r.contact, subject: KhaytCampaigns.fillTemplate(subject || 'Khayt', r, fmtMoney), body: msg.replace(/\n/g, '<br>'), smtpConfig: settings.emailConfig });
+          if (ch === 'email') ok = await window.hubAPI.sendEmail({ to: r.contact, subject: KhaytCampaigns.fillTemplate(subject || 'Khayt', r, fmtMoney, settings), body: msg.replace(/\n/g, '<br>'), smtpConfig: settings.emailConfig });
           else ok = await window.hubAPI.sendSms({ to: r.contact, message: msg, channel: ch, smsConfig: settings.smsConfig });
           (ok && ok.ok) ? sent++ : failed++;
         } catch (e) { failed++; }

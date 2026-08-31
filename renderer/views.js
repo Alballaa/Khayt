@@ -276,7 +276,7 @@ function renderKioskView() {
       // Enthusiast (hobbyist) mode has no clients — don't show a client name on kiosk cards.
       const kioskBiz = (typeof KhaytTiers !== 'undefined') ? KhaytTiers.showsBusiness(settings.mode) : settings.mode !== 'enthusiast';
       const client = (kioskBiz && job.clientId) ? clients.find(c => c.id === job.clientId) : null;
-      const clientName = kioskBiz ? (client ? (client.nameEn || client.nameAr || '') : (job.client || '')) : '';
+      const clientName = kioskBiz ? (client ? localName(client) : (job.client || '')) : '';
 
       progressHtml = `
         <div class="kiosk-job">

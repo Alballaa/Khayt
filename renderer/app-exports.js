@@ -159,7 +159,7 @@ async function exportQuoteApprovalPage(orderId) {
         </div>` : ''}
         ${client ? `<div class="meta-block">
           <h3>${escapeHtml(t('inv.billed_to'))}</h3>
-          <p>${escapeHtml(client.nameEn || client.nameAr || '')}</p>
+          <p>${escapeHtml(localName(client))}</p>
         </div>` : ''}
       </div>
 

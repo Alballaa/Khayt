@@ -26,7 +26,7 @@ function renderWaitingList() {
 
   el.innerHTML = sorted.map(item => {
     const client = (biz && item.clientId) ? clients.find(c => c.id === item.clientId) : null;
-    const clientName = client ? (client.nameEn || client.nameAr || '') : '';
+    const clientName = client ? localName(client) : '';
     const dot = priorityLabels[item.priority] || '🔵';
     const isDueReminder = item.reminderDate && item.reminderDate <= today && item.status !== 'declined';
     return `<div class="waiting-item" data-id="${item.id}" style="${isDueReminder ? 'border-inline-start: 3px solid var(--primary);' : ''}">
@@ -59,7 +59,7 @@ function openWaitingItemEditor(itemId = null) {
         reminderDate: '', status: 'active', estimatedValue: 0 };
 
   const clientOpts = clients
-    .map(c => `<option value="${c.id}" ${draft.clientId === c.id ? 'selected' : ''}>${escapeHtml(c.nameEn || c.nameAr || c.id)}</option>`)
+    .map(c => `<option value="${c.id}" ${draft.clientId === c.id ? 'selected' : ''}>${escapeHtml(localName(c) || c.id)}</option>`)
     .join('');
 
   const priorityOpts = ['urgent','high','normal','low']
@@ -249,7 +249,9 @@ function openReminderModal(itemId) {
   const item = waitingList.find(w => w.id === itemId);
   if (!item) return;
   const client = item.clientId ? clients.find(c => c.id === item.clientId) : null;
-  const clientName = client ? (client.nameEn || client.nameAr || '') : 'there';
+  // This goes INTO the reminder a customer receives: a shop writing German
+  // sent "Hi , just a reminder" with the name missing.
+  const clientName = (client ? localName(client) : '') || 'there';
   const defaultMsg = `Hi ${clientName}, just a reminder about your project '${item.project || 'your order'}' — we have a slot available. Let us know if you'd like to proceed!`;
   const hasEmail = !!settings.emailConfig && settings.emailConfig.provider !== 'none';
 

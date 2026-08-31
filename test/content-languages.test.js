@@ -191,6 +191,36 @@ test('nothing picks between an English field and an Arabic one by hand', () => {
     `these choose between two hard-coded languages and are blank for any other:\n  ${offenders.join('\n  ')}`);
 });
 
+test('nothing falls back from an English field to an Arabic one and stops there', () => {
+  /* The sibling of the ternary guard, and the shape it does not match:
+   *
+   *     const clientName = client.nameEn || client.nameAr || '';
+   *
+   * Eight of these were live. Two of them produced text SENT TO A CUSTOMER — a
+   * campaign's {{name}} merge field and the waiting-list reminder — so a shop
+   * writing German mailed its whole client list a message opening "Hi ,".
+   * Another compared a typed client name against an empty string and offered to
+   * create a duplicate of a client the shop already had.
+   *
+   * A search filter reading `(c.nameEn || '')` alone does not match this and is
+   * not the bug: it is one field, not a two-language pick that excludes seven.
+   */
+  const offenders = [];
+  const RE = /\w+\.(?:name|desc|description)En\s*\|\|\s*\w+\.(?:name|desc|description)Ar/g;
+  for (const [file, src] of jsFiles()) {
+    // app-helpers.js holds localName()'s own module-absent fallback; lan-server
+    // asks `hasEnAr` on purpose, to decide whether to backfill a legacy field.
+    if (file.endsWith('app-helpers.js')) continue;
+    for (const m of src.matchAll(RE)) {
+      const line = src.slice(0, m.index).split('\n').length;
+      if (file.endsWith('lan-server.js') && /hasEnAr/.test(src.split('\n')[line - 1])) continue;
+      offenders.push(`${file}:${line}  ${m[0].trim()}`);
+    }
+  }
+  assert.deepEqual(offenders, [],
+    `these fall back English→Arabic and are blank for any other language:\n  ${offenders.join('\n  ')}`);
+});
+
 test('the settings form builds its fields from the chosen languages', () => {
   const src = fs.readFileSync(path.join(RENDERER, 'settings.js'), 'utf8');
   assert.match(src, /function renderContentFields\(\)/,

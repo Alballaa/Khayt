@@ -2279,7 +2279,7 @@ function openOrderTimeline(orderId) {
     </div>`).join('');
 
   const client = order.clientId ? clients.find(c => c.id === order.clientId) : null;
-  const clientName = client ? (client.nameEn || client.nameAr || '') : (order.client || '');
+  const clientName = (client ? localName(client) : '') || (order.client || '');
 
   const overlay = appendStackedModal(`
     <div class="modal modal-form" style="max-width:480px;width:100%;">
