@@ -318,7 +318,9 @@ function generateWorkOrder(id) {
     secondary: settings.invoiceSecondLang, enableZatca: settings.enableZatca,
   });
   const bi = _dl.bilingual;
-  const bizPrimary = isAr ? (shopField('biz')) : (shopField('biz'));
+  // shopField() already resolves the shop's own content languages, so both
+  // branches of the ternary this replaced were the same expression.
+  const bizPrimary = shopField('biz');
   const today = localDateStr();
   const linkedClient = order.clientId ? clients.find(c => c.id === order.clientId) : null;
   const clientName = (order.project || '').trim() || (linkedClient ? localName(linkedClient) : t('inv.walk_in'));

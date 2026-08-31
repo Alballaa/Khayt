@@ -391,11 +391,12 @@ function renderDashboard() {
 
   const noItems = (key) => `<p class="dash-empty">${escapeHtml(t(key))}</p>`;
 
-  const dashIsAr = i18n.current === 'ar';
-  const dashBizPrimary   = dashIsAr ? (shopField('biz')) : (shopField('biz'));
+  // Both branches of the ternaries these replaced were identical: shopField()
+  // resolves the shop's content languages itself, so there is nothing to pick.
+  const dashBizPrimary   = shopField('biz');
   // The shop's name in the OTHER language it writes, whichever two those are.
   const dashBizSecondary = settings[KhaytContentLanguages.fieldKey('biz', KhaytContentLanguages.contentLangs(settings)[1] || 'ar')] || '';
-  const dashTagline      = dashIsAr ? (shopField('tagline')) : (shopField('tagline'));
+  const dashTagline      = shopField('tagline');
 
   // Stale order alerts
   const staleOrders = getStaleOrders().filter(o =>

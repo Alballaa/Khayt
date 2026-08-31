@@ -164,7 +164,9 @@ function renderClients() {
   tbody.innerHTML = page.map(c => {
     const stats = clientStatsMap.get(c.id) || { count: 0, completedCount: 0, revenue: 0, lastDate: null };
     const displayName = localName(c);
-    const altName     = i18n.current === 'ar' ? c.nameEn : c.nameAr;
+    // The shop's other content language — see altLocalName(). The pair this
+    // replaced was blank for any shop not writing English and Arabic.
+    const altName     = altLocalName(c);
     const balance = clientBalanceMap.get(c.id) || 0;
     const isOverLimit = (c.creditLimit > 0) && (balance > c.creditLimit);
     // Feature 8 (new 8-pack): Loyalty tier badge
