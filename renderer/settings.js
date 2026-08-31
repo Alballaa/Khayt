@@ -1,16 +1,20 @@
 /**
  * Settings tab: form load/save, integrations, ZATCA, LAN API, BNPL, backups.
  */
-/* The working week, however this file was loaded — script tag in the renderer,
- * `require` in a test. Without this the default is unreachable under Node and
- * every caller throws; with a hand-written fallback object it would be the
- * fifth copy of the literal lib/working-week.js exists to remove.
+/* Make sure the working week is loaded, WITHOUT declaring a binding for it.
  *
- * At FILE top level, not inside the IIFE: several of this file's functions are
- * declared above it on purpose, and a const inside the closure is invisible to
- * them. */
-const _WW = (typeof KhaytWorkingWeek !== 'undefined') ? KhaytWorkingWeek
-  : (typeof require === 'function' ? require('../lib/working-week.js') : null);
+ * lib/working-week.js assigns globalThis.KhaytWorkingWeek itself, so the script
+ * tag has already done this in the renderer, and `require` does it under Node,
+ * where these files are pulled in directly by tests.
+ *
+ * The obvious version — a shared `const` at the top of each file — is a trap.
+ * Classic scripts share ONE global lexical scope, so the second file to declare
+ * the same top-level const throws "already been declared" and kills every script
+ * after it. That is what happened: settings.js never reached its export list,
+ * and the app died wiring a button whose handler had silently ceased to exist. */
+if (typeof KhaytWorkingWeek === 'undefined' && typeof require === 'function') {
+  require('../lib/working-week.js');
+}
 (function (global) {
 // Bed Ready swaps decorative emoji for its bespoke drafting glyphs; Khayt keeps the emoji.
 const _sBdr = (typeof document !== 'undefined' && document.documentElement && document.documentElement.dataset.app === 'bedready');
@@ -4719,7 +4723,7 @@ function loadSettingsIntoForm() {
   $('#set_monthlyGoal').value     = settings.monthlyGoal ?? 0;
   $('#set_supplierPhone').value   = settings.supplierPhone || '';
   // New Feature 7: Working hours
-  const wh = _WW.workingHours(settings);
+  const wh = KhaytWorkingWeek.workingHours(settings);
   ['mon','tue','wed','thu','fri','sat','sun'].forEach(d => {
     const el = $(`#wh_${d}`);
     if (el) el.value = wh[d] ?? 0;
