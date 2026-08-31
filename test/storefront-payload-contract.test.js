@@ -43,6 +43,25 @@ test('the publish payload still carries every field the storefront needs', () =>
   }
 });
 
+test('a published item is priced from the catalogue, not from a second form', () => {
+  /* The publish read `sf.prices[p.id]` and nothing else, so a shop that had
+   * already priced every product — cost, margin, rounding, the lot — published a
+   * storefront where everything cost nothing, and had to type it all again into
+   * a different form. The product feeds other platforms import are built from
+   * this same payload, so they inherited the blank.
+   *
+   * Reported as: "the price should be from the catalogue, I just want to sync
+   * the catalogue, I don't want to enter the info again."
+   */
+  const build = SETTINGS.slice(SETTINGS.indexOf('const buildCatalog = '), SETTINGS.indexOf('#storeCopy'));
+  assert.match(build, /p\.price != null \? p\.price : p\.basePrice/,
+    'the catalogue price is the default; a storefront entry is only an override');
+  // `!= null`, never a truthy test: 0 is a price. A giveaway or a sample priced
+  // at nothing is a decision, and a truthy check silently replaces it.
+  assert.doesNotMatch(build, /if \(sf\.prices\[p\.id\]\) it\.price/,
+    'a truthy check would treat a deliberate zero as unpriced');
+});
+
 test('the storefront page reads them, where the cloud repo is checked out', {
   skip: fs.existsSync(STOREFRONT) ? false : 'khayt-cloud is a separate repo and is not present',
 }, () => {
