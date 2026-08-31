@@ -2,7 +2,7 @@
 
 Living priorities for maintainers. Not a public commitment calendar — reorder as the product needs.
 
-## Now (post-3.6.0, 3.7.0-beta.16 being cut — on `main`)
+## Now (post-3.6.0, 3.7.0-beta.16 published — on `main`)
 
 **Stable is v3.6.0** (2026-08-21) — the 3.6.0 line, promoted from
 `v3.6.0-rc.4` unchanged after a seven-day soak. rc.4 was the first candidate on
@@ -63,12 +63,12 @@ link that was explicitly asked for among them. The pattern each time: a correct
 module, a wiring test that finds the listener, and nothing driving the actual
 screen. A green suite is not evidence that a feature exists.
 
-**The newest *published* pre-release is `v3.7.0-beta.15`** (2026-08-30) — all
-three platforms, with a real 161 MB macOS build and its own `latest-mac.yml`
-rather than a carried one. **Do not recommend it, or anything before
-`beta.16`, to a shop that does not write English or Arabic**: its own name, its
-clients' names and the seller address on its ZATCA e-invoices all came out
-blank. `beta.14` before it cannot accept a catalogue photo at all.
+**The newest *published* pre-release is `v3.7.0-beta.16`** (2026-08-31) — all
+three platforms, published from `ccc3cb7` via the `cut-release` workflow, with
+every asset its three manifests name verified to serve 200. **Do not recommend
+anything before it to a shop that does not write English or Arabic**: its own
+name, its clients' names and the seller address on its ZATCA e-invoices all
+came out blank. `beta.14` cannot accept a catalogue photo at all.
 
 *(A release was published earlier the same day under an `rc` prerelease tag, and
 has been deleted, tag and all. electron-updater's ladder knows `alpha` and `beta` and nothing else, so an
