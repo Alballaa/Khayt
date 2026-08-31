@@ -357,6 +357,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       machineStatusCache = cache || {};
       updateKanbanLiveStatus();
       if (typeof updateDashLivePrinters === 'function') updateDashLivePrinters();
+      // The machines page reads the same poll. It had no live state at all, so a
+      // printer mid-job showed only its (order-derived) job count — which is zero
+      // for anything sent to the printer outside Khayt.
+      if (typeof updateMachinesLiveStatus === 'function') updateMachinesLiveStatus();
       // Seed the alert baseline from the first poll; don't alert on initial state.
       if (typeof dispatchPrinterAlerts === 'function') dispatchPrinterAlerts(machineStatusCache);
     }).catch(() => {});
@@ -366,6 +370,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       machineStatusCache = data || {};
       updateKanbanLiveStatus();
       if (typeof updateDashLivePrinters === 'function') updateDashLivePrinters();
+      if (typeof updateMachinesLiveStatus === 'function') updateMachinesLiveStatus();
       if (typeof dispatchPrinterAlerts === 'function') dispatchPrinterAlerts(machineStatusCache);
     });
   }

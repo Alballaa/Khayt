@@ -4662,6 +4662,12 @@ async function publishLeadTime() {
       // never asks a clock, so this is the one place the timezone is decided.
       today: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`,
       nowIso: now.toISOString(),
+      /* What the printers themselves are doing.
+       *
+       * Without this the promise was built from the order book alone, so a
+       * machine running a job sent straight to it from a slicer counted as free
+       * and the shop quoted a customer a date that assumed an idle printer. */
+      statusCache: printerStatusCache,
     });
 
     // Turned off, or never turned on. Withdraw once rather than every tick, so a
