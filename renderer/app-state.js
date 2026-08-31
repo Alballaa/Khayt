@@ -126,6 +126,10 @@ function defaultSettings() {
     // published figures" — see lib/nozzle-wear-data.js for where those come
     // from and which of them are still estimates.
     nozzleWear:      { life: {}, abrasive: {} },
+    // Which languages this shop writes its PRODUCTS in — a different question
+    // from which language the app is shown in. Defaults to the two the
+    // catalogue was hard-coded to, so nothing changes until a shop chooses.
+    contentLangs:    ['en', 'ar'],
     taglineEn:       '',
     taglineAr:       '',
     invAccentColor:  '#5E2E14',

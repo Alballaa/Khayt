@@ -43,7 +43,7 @@
       '<div class="brdry-modal" role="dialog" aria-modal="true" aria-label="Filament care" style="width:100%;max-width:600px;max-height:86vh;display:flex;flex-direction:column;border-radius:18px;background:var(--surface,#fff);color:var(--text,#14201e);border:1px solid var(--border,rgba(17,40,37,0.10));box-shadow:0 20px 60px rgba(0,0,0,.5);">' +
         '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 20px;border-bottom:1px solid var(--border,rgba(17,40,37,0.10));flex:0 0 auto;">' +
           '<b style="font-size:16px;">💧 ' + esc(tt('dry.title', 'Filament care')) + '</b>' +
-          '<button type="button" class="brdry-close" aria-label="' + esc(tt('common.close', 'Close')) + '" style="border:0;background:transparent;color:inherit;font-size:20px;cursor:pointer;line-height:1;">✕</button>' +
+          '<button type="button" class="brdry-close" aria-label="' + esc(tt('common.close', 'Close')) + '" style="border:0;background:transparent;color:inherit;font-size:20px;cursor:pointer;line-height:1;" title="' + esc(tt('common.close', 'Close')) + '">✕</button>' +
         '</div>' +
         '<div class="brdry-body" style="padding:18px 20px;overflow:auto;"></div>' +
       '</div>';
@@ -145,8 +145,8 @@
         '</div>' +
         '<div style="flex:0 0 auto;display:flex;gap:6px;">' +
           '<button type="button" class="brdry-act" data-act="dried" data-id="' + esc(rec.id) + '" title="' + esc(tt('dry.mark_dried', 'Log a drying now')) + '" style="cursor:pointer;border-radius:8px;padding:5px 9px;font-size:12px;font-weight:600;' + CTA + '">✓ ' + esc(tt('dry.dried_now', 'Dried')) + '</button>' +
-          '<button type="button" class="brdry-act" data-act="edit" data-id="' + esc(rec.id) + '" aria-label="' + esc(tt('common.edit', 'Edit')) + '" style="cursor:pointer;border-radius:8px;padding:5px 8px;font-size:12px;' + PLAIN + '">✎</button>' +
-          '<button type="button" class="brdry-act" data-act="del" data-id="' + esc(rec.id) + '" aria-label="' + esc(tt('common.delete', 'Delete')) + '" style="cursor:pointer;border-radius:8px;padding:5px 8px;font-size:12px;' + PLAIN + '">🗑</button>' +
+          '<button type="button" class="brdry-act" data-act="edit" data-id="' + esc(rec.id) + '" aria-label="' + esc(tt('common.edit', 'Edit')) + '" style="cursor:pointer;border-radius:8px;padding:5px 8px;font-size:12px;' + PLAIN + '" title="' + esc(tt('common.edit', 'Edit')) + '">✎</button>' +
+          '<button type="button" class="brdry-act" data-act="del" data-id="' + esc(rec.id) + '" aria-label="' + esc(tt('common.delete', 'Delete')) + '" style="cursor:pointer;border-radius:8px;padding:5px 8px;font-size:12px;' + PLAIN + '" title="' + esc(tt('common.delete', 'Delete')) + '">🗑</button>' +
         '</div>' +
       '</div>';
   }

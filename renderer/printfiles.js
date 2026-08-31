@@ -167,7 +167,7 @@
             <div class="pf-conv-row">
               <span class="pf-conv-name" title="${escapeHtml(c.filename)}">${_bi('convert', '🔄')}${escapeHtml(c.targetName || c.targetId || (t('conv.convert_short') || 'Converted'))}</span>
               <button class="btn small ghost" data-act="pf-conv-open" data-id="${escapeHtml(rec.id)}" data-fn="${escapeHtml(c.filename)}" title="${escapeHtml(t('plib.open_slicer') || 'Open in slicer')}">${_bi('printer', '🖨')}</button>
-              <button class="btn small ghost danger" data-act="pf-conv-del" data-id="${escapeHtml(rec.id)}" data-fn="${escapeHtml(c.filename)}" aria-label="${escapeHtml(t('common.delete') || 'Delete')}">${_bi('trash', '🗑')}</button>
+              <button class="btn small ghost danger" data-act="pf-conv-del" data-id="${escapeHtml(rec.id)}" data-fn="${escapeHtml(c.filename)}" aria-label="${escapeHtml(t('common.delete') || 'Delete')}" title="${escapeHtml(t('common.delete') || 'Delete')}">${_bi('trash', '🗑')}</button>
             </div>`).join('')}</div>` : ''}
         </div>
         <div class="pf-actions">

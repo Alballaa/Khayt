@@ -1946,7 +1946,7 @@ function openDryingLog(itemId) {
         <td style="text-align:center;">${e.tempC ? escapeHtml(String(e.tempC)) + '°C' : '—'}</td>
         <td style="text-align:center;">${e.durationH ? escapeHtml(String(e.durationH)) + 'h' : '—'}</td>
         <td style="color:var(--text-muted); font-size:12.5px;">${escapeHtml(e.notes || '')}</td>
-        <td><button class="btn danger small" data-act="del-dry" data-dry-id="${e.id}" aria-label="${escapeHtml(t('common.delete'))}">×</button></td>
+        <td><button class="btn danger small" data-act="del-dry" data-dry-id="${e.id}" aria-label="${escapeHtml(t('common.delete'))}" title="${escapeHtml(t('common.delete'))}">×</button></td>
       </tr>`).join('')}
       </tbody>
     </table></div>`;
@@ -2044,7 +2044,7 @@ function openTestPrintLog(itemId) {
           <td style="color:${e.result === 'excellent' || e.result === 'good' ? 'var(--success)' : e.result === 'poor' ? 'var(--danger)' : 'var(--warning)'};">${escapeHtml(t('inv.test.' + (e.result || 'good')))}</td>
           <td style="color:var(--text-muted);">${escapeHtml(e.notes || '')}</td>
           <td>${e.weightUsed ? escapeHtml(String(e.weightUsed)) + 'g' : '—'}</td>
-          <td><button class="btn danger small" data-act="del-test" data-test-id="${e.id}" aria-label="${escapeHtml(t('common.delete'))}">×</button></td>
+          <td><button class="btn danger small" data-act="del-test" data-test-id="${e.id}" aria-label="${escapeHtml(t('common.delete'))}" title="${escapeHtml(t('common.delete'))}">×</button></td>
         </tr>`;
       }).join('')}
       </tbody>
@@ -2643,7 +2643,7 @@ function openSupplierEditor(id) {
         r.innerHTML = `
           <input class="spMat" type="text" maxlength="60" placeholder="${escapeHtml(t('sup.price_material_ph') || 'Material (e.g. PLA)')}" value="${escapeHtml(p.material || '')}" style="flex:1;font-size:12.5px;">
           <input class="spPk" type="number" min="0" step="0.01" placeholder="0" value="${escapeHtml(p.pricePerKg != null && p.pricePerKg !== '' ? String(p.pricePerKg) : '')}" style="width:90px;font-size:12.5px;text-align:right;" title="${escapeHtml(cur)}/kg">
-          <button type="button" class="btn danger small spDel" style="font-size:11px;" aria-label="${escapeHtml(t('common.delete'))}">✕</button>`;
+          <button type="button" class="btn danger small spDel" style="font-size:11px;" aria-label="${escapeHtml(t('common.delete'))}" title="${escapeHtml(t('common.delete'))}">✕</button>`;
         r.querySelector('.spDel').addEventListener('click', () => r.remove());
         return r;
       };
@@ -3115,7 +3115,7 @@ function openProductEditor(productId = null) {
           ${escapeHtml(t('pdoc.pack') || 'include when shipped')}
         </label>
         <button class="btn small" data-act="open-pdoc" data-di="${i}" style="margin:0;">${escapeHtml(t('common.open') || 'Open')}</button>
-        <button class="btn danger small" data-act="rm-pdoc" data-di="${i}" style="margin:0;" aria-label="${escapeHtml(t('common.delete'))}">×</button>
+        <button class="btn danger small" data-act="rm-pdoc" data-di="${i}" style="margin:0;" aria-label="${escapeHtml(t('common.delete'))}" title="${escapeHtml(t('common.delete'))}">×</button>
       </div>`).join('');
   };
 
@@ -3129,7 +3129,7 @@ function openProductEditor(productId = null) {
       <div class="bom-comp-row" data-ci="${i}" style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
         <select class="bom-comp-consumable" style="flex:1;margin:0;"><option value="">—</option>${opts(comp.consumableId)}</select>
         <input type="number" class="bom-comp-qty" value="${comp.qtyPerUnit != null ? comp.qtyPerUnit : 1}" min="0" step="1" style="width:90px;margin:0;" title="${escapeHtml(t('bom.qty_per_unit') || 'Qty per assembly')}">
-        <button class="btn danger small" data-act="rm-component" data-ci="${i}" style="margin:0;" aria-label="${escapeHtml(t('common.delete'))}">×</button>
+        <button class="btn danger small" data-act="rm-component" data-ci="${i}" style="margin:0;" aria-label="${escapeHtml(t('common.delete'))}" title="${escapeHtml(t('common.delete'))}">×</button>
       </div>`).join('');
   };
 
@@ -3228,22 +3228,37 @@ function openProductEditor(productId = null) {
     <input type="file" id="productPhotoInput" accept="image/jpeg,image/png,image/webp" multiple style="display:none;">
 `;
 
+  /* The languages this shop writes content in — one or two, and which ones.
+   * A product saved before per-language descriptions carries `description` with
+   * no language on it; folding it into the first content language is the only
+   * reading that does not lose it. */
+  const CONTENT_LANGS = KhaytContentLanguages.contentLangs(settings);
+  KhaytContentLanguages.migratePlain(draft, 'description', settings);
+
   const bodyHtml = `
     <div id="productImagesBlock">${imagesHtml()}</div>
 
+    <!-- Name and description, one field per language the shop writes in.
+         It used to be nameEn + nameAr hard-coded, and a SINGLE description with
+         no language on it at all — so the name could be bilingual and the
+         paragraph a customer reads to decide could not. -->
     <div class="inline-pair" style="margin-top: 16px;">
+      ${CONTENT_LANGS.map((lang) => `
       <div>
-        <label>${escapeHtml(t('pe.name_en'))}</label>
-        <input type="text" data-f="nameEn" placeholder="${escapeHtml(t('pe.name_en_ph'))}" value="${escapeHtml(draft.nameEn || '')}">
-      </div>
-      <div>
-        <label>${escapeHtml(t('pe.name_ar'))}</label>
-        <input type="text" data-f="nameAr" dir="rtl" placeholder="${escapeHtml(t('pe.name_ar_ph'))}" value="${escapeHtml(draft.nameAr || '')}">
-      </div>
+        <label>${escapeHtml(t('pe.name') || 'Name')} · ${escapeHtml(KhaytContentLanguages.languageName(lang))}</label>
+        <input type="text" data-f="${escapeHtml(KhaytContentLanguages.fieldKey('name', lang))}"
+               ${lang === 'ar' ? 'dir="rtl"' : ''}
+               placeholder="${escapeHtml(t('pe.name_ph') || '')}"
+               value="${escapeHtml(draft[KhaytContentLanguages.fieldKey('name', lang)] || '')}">
+      </div>`).join('')}
     </div>
 
-    <label>${escapeHtml(t('pe.description'))}</label>
-    <input type="text" data-f="description" placeholder="${escapeHtml(t('pe.description_ph'))}" value="${escapeHtml(draft.description || '')}">
+    ${CONTENT_LANGS.map((lang) => `
+    <label>${escapeHtml(t('pe.description'))} · ${escapeHtml(KhaytContentLanguages.languageName(lang))}</label>
+    <input type="text" data-f="${escapeHtml(KhaytContentLanguages.fieldKey('description', lang))}"
+           ${lang === 'ar' ? 'dir="rtl"' : ''}
+           placeholder="${escapeHtml(t('pe.description_ph'))}"
+           value="${escapeHtml(draft[KhaytContentLanguages.fieldKey('description', lang)] || '')}">`).join('')}
 
     <label>${escapeHtml(t('pe.default_margin'))} (${escapeHtml(t('common.percent'))})</label>
     <input type="number" min="0" data-f="defaultMargin" value="${draft.defaultMargin ?? 30}">
@@ -3297,7 +3312,7 @@ function openProductEditor(productId = null) {
             <input type="text" class="tier-lbl" value="${escapeHtml(tier.label)}" placeholder="${escapeHtml(t('cat.tier_label'))}" style="flex:1;margin:0;">
             <input type="number" class="tier-mg" value="${tier.margin}" min="0" step="1" style="width:70px;margin:0;">
             <span style="font-size:12px;color:var(--text-muted);">%</span>
-            <button class="btn danger small" data-act="rm-tier" data-ti="${i}" style="margin:0;" aria-label="${escapeHtml(t('common.delete'))}">×</button>
+            <button class="btn danger small" data-act="rm-tier" data-ti="${i}" style="margin:0;" aria-label="${escapeHtml(t('common.delete'))}" title="${escapeHtml(t('common.delete'))}">×</button>
           </div>`).join('');
       };
       const refreshTiers = () => { tiersContainer.innerHTML = tiersHtml(); };
@@ -3970,7 +3985,7 @@ function renderPurchaseOrders() {
                 ${(po.status === 'ordered' || isPartial) ? `<button class="btn small success" data-act="po-receive" data-id="${po.id}">${escapeHtml(isPartial ? t('po.receive_more') : t('po.receive'))}</button>` : `<span style="font-size:11px; color:var(--text-muted);">${escapeHtml(po.receivedAt || '')}</span>`}
                 ${isPartial ? `<button class="btn small ghost" data-act="po-close" data-id="${po.id}" style="margin-inline-start:4px;">${escapeHtml(t('po.close_po'))}</button>` : ''}
                 ${(po.status === 'received' || isPartial) ? `<button class="btn small ghost pro-only" data-act="po-record-invoice" data-id="${po.id}" style="margin-inline-start:4px;" title="${escapeHtml(t('po.ap_record'))}">🧾 ${escapeHtml(t('po.ap_record'))}</button>` : ''}
-                <button class="btn danger small" data-act="po-del" data-id="${po.id}" style="margin-inline-start:4px;" aria-label="${escapeHtml(t('common.delete'))}">×</button>
+                <button class="btn danger small" data-act="po-del" data-id="${po.id}" style="margin-inline-start:4px;" aria-label="${escapeHtml(t('common.delete'))}" title="${escapeHtml(t('common.delete'))}">×</button>
               </td>
             </tr>`;
           }).join('')}
@@ -3998,7 +4013,7 @@ function openReorderModal(itemId) {
       <div class="modal modal-form modal-lg" role="dialog" aria-modal="true" aria-labelledby="reorderModalTitle">
         <div class="modal-header">
           <h3 id="reorderModalTitle">${escapeHtml(t('inv.draft_po_title') || 'Draft Purchase Order')}</h3>
-          <button class="btn ghost small" id="reorderModalClose" aria-label="Close">×</button>
+          <button class="btn ghost small" id="reorderModalClose" aria-label="Close" title="Close">×</button>
         </div>
         <div class="modal-body">
           <div class="inline-pair">

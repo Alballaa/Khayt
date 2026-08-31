@@ -279,7 +279,7 @@
       <div class="modal modal-form modal-lg update-modal" role="dialog" aria-modal="true" aria-labelledby="updateModalTitle">
         <div class="modal-header">
           <h3 id="updateModalTitle">${escapeHtml(tr('upd.title', 'Update available'))} — ${escapeHtml(PRODUCT)} ${version}</h3>
-          <button class="btn ghost small" data-upd="later" aria-label="${escapeHtml(tr('common.close', 'Close'))}">×</button>
+          <button class="btn ghost small" data-upd="later" aria-label="${escapeHtml(tr('common.close', 'Close'))}" title="${escapeHtml(tr('common.close', 'Close'))}">×</button>
         </div>
         <div class="modal-body" id="updateModalBody"></div>
         <div class="modal-footer" id="updateModalFooter"></div>

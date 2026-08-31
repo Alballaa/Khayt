@@ -43,7 +43,7 @@
           // goes with it: this panel is Bed Ready-only, and t() strips decorative leading emoji
           // in that flavor precisely because they read as off-identity there.
           '<b style="font-size:16px;">' + esc(t('brl.title')) + '</b>' +
-          '<button type="button" class="brl-close" aria-label="Close" style="border:0;background:transparent;color:inherit;font-size:20px;cursor:pointer;line-height:1;">✕</button>' +
+          '<button type="button" class="brl-close" aria-label="Close" style="border:0;background:transparent;color:inherit;font-size:20px;cursor:pointer;line-height:1;" title="Close">✕</button>' +
         '</div>' +
         '<div class="brl-body" style="padding:20px;"></div>' +
       '</div>';

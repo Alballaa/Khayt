@@ -37,6 +37,27 @@ const i18n = {
     document.documentElement.lang = lang;
     document.documentElement.dir = (lang === 'ar') ? 'rtl' : 'ltr';
     this.applyToDom();
+    /* Tell the main process, so the spellchecker follows the app rather than
+     * the system locale.
+     *
+     * Chromium picks a dictionary from the OS and never learns what language
+     * the app is being used in — so an Arabic shop had every word underlined by
+     * an English dictionary, with no context menu to dismiss any of it.
+     * Chromium has no Arabic dictionary at all, and for languages it cannot
+     * check main turns spellcheck OFF rather than marking correct text wrong.
+     *
+     * Fire-and-forget: a build without the bridge keeps working exactly as it
+     * did, and this must never be able to stop a language change.
+     */
+    try {
+      // The menu labels travel with the language: main has no access to the
+      // locale files, and a right-click menu that says "Cut" to an Arabic shop
+      // is a smaller version of the problem this fixes.
+      const menu = {};
+      for (const k of ['menu.no_suggestions', 'menu.add_to_dictionary', 'menu.cut',
+        'menu.copy', 'menu.paste', 'menu.select_all']) menu[k] = this.t(k);
+      window.hubAPI?.setAppLanguage?.(lang, menu);
+    } catch (e) { /* not fatal */ }
     if (typeof window.refreshCurrencyLabels === 'function') {
       window.refreshCurrencyLabels();
     }

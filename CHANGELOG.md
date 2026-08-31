@@ -4,6 +4,31 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Added
+
+- **Right-click works.** Misspelled words offer corrections and "Add to
+  dictionary", and Cut, Copy, Paste and Select All are there — on Windows and
+  Linux, right-click is how people copy text and Khayt had no menu at all. The
+  menu is in your language.
+- **The spellchecker follows the app, not your operating system.** It used to
+  check everything against English whatever you were writing; there is no Arabic
+  dictionary available, so for Arabic it now stays quiet rather than underlining
+  every correct word. (On macOS the system spellchecker is used, which handles
+  Arabic itself.)
+- **You choose which languages your products are written in** — one or two, and
+  which ones. Settings → Preferences → *Product languages*. Names and
+  descriptions get a field for each, so a Turkish or German shop can finally
+  enter its own language, and a shop selling only in Arabic is not shown an
+  English box it has to leave blank.
+- **Descriptions are per language.** A product could have a name in two
+  languages and only one description — the paragraph a customer actually reads
+  to decide. Existing descriptions are kept and moved into your first language.
+
+### Fixed
+
+- **Icon-only buttons say what they do when you hover them.** Fifty of them
+  announced themselves to a screen reader and showed nothing to everyone else.
+
 ## [3.7.0-beta.15] - 2026-08-30
 
 ### Fixed

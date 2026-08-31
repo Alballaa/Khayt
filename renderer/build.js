@@ -799,7 +799,7 @@ function renderExtraLines() {
         <option value="pct" ${isPct ? 'selected' : ''}>%</option>
       </select>
       ${resolved}
-      <button class="btn danger small el-rm" data-eli="${i}" aria-label="Remove">×</button>
+      <button class="btn danger small el-rm" data-eli="${i}" aria-label="Remove" title="Remove">×</button>
     </div>`; }).join('');
   el.querySelectorAll('.el-label').forEach((inp, i) => {
     inp.addEventListener('input', () => { currentExtraLines[i].label = inp.value; updateGrandTotal(); });
@@ -848,7 +848,7 @@ function renderExtraMaterials() {
         ${matOptions}
       </select>
       <input type="number" class="em-weight" value="${m.weight || ''}" min="0" step="1" placeholder="${escapeHtml(t('calc.extra_mat_weight'))}" style="width:80px; font-size:12.5px;">
-      <button class="btn danger small em-rm" data-emi="${i}" aria-label="Remove">×</button>
+      <button class="btn danger small em-rm" data-emi="${i}" aria-label="Remove" title="Remove">×</button>
     </div>`;
   }).join('');
   el.querySelectorAll('.em-material').forEach((sel, i) => {
@@ -890,7 +890,7 @@ function renderPriceTiers() {
     <div class="price-tier-row" data-ti="${i}" style="display:grid; grid-template-columns:1fr 1fr auto; gap:4px; margin-bottom:4px; align-items:center;">
       <input type="number" class="pt-minqty" value="${tier.minQty || 1}" min="1" step="1" style="font-size:12.5px;">
       <input type="number" class="pt-price" value="${tier.pricePerUnit || ''}" min="0" step="0.01" style="font-size:12.5px;" placeholder="0.00">
-      <button class="btn danger small pt-rm" data-ti="${i}" aria-label="Remove">×</button>
+      <button class="btn danger small pt-rm" data-ti="${i}" aria-label="Remove" title="Remove">×</button>
     </div>`).join('');
   el.querySelectorAll('.pt-minqty').forEach((inp, i) => {
     inp.addEventListener('input', () => { currentPriceTiers[i].minQty = Math.max(1, +inp.value || 1); updateGrandTotal(); });
@@ -911,7 +911,7 @@ function renderCartBanner() {
       banner.style.display = 'flex';
       banner.innerHTML = `
         <span>${escapeHtml(t('calc.quote.from_catalog', { name: localName(p) }))}</span>
-        <button class="x" data-act="clear-banner" aria-label="Clear">×</button>`;
+        <button class="x" data-act="clear-banner" aria-label="Clear" title="Clear">×</button>`;
       banner.querySelector('[data-act="clear-banner"]').addEventListener('click', () => {
         currentBuildFromProductId = null;
         renderCartBanner();
