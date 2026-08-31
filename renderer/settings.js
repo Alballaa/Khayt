@@ -1501,7 +1501,24 @@ async function openStorefrontModal() {
               const altDesc = CL.read(p, 'description', langs[1], settings).trim();
               if (alt || altDesc) it.alt = { lang: langs[1], name: alt, desc: altDesc };
             }
-            if (sf.prices[p.id]) it.price = String(sf.prices[p.id]);
+            /* The catalogue's own price is the price. A storefront entry is an
+             * OVERRIDE, not the only source.
+             *
+             * This read `sf.prices[p.id]` and nothing else, so a shop that had
+             * already priced every product in the catalogue — cost, margin,
+             * rounding, the lot — published a storefront where every item cost
+             * nothing, and had to type all of it a second time into a different
+             * form. The product feeds other platforms import from are built from
+             * this same payload, so they inherited the blank too.
+             *
+             * `!= null` rather than a truthy test, because 0 is a price: a
+             * giveaway or a sample priced at nothing is a decision, and a truthy
+             * check silently replaces it with the catalogue figure. */
+            const sfPrice = sf.prices[p.id];
+            const price = (sfPrice != null && String(sfPrice).trim() !== '')
+              ? sfPrice
+              : (p.price != null ? p.price : p.basePrice);
+            if (price != null && String(price).trim() !== '') it.price = String(price);
             if (sf.categories[p.id]) it.category = sf.categories[p.id];
             if (sf.soldOut[p.id]) it.soldOut = true;
             const og = parseOptionGroups(sf.options[p.id]);

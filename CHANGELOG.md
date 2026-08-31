@@ -19,6 +19,13 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **Publishing a storefront uses the prices you already set in the catalogue.**
+  It read only the price box on the storefront form, so a shop that had priced
+  every product — cost, margin, rounding and all — published a storefront where
+  everything cost nothing, and had to type it all again. The storefront box is
+  now an override for the few items you want priced differently; leave it empty
+  and the catalogue price is used. Product feeds are built from the same payload,
+  so they were blank too.
 - **A printer that is printing no longer counts as free capacity.** Lead times
   quoted to customers were worked out from your order book alone, so a machine
   five hours into a job was treated as available. Where the printer can say how
