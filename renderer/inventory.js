@@ -3078,6 +3078,33 @@ function openProductEditor(productId = null) {
         parts: [],
         createdAt: localDateStr()
       };
+  /* Every per-language field has to EXIST on the draft before the form is built.
+   *
+   * The [data-f] sync below writes a field only if the draft already has that
+   * key — a whitelist, so a stray input cannot inject arbitrary properties. But
+   * the draft is seeded with `nameEn`, `nameAr` and a plain `description`, while
+   * the form's inputs are named from the shop's content languages:
+   * `descriptionEn`, `name_de`, `description_tr`. None of those keys were on the
+   * draft, so the guard rejected them and the typed value was thrown away in
+   * silence.
+   *
+   * Reported as "I keep writing a description and save only to find it not
+   * saved", and it was every description, in every shop — the name survived only
+   * because `nameEn` happens to be one of the seeded keys. A shop writing German
+   * lost its product NAMES the same way.
+   *
+   * migratePlain first, so a description written before the catalogue had
+   * languages is carried into the shop's first one rather than being hidden
+   * behind an empty new field.
+   */
+  KhaytContentLanguages.migratePlain(draft, 'description', typeof settings !== 'undefined' ? settings : null);
+  for (const lang of KhaytContentLanguages.contentLangs(typeof settings !== 'undefined' ? settings : null)) {
+    for (const base of ['name', 'description']) {
+      const key = KhaytContentLanguages.fieldKey(base, lang);
+      if (!(key in draft)) draft[key] = '';
+    }
+  }
+
   if (!draft.priceTiers) draft.priceTiers = [];
   if (!Array.isArray(draft.components)) draft.components = [];
 
@@ -3669,7 +3696,14 @@ function openProductEditor(productId = null) {
 
     async onSave(modal) {
       // Validate
-      if (!draft.nameEn?.trim() && !draft.nameAr?.trim()) {
+      /* ANY of the shop's languages, not two of the nine.
+       *
+       * This checked nameEn and nameAr only, so a shop writing German filled in
+       * the only name field it has and was told to "give the product a name
+       * first" — the editor was unusable for seven of the nine languages the
+       * app offers. read() looks through the shop's own languages and then
+       * anything filled in at all. */
+      if (!KhaytContentLanguages.read(draft, 'name', null, typeof settings !== 'undefined' ? settings : null).trim()) {
         toast(t('pe.need_name'), 'error');
         return false;
       }
