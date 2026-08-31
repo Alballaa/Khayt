@@ -36,13 +36,17 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **The phone, the quote link and the recovery file know your business name.**
+  They read English-or-Arabic directly, so a shop writing Turkish or German got
+  a quote page headed "Khayt", a recovery code file that named no business, and
+  client names missing on the companion app. All three now use the languages you
+  chose.
 - **The second name under a product or client shows your other language.** If
   you write in German and French, the line under every product name and every
   client row was blank — it was picking between English and Arabic, and Arabic
   is a field you have never filled in. It now shows whichever of your two
   languages isn't already on the line above, and nothing at all if you write in
   only one.
-
 - Importing a printer's job history no longer stops if the printer sends back a
   malformed entry.
 - **Icon-only buttons say what they do when you hover them.** Fifty of them
@@ -59,9 +63,6 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 - **The Meridian dashboard's attention bar works.** It called a function that
   does not exist, so it had shown "All clear" since the day it shipped —
   through offline printers and late orders alike.
-
-### Fixed
-
 - **A nozzle threshold you have set is never changed for you.** Picking a
   printer model, or changing which nozzle is fitted, could overwrite the figure
   you chose whenever it happened to match one of Khayt's own suggestions — and

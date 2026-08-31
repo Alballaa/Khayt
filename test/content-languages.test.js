@@ -108,8 +108,32 @@ test('every supported language has a name a shop would recognise', () => {
 const fs = require('fs');
 const path = require('path');
 const RENDERER = path.join(__dirname, '..', 'renderer');
-const jsFiles = () => fs.readdirSync(RENDERER).filter((f) => f.endsWith('.js'))
-  .map((f) => [f, fs.readFileSync(path.join(RENDERER, f), 'utf8')]);
+/* BOTH directories, and that is the point.
+ *
+ * This scanned renderer/ alone, so lib/lan-server.js — which answers the phone
+ * and serves the customer-facing quote page — was never looked at. It held
+ * three hard-coded pairs, including a quote page that titled itself with the
+ * literal word "Khayt" for any shop that did not write English.
+ */
+const jsFiles = () => ['renderer', 'lib'].flatMap((dir) => {
+  const abs = path.join(__dirname, '..', dir);
+  return fs.readdirSync(abs).filter((f) => f.endsWith('.js'))
+    .map((f) => [`${dir}/${f}`, stripComments(fs.readFileSync(path.join(abs, f), 'utf8'))]);
+});
+
+/**
+ * Blank out comments, keeping every newline so line numbers still point home.
+ *
+ * These guards match a SHAPE, and the clearest way to explain a shape is to
+ * write it down — so the doc comment above readAlt() quotes the exact ternary
+ * this file refuses, and reported itself as an offender. A guard that flags the
+ * description of the bug it prevents is one people learn to ignore.
+ */
+function stripComments(src) {
+  return src
+    .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '))
+    .replace(/^\s*\/\/.*$/gm, (m) => ' '.repeat(m.length));
+}
 
 test('nothing reads the shop\'s own text as a hard-coded English/Arabic pair', () => {
   /* `settings.bizEn || settings.bizAr` appeared in eighteen files. It is correct
@@ -124,8 +148,9 @@ test('nothing reads the shop\'s own text as a hard-coded English/Arabic pair', (
   for (const [file, src] of jsFiles()) {
     // app-helpers.js holds the fallback shopField() itself uses when the module
     // is absent, which is the one place the raw fields are still the answer.
-    if (file === 'app-helpers.js') continue;
-    for (const m of src.matchAll(/settings\.(biz|addr|footer|invTerms|tagline)(En|Ar)\b/g)) {
+    if (file.endsWith('app-helpers.js')) continue;
+    // `settings?.bizEn` is the same bug and slipped past the un-optional dot.
+    for (const m of src.matchAll(/settings\??\.(biz|addr|footer|invTerms|tagline)(En|Ar)\b/g)) {
       const line = src.slice(0, m.index).split('\n').length;
       // A WRITE is fine — the settings form and the wizard have to put text
       // somewhere, and they choose the key from the shop's languages.
@@ -157,7 +182,7 @@ test('nothing picks between an English field and an Arabic one by hand', () => {
   for (const [file, src] of jsFiles()) {
     // app-helpers.js holds localName()/altLocalName()'s own fallback for when the
     // content-language module is absent — the one place this shape is the answer.
-    if (file === 'app-helpers.js') continue;
+    if (file.endsWith('app-helpers.js')) continue;
     for (const m of src.matchAll(RE)) {
       offenders.push(`${file}:${src.slice(0, m.index).split('\n').length}  ${m[0].trim()}`);
     }

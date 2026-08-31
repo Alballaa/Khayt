@@ -339,6 +339,33 @@ function checkReleaseClaims(root = ROOT) {
       `${named.map((c) => `${c.file}:${c.line} says ${c.version}`).join('; ')}.`
     );
   }
+  /* 5 — the section about to be released does not carry the same heading twice.
+   *
+   * Entries get appended under whichever "### Fixed" the appender found, and a
+   * second one is easy to add and invisible in review. Twenty such pairs exist
+   * in the released history below, where a reader meets Fixed, then Added, then
+   * Fixed again for one version — so an entry is genuinely easy to miss.
+   *
+   * Scoped to [Unreleased] ON PURPOSE. History is what shipped and rewriting it
+   * to satisfy a check added afterwards would be the check editing the record;
+   * this stops the next one instead.
+   */
+  const changelog = fs.readFileSync(path.join(ROOT, 'CHANGELOG.md'), 'utf8');
+  const unrel = changelog.slice(changelog.indexOf('## [Unreleased]'));
+  const body = unrel.slice(0, (() => {
+    const next = unrel.indexOf('\n## [', 1);
+    return next === -1 ? unrel.length : next;
+  })());
+  const heads = [...body.matchAll(/^### (.+)$/gm)].map((m) => m[1].trim());
+  const dupes = heads.filter((h, i) => heads.indexOf(h) !== i);
+  if (dupes.length) {
+    failures.push(
+      `CHANGELOG.md: [Unreleased] has more than one "### ${dupes[0]}".\n` +
+      `    Two sections with the same heading read as one, so whichever entries\n` +
+      `    are under the second are easy to miss at cut time. Fold them together.`
+    );
+  }
+
   const unresolved = claims.filter((c) => !c.version);
   if (unresolved.length) {
     failures.push(
