@@ -1740,6 +1740,11 @@ function wireEvents() {
   // Catalog
   $('#btnImportProductsCsv')?.addEventListener('click', importProductsCsv);
   $('#btnAddProduct')?.addEventListener('click', () => openProductEditor(null));
+  // Publish the catalogue from the catalogue, rather than from four levels into
+  // Settings. Same modal — this is a second door, not a second implementation.
+  $('#btnCatalogPublish')?.addEventListener('click', () => {
+    if (typeof KhaytSettings?.openStorefrontModal === 'function') KhaytSettings.openStorefrontModal();
+  });
   $('#catalogSearch')?.addEventListener('input', (e) => { catalogSearchTerm = e.target.value; renderCatalog(); });
   $('#btnBundles')?.addEventListener('click', () => { if (typeof openBundlesModal === 'function') openBundlesModal(); });
   let _invSearchTimer = null;

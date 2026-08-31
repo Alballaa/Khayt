@@ -587,6 +587,10 @@
         <input type="search" id="catalogSearch" class="toolbar-search" data-i18n-placeholder="cat.search_ph">
         <button id="btnImportProductsCsv" class="btn small ghost" data-i18n="csv.import_products_btn">Import CSV</button>
         <button class="btn small ghost" id="btnBundles" data-i18n="bundle.btn">🎁 Bundles</button>
+        <!-- Publishing belongs where the catalogue is, not four levels into
+             Settings → Advanced → Automation → Khayt Cloud. Hidden until cloud
+             is connected, so it is never a button that does nothing. -->
+        <button class="btn small ghost hidden" id="btnCatalogPublish" data-i18n="cat.publish" title="Publish this catalogue to your online storefront and product feeds">☁ Publish</button>
         <button class="btn primary" id="btnAddProduct" data-i18n="cat.add">+ Add Product</button>
       </div>
       <div id="catalogGrid" class="product-grid"></div>
@@ -1845,6 +1849,30 @@
       <!-- ─── ONLINE (customer intake & LAN) ───────────────── -->
       <div class="settings-panel" id="settings-panel-online">
         <h2 class="settings-panel-title" data-i18n="online.settings_title">Online</h2>
+
+        <!-- MOVED HERE from Advanced → Automation.
+             A section called "Online" that held only LAN features while Khayt
+             Cloud sat under "Automation" was the wrong way round: sync, the
+             storefront and the product feeds are the online surface, and
+             automation is WhatsApp templates and scheduled email.
+
+             `pro-only` is carried onto the cards themselves ON PURPOSE. The
+             Automation nav item is pro-only and the Online one is biz-only, so
+             moving these without the class would newly expose cloud sync and the
+             storefront directory to Simple mode. Where a feature appears is a
+             layout question; who can see it is a product one, and this change is
+             only answering the first. -->
+        <div class="card settings-card pro-only">
+        <div class="settings-section-head" data-i18n="set.cloud_title">Khayt Cloud (sync)</div>
+        <p style="font-size:12px;color:var(--text-muted);margin:0 0 12px;" data-i18n="set.cloud_hint">Opt-in, end-to-end-encrypted backup/sync of your shop to your own Khayt Cloud server. The server only stores encrypted data; your sync passphrase (never uploaded) is the key.</p>
+        <div id="cloudSettingsSection"></div>
+        </div>
+        <div class="card settings-card pro-only">
+        <div class="settings-section-head" data-i18n="integ.title">Storefronts & Payments</div>
+        <p style="font-size:12px;color:var(--text-muted);margin:0 0 12px;" data-i18n="integ.intro">The top storefronts and payment systems for your market. Enable the payment methods you accept and add your own payment link for each.</p>
+        <div id="integrationsSection"></div>
+        </div>
+
         <div class="card settings-card">
         <div class="settings-section-head" data-i18n="set.online_intake">Customer Intake</div>
         <p style="font-size:12px;color:var(--text-muted);margin:0 0 16px;" data-i18n="online.settings_intro">Let customers submit quote requests via a link on your network. Your data stays on this computer.</p>
@@ -2072,11 +2100,6 @@
         <div id="accountingSyncSection"></div>
         </div>
 
-        <div class="card settings-card">
-        <div class="settings-section-head" data-i18n="integ.title">Storefronts & Payments</div>
-        <p style="font-size:12px;color:var(--text-muted);margin:0 0 12px;" data-i18n="integ.intro">The top storefronts and payment systems for your market. Enable the payment methods you accept and add your own payment link for each.</p>
-        <div id="integrationsSection"></div>
-        </div>
 
         <div class="card settings-card">
         <div class="settings-section-head" data-i18n="set.digest_title">Email Digest</div>
@@ -2096,11 +2119,6 @@
         <div id="slicerSettingsSection"></div>
         </div>
 
-        <div class="card settings-card">
-        <div class="settings-section-head" data-i18n="set.cloud_title">Khayt Cloud (sync)</div>
-        <p style="font-size:12px;color:var(--text-muted);margin:0 0 12px;" data-i18n="set.cloud_hint">Opt-in, end-to-end-encrypted backup/sync of your shop to your own Khayt Cloud server. The server only stores encrypted data; your sync passphrase (never uploaded) is the key.</p>
-        <div id="cloudSettingsSection"></div>
-        </div>
 
         <div class="card settings-card">
         <div class="settings-section-head" data-i18n="set.webhooks_title">Outbound Webhooks</div>

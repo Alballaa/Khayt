@@ -113,6 +113,41 @@
     return `<div class="pf-tagbar" role="group" aria-label="${escapeHtml(t('plib.filter_tags') || 'Filter by tag')}">${chips}${clear}</div>`;
   }
 
+  /* Is there a cloud to sync to? Same test Settings uses. A sync button with
+   * nowhere to send anything is worse than no button — it looks broken. */
+  /**
+   * Push the library to the cloud now.
+   *
+   * Sync already runs on a schedule; this is for the moment a shop has just
+   * added files and wants them somewhere safe before closing the laptop —
+   * asked for as "why do I need to sync by going to settings?". It says what
+   * happened either way, because a silent button is indistinguishable from a
+   * broken one.
+   */
+  async function syncLibraryNow() {
+    const cs = _cloudSync();
+    if (!cs) return;
+    try {
+      await cs.syncNow();
+      toast(t('plib.synced') || 'Library synced to Khayt Cloud.', 'success');
+    } catch (e) {
+      console.error('library sync failed', e);
+      toast((t('plib.sync_failed') || 'Could not sync') + (e && e.message ? ` — ${e.message}` : ''), 'error', 6000);
+    }
+  }
+
+  /* An accessor, never a bare global. Bed Ready shares this screen and does not
+   * ship cloud sync, so reading the name directly is a ReferenceError waiting
+   * for whoever opens the library there — the same rule the rest of this file
+   * already follows for its optional modules. */
+  function _cloudSync() {
+    return (typeof globalThis !== 'undefined' && globalThis.KhaytCloudSync) || null;
+  }
+  function _cloudOn() {
+    const c = (typeof settings !== 'undefined' && settings && settings.cloud) || {};
+    return !!(c.enabled && c.url && c.shopId && _cloudSync());
+  }
+
   function thumbHtml(rec) {
     const src = rec.thumb || rec.userPhoto || null;
     if (src) return `<img class="pf-thumb" src="${safeImageSrc(src)}" alt="" loading="lazy">`;
@@ -280,6 +315,7 @@
             </div>
             ${isGallery ? '' : `<input type="search" id="pfSearch" class="pf-search" placeholder="${escapeHtml(t('common.search') || 'Search')}" value="${escapeHtml(_query)}" aria-label="${escapeHtml(t('common.search') || 'Search')}">`}
             ${typeof openCalibration === 'function' ? `<button class="btn ghost" data-act="pf-calibrate">${_bi('target', '🎯')}${escapeHtml(t('plib.calibrate') || 'Calibrate')}</button>` : ''}
+            ${_cloudOn() ? `<button class="btn ghost" data-act="pf-sync" title="${escapeHtml(t('plib.sync_hint') || 'Push this library to Khayt Cloud now, instead of waiting for the next automatic sync.')}">${_bi('cloud', '☁')}${escapeHtml(t('plib.sync') || 'Sync')}</button>` : ''}
             <button class="btn primary" data-act="pf-add" ${hasHub ? '' : 'disabled'} title="${escapeHtml(t('plib.add_multi_hint') || 'Add one or more files — select several at once')}">＋ ${escapeHtml(t('plib.add') || 'Add file')}</button>
           </div>
         </div>
@@ -297,6 +333,7 @@
     const id = btn.dataset.id;
     switch (btn.dataset.act) {
       case 'pf-add':   addPrintFile(); break;
+      case 'pf-sync':  syncLibraryNow(); break;
       case 'pf-calibrate': if (typeof openCalibration === 'function') openCalibration(); break;
       case 'pf-slice': openInSlicer(id); break;
       case 'pf-view3d': view3d(id); break;
