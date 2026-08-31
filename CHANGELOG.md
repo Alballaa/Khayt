@@ -4,6 +4,8 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.7.0-beta.17] - 2026-08-31
+
 ### Added
 
 - **Mark a print as not business.** A calibration cube, a gift, a bracket for
