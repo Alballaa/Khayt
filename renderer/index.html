@@ -615,7 +615,7 @@
         <div class="khayt-queue-toolbar-actions">
           <input type="search" id="kanSearch" class="toolbar-search" data-i18n-placeholder="kan.search_ph" placeholder="Filter by client, project…" style="max-width:200px;">
           <button id="btnKanbanSort" class="btn-sm btn ghost small" data-i18n-title="queue.sort_btn" title="Sort cards by urgency">⬆ <span data-i18n="queue.sort_btn">Sort</span></button>
-          <button type="button" id="btnQueueView" class="btn-sm btn ghost small" aria-pressed="false">Board view</button>
+          <button type="button" id="btnQueueView" class="btn-sm btn ghost small" aria-pressed="false" data-i18n="queue.board_view">Board view</button>
           <button id="btnPauseProduction" class="btn small" style="background:rgba(220,38,38,0.15);color:#f87171;border-color:rgba(220,38,38,0.3);" data-i18n="prod.pause">⏸ Pause production</button>
           <details class="queue-overflow">
             <summary class="btn-sm btn ghost small" aria-label="More queue actions" data-i18n-title="common.more" title="More actions">⋯</summary>
@@ -782,7 +782,7 @@
             <input type="checkbox" id="showArchivedToggle" style="width:auto;margin:0;cursor:pointer;">
             <span data-i18n="log.show_archived">Show archived</span>
           </label>
-          <button class="btn small ghost" id="btnSaveFilterPreset" title="Save current filter as a preset">💾 Save filter</button>
+          <button class="btn small ghost" id="btnSaveFilterPreset" title="Save current filter as a preset" data-i18n-title="flt.save_preset_hint" data-i18n="flt.save_preset">💾 Save filter</button>
           <button class="btn small" id="btnExportCsv" data-i18n="log.export_csv">Export CSV</button>
           <button class="btn small ghost pro-only" id="btnExportAccounting" title="Export accounting journal (CSV)" data-i18n-title="an.accounting_title">📒 <span data-i18n="an.accounting_btn">Accounting</span></button>
           <button class="btn danger small" id="btnClearLogs" data-i18n="log.clear">Clear all records</button>
@@ -1998,9 +1998,9 @@
         <div class="card settings-card">
         <div class="settings-section-head" data-i18n="set.wip_limits">WIP Limits per column</div>
         <div class="inline-pair" style="flex-wrap:wrap;">
-          <div><label>Pending</label><input type="number" id="set_wip_pending" min="0" step="1" placeholder="0 = unlimited"></div>
-          <div><label>Printing</label><input type="number" id="set_wip_printing" min="0" step="1" placeholder="0 = unlimited"></div>
-          <div><label>Post</label><input type="number" id="set_wip_post" min="0" step="1" placeholder="0 = unlimited"></div>
+          <div><label data-i18n="queue.pending">Pending</label><input type="number" id="set_wip_pending" min="0" step="1" placeholder="0 = unlimited"></div>
+          <div><label data-i18n="queue.printing">Printing</label><input type="number" id="set_wip_printing" min="0" step="1" placeholder="0 = unlimited"></div>
+          <div><label data-i18n="queue.post">Post</label><input type="number" id="set_wip_post" min="0" step="1" placeholder="0 = unlimited"></div>
           <div><label>QC</label><input type="number" id="set_wip_qc" min="0" step="1" placeholder="0 = unlimited"></div>
         </div>
         <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-weight:400;">
@@ -2034,9 +2034,9 @@
         <div class="settings-section-head" data-i18n="set.post_process_presets">Post-process presets</div>
         <div id="postProcessPresetsList" style="margin-bottom:8px;"></div>
         <div style="display:flex; gap:8px; align-items:flex-end;">
-          <div style="flex:1;"><label style="margin:0;">Name</label><input type="text" id="set_ppName" placeholder="e.g. Sanding + Painting"></div>
-          <div style="width:100px;"><label style="margin:0;">Amount</label><input type="number" id="set_ppAmount" min="0" step="0.01" placeholder="0"></div>
-          <button class="btn small primary" id="btnAddPostPreset" style="margin-bottom:1px;">+ Add</button>
+          <div style="flex:1;"><label style="margin:0;" data-i18n="common.name">Name</label><input type="text" id="set_ppName" placeholder="e.g. Sanding + Painting"></div>
+          <div style="width:100px;"><label style="margin:0;" data-i18n="common.amount">Amount</label><input type="number" id="set_ppAmount" min="0" step="0.01" placeholder="0"></div>
+          <button class="btn small primary" id="btnAddPostPreset" style="margin-bottom:1px;" data-i18n="common.add">Add</button>
         </div>
         </div>
 
