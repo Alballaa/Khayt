@@ -2822,6 +2822,18 @@ function getProductStats(productId) {
 }
 
 function renderCatalog() {
+  /* Show Publish only when there is somewhere to publish to.
+   *
+   * The action itself lives in Settings and always did; this is the same modal
+   * reached from the screen it is about. Hidden rather than disabled, because a
+   * shop with no cloud has nothing to learn from a greyed-out button. */
+  const pubBtn = document.querySelector('#btnCatalogPublish');
+  if (pubBtn) {
+    const c = (typeof settings !== 'undefined' && settings && settings.cloud) || {};
+    const owner = (c.role || 'owner') === 'owner';
+    pubBtn.classList.toggle('hidden', !(c.enabled && c.url && c.shopId && owner));
+  }
+
   const grid = $('#catalogGrid');
   if (!grid) return; // Catalog section is dropped in the Bed Ready flavor.
   const term = (catalogSearchTerm || '').toLowerCase().trim();

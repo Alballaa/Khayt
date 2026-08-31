@@ -4,6 +4,22 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Added
+
+- **Publish your catalogue from the catalogue.** A ☁ Publish button sits in the
+  Product Catalog toolbar. It was reachable only from Settings → Advanced →
+  Automation → Khayt Cloud, four levels away from the screen you are looking at.
+- **Sync your print library from the library.** A ☁ Sync button in the print-file
+  toolbar pushes to Khayt Cloud now instead of waiting for the next automatic
+  sync. Both buttons appear only when cloud is connected.
+
+### Changed
+
+- **Khayt Cloud and Storefronts & Payments now live under Settings → Online**,
+  where you would look for them. "Online" previously held only local-network
+  features while Khayt Cloud sat under "Automation". Who can see them is
+  unchanged.
+
 ### Fixed
 
 - **A product description you type is saved.** It was silently discarded on every

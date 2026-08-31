@@ -5899,6 +5899,12 @@ function renderTelegramSettings() {
   const api = {
     // wire-events.js is a separate IIFE and can only reach what is exported
     // here. Left out, the location buttons render and do nothing.
+    //
+    // openStorefrontModal is here because the Catalogue tab now offers Publish
+    // directly, and that button lives in another file. Publishing was reachable
+    // only from Settings → Advanced → Automation → Khayt Cloud, four levels in
+    // from the screen the shop is actually looking at.
+    openStorefrontModal,
     renderPrintLibLocation,
     pickPrintLibFolder,
     clearPrintLibFolder,
