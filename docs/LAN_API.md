@@ -334,7 +334,13 @@ Declining moves the item to `waitingListHistory` on desktop.
 
 Read-only client list from store. **Requires owner PIN.**
 
-**Response 200:** array with `id`, `nameEn`, `nameAr`, `phone`, `email`.
+**Response 200:** array with `id`, `name`, `nameEn`, `nameAr`, `phone`, `email`.
+
+Read `name`. It is the client's name resolved through the shop's own content
+languages, and a shop may write in any two of nine — so a German-and-French shop
+has neither `nameEn` nor `nameAr` filled in, and a client reading only those two
+shows a list of blank rows. `nameEn`/`nameAr` are kept because the shipped iOS
+Companion decodes them and nothing else.
 
 ### `POST /api/orders`
 
@@ -359,6 +365,12 @@ Use `"status": "quote"` for a quote (sets expiry from desktop `quoteValidityDays
 
 **Response 201:** `{ "ok": true, "order": { ... } }`  
 **Desktop side effect:** `lan-order-created` IPC.
+
+The new order's id uses the shop's own prefix — `${invPrefix}-${year}-…`, the
+same one the desktop mints (`INV` unless the shop changed it), or `quotePrefix`
+for a quote. It used to read a setting that has never existed and always fell
+through to `ORD-`, so an order raised on the phone came out numbered unlike
+every order raised at the desk.
 
 ### `GET /api/orders/:id/quote-url`
 

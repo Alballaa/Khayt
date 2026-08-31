@@ -156,6 +156,8 @@ Building it: `npm run dist:bedready:*`. Why it is arranged this way:
 - Live queue dashboard (PWA, works as a home-screen app)
 - Customer order tracking pages (`/order/:id`)
 - Public intake form (`/intake`) for quote requests
+- Online storefront + per-platform product feeds — one publish feeds both, prices
+  and photos come from the catalogue ([STOREFRONT-SYNC.md](./docs/STOREFRONT-SYNC.md))
 - iCal feed (`/calendar.ics`) — subscribe in Apple Calendar, Google Calendar, Outlook
 - PIN-protected REST API with brute-force lockout
 - LAN tunnel (via localtunnel) for remote access over the internet
@@ -165,7 +167,11 @@ Building it: `npm run dist:bedready:*`. Why it is arranged this way:
 - In-app download progress and one-click install
 
 ### ⚙️ Settings & Integrations
-- 7 UI languages: English, Arabic, German, Spanish, French, Chinese, Japanese
+- 9 UI languages: English, Arabic, German, Spanish, French, Turkish, Portuguese (Brazil), Chinese, Japanese
+- **Content languages** — pick one or two of those nine and write your products,
+  clients, business name, address, invoice footer and terms in them. Separate
+  from the interface language: a Turkish shop can now enter its own name rather
+  than being handed an English box it has to leave blank
 - Full RTL support for Arabic
 - Dark / Light / System theme
 - Operator PIN lock with structured role-based access (Owner / Manager / Operator / Viewer)
@@ -308,6 +314,7 @@ Khayt/
 │   ├── locales/         # Per-language string bundles (en, ar, de, es, fr, zh, ja)
 │   └── …                # Feature modules (dashboard, kanban, inventory, …)
 ├── assets/              # App icons, README screenshots, store tiles
+├── docs/STOREFRONT-SYNC.md  # Publishing a catalogue, feeds, and where it goes
 ├── docs/LOCAL_SETUP.md  # Extended setup notes (macOS Electron, mirrors)
 ├── docs/PLATFORM-MIGRATION.md  # Stay on Electron vs native rewrite (decision record)
 ├── docs/FARM-FEATURES.md  # Print farm / multi-location on one machine
