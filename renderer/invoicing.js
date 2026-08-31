@@ -46,9 +46,7 @@ function generateClientStatement(clientId) {
   const orders = printLog.filter(o => o.clientId === clientId)
     .sort((a, b) => (a.date || '').localeCompare(b.date || ''));
 
-  const bizPrimary = i18n.current === 'ar'
-    ? (settings.bizAr || settings.bizEn || 'Khayt')
-    : (settings.bizEn || settings.bizAr || 'Khayt');
+  const bizPrimary = shopName() || 'Khayt';
 
   // All statement figures are in the shop's BASE currency so multi-currency
   // clients' rows and totals reconcile (orderRevenueBase/orderOwedBase convert).
@@ -585,7 +583,7 @@ async function prepareZatcaPhase2Payload(order) {
     uuid,
     issueDate: issueDt[0],
     issueTime: (issueDt[1] || '00:00:00').split('.')[0],
-    sellerName: settings.bizEn || settings.bizAr || '',
+    sellerName: shopName() || '',
     sellerStreet: settings.address || '',
     sellerCity: z2.city || 'Riyadh',
     vatNumber: settings.vat || '',
@@ -766,7 +764,7 @@ async function renderInvoiceForOrder(order) {
           uuid:          order.zatcaUuid || order.id,
           issueDate:     issueDt[0],
           issueTime:     (issueDt[1] || '00:00:00').split('.')[0],
-          sellerName:    settings.bizEn || settings.bizAr || '',
+          sellerName:    shopName() || '',
           sellerStreet:  settings.address || '',
           sellerCity:    z2.city || 'Riyadh',
           vatNumber:     settings.vat || '',
@@ -784,7 +782,7 @@ async function renderInvoiceForOrder(order) {
           pih:           z2.lastInvoiceHash || 'NWZlY2ViNjZmZmM4NmYzOGQ5NTI3ODZjNmQ2OTZjNzljMmRiYzIzOWRkNGU5MWI4NjJhNGRhNjM3NWQ2OGM5',
         });
         tlvB64 = await buildZatcaPhase2TLV({
-          sellerName: settings.bizEn || settings.bizAr || '',
+          sellerName: shopName() || '',
           vatNumber:  settings.vat || '',
           timestamp:  ts,
           total, vatAmount,
@@ -798,7 +796,7 @@ async function renderInvoiceForOrder(order) {
         }
       } else {
         // Phase 1 fallback
-        tlvB64 = buildZatcaTLV({ sellerName: settings.bizEn || settings.bizAr || '', vatNumber: settings.vat || '', timestamp: ts, total, vatAmount });
+        tlvB64 = buildZatcaTLV({ sellerName: shopName() || '', vatNumber: settings.vat || '', timestamp: ts, total, vatAmount });
       }
       qrSvg = await window.hubAPI.generateQR(tlvB64, { width: 140, margin: 1 });
     } catch (e) { console.error('ZATCA QR error:', e); }
@@ -808,7 +806,7 @@ async function renderInvoiceForOrder(order) {
   let payQrSvg = '';
   if (settings.iban && window.hubAPI?.generateQR) {
     const iban = settings.iban.replace(/\s+/g, '');
-    const beneName = settings.bizEn || settings.bizAr || '';
+    const beneName = shopName() || '';
     const payAmt = price.toFixed(2);
     const payRef = order.invoiceNumber || order.id;
     // Structured format: BeneficiaryName\nIBAN\nAmount\nRef
@@ -1169,7 +1167,7 @@ function generateCreditNote(order, creditAmount, reason) {
   });
   const bi = _dl.bilingual;
   const secondLang = _dl.secondary;
-  const bizPrimary = isAr ? (settings.bizAr || settings.bizEn) : (settings.bizEn || settings.bizAr);
+  const bizPrimary = shopName();
   const cnId = 'CN-' + order.id;
   const today = localDateStr();
   const linkedClient = order.clientId ? clients.find(c => c.id === order.clientId) : null;
@@ -1267,7 +1265,7 @@ function generateDeliveryNote(id) {
   });
   const bi = _dl.bilingual;
   const secondLang = _dl.secondary;
-  const bizPrimary = isAr ? (settings.bizAr || settings.bizEn) : (settings.bizEn || settings.bizAr);
+  const bizPrimary = shopName();
   const linkedClient = order.clientId ? clients.find(c => c.id === order.clientId) : null;
   const clientName = (order.project || '').trim() || t('inv.walk_in');
   const clientSub  = linkedClient ? [linkedClient.phone, linkedClient.email].filter(Boolean).join(' · ') : '';
@@ -1524,14 +1522,23 @@ function renderInvoice(order, { qrSvg, payQrSvg = '', total, vatAmount, subtotal
     settings.vat ? `VAT ${settings.vat}` : ''
   ].filter(Boolean).join(' · ');
 
-  // Choose business name & address based on language
-  const bizPrimary    = isAr ? (settings.bizAr || settings.bizEn) : (settings.bizEn || settings.bizAr);
-  const bizSecondary  = isAr ? (settings.bizEn || '') : (settings.bizAr || '');
-  const addrPrimary   = isAr ? (settings.addrAr || settings.addrEn) : (settings.addrEn || settings.addrAr);
-  const addrSecondary = isAr ? (settings.addrEn || '') : (settings.addrAr || '');
+  /* The shop's own text, in the document's languages.
+   *
+   * This picked between an Arabic field and an English one and nothing else, so
+   * a shop writing Turkish printed an invoice with a BLANK business name — the
+   * labels were translated by resolveDocumentLanguage and the shop's own name
+   * was not. The document already knows which two languages it is in; these now
+   * ask for those.
+   */
+  const _p = docLang.lang;
+  const _s = docLang.secondary;
+  const bizPrimary    = shopField('biz', _p);
+  const bizSecondary  = bi ? (settings[KhaytContentLanguages.fieldKey('biz', _s)] || '') : '';
+  const addrPrimary   = shopField('addr', _p);
+  const addrSecondary = bi ? (settings[KhaytContentLanguages.fieldKey('addr', _s)] || '') : '';
 
-  const taglinePrimary   = isAr ? (settings.taglineAr || settings.taglineEn || '') : (settings.taglineEn || settings.taglineAr || '');
-  const taglineSecondary = isAr ? (settings.taglineEn || '') : (settings.taglineAr || '');
+  const taglinePrimary   = shopField('tagline', _p);
+  const taglineSecondary = bi ? (settings[KhaytContentLanguages.fieldKey('tagline', _s)] || '') : '';
 
   // Brand color: amber for quotes, user-chosen (or default) for invoices
   const invBrand     = isQuoteDoc ? '#92400e' : (safeCssColor(settings.invAccentColor, '#5E2E14'));
@@ -1539,8 +1546,8 @@ function renderInvoice(order, { qrSvg, payQrSvg = '', total, vatAmount, subtotal
   const invHighlight = isQuoteDoc ? '#fef3c7' : '#fcefdc';
 
   // Terms / conditions section
-  const termsPrimary   = isAr ? (settings.invTermsAr || settings.invTermsEn || '') : (settings.invTermsEn || settings.invTermsAr || '');
-  const termsSecondary = isAr ? (settings.invTermsEn || '') : (settings.invTermsAr || '');
+  const termsPrimary   = shopField('invTerms', _p);
+  const termsSecondary = bi ? (settings[KhaytContentLanguages.fieldKey('invTerms', _s)] || '') : '';
   const termsSectionHtml = termsPrimary.trim() ? `
     <div class="inv-terms">
       <div class="label-strip">
@@ -1774,8 +1781,8 @@ function renderInvoice(order, { qrSvg, payQrSvg = '', total, vatAmount, subtotal
       ${termsSectionHtml}
 
       <div class="footer">
-        <div class="thanks">${escapeHtml(isAr ? (settings.footerAr || t('inv.thank_you')) : (settings.footerEn || t('inv.thank_you')))}</div>
-        ${biContent && (isAr ? settings.footerEn : settings.footerAr) ? `<div class="thanks-ar ${isAr ? 'ltr' : 'ar'}">${escapeHtml(isAr ? settings.footerEn : settings.footerAr)}</div>` : ''}
+        <div class="thanks">${escapeHtml(shopField('footer', _p) || t('inv.thank_you'))}</div>
+        ${biContent && settings[KhaytContentLanguages.fieldKey('footer', _s)] ? `<div class="thanks-ar ${isAr ? 'ltr' : 'ar'}">${escapeHtml(settings[KhaytContentLanguages.fieldKey('footer', _s)])}</div>` : ''}
         <div class="legal">${escapeHtml(L.legal)}</div>
       </div>
 

@@ -4149,7 +4149,7 @@ function openShoppingList() {
 
   const supNames = Object.keys(groups).sort();
   // Language-neutral item line: "Name   120 g → 1000 g"
-  const textLines = [(t('shop.title') || 'Shopping list') + ' — ' + (settings.bizEn || 'Bed Ready'), ''];
+  const textLines = [(t('shop.title') || 'Shopping list') + ' — ' + (shopName() || 'Bed Ready'), ''];
   let html = '';
   supNames.forEach((sup) => {
     textLines.push(sup);
@@ -4320,7 +4320,7 @@ async function openStockTransferModal(itemId) {
 async function printSpoolLabel(itemId) {
   const item = inventory.find(i => i.id === itemId);
   if (!item) return;
-  const shopName = (typeof settings !== 'undefined' && (settings.bizEn || settings.bizAr)) || 'Khayt';
+  const shopName = (typeof settings !== 'undefined' && (shopField('biz'))) || 'Khayt';
   const isResin = item.materialType === 'resin';
   const unit = isResin ? 'mL' : 'g';
   const weightStr = `${Math.round(+item.weight || 0)} ${unit}`;

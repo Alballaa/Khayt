@@ -224,7 +224,7 @@ function fireOrderWebhook(type, order) {
     const client = order.clientId ? clients.find((c) => c.id === order.clientId) : null;
     const payload = KhaytWebhooks.buildWebhookEvent(type, order, {
       at: new Date().toISOString(),
-      shopName: settings.bizEn || settings.bizAr || 'Khayt',
+      shopName: shopField('biz') || 'Khayt',
       clientName: client ? (typeof localName === 'function' ? localName(client) : client.name) : '',
       currency: (typeof currencySymbol === 'function') ? currencySymbol() : '',
     });
@@ -437,7 +437,7 @@ function exportGaztVatReturn(period) {
       td{padding:8px;border:1px solid #ddd;font-size:13px;}
       .net{font-weight:700;background:#fef3c7;}</style></head>
     <body>
-      <h1>GAZT VAT Return — ${escapeHtml(settings.bizEn || '')} (${escapeHtml(period.toUpperCase())} ${now.getFullYear()})</h1>
+      <h1>GAZT VAT Return — ${escapeHtml(shopName() || '')} (${escapeHtml(period.toUpperCase())} ${now.getFullYear()})</h1>
       <p style="font-size:12px;color:#666;">Period: ${escapeHtml(fromDate)} to ${escapeHtml(toDate)}</p>
       <table>
         <thead><tr><th>Box</th><th>Description</th><th>Amount (${escapeHtml(currencySymbol())})</th></tr></thead>

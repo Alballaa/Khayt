@@ -54,7 +54,7 @@ async function autoSendEmailNotification(order, newStatus) {
     }
     return;
   }
-  const shopName = settings.bizEn || 'Khayt';
+  const shopName = shopName() || 'Khayt';
   const statusLabel = t('queue.' + newStatus) || newStatus;
   const subject = `${shopName} — Order ${order.id} Update: ${statusLabel}`;
   const body = `<div style="font-family:sans-serif;max-width:500px;margin:0 auto;padding:20px;">
@@ -117,7 +117,7 @@ async function checkAndSendDigest() {
   if (d.lastSentDate === periodKey) return; // already sent
   const body = buildDigestEmailHtml();
   const freqWord = d.frequency === 'weekly' ? 'Weekly' : (d.frequency === 'monthly' ? 'Monthly' : 'Daily');
-  const subject = `${settings.bizEn || 'Khayt'} — ${freqWord} Digest`;
+  const subject = `${shopName() || 'Khayt'} — ${freqWord} Digest`;
   _digestInFlight = true;
   try {
     const result = await window.hubAPI?.sendEmail?.({ to, subject, body, smtpConfig: cfg });
@@ -295,7 +295,7 @@ async function generateSurveyPage(orderId) {
   const lanInfo = await window.hubAPI?.getLanUrl?.();
   const surveyUrl = lanInfo?.ok ? lanInfo.url + '/api/survey' : null;
 
-  const shopName = escapeHtml(settings.bizEn || settings.bizAr || 'Khayt');
+  const shopName = escapeHtml(shopField('biz') || 'Khayt');
   const html = `<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -806,7 +806,7 @@ function renderOrderComments(orderId) {
   const comments = order.comments || [];
   const opName = settings.activeOperatorId
     ? (operators.find(op => op.id === settings.activeOperatorId)?.name || t('comments.operator'))
-    : (settings.bizEn || t('comments.admin'));
+    : (shopName() || t('comments.admin'));
 
   el.innerHTML = `
     <div id="commentFeed" style="max-height:260px;overflow-y:auto;margin-bottom:12px;display:flex;flex-direction:column;gap:8px;">
@@ -852,7 +852,7 @@ async function exportOrderStatusPage(orderId) {
   const order = printLog.find(o => o.id === orderId);
   if (!order) return;
   ensureTrackingToken(order);
-  const bizName = settings.bizEn || settings.bizAr || 'Khayt';
+  const bizName = shopField('biz') || 'Khayt';
   const accentColor = safeCssColor(settings.invAccentColor, '#5E2E14');
 
   const STATUS_ORDER = ['quote', 'pending', 'on_hold', 'printing', 'post', 'completed'];
@@ -957,7 +957,7 @@ async function autoExportStatusPage(order) {
   if (!window.hubAPI?.writeStatusPage) return;
   try {
     // Build the same HTML as exportOrderStatusPage but don't open it
-    const bizName = settings.bizEn || settings.bizAr || 'Khayt';
+    const bizName = shopField('biz') || 'Khayt';
     const accentColor = safeCssColor(settings.invAccentColor, '#5E2E14');
     const STATUS_ORDER = ['quote', 'pending', 'on_hold', 'printing', 'post', 'completed'];
     const curIdx = STATUS_ORDER.indexOf(order.status);
@@ -1112,7 +1112,7 @@ async function aiDraftReply(orderId) {
   const generate = async (intent, extra, statusEl) => {
     statusEl.textContent = t('ai.reply_drafting') || 'Drafting…';
     try {
-      const system = KhaytAiReply.buildReplySystem({ shopName: settings.bizEn || settings.bizAr || 'Khayt', lang: settings.lang });
+      const system = KhaytAiReply.buildReplySystem({ shopName: shopField('biz') || 'Khayt', lang: settings.lang });
       const request = KhaytAiReply.buildReplyRequest({ order, client, intent, currency: cur, extra });
       const r = await khaytAiExtract({ apiKey: ai.apiKey, model: ai.model || 'claude-opus-5', task: 'reply', system, request, schema: KhaytAiReply.REPLY_SCHEMA });
       if (!r || !r.ok || !r.draft) return { ok: false, error: (r && r.error) || 'AI request failed' };
@@ -1150,7 +1150,7 @@ async function aiDraftReply(orderId) {
         else window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
       });
       modal.querySelector('#arEmail')?.addEventListener('click', () => {
-        const subj = (settings.bizEn || settings.bizAr || 'Khayt') + ' — ' + (order.project || order.id);
+        const subj = (shopField('biz') || 'Khayt') + ' — ' + (order.project || order.id);
         window.hubAPI?.openExternal?.(`mailto:${client.email}?subject=${encodeURIComponent(subj)}&body=${encodeURIComponent(draftEl.value)}`);
       });
     },
@@ -1177,7 +1177,7 @@ async function aiDraftReply(orderId) {
 function buildPortalPayload(order) {
   const isQuote = order.status === 'quote';
   const payload = {
-    shopName: settings.bizEn || settings.bizAr || 'Khayt',
+    shopName: shopField('biz') || 'Khayt',
     ref: order.id,
     status: order.status,
     statusLabel: isQuote ? 'Quote' : (CLOUD_PORTAL_STATUS_LABELS[order.status] || order.status),
@@ -1186,7 +1186,7 @@ function buildPortalPayload(order) {
     issueDate: order.date || '',
     invoiceNo: order.invoiceNumber || order.invoiceNum || order.id,
     seller: {
-      name: settings.bizEn || settings.bizAr || 'Khayt',
+      name: shopField('biz') || 'Khayt',
       vat: settings.vat || '',
       address: settings.address || '',
     },
@@ -1675,7 +1675,7 @@ function firePrinterAlert(alert) {
   const cfg = settings.emailConfig;
   const to = (settings.emailDigest && settings.emailDigest.recipientEmail) || settings.email;
   if (cfg && cfg.provider && cfg.provider !== 'none' && to) {
-    const shopName = settings.bizEn || 'Khayt';
+    const shopName = shopName() || 'Khayt';
     const subject = `${shopName} — Printer ${alert.type} alert`;
     const body = `<div style="font-family:sans-serif;max-width:500px;margin:0 auto;padding:20px;">
       <h2 style="color:#5E2E14;">${escapeHtml(shopName)}</h2>

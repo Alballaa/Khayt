@@ -15,11 +15,14 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   dictionary available, so for Arabic it now stays quiet rather than underlining
   every correct word. (On macOS the system spellchecker is used, which handles
   Arabic itself.)
-- **You choose which languages your products are written in** — one or two, and
-  which ones. Settings → Preferences → *Product languages*. Names and
-  descriptions get a field for each, so a Turkish or German shop can finally
-  enter its own language, and a shop selling only in Arabic is not shown an
-  English box it has to leave blank.
+- **You choose which languages you write in** — one or two, and which ones,
+  from the nine Khayt speaks. Settings → Preferences → *Product languages*.
+  Product names and descriptions, your business name, tagline, address, invoice
+  footer and terms all get a field for each. A Turkish or German shop can
+  finally enter its own language — before this the interface translated for it
+  and the invoice a customer received had a blank where the business name goes —
+  and a shop selling only in Arabic is no longer shown English boxes it has to
+  leave blank.
 - **Descriptions are per language.** A product could have a name in two
   languages and only one description — the paragraph a customer actually reads
   to decide. Existing descriptions are kept and moved into your first language.

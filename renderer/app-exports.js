@@ -56,7 +56,7 @@ async function exportQuoteApprovalPage(orderId) {
   const order = printLog.find(o => o.id === orderId);
   if (!order) return;
   const client = order.clientId ? clients.find(c => c.id === order.clientId) : null;
-  const bizName = settings.bizEn || 'Khayt';
+  const bizName = shopName() || 'Khayt';
   const contactEmail = settings.email || '';
   const contactPhone = settings.phone || '';
   const cur = currencySymbol();
@@ -318,7 +318,7 @@ function generateWorkOrder(id) {
     secondary: settings.invoiceSecondLang, enableZatca: settings.enableZatca,
   });
   const bi = _dl.bilingual;
-  const bizPrimary = isAr ? (settings.bizAr || settings.bizEn) : (settings.bizEn || settings.bizAr);
+  const bizPrimary = isAr ? (shopField('biz')) : (shopField('biz'));
   const today = localDateStr();
   const linkedClient = order.clientId ? clients.find(c => c.id === order.clientId) : null;
   const clientName = (order.project || '').trim() || (linkedClient ? localName(linkedClient) : t('inv.walk_in'));

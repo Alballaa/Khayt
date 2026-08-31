@@ -235,7 +235,10 @@ function initWizard() {
 
     if (bizName) {
       settings.businessName = bizName;
-      settings.bizEn = bizName;
+      // Into the shop's FIRST content language, not English: a shop that set
+      // itself up in Arabic had its name written to a field it never sees.
+      KhaytContentLanguages.write(settings, 'biz',
+        KhaytContentLanguages.contentLangs(settings)[0], bizName);
     }
     settings.currency = currency;
     settings.mode = selectedMode;

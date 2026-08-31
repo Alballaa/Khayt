@@ -919,25 +919,14 @@
               </div>
             </div>
             <div style="flex:1; min-width:0;">
-              <div class="inline-pair" style="margin-bottom:10px;">
-                <div>
-                  <label>Studio name</label>
-                  <input type="text" id="set_bizEn" placeholder="Bed Ready">
-                </div>
-                <div>
-                  <label data-i18n="set.biz_ar">Business name (Arabic)</label>
-                  <input type="text" id="set_bizAr" dir="rtl" placeholder="خيط">
-                </div>
-              </div>
-              <div class="inline-pair">
-                <div>
-                  <label data-i18n="set.tagline_en">Tagline (English)</label>
-                  <input type="text" id="set_taglineEn" data-i18n-placeholder="set.tagline_ph">
-                </div>
-                <div>
-                  <label data-i18n="set.tagline_ar">Tagline (Arabic)</label>
-                  <input type="text" id="set_taglineAr" dir="rtl" data-i18n-placeholder="set.tagline_ph_ar">
-                </div>
+              <!-- One field per language the studio writes content in.
+                   Built by renderContentFields(); see lib/content-languages.js. -->
+              <div class="inline-pair" style="margin-bottom:10px;" id="bizNameFields"></div>
+              <div class="inline-pair" id="taglineFields"></div>
+              <div style="margin-top:14px;">
+                <label data-i18n="set.content_langs">Product languages</label>
+                <div id="contentLangsPicker" style="display:flex;gap:14px;flex-wrap:wrap;margin-top:6px;"></div>
+                <p style="font-size:11.5px;color:var(--text-muted);margin:6px 0 0;" data-i18n="set.content_langs_hint"></p>
               </div>
             </div>
           </div>
@@ -955,16 +944,7 @@
               <input type="email" id="set_email">
             </div>
           </div>
-          <div class="inline-pair">
-            <div>
-              <label data-i18n="set.address_en">Address (English)</label>
-              <input type="text" id="set_addrEn">
-            </div>
-            <div>
-              <label data-i18n="set.address_ar">Address (Arabic)</label>
-              <input type="text" id="set_addrAr" dir="rtl">
-            </div>
-          </div>
+          <div class="inline-pair" id="addressFields"></div>
         </div>
 
         <div class="card settings-card pro-only">
@@ -1171,15 +1151,8 @@
           </div>
         </div>
 
-        <label style="margin-top:14px;" data-i18n="set.footer_en">Invoice footer (English)</label>
-        <input type="text" id="set_footerEn">
-        <label data-i18n="set.footer_ar">Invoice footer (Arabic)</label>
-        <input type="text" id="set_footerAr" dir="rtl">
-
-        <label style="margin-top:12px;" data-i18n="set.inv_terms_en">Terms & notes (English)</label>
-        <textarea id="set_invTermsEn" rows="3" style="resize:vertical;"></textarea>
-        <label data-i18n="set.inv_terms_ar">Terms & notes (Arabic)</label>
-        <textarea id="set_invTermsAr" rows="3" dir="rtl" style="resize:vertical;"></textarea>
+        <div id="footerFields" style="margin-top:14px;"></div>
+        <div id="invTermsFields" style="margin-top:12px;"></div>
         </div>
 
         <div class="card settings-card">
