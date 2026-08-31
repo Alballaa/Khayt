@@ -4,6 +4,8 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.7.0-beta.16] - 2026-08-31
+
 ### Added
 
 - **Right-click works.** Misspelled words offer corrections and "Add to
