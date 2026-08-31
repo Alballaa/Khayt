@@ -129,3 +129,19 @@ test('reading the history is a GET and nothing else', () => {
   assert.match(fn, /isAllowedPrinterHost/, 'and stays behind the same LAN host guard as every other printer call');
   assert.match(fn, /server\/history\/list/);
 });
+
+test('a malformed answer from the printer does not take the import down', () => {
+  /* `j && j.metadata` was guarded and `j.job_id` was read straight off the same
+   * object — half a guard, which is not a guard. A null entry in the array threw
+   * and the whole history import died with it.
+   *
+   * A printer answering oddly on the LAN must not be able to do that, and this
+   * is not a hypothetical shape: the array comes off the network.
+   */
+  assert.doesNotThrow(() => MH.mapJobs({ jobs: [null, undefined, {}, 42, 'x'] }));
+  assert.deepEqual(MH.mapJobs({ jobs: [null, {}, { filename: 'a.gcode', job_id: '1' }] })
+    .map((j) => j.filename), ['a.gcode'], 'the readable entries still come through');
+  assert.doesNotThrow(() => MH.mapJobs(null));
+  assert.doesNotThrow(() => MH.mapJobs({ jobs: 'not an array' }));
+  assert.doesNotThrow(() => MH.mapJobs({ jobs: [{ filename: 'a', metadata: null }] }));
+});
