@@ -4,6 +4,15 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Security
+
+- **A printer camera can no longer inject code into Khayt.** A device answering
+  your printer's snapshot URL could send a crafted content type that escaped the
+  image tag and ran script inside the app. It needed something on your own
+  network answering at the printer's address — a compromised printer, or anything
+  able to take that address. The camera reply is now checked against the exact
+  image types a camera sends, at both ends.
+
 ### Added
 
 - **Publish your catalogue from the catalogue.** A ☁ Publish button sits in the
