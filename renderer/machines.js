@@ -29,6 +29,67 @@ function machineGramsSinceNozzle(machine) {
   return machineNozzleWear(machine).grams;
 }
 
+/**
+ * What the printer itself says this machine is doing, on the machine card.
+ *
+ * The card had NO live state at all. Every number on it — the active-jobs badge,
+ * the hours, the nozzle wear — is derived from the ORDER BOOK, so a printer
+ * running a job that was sent to it straight from a slicer showed as having
+ * nothing on. Reported exactly that way: the U1 mid-print, and the app calling
+ * it idle. Meanwhile the poller had the answer every thirty seconds and only the
+ * dashboard tile and the kanban badge ever read it.
+ *
+ * Staleness is checked here for the same reason the dashboard checks it: a
+ * stopped poller otherwise leaves the last good reading on screen forever, and
+ * "Printing 47%" that has not moved since the laptop woke up is worse than
+ * saying nothing.
+ */
+const MACHINE_LIVE_STALE_MS = 90_000;
+
+function machineLiveBadge(m) {
+  if (!m || !m.printerApi || !m.printerApi.type || m.printerApi.type === 'none') return '';
+  const cache = (typeof machineStatusCache !== 'undefined' && machineStatusCache) || {};
+  const entry = cache[m.id];
+  const st = (typeof KhaytAttention !== 'undefined')
+    ? KhaytAttention.machineState(m, entry)
+    : (entry && String(entry.state || '').toLowerCase().includes('print') ? 'printing' : 'idle');
+
+  const badge = (bg, fg, text, title) =>
+    `<span class="machine-jobs-badge" style="background:${bg};color:${fg};"${title ? ` title="${escapeHtml(title)}"` : ''}>${escapeHtml(text)}</span>`;
+
+  if (st === 'unknown') return badge('var(--surface-2)', 'var(--text-muted)', t('mach.live_no_reading') || 'No reading', t('mach.live_no_reading_hint') || 'This printer is configured but has not answered yet.');
+  if (st === 'error') return badge('var(--danger)', '#fff', (entry && entry.state) || (t('mach.live_error') || 'Error'));
+  if (st === 'reconnecting') return badge('var(--warning)', '#000', t('mach.live_reconnecting') || 'Reconnecting');
+  if (st === 'offline' && !m.isOffline) return badge('var(--danger)', '#fff', t('mach.offline_badge'));
+
+  const age = (entry && entry.lastUpdated) ? Date.now() - entry.lastUpdated : null;
+  if (age !== null && age > MACHINE_LIVE_STALE_MS) {
+    const mins = Math.round(age / 60000);
+    return badge('var(--surface-2)', 'var(--text-muted)', t('dash.printer_stale', { mins: String(mins) }) || `No update for ${mins} min`);
+  }
+
+  if (st === 'printing') {
+    const pct = Math.min(100, Math.max(0, Math.round(+(entry && entry.progress) || 0)));
+    const label = `${t('mach.live_printing') || 'Printing'} · ${pct}%`;
+    return badge('var(--success)', '#fff', label, (entry && entry.filename) || '');
+  }
+  return badge('var(--surface-2)', 'var(--text-muted)', t('mach.live_idle') || 'Idle');
+}
+
+/**
+ * Refresh the live badges in place, on every poll.
+ *
+ * In place rather than re-rendering the list: renderMachines() rebuilds every
+ * card, which would drop an open inline editor and reset scroll every thirty
+ * seconds.
+ */
+function updateMachinesLiveStatus() {
+  document.querySelectorAll('#machinesList [data-machine-live]').forEach((el) => {
+    const m = (typeof machines !== 'undefined' ? machines : []).find((x) => x.id === el.dataset.machineLive);
+    if (m) el.innerHTML = machineLiveBadge(m);
+  });
+}
+
 function renderMachines() {
   const list = $('#machinesList');
   if (!list) return;
@@ -110,6 +171,7 @@ function renderMachines() {
         <span class="machine-name">${escapeHtml(m.name)}</span>
         ${compatHtml}
         ${m.isOffline ? `<span class="machine-jobs-badge" style="background:var(--danger); color:#fff;">${_mIcoL('alert', '⚠', 12)}${escapeHtml(t('mach.offline_badge'))}</span>` : ''}
+        <span data-machine-live="${escapeHtml(m.id)}">${machineLiveBadge(m)}</span>
         ${active > 0 ? `<span class="machine-jobs-badge">${active} ${escapeHtml(t('mach.active_jobs'))}</span>` : ''}
         ${svcBadge ? `<span class="pro-only">${svcBadge}</span>` : ''}
         ${downtimeBadge ? `<span class="pro-only">${downtimeBadge}</span>` : ''}
@@ -1578,6 +1640,8 @@ async function importPrinterHistory(machineId) {
     deleteWaTemplate,
     openWaSendModal,
     estimateMachineQueueClearDate,
+    machineLiveBadge,
+    updateMachinesLiveStatus,
   };
   Object.assign(global, api);
   global.KhaytMachines = api;

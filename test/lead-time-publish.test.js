@@ -92,3 +92,73 @@ test('having nothing to compare against counts as different', () => {
   assert.equal(P.differs(null, build()), true);
   assert.equal(P.differs(build(), null), true);
 });
+
+/* ── a printer that is printing is not a free lane ────────────────────────
+ *
+ * The queue was built from ORDERS alone, so a machine running a job sent to it
+ * straight from a slicer counted as available and the shop quoted a customer a
+ * turnaround that assumed an idle printer. Reported from the bench: a U1 five
+ * hours into a print, with Khayt showing it idle.
+ */
+const Pub = require('../lib/lead-time-publish.js');
+
+test('a printer mid-job adds its remaining time to that lane', () => {
+  const machines = [{ id: 'M1', printerApi: { type: 'moonraker' } }];
+  const cache = { M1: { state: 'printing', progress: 40, timeRemaining: 7200, lastUpdated: 1 } };
+  const { queue, occupied } = Pub.printerInFlight(machines, cache, []);
+  assert.deepEqual(queue, [{ hours: 2, machineId: 'M1' }]);
+  assert.deepEqual(occupied, []);
+});
+
+test('a printer mid-job with no usable estimate takes the lane out of service', () => {
+  /* Klipper reports no usable remaining time below ~1% of a job, so this is the
+   * normal state for the first minutes of every print. Inventing hours would put
+   * a guess inside a date a customer holds the shop to; dropping the lane says
+   * "busy, duration unknown", which is what is actually known. */
+  const machines = [{ id: 'M1', printerApi: { type: 'moonraker' } }];
+  const cache = { M1: { state: 'printing', progress: 0, timeRemaining: null, lastUpdated: 1 } };
+  const { queue, occupied } = Pub.printerInFlight(machines, cache, []);
+  assert.deepEqual(queue, []);
+  assert.deepEqual(occupied, ['M1']);
+});
+
+test('a machine that already has an active order is not counted twice', () => {
+  // The order on that machine IS the job on the bed. Counting both would inflate
+  // every promise the shop makes while it is working normally.
+  const machines = [{ id: 'M1', printerApi: { type: 'moonraker' } }];
+  const cache = { M1: { state: 'printing', progress: 40, timeRemaining: 7200, lastUpdated: 1 } };
+  const orders = [{ id: 'O1', status: 'printing', machineId: 'M1', printTime: 2 }];
+  const { queue, occupied } = Pub.printerInFlight(machines, cache, orders);
+  assert.deepEqual(queue, []);
+  assert.deepEqual(occupied, []);
+});
+
+test('an idle or unpolled printer changes nothing', () => {
+  const machines = [{ id: 'M1', printerApi: { type: 'moonraker' } }, { id: 'M2' }];
+  assert.deepEqual(Pub.printerInFlight(machines, { M1: { state: 'Operational', progress: 0 } }, []),
+    { queue: [], occupied: [] });
+  // No reading at all: machineState says 'unknown', not 'printing'. A machine
+  // nobody has heard from must not silently remove capacity either.
+  assert.deepEqual(Pub.printerInFlight(machines, {}, []), { queue: [], occupied: [] });
+});
+
+test('the promise gets longer once the printer is counted', () => {
+  const settings = { leadTime: { publishToCloud: true, dailyHours: 8, workingDaysPerWeek: 5, safetyDays: 0, finishingDays: 0, dispatchDays: 0 } };
+  const machines = [{ id: 'M1', printerApi: { type: 'moonraker' } }];
+  const base = { settings, printLog: [], machines, today: '2026-08-31', nowIso: '2026-08-31T09:00:00.000Z' };
+  const idle = Pub.buildSnapshot({ ...base, statusCache: {} });
+  const busy = Pub.buildSnapshot({ ...base, statusCache: { M1: { state: 'printing', progress: 40, timeRemaining: 3600 * 20, lastUpdated: 1 } } });
+  /* snapshot() publishes a DATE, not hours — that is what a storefront quotes,
+   * so that is what this asserts. Twenty hours on the bed at eight hours a day
+   * is three working days, and 2026-08-31 is a Monday. */
+  assert.equal(idle.availableFrom, '2026-08-31', 'an idle shop can start today');
+  assert.equal(busy.availableFrom, '2026-09-03',
+    'a printer twenty hours from finishing must push the date a customer is given');
+});
+
+test('a snapshot still builds when nothing has ever been polled', () => {
+  const settings = { leadTime: { publishToCloud: true } };
+  assert.doesNotThrow(() => Pub.buildSnapshot({
+    settings, printLog: [], machines: [{ id: 'M1' }], today: '2026-08-31', nowIso: '2026-08-31T09:00:00.000Z',
+  }));
+});

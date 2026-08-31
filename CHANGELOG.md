@@ -4,6 +4,24 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Added
+
+- **The machines page shows what each printer is actually doing.** It had no live
+  state at all — every figure on the card came from your order book, so a printer
+  running a job you sent straight from your slicer looked like it had nothing on.
+  Khayt was already asking that printer every thirty seconds.
+
+### Fixed
+
+- **A printer that is printing no longer counts as free capacity.** Lead times
+  quoted to customers were worked out from your order book alone, so a machine
+  five hours into a job was treated as available. Where the printer can say how
+  long it has left, that time now counts; where it cannot, the machine is left
+  out of the promise rather than assumed idle.
+- **A printer nobody has heard from is no longer shown as idle.** "Not answering"
+  and "free right now" looked identical, which is the wrong one to guess when
+  you are deciding whether a bed is available.
+
 ## [3.7.0-beta.16] - 2026-08-31
 
 ### Added
