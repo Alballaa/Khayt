@@ -4,6 +4,15 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Fixed
+
+- **Entering your business name updates the sidebar straight away.** It only
+  changed after switching theme or restarting.
+- **The sidebar shows the Khayt wordmark again until you have actually entered a
+  business name.** A shop that had never opened Settings saw "KHAYT" in place of
+  it, which is the product's name rather than the shop's. Your own name is shown
+  exactly as you typed it, not forced into capitals.
+
 ### Added
 
 - **Mark a print as not business.** A calibration cube, a gift, a bracket for
