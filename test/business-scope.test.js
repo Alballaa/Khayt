@@ -95,3 +95,21 @@ test('the editor can set it, and the module is loaded to do so', () => {
     assert.match(src, /business-scope\.js/, `${page} must load the module it calls`);
   }
 });
+
+test('the on-time delivery rate counts only promises to customers', () => {
+  /* Every other completed-order filter that reports on trade excludes voided
+   * orders. renderSLASection silently did not, so a CANCELLED job counted for or
+   * against the shop's delivery record — and it counted prints the shop marked
+   * as its own, which are a promise to nobody.
+   *
+   * Missed by the earlier pass because that matched the one-line idiom and this
+   * filter is spread over four lines. Found by sweeping every
+   * `status === 'completed'` in the file instead.
+   */
+  const src = fs.readFileSync(path.join(ROOT, 'renderer', 'analytics.js'), 'utf8');
+  const at = src.indexOf('function renderSLASection');
+  assert.ok(at > -1);
+  const filter = src.slice(at, src.indexOf('if (completed.length === 0)', at));
+  assert.match(filter, /!o\.voidedAt/, 'a cancelled order is not a delivery promise');
+  assert.match(filter, /_countsForBusiness\(o\)/, 'and a calibration cube is not one either');
+});

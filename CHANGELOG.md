@@ -26,6 +26,10 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **Cancelled orders no longer count towards your on-time delivery rate.** A
+  voided job counted for or against your delivery record like any other. Prints
+  you have marked as not business are left out of it too — a calibration cube is
+  not a promise to a customer.
 - **Entering your business name updates the sidebar straight away.** It only
   changed after switching theme or restarting.
 - **The sidebar shows the Khayt wordmark again until you have actually entered a

@@ -1899,8 +1899,21 @@ function renderSLASection() {
   const el = $('#slaSection');
   if (!el) return;
 
+  /* On-time delivery is a promise KEPT OR MISSED, so only orders that were
+   * actually a promise to a customer belong in it.
+   *
+   * This counted voided orders — every other completed-order filter that reports
+   * on trade excludes them, and this one silently did not, so a cancelled job
+   * counted against (or for) the shop's delivery record. It also counted prints
+   * the shop marked as its own; a calibration cube is not a promise to anybody.
+   *
+   * Found by sweeping every `status === 'completed'` filter rather than the
+   * single-line idiom — this one is spread over four lines, so the earlier pass
+   * that added the trade check to thirteen of them walked straight past it. */
   const completed = printLog.filter(o =>
     o.status === 'completed' &&
+    !o.voidedAt &&
+    _countsForBusiness(o) &&
     o.dueDate &&
     inRange(o.date, analyticsRange, 'analytics')
   );
