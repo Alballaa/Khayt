@@ -1465,6 +1465,12 @@ async function openStorefrontModal() {
           shopName: (shopField('biz') || 'Khayt').trim(),
           currency: cur,
           lang: (typeof i18n !== 'undefined' && i18n.current) || 'en',
+          /* The languages this catalogue is WRITTEN in, so the storefront page
+           * can offer them. It used to be able to show English or Arabic and
+           * nothing else — hard-coded, with `lang === 'ar' ? nameAr : name` —
+           * so a German-and-French shop published a catalogue its own customers
+           * could only read half of. */
+          langs: KhaytContentLanguages.contentLangs(settings),
           note: sf.note,
           leadTime: sf.leadTime || '',
           minOrder: sf.minOrder || 0,
