@@ -26,6 +26,13 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 - **Descriptions are per language.** A product could have a name in two
   languages and only one description — the paragraph a customer actually reads
   to decide. Existing descriptions are kept and moved into your first language.
+- **Your online shop shows the languages you write in.** Publishing a catalogue
+  now tells the storefront which languages it is written in, so a shop writing
+  German and French is read in German and French. The public page could show
+  English or Arabic and nothing else, so half of what those shops published was
+  invisible to their own customers. Listings also show up to three photos, and
+  one labelled as the actual printed part is captioned that way — republish your
+  catalogue to pick this up.
 
 ### Fixed
 
