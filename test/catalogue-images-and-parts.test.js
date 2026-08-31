@@ -237,3 +237,67 @@ test('a legacy single-image product still publishes its photo', () => {
   assert.equal(out.length, 1);
   assert.equal(out[0].kind, 'render');
 });
+
+/* ── the budget that is not per listing ───────────────────────────────────
+ *
+ * storefrontPhotos() budgets one listing at a time, and its own note reasoned
+ * about "forty listings without going near it" against a limit that was not the
+ * real one: the server caps a sanitised catalogue at 8 MB. Three photos at
+ * 200 KB is 600 KB a listing, so a shop with about fourteen photo-rich products
+ * could not publish AT ALL — 413, the whole catalogue rejected because of the
+ * pictures on some of it.
+ */
+
+const shot = (bytes) => ({ src: 'data:image/png;base64,' + 'A'.repeat(bytes), kind: 'render' });
+const listing = (n, bytes) => ({ photos: Array.from({ length: n }, () => shot(bytes)) });
+
+test('a catalogue too heavy to publish is trimmed, not rejected', () => {
+  const items = Array.from({ length: 20 }, () => listing(3, 200000));   // ~12 MB
+  const r = PI.fitCatalogPhotos(items);
+  assert.equal(r.fits, true);
+  assert.ok(r.bytes <= PI.CATALOG_PHOTO_BUDGET);
+  // And it cost nobody their only picture: every listing still shows something.
+  assert.equal(items.every((it) => it.photos.length >= 1), true);
+});
+
+test('extra photos go before anyone\'s only photo', () => {
+  // One listing with three, forty with one. The three must be cut down before a
+  // single one of the forty loses the only picture it has.
+  const fat = listing(3, 200000);
+  const thin = Array.from({ length: 40 }, () => listing(1, 170000));
+  PI.fitCatalogPhotos([fat, ...thin], 7 * 1024 * 1024);
+  assert.equal(thin.every((it) => it.photos.length === 1), true,
+    'a listing with one photo must not be trimmed while another has spares');
+  assert.equal(fat.photos.length < 3, true);
+});
+
+test('the legacy photo field follows what survived', () => {
+  const items = [listing(3, 200000)];
+  items[0].photo = items[0].photos[0].src;
+  PI.fitCatalogPhotos(items, 300000);   // only one 200 KB photo can fit
+  assert.equal(items[0].photos.length, 1);
+  assert.equal(items[0].photo, items[0].photos[0].src, 'photo mirrors photos[0], here as everywhere');
+});
+
+test('a budget nothing fits leaves listings without pictures, not a failed publish', () => {
+  // The listing keeps its name, price and description and shows a placeholder,
+  // which is a storefront. A 413 is not.
+  const items = [listing(1, 200000), listing(1, 200000)];
+  const r = PI.fitCatalogPhotos(items, 1000);
+  assert.equal(r.fits, true);
+  assert.equal(items.every((it) => !it.photos), true);
+  assert.equal(items.every((it) => !it.photo), true, 'and the legacy field does not point at a dropped picture');
+});
+
+test('a catalogue already within budget is left exactly alone', () => {
+  const items = [listing(3, 1000), listing(2, 1000)];
+  const r = PI.fitCatalogPhotos(items);
+  assert.equal(r.dropped, 0);
+  assert.equal(items[0].photos.length, 3);
+  assert.equal(items[1].photos.length, 2);
+});
+
+test('no photos, or junk, does not throw', () => {
+  assert.doesNotThrow(() => PI.fitCatalogPhotos(null));
+  assert.doesNotThrow(() => PI.fitCatalogPhotos([null, {}, { photos: [] }]));
+});

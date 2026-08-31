@@ -1461,7 +1461,7 @@ async function openStorefrontModal() {
       };
       const buildCatalog = (withPhotos) => {
         captureConfig();
-        return {
+        const payload = {
           shopName: (shopField('biz') || 'Khayt').trim(),
           currency: cur,
           lang: (typeof i18n !== 'undefined' && i18n.current) || 'en',
@@ -1529,6 +1529,15 @@ async function openStorefrontModal() {
             return it;
           }).filter((it) => it.name),
         };
+        /* Trim the pictures to what the server will accept, rather than letting
+         * the whole publish fail.
+         *
+         * The per-listing budget in storefrontPhotos() says nothing about the
+         * total, and the server caps a sanitised catalogue at 8 MB — so a shop
+         * with about fourteen photo-rich products got 413 and no storefront at
+         * all. Extra photos go before anyone's only photo. */
+        KhaytProductImages.fitCatalogPhotos(payload.items);
+        return payload;
       };
       modal.querySelector('#storeCopy')?.addEventListener('click', async () => {
         // On failure show the link itself, so it can still be selected by hand.
