@@ -2,17 +2,29 @@
 
 Living priorities for maintainers. Not a public commitment calendar — reorder as the product needs.
 
-## Now (post-3.6.0, 3.7.0-beta.15 being cut — on `main`)
+## Now (post-3.6.0, 3.7.0-beta.16 being cut — on `main`)
 
 **Stable is v3.6.0** (2026-08-21) — the 3.6.0 line, promoted from
 `v3.6.0-rc.4` unchanged after a seven-day soak. rc.4 was the first candidate on
 this line that `main` did not overtake, so for once replace-vs-promote resolved
 to *promote*; rc.1, rc.2 and rc.3 were each replaced instead.
 
-**`v3.7.0-beta.15` is the cut being made now** (2026-08-30) and it **replaces
-`beta.14` as the promotion candidate** — the promise lives in
+**`v3.7.0-beta.16` is the cut being made now** (2026-08-31) and it **replaces
+`beta.15` as the promotion candidate** — the promise lives in
 [docs/RELEASE-HOLD.md](./docs/RELEASE-HOLD.md), not in the version string. All
 three platforms, `BUILD_MAC` set.
+
+It carries the content-language work — a shop picks one or two of nine
+languages and writes its products, clients and documents in them — and, more to
+the point, **eighteen places that had been reading that text as an
+English-or-Arabic pair**. Those were not found by testing the feature; they were
+found by asking, four times, what the passes could not see. Two of them sent
+customers a message with the name missing. Two more submitted ZATCA e-invoices
+with the seller's street blank, from a settings key that has never existed. One
+made the whole storefront feature inert in production: the server's catalogue
+whitelist silently dropped every field the app had been sending.
+
+`beta.15` is superseded rather than broken: everything in it is here too.
 
 **`beta.14` cannot accept a catalogue photo.** The multi-image editor shipped
 with a live `FileList` read after the input was cleared, so picking an image did
@@ -51,9 +63,12 @@ link that was explicitly asked for among them. The pattern each time: a correct
 module, a wiring test that finds the listener, and nothing driving the actual
 screen. A green suite is not evidence that a feature exists.
 
-**The newest *published* pre-release is `v3.7.0-beta.14`** (2026-08-30) — all
-three platforms, verified after the publish and driven against a live printer.
-**Do not recommend it**: the catalogue cannot accept a photo in that build.
+**The newest *published* pre-release is `v3.7.0-beta.15`** (2026-08-30) — all
+three platforms, with a real 161 MB macOS build and its own `latest-mac.yml`
+rather than a carried one. **Do not recommend it, or anything before
+`beta.16`, to a shop that does not write English or Arabic**: its own name, its
+clients' names and the seller address on its ZATCA e-invoices all came out
+blank. `beta.14` before it cannot accept a catalogue photo at all.
 
 *(A release was published earlier the same day under an `rc` prerelease tag, and
 has been deleted, tag and all. electron-updater's ladder knows `alpha` and `beta` and nothing else, so an
