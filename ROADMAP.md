@@ -2,14 +2,14 @@
 
 Living priorities for maintainers. Not a public commitment calendar — reorder as the product needs.
 
-## Now (post-3.6.0, 3.7.0-beta.17 being cut — on `main`)
+## Now (post-3.6.0, 3.7.0-beta.17 published — on `main`)
 
 **Stable is v3.6.0** (2026-08-21) — the 3.6.0 line, promoted from
 `v3.6.0-rc.4` unchanged after a seven-day soak. rc.4 was the first candidate on
 this line that `main` did not overtake, so for once replace-vs-promote resolved
 to *promote*; rc.1, rc.2 and rc.3 were each replaced instead.
 
-**`v3.7.0-beta.17` is the cut being made now** (2026-08-31) and it **replaces
+**`v3.7.0-beta.17` is PUBLISHED** (2026-08-31) and it **replaces
 `beta.16` as the promotion candidate** — the promise lives in
 [docs/RELEASE-HOLD.md](./docs/RELEASE-HOLD.md), not in the version string. All
 three platforms, `BUILD_MAC` set.
@@ -70,8 +70,7 @@ link that was explicitly asked for among them. The pattern each time: a correct
 module, a wiring test that finds the listener, and nothing driving the actual
 screen. A green suite is not evidence that a feature exists.
 
-**The newest *published* pre-release is `v3.7.0-beta.16`** (2026-08-31), until
-`beta.17` publishes — all
+**The newest *published* pre-release is `v3.7.0-beta.17`** (2026-08-31) — all
 three platforms, published from `ccc3cb7` via the `cut-release` workflow, with
 every asset its three manifests name verified to serve 200. **Do not recommend
 anything before it to a shop that does not write English or Arabic**: its own
