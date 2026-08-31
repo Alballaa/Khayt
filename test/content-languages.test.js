@@ -138,6 +138,34 @@ test('nothing reads the shop\'s own text as a hard-coded English/Arabic pair', (
     `these read the shop's text as English-or-Arabic and return '' for any other language:\n  ${offenders.join('\n  ')}`);
 });
 
+test('nothing picks between an English field and an Arabic one by hand', () => {
+  /* The guard above covers the five SETTINGS fields and no record fields, so
+   * this shape sat under it untouched:
+   *
+   *     const altName = i18n.current === 'ar' ? p.nameEn : p.nameAr;
+   *
+   * That is the second line on a catalogue card and a client row — the name in
+   * the shop's other language. Written this way it is blank for every shop not
+   * writing English and Arabic, so a German-and-French shop had an empty line
+   * under every product and every client, in its own app.
+   *
+   * altLocalName() asks the shop which languages it writes instead. Two live
+   * instances existed when this was written; the regex found the second.
+   */
+  const offenders = [];
+  const RE = /(?:i18n\.current|lang)\s*===?\s*'ar'\s*\?[^;\n]*\b\w+(?:En|Ar)\b[^;\n]*:[^;\n]*\b\w+(?:En|Ar)\b/g;
+  for (const [file, src] of jsFiles()) {
+    // app-helpers.js holds localName()/altLocalName()'s own fallback for when the
+    // content-language module is absent — the one place this shape is the answer.
+    if (file === 'app-helpers.js') continue;
+    for (const m of src.matchAll(RE)) {
+      offenders.push(`${file}:${src.slice(0, m.index).split('\n').length}  ${m[0].trim()}`);
+    }
+  }
+  assert.deepEqual(offenders, [],
+    `these choose between two hard-coded languages and are blank for any other:\n  ${offenders.join('\n  ')}`);
+});
+
 test('the settings form builds its fields from the chosen languages', () => {
   const src = fs.readFileSync(path.join(RENDERER, 'settings.js'), 'utf8');
   assert.match(src, /function renderContentFields\(\)/,
@@ -178,4 +206,57 @@ test('an interface language the shop does not write in does not win', () => {
   assert.equal(CL.read(shop, 'biz', 'tr', { contentLangs: ['en', 'tr'] }), 'Atölye Baskı');
   // With no settings at all, the caller's request is all there is to go on.
   assert.equal(CL.read(shop, 'biz', 'en'), 'Khayt');
+});
+
+/* ── the second line ───────────────────────────────────────────────────────
+ *
+ * A bilingual shop shows both languages at once: the catalogue card prints the
+ * name in the working language and the other underneath. That second slot was
+ * written as `i18n.current === 'ar' ? p.nameEn : p.nameAr` — correct for
+ * exactly one pair of languages, and blank for every other. A German-and-French
+ * shop had an empty line under every product in its own catalogue.
+ */
+
+test('the second line is the shop\'s other language, whatever that is', () => {
+  const de_fr = { contentLangs: ['de', 'fr'] };
+  const p = { name_de: 'Halterung', name_fr: 'Support' };
+  assert.equal(CL.read(p, 'name', 'en', de_fr), 'Halterung', 'an English interface still leads with the shop\'s first language');
+  assert.equal(CL.readAlt(p, 'name', 'en', de_fr), 'Support');
+  // And it follows the reader: a French interface leads with French.
+  assert.equal(CL.read(p, 'name', 'fr', de_fr), 'Support');
+  assert.equal(CL.readAlt(p, 'name', 'fr', de_fr), 'Halterung');
+});
+
+test('the two lines are never the same language twice', () => {
+  for (const langs of [['en', 'ar'], ['de', 'fr'], ['tr', 'en'], ['ja', 'zh']]) {
+    const s = { contentLangs: langs };
+    for (const want of ['en', 'ar', 'de', 'fr', 'tr']) {
+      const other = CL.otherLang(want, s);
+      assert.ok(langs.includes(other), `${other} is not one of the shop's languages`);
+      // The primary is whichever read() would show; the second must not be it.
+      const shown = langs.includes(want) ? want : langs[0];
+      assert.notEqual(other, shown, `${langs.join('/')} viewed as ${want} printed one language twice`);
+    }
+  }
+});
+
+test('a single-language shop has no second line at all', () => {
+  const only = { contentLangs: ['ar'] };
+  assert.equal(CL.otherLang('ar', only), null);
+  assert.equal(CL.readAlt({ nameAr: 'حامل' }, 'name', 'ar', only), '');
+});
+
+test('an unfilled second language prints nothing, not the first name again', () => {
+  // read() falls back so a product is never nameless. readAlt must NOT: repeating
+  // the primary underneath itself reads as a bug, and a blank is the truth.
+  const s = { contentLangs: ['en', 'ar'] };
+  assert.equal(CL.read({ nameEn: 'Bracket' }, 'name', 'en', s), 'Bracket');
+  assert.equal(CL.readAlt({ nameEn: 'Bracket' }, 'name', 'en', s), '');
+  assert.equal(CL.readAlt({ nameEn: 'Bracket', nameAr: '   ' }, 'name', 'en', s), '',
+    'whitespace is not a name');
+});
+
+test('the second line does not throw on junk', () => {
+  assert.equal(CL.readAlt(null, 'name', 'en', { contentLangs: ['en', 'ar'] }), '');
+  assert.equal(CL.readAlt({}, 'name', 'en', null), '');
 });

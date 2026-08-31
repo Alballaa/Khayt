@@ -38,6 +38,21 @@ function localName(obj) {
   }
   return i18n.current === 'ar' ? (obj.nameAr || obj.nameEn) : (obj.nameEn || obj.nameAr);
 }
+/**
+ * The name in the shop's OTHER content language, for the second line.
+ *
+ * Empty for a single-language shop, and empty when that language's field has
+ * not been filled in — a blank second line is correct there, where repeating
+ * the primary name would just look like a bug.
+ */
+function altLocalName(obj) {
+  if (typeof KhaytContentLanguages === 'undefined') {
+    // The pre-module fallback, kept in step with localName's: two languages only.
+    return (i18n.current === 'ar' ? (obj && obj.nameEn) : (obj && obj.nameAr)) || '';
+  }
+  return KhaytContentLanguages.readAlt(obj, 'name', i18n.current,
+    (typeof settings !== 'undefined' ? settings : null));
+}
 /** Normalise payment status with fallback, accounting for credit notes. */
 function payStatus(order) {
   if (order.voidedAt) return 'voided';
@@ -500,6 +515,7 @@ function openActivityLog() {
     logActivity,
     openActivityLog,
     localName,
+    altLocalName,
     // Declared above the IIFE, like localName, so they are globals in the
     // browser — but a module required under Node sees only what this list
     // exports, which is how renderInvoice threw "shopField is not defined"

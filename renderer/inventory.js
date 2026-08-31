@@ -2857,7 +2857,10 @@ function renderCatalog() {
   grid.innerHTML = filtered.map(p => {
     const stats = productStatsMap.get(p.id) || { count: 0, completedCount: 0, revenue: 0, lastDate: null };
     const displayName = localName(p);
-    const altName     = i18n.current === 'ar' ? p.nameEn : p.nameAr;
+    // The shop's other content language, not "whichever of English and Arabic
+    // isn't showing" — a German-and-French shop had a blank line under every
+    // product, because nameAr is a field it has never filled in.
+    const altName     = altLocalName(p);
     const partsCount = (p.parts || []).length;
     const partsLabel = partsCount === 1 ? t('cat.part') : t('cat.parts');
     const printedLabel = stats.count > 0 ? t('cat.printed_n', { n: stats.count }) : t('cat.never_printed');

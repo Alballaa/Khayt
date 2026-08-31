@@ -36,6 +36,13 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **The second name under a product or client shows your other language.** If
+  you write in German and French, the line under every product name and every
+  client row was blank — it was picking between English and Arabic, and Arabic
+  is a field you have never filled in. It now shows whichever of your two
+  languages isn't already on the line above, and nothing at all if you write in
+  only one.
+
 - Importing a printer's job history no longer stops if the printer sends back a
   malformed entry.
 - **Icon-only buttons say what they do when you hover them.** Fifty of them
