@@ -3052,7 +3052,13 @@ function productDefaultPricing(d) {
     ? computeComponentsCost(d.components, typeof consumables !== 'undefined' ? consumables : []) : 0;
   const cost = partsCost + compCost;
   const margin = Math.max(0, num(d.defaultMargin, 30));
-  return { cost: +cost.toFixed(2), basePrice: +(cost * (1 + margin / 100)).toFixed(2) };
+  const basePrice = +(cost * (1 + margin / 100)).toFixed(2);
+  /* `basePrice` stays exactly what it has always been — cost plus margin — and
+   * `price` is what the shop charges. Keeping both is the point: a shop that can
+   * only see its rounded price cannot tell a healthy margin from a rounding
+   * accident. */
+  const fp = KhaytProductPrice.finalPrice(d, basePrice);
+  return { cost: +cost.toFixed(2), basePrice, price: fp.final, priceSource: fp.source };
 }
 
 function openProductEditor(productId = null) {
@@ -3268,7 +3274,27 @@ function openProductEditor(productId = null) {
 
     <div id="prodPriceSummary" style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:12px; padding:10px 12px; background:var(--surface-2); border:1px solid var(--border-soft); border-radius:var(--radius);">
       <span style="font-size:12px; color:var(--text-muted);">${escapeHtml(t('pe.cost') || 'Cost')}: <b id="prodCostVal">—</b></span>
-      <span style="font-size:13px;">${escapeHtml(t('pe.default_price') || 'Default price')}: <b id="prodPriceVal" style="color:var(--primary);">—</b></span>
+      <span style="font-size:13px;">${escapeHtml(t('pe.default_price') || 'Default price')}: <b id="prodPriceVal" style="color:var(--primary);">—</b>
+        <span id="prodPriceWhy" style="font-size:11px;color:var(--text-muted);margin-inline-start:6px;"></span></span>
+    </div>
+
+    <!-- The calculated price is arithmetic; the price on the shelf is a decision.
+         The calculated figure stays on screen either way, because it is what
+         tells a shop whether its margin is working. -->
+    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:8px;">
+      <label style="margin:0; font-size:12px; color:var(--text-muted);">${escapeHtml(t('pe.round_to') || 'Round to')}</label>
+      <select id="prodRoundStep" style="width:auto; font-size:12.5px;">
+        ${KhaytProductPrice.STEPS.map((st) => `<option value="${st}"${(+(draft.priceRound?.step) || 0) === st ? ' selected' : ''}>${st === 0 ? escapeHtml(t('pe.round_off') || 'No rounding') : st}</option>`).join('')}
+      </select>
+      <select id="prodRoundMode" style="width:auto; font-size:12.5px;">
+        ${KhaytProductPrice.MODES.map((md) => `<option value="${md}"${(draft.priceRound?.mode || 'nearest') === md ? ' selected' : ''}>${escapeHtml(t('pe.round_' + md) || md)}</option>`).join('')}
+      </select>
+      <label style="margin:0; font-size:12px; color:var(--text-muted); margin-inline-start:8px;">${escapeHtml(t('pe.price_override') || 'Or set the price')}</label>
+      <input type="number" min="0" step="0.01" inputmode="decimal" id="prodPriceOverride"
+             placeholder="${escapeHtml(t('pe.price_override_ph') || 'auto')}"
+             title="${escapeHtml(t('pe.price_override_hint') || 'A price you type here is used as-is and ignores the rounding above. Clear it to go back to the calculated price.')}"
+             value="${draft.priceOverride != null ? escapeHtml(String(draft.priceOverride)) : ''}"
+             style="width:96px; font-size:12.5px; text-align:right;">
     </div>
 
     <div style="display:flex; align-items:center; margin-top:14px; gap:10px;">
@@ -3342,11 +3368,20 @@ function openProductEditor(productId = null) {
       // Live default-pricing summary — same cost math as the calculator, so adding a
       // product yields a ready default price (cost × margin) with no separate quoting step.
       function refreshPricing() {
-        const { cost, basePrice } = productDefaultPricing(draft);
+        const r = productDefaultPricing(draft);
         const cEl = modal.querySelector('#prodCostVal');
         const pEl = modal.querySelector('#prodPriceVal');
-        if (cEl) cEl.textContent = fmtPrice(cost);
-        if (pEl) pEl.textContent = fmtPrice(basePrice);
+        const wEl = modal.querySelector('#prodPriceWhy');
+        if (cEl) cEl.textContent = fmtPrice(r.cost);
+        if (pEl) pEl.textContent = fmtPrice(r.price);
+        // Say WHICH number this is. A rounded price that does not admit it looks
+        // like the arithmetic produced it, and then the two stop being tellable
+        // apart — including the calculated figure, shown when it differs.
+        if (wEl) {
+          const why = KhaytProductPrice.describe(r, t);
+          wEl.textContent = (r.priceSource === 'base' || Math.abs(r.price - r.basePrice) < 0.005)
+            ? '' : `(${why} · ${fmtPrice(r.basePrice)})`;
+        }
       }
 
       function refreshParts() {
@@ -3354,6 +3389,24 @@ function openProductEditor(productId = null) {
         refreshPricing();
       }
       refreshPricing();
+
+      // The rounding rule and the typed price both re-price immediately: a shop
+      // choosing "round up to 5" wants to see the 45, not to save and find out.
+      const roundStepEl = modal.querySelector('#prodRoundStep');
+      const roundModeEl = modal.querySelector('#prodRoundMode');
+      const overrideEl = modal.querySelector('#prodPriceOverride');
+      const syncPriceRule = () => {
+        const step = +(roundStepEl && roundStepEl.value) || 0;
+        draft.priceRound = step > 0 ? { step, mode: (roundModeEl && roundModeEl.value) || 'nearest' } : null;
+        const raw = overrideEl ? String(overrideEl.value).trim() : '';
+        // Empty means "go back to the calculated price". 0 does not — a free
+        // item is a decision, and null is the only way to say "no override".
+        draft.priceOverride = raw === '' ? null : (Number.isFinite(+raw) && +raw >= 0 ? +raw : null);
+        refreshPricing();
+      };
+      if (roundStepEl) roundStepEl.addEventListener('change', syncPriceRule);
+      if (roundModeEl) roundModeEl.addEventListener('change', syncPriceRule);
+      if (overrideEl) overrideEl.addEventListener('input', syncPriceRule);
 
       // Sync top-level inputs into draft
       modal.querySelectorAll('[data-f]').forEach(input => {
@@ -3500,6 +3553,33 @@ function openProductEditor(productId = null) {
         part.printFileId = sel.value || null;
         // A new file means the old setup no longer applies.
         part.setupId = null;
+        /* Fill the numbers NOW, not when someone finds the button.
+         *
+         * Linking a file used to record the link and stop there, leaving weight
+         * and time at zero — which look exactly like numbers a shop typed. The
+         * slicer already knows both, and the whole reason to link a file is that
+         * it does.
+         *
+         * autoFill only writes fields that are still empty, so a weight the shop
+         * put on a scale is never replaced by the slicer's estimate. Same rule
+         * as the nozzle threshold: suggest, never rewrite. The fill button stays
+         * for a deliberate re-fill, which DOES overwrite, because pressing it is
+         * asking for exactly that.
+         */
+        if (part.printFileId) {
+          const rec = (typeof printFiles !== 'undefined' ? printFiles : []).find((f) => f.id === part.printFileId);
+          const patch = KhaytPartFromPrintFile.partPatch(rec, null);
+          const { applied, kept } = KhaytPartFromPrintFile.autoFill(part, patch);
+          const numbers = applied.filter((k) => k === 'printWeight' || k === 'printTime');
+          if (numbers.length) {
+            const keptNote = kept.length ? ' ' + (t('pe.fill_kept') || 'Your own values were kept.') : '';
+            toast((t('pe.filled_from_file') || 'Weight and time filled in from the file.') + keptNote, 'success', 5000);
+          } else if (patch && patch.missing && patch.missing.length && !kept.length) {
+            // The file has no slicer data — say so, rather than leaving zeros
+            // that look filled in.
+            toast(KhaytPartFromPrintFile.describe(patch, t), 'info', 6000);
+          }
+        }
         refreshParts();
       });
 
@@ -3636,6 +3716,8 @@ function openProductEditor(productId = null) {
       const pricing = productDefaultPricing(draft);
       draft.baseCost = pricing.cost;
       draft.basePrice = pricing.basePrice;
+      // What the shop actually charges, after its own rounding or override.
+      draft.price = pricing.price;
 
       // Persist
       const idx = products.findIndex(p => p.id === draft.id);

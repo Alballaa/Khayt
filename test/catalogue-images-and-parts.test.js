@@ -301,3 +301,67 @@ test('no photos, or junk, does not throw', () => {
   assert.doesNotThrow(() => PI.fitCatalogPhotos(null));
   assert.doesNotThrow(() => PI.fitCatalogPhotos([null, {}, { photos: [] }]));
 });
+
+/* ── linking a file fills the numbers ─────────────────────────────────────
+ *
+ * Reported: "when adding a catalogue item and linking a file it is not
+ * automatically calculating the total weight and print time".
+ *
+ * partPatch() existed and worked. The change handler that links a file set
+ * `printFileId`, cleared `setupId` and re-rendered — and never called it. The
+ * numbers were behind a separate "fill" button, so weight and time sat at zero,
+ * which looks exactly like zeros somebody typed.
+ */
+
+test('linking a print file fills weight and time', () => {
+  const rec = {
+    id: 'PF-1', originalName: 'Bracket.gcode',
+    parsed: { filamentGrams: 129.18, printTimeMins: 228, filamentType: 'PLA' }, setups: [],
+  };
+  const part = { printWeight: 0, printTime: 0, material: '' };
+  const { applied } = PF.autoFill(part, PF.partPatch(rec));
+  assert.equal(part.printWeight, 129.18);
+  assert.equal(part.printTime, 3.8, '228 minutes is 3.8 hours — a part stores hours');
+  assert.equal(part.material, 'PLA');
+  assert.ok(applied.includes('printWeight') && applied.includes('printTime'));
+});
+
+test('a number the shop typed survives linking the file', () => {
+  /* The slicer's grams are an estimate; a scale is not. Same rule the nozzle
+   * threshold settled on — suggest, never rewrite. */
+  const rec = { id: 'PF-2', parsed: { filamentGrams: 129.18, printTimeMins: 228, filamentType: 'PLA' }, setups: [] };
+  const part = { printWeight: 41.5, printTime: 0, material: 'Sunlu PETG' };
+  const { applied, kept } = PF.autoFill(part, PF.partPatch(rec));
+  assert.equal(part.printWeight, 41.5, 'the weighed figure is not replaced by the slicer estimate');
+  assert.equal(part.material, 'Sunlu PETG');
+  assert.equal(part.printTime, 3.8, 'but the empty one is filled');
+  assert.deepEqual(kept.sort(), ['material', 'printWeight']);
+  assert.ok(applied.includes('printTime'));
+});
+
+test('a file with no slicer data fills what it can and claims nothing else', () => {
+  const rec = { id: 'PF-3', parsed: {}, setups: [{ id: 'S1', material: 'PLA+ 2.0', layerHeightMm: 0.12, ok: 3 }] };
+  const part = { printWeight: 0, printTime: 0, material: '' };
+  PF.autoFill(part, PF.partPatch(rec));
+  assert.equal(part.material, 'PLA+ 2.0');
+  assert.equal(part.printWeight, 0, 'still zero, and the caller says so rather than pretending');
+  assert.ok(PF.partPatch(rec).missing.includes('printWeight'));
+});
+
+test('autoFill does not throw on junk', () => {
+  assert.doesNotThrow(() => PF.autoFill(null, null));
+  assert.doesNotThrow(() => PF.autoFill({}, {}));
+  assert.deepEqual(PF.autoFill({}, {}), { applied: [], kept: [] });
+});
+
+test('the file-link handler actually calls it', () => {
+  /* The defect was a wiring gap, not a logic gap, so the guard has to be about
+   * wiring. `.part-printfile` is the select that links a file. */
+  const fs = require('fs');
+  const path = require('path');
+  const src = fs.readFileSync(path.join(__dirname, '..', 'renderer', 'inventory.js'), 'utf8');
+  const handler = src.slice(src.indexOf(".part-printfile'"));
+  const body = handler.slice(0, handler.indexOf('refreshParts()'));
+  assert.match(body, /KhaytPartFromPrintFile\.autoFill/,
+    'linking a print file must fill the part in, not just record the link');
+});

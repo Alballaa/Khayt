@@ -10,6 +10,12 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   state at all — every figure on the card came from your order book, so a printer
   running a job you sent straight from your slicer looked like it had nothing on.
   Khayt was already asking that printer every thirty seconds.
+- **Round your catalogue prices, or just type the one you want.** A calculated
+  price of 43.71 is not a price anyone puts on a shelf. Set a rounding step —
+  fives, tens, halves — and whether to go up, down or to the nearest, or type a
+  price of your own that overrides all of it. The calculated figure stays on
+  screen beside it, because that is the number that tells you the margin is
+  working.
 
 ### Fixed
 
@@ -21,6 +27,11 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 - **A printer nobody has heard from is no longer shown as idle.** "Not answering"
   and "free right now" looked identical, which is the wrong one to guess when
   you are deciding whether a bed is available.
+- **Linking a print file to a catalogue part fills in the weight and print time.**
+  It recorded the link and left both at zero, which looks exactly like zeros
+  somebody typed — the numbers were behind a separate button. Anything you have
+  already filled in yourself is kept: a weight you put on a scale is never
+  replaced by the slicer's estimate.
 
 ## [3.7.0-beta.16] - 2026-08-31
 
