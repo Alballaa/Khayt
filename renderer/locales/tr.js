@@ -189,6 +189,8 @@
   "set.mode_enthusiast_desc": "Yalnızca yazıcılarım — baskı başına maliyet, dosya kitaplığım, faturalama yok",
   "wiz.option_hobby": "Hobi / kişisel",
   "wiz.option_hobby_desc": "Yalnızca yazıcılarım — baskı başına maliyet, dosya kitaplığım, faturalama yok",
+  "plib.no_preview": "Bu dosyada dilimleyicinin gömdüğü bir önizleme yok.",
+  "plib.no_file": "Bu bilgisayarda dosya yok — bu kayıt yazıcının kendi geçmişinden geldi, önizlenecek bir şey yok.",
   "plib.subtitle": "STL, 3MF ve G-code kitaplığınız — önizlemeler, test edilmiş ayarlar, dilimleyicinizde açma.",
   "plib.add": "Dosya ekle",
   "plib.zip_empty": "Bu arşivde baskı dosyası yok.",

@@ -19,6 +19,14 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **Hover descriptions appear when you hover.** Icon-only buttons relied on the
+  browser's own tooltip, which waits about a second before showing anything and
+  never shows on keyboard focus at all. They now appear promptly, and keyboard
+  users get them too.
+- **An empty print-file preview says why it is empty.** Khayt shows the preview
+  your slicer embedded in the file; it does not render the model itself. A record
+  imported from your printer's job history has no file on this computer at all,
+  so there is nothing to show — and it now says so instead of showing a bare box.
 - **Publishing a storefront uses the prices you already set in the catalogue.**
   It read only the price box on the storefront form, so a shop that had priced
   every product — cost, margin, rounding and all — published a storefront where

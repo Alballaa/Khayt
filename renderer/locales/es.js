@@ -189,6 +189,8 @@
   "set.mode_enthusiast_desc": "Solo mis impresoras: costo por impresión, mi biblioteca de archivos, sin facturación",
   "wiz.option_hobby": "Aficionado / personal",
   "wiz.option_hobby_desc": "Solo mis impresoras: costo por impresión, mi biblioteca de archivos, sin facturación",
+  "plib.no_preview": "Este archivo no tiene vista previa incrustada por el laminador.",
+  "plib.no_file": "No hay archivo en este equipo — este registro proviene del historial de la impresora, así que no hay nada que previsualizar.",
   "plib.subtitle": "Tu biblioteca de STL, 3MF y G-code: vistas previas, ajustes probados y apertura en tu slicer.",
   "plib.add": "Añadir archivo",
   "plib.zip_empty": "No hay archivos de impresión en ese archivo comprimido.",

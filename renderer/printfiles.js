@@ -120,7 +120,23 @@
     const ico = (_BDR && window.BedReadyIcons)
       ? window.BedReadyIcons.get(EXT_ICON_NAME[ext] || 'cube', 44)
       : (EXT_ICON[ext] || '📦');
-    return `<div class="pf-thumb pf-thumb-icon">${ico}</div>`;
+    /* Say WHY there is no picture.
+     *
+     * Khayt never renders a model to make one: it lifts the preview the slicer
+     * already embedded (a PNG block in gcode, Metadata/*.png in a 3MF), and
+     * renders STL separately. So a card with no preview means one of two quite
+     * different things, and a bare box says neither — reported as "why in
+     * printfile every file has a box as an image, isn't it supposed to load the
+     * 3D file?"
+     *
+     * `sourceFile: null` is a record with no file on this computer at all —
+     * every one built by importing a printer's job history, which carries names,
+     * times and weights and no geometry. There is nothing to preview and never
+     * was. The other case is a real file whose slicer embedded no thumbnail. */
+    const why = rec.sourceFile
+      ? (t('plib.no_preview') || 'This file has no preview embedded by the slicer.')
+      : (t('plib.no_file') || 'No file on this computer — this record came from the printer\'s own history, so there is nothing to preview.');
+    return `<div class="pf-thumb pf-thumb-icon" title="${escapeHtml(why)}">${ico}</div>`;
   }
 
   function colorDotsHtml(rec) {
