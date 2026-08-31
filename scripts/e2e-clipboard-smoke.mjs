@@ -57,11 +57,17 @@ async function testClipboardReadStaysDenied(window) {
 /** David's button: click it, then look at the clipboard rather than the toast. */
 async function testStorefrontImportLinkReachesTheClipboard(window) {
   await window.evaluate((cloud) => {
-    // Storefronts & Payments is a .pro-only panel — Simple mode hides it in CSS.
+    /* Storefronts & Payments is a .pro-only CARD — Simple mode hides it in CSS.
+     *
+     * It lives under `online`, not `automation`: a section called "Online" that
+     * held only LAN features while the storefront and cloud sync sat under
+     * "Automation" was the wrong way round. The card kept its `pro-only` class
+     * through the move, so this still has to switch to professional mode — the
+     * class is on the card now rather than inherited from the nav item. */
     settings.mode = 'professional';
     KhaytShell.applyMode();
     settings.cloud = cloud;
-    KhaytShell.openSettingsSection('automation');
+    KhaytShell.openSettingsSection('online');
     renderIntegrationsSettings();
   }, CLOUD);
 

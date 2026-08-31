@@ -26,20 +26,22 @@ const userData = makeUserDataDir();
 let electronApp;
 
 /**
- * The cloud card lives inside the "automation" panel, not a panel of its own —
+ * The cloud card lives inside the "online" panel, not a panel of its own —
  * so drive the app's own navigation rather than guessing a selector, which is
  * how this was wrong the first time.
  */
 async function openCloudPanel(window) {
   await switchTab(window, 'settings-tab');
-  // The cloud card sits in the "automation" panel, which is .pro-only — in any
+  // The cloud card sits in the "online" panel and carries .pro-only itself — in any
   // other mode the panel is display:none even once it is the active one. The
   // wizard does not leave a fresh profile in Professional, so ask for it.
   await window.evaluate(() => {
     settings.mode = 'professional';
     applyMode();
     renderCloudSettings();
-    openSettingsSection('automation');
+    // Khayt Cloud lives under `online` — it moved out of `automation`, which is
+    // for WhatsApp templates and scheduled email rather than the online surface.
+    openSettingsSection('online');
   });
   await window.waitForSelector('#cloudSettingsSection');
   await window.waitForFunction(() =>
