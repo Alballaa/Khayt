@@ -31,6 +31,9 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **The last English text in the interface is translated.** "Board view", "Save
+  filter", the work-in-progress limit labels and the post-processing preset
+  fields stayed English in every language.
 - **The default working week is Sunday to Thursday, five days.** It was Monday to
   Thursday — four days, matching no working week anywhere: the Gulf works Sunday
   to Thursday and most of Europe and the Americas work Monday to Friday. Due
