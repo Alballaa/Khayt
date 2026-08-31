@@ -76,6 +76,7 @@ const upgradeBackup = require('./lib/upgrade-backup');
 const { createStoreIo } = require('./lib/store-io');
 const { parseGcodeText } = require('./lib/gcode-parse');
 const moonrakerHistory = require('./lib/moonraker-history');
+const contextMenu = require('./lib/main/context-menu');
 const { createSilhouette } = require('./lib/gcode-geometry');
 const { intake: intakeModel } = require('./lib/model-intake');
 const { extractActuals } = require('./lib/printer-actuals');
@@ -4006,6 +4007,27 @@ ipcMain.handle('hub:printer-command', async (_e, { machine, command } = {}) =>
   sendPrinterCommand(machine, command));
 // Read-only: safe to call while the printer is mid-job, which is when a shop is
 // most likely to reach for it.
+/**
+ * The app's language, so the spellchecker can follow it.
+ *
+ * Chromium picks a dictionary from the SYSTEM locale and never learns what
+ * language the app is being used in — so an Arabic shop had every word
+ * underlined by an English dictionary. Chromium has no Arabic dictionary at all
+ * (nor Japanese or Chinese), and for those this switches spellcheck OFF rather
+ * than marking correct text wrong.
+ */
+// Labels for the right-click menu, sent by the renderer with the language: the
+// main process has no access to the locale files, and a menu that says "Cut" to
+// an Arabic shop is a smaller version of the same problem this fixes.
+let menuStrings = {};
+
+ipcMain.handle('hub:set-app-language', (_e, lang, strings) => {
+  if (strings && typeof strings === 'object') menuStrings = strings;
+  const win = BrowserWindow.getAllWindows()[0];
+  const ses = win && win.webContents && win.webContents.session;
+  return contextMenu.applyLanguage(ses, lang);
+});
+
 ipcMain.handle('hub:printer-history', async (_e, { machine, limit } = {}) =>
   fetchPrinterHistory(machine, limit));
 
@@ -5237,6 +5259,12 @@ function createWindow() {
       navigateOnDragDrop: false,
     }
   });
+
+  /* Right-click. Electron ships no default context menu, so Chromium underlined
+   * misspellings and there was no way to reach a correction — and no Cut, Copy
+   * or Paste anywhere either, which on Windows and Linux is how people copy
+   * text at all. */
+  contextMenu.attach(mainWindow, { Menu }, (key, fallback) => menuStrings[key] || fallback);
 
   mainWindow.loadFile(path.join(__dirname, 'renderer', ENTRY_HTML));
 

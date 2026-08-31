@@ -177,7 +177,7 @@
             <span class="khayt-bdot" id="notifBadge" style="display:none"></span>
             <div id="notifPanel" style="display:none;position:absolute;inset-inline-end:0;top:calc(100% + 8px);width:340px;max-height:480px;overflow-y:auto;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);box-shadow:var(--shadow-pop);z-index:8000"></div>
           </div>
-          <button type="button" class="btn ghost sm" id="btnFeedback" data-i18n="feedback.title" data-i18n-aria="feedback.title" aria-label="Feedback &amp; bug reports">💬</button>
+          <button type="button" class="btn ghost sm" id="btnFeedback" data-i18n="feedback.title" data-i18n-aria="feedback.title" aria-label="Feedback &amp; bug reports" title="Feedback &amp; bug reports">💬</button>
           <select class="input" id="locationFilter" aria-label="Location filter" data-i18n-aria="ui.filter_location" data-i18n-title="ui.filter_location" style="width:auto;height:34px;min-width:100px" title="Filter by location">
             <option value="">All locations</option>
           </select>
@@ -1591,6 +1591,13 @@
             </select>
           </div>
         </div>
+        <!-- Which languages the shop writes its PRODUCTS in — a different
+             question from which language the app is shown in. -->
+        <div style="margin-top:14px;">
+          <label data-i18n="set.content_langs">Product languages</label>
+          <div id="contentLangsPicker" style="display:flex;gap:14px;flex-wrap:wrap;margin-top:6px;"></div>
+          <p style="font-size:11.5px;color:var(--text-muted);margin:6px 0 0;" data-i18n="set.content_langs_hint">Pick one or two. Product names and descriptions get a field for each, and this is what a customer sees on your storefront.</p>
+        </div>
         </div>
 
         <div class="settings-save-row">
@@ -2622,6 +2629,7 @@
 <script src="app-state.js"></script>
 <script src="app-security.js"></script>
 <script src="search-utils.js"></script>
+<script src="../lib/content-languages.js"></script>
 <script src="../lib/product-images.js"></script>
 <script src="../lib/part-from-print-file.js"></script>
 <script src="../lib/moonraker-history.js"></script>

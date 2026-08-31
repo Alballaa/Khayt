@@ -1407,7 +1407,7 @@ async function openStorefrontModal() {
           <input class="pValue" type="number" min="0" step="0.01" placeholder="0" value="${escapeHtml(p.value != null ? String(p.value) : '')}" style="width:62px;font-size:12px;">
           <input class="pExpires" type="date" value="${escapeHtml(p.expires || '')}" title="${escapeHtml(t('store.promo_expires') || 'Expires (optional)')}" style="width:130px;font-size:12px;">
           <input class="pMax" type="number" min="0" step="1" placeholder="∞" value="${escapeHtml(p.maxUses ? String(p.maxUses) : '')}" title="${escapeHtml(t('store.promo_max') || 'Max uses (blank = unlimited)')}" style="width:54px;font-size:12px;">
-          <button type="button" class="btn danger small pDel" style="font-size:11px;" aria-label="${escapeHtml(t('common.delete'))}">✕</button>`;
+          <button type="button" class="btn danger small pDel" style="font-size:11px;" aria-label="${escapeHtml(t('common.delete'))}" title="${escapeHtml(t('common.delete'))}">✕</button>`;
         row.querySelector('.pDel').addEventListener('click', () => row.remove());
         return row;
       };
@@ -1430,7 +1430,7 @@ async function openStorefrontModal() {
         row.innerHTML = `
           <input class="shLabel" type="text" maxlength="60" placeholder="${escapeHtml(t('store.ship_label_ph') || 'e.g. Courier, Pickup')}" value="${escapeHtml(m.label || '')}" style="flex:1;font-size:12.5px;">
           <input class="shPrice" type="number" min="0" step="0.01" placeholder="0" value="${escapeHtml(m.price != null && m.price !== '' ? String(m.price) : '')}" style="width:80px;font-size:12.5px;text-align:right;" title="${escapeHtml(cur)}">
-          <button type="button" class="btn danger small shDel" style="font-size:11px;" aria-label="${escapeHtml(t('common.delete'))}">✕</button>`;
+          <button type="button" class="btn danger small shDel" style="font-size:11px;" aria-label="${escapeHtml(t('common.delete'))}" title="${escapeHtml(t('common.delete'))}">✕</button>`;
         row.querySelector('.shDel').addEventListener('click', () => row.remove());
         return row;
       };
@@ -1474,12 +1474,27 @@ async function openStorefrontModal() {
           payUrl: /^https?:\/\//i.test(sf.payUrl) ? sf.payUrl : '',
           promos: sf.promos || [],
           items: pubProducts.map((p) => {
+            /* Read through the content-language model rather than the two
+             * hard-coded fields: a shop writing Turkish or German published a
+             * blank name and no description at all, because the storefront only
+             * knew about `nameEn`, `nameAr` and a single unsuffixed
+             * `description`. `name`/`nameAr` stay in the payload because the
+             * published storefront page reads exactly those. */
+            const CL = KhaytContentLanguages;
+            const langs = CL.contentLangs(settings);
             const it = {
               id: p.id,
-              name: (p.nameEn || (typeof localName === 'function' ? localName(p) : '') || '').trim(),
+              name: CL.read(p, 'name', langs[0], settings).trim(),
               nameAr: (p.nameAr || '').trim(),
-              desc: (p.description || '').trim(),
+              desc: CL.read(p, 'description', langs[0], settings).trim(),
             };
+            // The second language, where the shop keeps one, so a storefront
+            // can show a customer the listing in their own.
+            if (langs[1]) {
+              const alt = CL.read(p, 'name', langs[1], settings).trim();
+              const altDesc = CL.read(p, 'description', langs[1], settings).trim();
+              if (alt || altDesc) it.alt = { lang: langs[1], name: alt, desc: altDesc };
+            }
             if (sf.prices[p.id]) it.price = String(sf.prices[p.id]);
             if (sf.categories[p.id]) it.category = sf.categories[p.id];
             if (sf.soldOut[p.id]) it.soldOut = true;
@@ -2914,6 +2929,51 @@ function renderCloudSettings() {
   if (connected) showCloudPlan(c); // async; fills #cloudPlan if the server has billing on
 }
 
+
+/**
+ * Which languages the shop writes its products in.
+ *
+ * A different question from which language the app is SHOWN in, and it had
+ * never been asked: content was hard-coded to English and Arabic, so a Turkish
+ * shop could not enter its own language and an Arabic-only shop still faced an
+ * English box it had to leave blank.
+ *
+ * Capped at two on purpose. Three name fields and three description fields is a
+ * form nobody finishes, and the storefront shows one language at a time anyway.
+ */
+function renderContentLangsPicker() {
+  const el = $('#contentLangsPicker');
+  if (!el || typeof KhaytContentLanguages === 'undefined') return;
+  const CL = KhaytContentLanguages;
+  const chosen = CL.contentLangs(settings);
+  el.innerHTML = CL.SUPPORTED.map((code) => `
+    <label style="display:flex;align-items:center;gap:5px;font-size:12.5px;font-weight:400;margin:0;">
+      <input type="checkbox" class="content-lang" value="${escapeHtml(code)}"
+             ${chosen.includes(code) ? 'checked' : ''} style="width:auto;margin:0;">
+      ${escapeHtml(CL.languageName(code))}
+    </label>`).join('');
+
+  el.querySelectorAll('.content-lang').forEach((box) => box.addEventListener('change', () => {
+    const picked = [...el.querySelectorAll('.content-lang:checked')].map((b) => b.value);
+    if (!picked.length) {
+      // A shop with no content language has a product editor with no name
+      // field. Refuse rather than allow a form that cannot be filled in.
+      box.checked = true;
+      toast(t('set.content_langs_min') || 'Pick at least one language for your products', 'warning');
+      return;
+    }
+    if (picked.length > CL.MAX_LANGS) {
+      box.checked = false;
+      toast(t('set.content_langs_max') || 'Two languages at most', 'warning');
+      return;
+    }
+    settings.contentLangs = picked;
+    saveAll();
+    renderContentLangsPicker();
+    toast(t('set.saved'), 'success');
+  }));
+}
+
 function renderDigestSettings() {
   const el = $('#emailDigestSection');
   if (!el) return;
@@ -3107,7 +3167,7 @@ function renderLoyaltyTiersSettings() {
           <input type="number" class="tier-min-orders" data-idx="${idx}" value="${tier.minOrders || ''}" placeholder="${escapeHtml(t('set.loyalty_min_orders') || 'Min orders')}" min="0" style="flex:1;font-size:12.5px;">
           <input type="number" class="tier-min-spend" data-idx="${idx}" value="${tier.minSpend || ''}" placeholder="${escapeHtml(t('set.loyalty_min_spend') || 'Min spend')}" min="0" style="flex:1;font-size:12.5px;">
           <input type="number" class="tier-discount" data-idx="${idx}" value="${tier.discountPct || ''}" placeholder="${escapeHtml(t('set.loyalty_benefit') || 'Discount %')}" min="0" max="100" style="flex:1;font-size:12.5px;">
-          <button class="btn small danger tier-del" data-idx="${idx}" aria-label="${escapeHtml(t('common.delete'))}">×</button>
+          <button class="btn small danger tier-del" data-idx="${idx}" aria-label="${escapeHtml(t('common.delete'))}" title="${escapeHtml(t('common.delete'))}">×</button>
         </div>`).join('')}
     </div>
     <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">Name · Min completed orders · Min total spend (${currencySymbol()}) · Auto-discount %</div>
@@ -3282,7 +3342,7 @@ function renderFixedCostSettings() {
           <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);">
             <span style="flex:1;">${escapeHtml(c.name)}</span>
             <strong>${fmtPrice(c.amount)}</strong>
-            <button class="btn danger small" data-del-fc="${i}" aria-label="${escapeHtml(t('common.delete'))}">✕</button>
+            <button class="btn danger small" data-del-fc="${i}" aria-label="${escapeHtml(t('common.delete'))}" title="${escapeHtml(t('common.delete'))}">✕</button>
           </div>`).join('')
       }
     </div>
@@ -4320,7 +4380,7 @@ function renderSavedFilterPresets() {
     <span style="font-size:11.5px;color:var(--text-muted);white-space:nowrap;">Saved:</span>
     ${saved.map((f, i) => `
       <button class="btn ghost small" data-load-filter="${i}" title="${escapeHtml(f.name)}" style="font-size:12px;">${escapeHtml(f.name)}</button>
-      <button class="btn ghost small" data-del-filter="${i}" style="font-size:10px;padding:2px 5px;color:var(--text-muted);" aria-label="${escapeHtml(t('common.delete'))}">✕</button>
+      <button class="btn ghost small" data-del-filter="${i}" style="font-size:10px;padding:2px 5px;color:var(--text-muted);" aria-label="${escapeHtml(t('common.delete'))}" title="${escapeHtml(t('common.delete'))}">✕</button>
     `).join('')}`;
 
   el.querySelectorAll('[data-load-filter]').forEach(btn => {
@@ -4728,6 +4788,7 @@ function loadSettingsIntoForm() {
   renderDigestSettings();
   renderAiSettings();
   renderSlicerSettings();
+  renderContentLangsPicker();
   // The nozzle wear table lives beside the printers it applies to.
   if (typeof renderNozzleWearSettings === 'function') renderNozzleWearSettings();
   renderCloudSettings();
@@ -5160,7 +5221,7 @@ async function openRestorePointsModal() {
       <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border-soft);">
         <div style="flex:1;"><div style="font-size:13px;font-weight:600;">${escapeHtml(rp.label)}</div><div style="font-size:11px;color:var(--text-muted);">${escapeHtml(fmtWhen(rp.mtime))}</div></div>
         <button class="btn small primary rpRestore" data-f="${escapeHtml(rp.filename)}">${escapeHtml(t('rp.restore') || 'Restore')}</button>
-        <button class="btn small ghost rpDelete" data-f="${escapeHtml(rp.filename)}" style="color:var(--danger);" aria-label="${escapeHtml(t('common.delete'))}">✕</button>
+        <button class="btn small ghost rpDelete" data-f="${escapeHtml(rp.filename)}" style="color:var(--danger);" aria-label="${escapeHtml(t('common.delete'))}" title="${escapeHtml(t('common.delete'))}">✕</button>
       </div>`).join('') : `<div style="text-align:center;color:var(--text-muted);padding:18px 0;">${escapeHtml(t('rp.empty') || 'No restore points yet.')}</div>`;
     modal.querySelector('#rpBody').innerHTML = `
       <p style="font-size:12.5px;color:var(--text-muted);margin:0 0 10px;">${escapeHtml(t('rp.hint') || 'Save a labeled snapshot of all your data you can roll back to anytime — e.g. before a big import or month-end.')}</p>
@@ -5288,7 +5349,7 @@ function renderHolidayList() {
   el.innerHTML = [...holidays].sort().map(d => `
     <span class="holiday-chip" style="display:inline-flex; align-items:center; gap:4px; background:var(--surface-2); border:1px solid var(--border-soft); border-radius:16px; padding:2px 10px; font-size:12px;">
       ${escapeHtml(d)}
-      <button type="button" data-act="rm-holiday" data-date="${escapeHtml(d)}" aria-label="${escapeHtml(t('common.delete'))}" style="background:none; border:none; color:var(--danger); cursor:pointer; font-size:13px; padding:0; line-height:1;">×</button>
+      <button type="button" data-act="rm-holiday" data-date="${escapeHtml(d)}" aria-label="${escapeHtml(t('common.delete'))}" style="background:none; border:none; color:var(--danger); cursor:pointer; font-size:13px; padding:0; line-height:1;" title="${escapeHtml(t('common.delete'))}">×</button>
     </span>`).join('');
 }
 
@@ -5303,7 +5364,7 @@ function renderPostChecklistSettings() {
   el.innerHTML = list.map((ch, i) => `
     <div class="post-check-setting-row">
       <span style="flex:1; font-size:13px;">${escapeHtml(ch.label)}</span>
-      <button class="btn danger small" data-act="del-post-check" data-idx="${i}" aria-label="${escapeHtml(t('common.delete'))}">×</button>
+      <button class="btn danger small" data-act="del-post-check" data-idx="${i}" aria-label="${escapeHtml(t('common.delete'))}" title="${escapeHtml(t('common.delete'))}">×</button>
     </div>`).join('');
 }
 
@@ -5342,7 +5403,7 @@ function renderCustomFieldsSettings() {
     <div class="post-check-setting-row">
       <span style="flex:1; font-size:13px;">${escapeHtml(f.label)}</span>
       <span style="font-size:11px; color:var(--text-muted); margin-inline-end:8px;">${escapeHtml(f.type || 'text')}</span>
-      <button class="btn danger small" data-act="del-custom-field" data-idx="${i}" aria-label="${escapeHtml(t('common.delete'))}">×</button>
+      <button class="btn danger small" data-act="del-custom-field" data-idx="${i}" aria-label="${escapeHtml(t('common.delete'))}" title="${escapeHtml(t('common.delete'))}">×</button>
     </div>`).join('');
 }
 
@@ -5599,7 +5660,7 @@ function showRecoveryCodeModal(code, title) {
       <div class="modal modal-form" role="dialog" aria-modal="true" style="max-width:480px;">
         <div class="modal-header">
           <h3>${escapeHtml(title || t('sec.recovery_title'))}</h3>
-          <button class="btn ghost small" data-act="close" aria-label="Close">×</button>
+          <button class="btn ghost small" data-act="close" aria-label="Close" title="Close">×</button>
         </div>
         <div class="modal-body">
         <p style="font-size:13px;color:var(--text-muted);margin:0 0 8px;">${escapeHtml(t('sec.recovery_subtitle'))}</p>

@@ -1317,7 +1317,7 @@ function renderOeExtraLinesHtml(lines) {
     <div class="extra-line-row" data-oeli="${i}">
       <input type="text" class="oe-el-label" value="${escapeHtml(line.label)}" placeholder="${escapeHtml(t('calc.extra_label_ph'))}" style="flex:1; min-width:0;">
       <input type="number" class="oe-el-amount" value="${line.amount || ''}" min="0" step="0.01" placeholder="0.00" style="width:90px;">
-      <button class="btn danger small oe-el-rm" data-oeli="${i}" aria-label="Remove">×</button>
+      <button class="btn danger small oe-el-rm" data-oeli="${i}" aria-label="Remove" title="Remove">×</button>
     </div>`).join('');
 }
 
@@ -1355,7 +1355,7 @@ function openOrderEditor(orderId) {
     const cells = draft.printPhotos.map((ph, i) => `
       <div class="order-photo-cell" data-pi="${i}">
         <img src="${safeImageSrc(ph.thumb)}" alt="">
-        <button class="rm" data-act="rm-photo" data-pi="${i}" aria-label="Remove">×</button>
+        <button class="rm" data-act="rm-photo" data-pi="${i}" aria-label="Remove" title="Remove">×</button>
       </div>`).join('');
     const adder = `<button type="button" class="order-photo-cell add" data-act="add-photo">${escapeHtml(t('oe.add_photo'))}</button>`;
     return cells + adder;
@@ -1784,7 +1784,7 @@ function openOrderEditor(orderId) {
               <input type="number" class="inst-amt-inp" data-ii="${i}" value="${ins.amount || ''}" min="0" step="0.01" style="width:80px; font-size:12px; border:1px solid var(--border); background:var(--surface-2); border-radius:4px; padding:2px 6px; color:var(--text);">
               <input type="date" class="inst-due-inp" data-ii="${i}" value="${escapeHtml(ins.dueDate || '')}" style="font-size:11px; border:1px solid var(--border); background:var(--surface-2); border-radius:4px; padding:2px 4px; color:var(--text);">
               <button class="btn small${ins.paid ? '' : ' success'} inst-pay-btn" data-ii="${i}">${escapeHtml(ins.paid ? t('inst.paid') : t('inst.mark_paid'))}</button>
-              <button class="btn danger small inst-rm-btn" data-ii="${i}" aria-label="${escapeHtml(t('common.delete'))}">×</button>
+              <button class="btn danger small inst-rm-btn" data-ii="${i}" aria-label="${escapeHtml(t('common.delete'))}" title="${escapeHtml(t('common.delete'))}">×</button>
             </div>`).join('')}`;
         instListEl.querySelectorAll('.inst-note-inp').forEach(inp => { inp.addEventListener('input', () => { draft.instalments[+inp.dataset.ii].note = inp.value; }); });
         instListEl.querySelectorAll('.inst-amt-inp').forEach(inp => { inp.addEventListener('input', () => { draft.instalments[+inp.dataset.ii].amount = Math.max(0, +inp.value || 0); }); });
@@ -2285,7 +2285,7 @@ function openOrderTimeline(orderId) {
     <div class="modal modal-form" style="max-width:480px;width:100%;">
       <div class="modal-header">
         <h3 id="modalTitle" style="margin:0;font-size:15px;">🕐 ${escapeHtml(t('ord.timeline_title'))} — ${escapeHtml(order.project || order.id)}</h3>
-        <button class="btn ghost small" data-act="cancel" aria-label="Close">×</button>
+        <button class="btn ghost small" data-act="cancel" aria-label="Close" title="Close">×</button>
       </div>
       <div class="modal-body" style="max-height:70vh;overflow-y:auto;">
         <div style="margin-bottom:12px;font-size:12.5px;color:var(--text-muted);">

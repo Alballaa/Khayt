@@ -4,6 +4,14 @@
 // ── Shared helpers ────────────────────────────────────────────────────────────
 /** Localised name — picks AR or EN depending on current language. */
 function localName(obj) {
+  // Reads through the content-language model so a shop writing Turkish or
+  // German sees its own name rather than a blank: the fallback runs the
+  // interface language, then the shop's chosen content languages, then anything
+  // filled in at all. A Turkish name beats an empty space where a product goes.
+  if (typeof KhaytContentLanguages !== 'undefined') {
+    return KhaytContentLanguages.read(obj, 'name', i18n.current,
+      (typeof settings !== 'undefined' ? settings : null));
+  }
   return i18n.current === 'ar' ? (obj.nameAr || obj.nameEn) : (obj.nameEn || obj.nameAr);
 }
 /** Normalise payment status with fallback, accounting for credit notes. */

@@ -174,7 +174,7 @@ function openFormModal({ title, bodyHtml, onMount, onSave, saveLabel, sizeLg = t
       <div class="modal modal-form ${sizeLg ? 'modal-lg' : ''}" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
         <div class="modal-header">
           <h3 id="modalTitle">${escapeHtml(title)}</h3>
-          <button class="btn ghost small" data-act="cancel" aria-label="${escapeHtml(t('common.close') || 'Close')}">×</button>
+          <button class="btn ghost small" data-act="cancel" aria-label="${escapeHtml(t('common.close') || 'Close')}" title="${escapeHtml(t('common.close') || 'Close')}">×</button>
         </div>
         <div class="modal-body">${bodyHtml}</div>
         <div class="modal-footer">

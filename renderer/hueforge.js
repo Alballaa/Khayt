@@ -263,9 +263,9 @@
     return [
       '<div class="hf-fil" data-idx="' + i + '">',
       '<div class="hf-fil-ord">',
-      '<button type="button" class="hf-ord-btn" data-act="up" ' + (i === total - 1 ? 'disabled' : '') + ' aria-label="move up">⌃</button>',
+      '<button type="button" class="hf-ord-btn" data-act="up" ' + (i === total - 1 ? 'disabled' : '') + ' aria-label="move up" title="move up">⌃</button>',
       '<span class="hf-fil-slot">' + (i + 1) + '</span>',
-      '<button type="button" class="hf-ord-btn" data-act="down" ' + (i === 0 ? 'disabled' : '') + ' aria-label="move down">⌄</button>',
+      '<button type="button" class="hf-ord-btn" data-act="down" ' + (i === 0 ? 'disabled' : '') + ' aria-label="move down" title="move down">⌄</button>',
       '</div>',
       '<label class="hf-sw" style="background:' + css(f.hex) + '"><input type="color" data-fld="hex" value="' + esc(normHex(f.hex)) + '" aria-label="colour" /></label>',
       '<div class="hf-fil-body">',

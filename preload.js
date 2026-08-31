@@ -270,6 +270,7 @@ contextBridge.exposeInMainWorld('hubAPI', {
   // command name; nothing here is trusted.
   printerCommand:      (machine, command) => ipcRenderer.invoke('hub:printer-command', { machine, command }),
   printerHistory: (payload) => ipcRenderer.invoke('hub:printer-history', payload),
+  setAppLanguage: (lang, menuStrings) => ipcRenderer.invoke('hub:set-app-language', lang, menuStrings),
   onPrinterStatusUpdate: (() => {
     // Single persistent listener — swaps the callback instead of stacking listeners
     let _cb = null;

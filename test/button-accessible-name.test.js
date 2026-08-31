@@ -65,6 +65,19 @@ function namelessButtons() {
   return out;
 }
 
+
+/** What a sighted user can read on the button itself — icons and markup removed. */
+function visibleText(inner) {
+  return String(inner || '')
+    .replace(/<span[^>]*aria-hidden="true"[^>]*>[\s\S]*?<\/span>/g, '')
+    .replace(/\$\{[^}]*(svg|_mIco|ico)[^}]*\}/gi, '')
+    .replace(/<svg[\s\S]*?<\/svg>/g, '')
+    .replace(/<[^>]+>/g, '')
+    .replace(/[\u{1F300}-\u{1FAFF}\u{2190}-\u{2BFF}\u{FE0F}\u{00D7}\u{2026}]/gu, '')
+    .replace(/\$\{[^}]*\}/g, '')
+    .trim();
+}
+
 test('no button is silent to a screen reader', () => {
   const nameless = namelessButtons();
   assert.deepEqual(nameless, [],
@@ -92,4 +105,33 @@ test('an icon-only button is recognised as nameless, a labelled one is not', () 
   assert.ok(accessibleName('', '🗑 Delete'), 'an icon beside text is fine');
   assert.ok(accessibleName('aria-label="Delete"', '🗑'), 'an aria-label is a name');
   assert.ok(accessibleName('data-i18n-aria="common.delete"', '🗑'), 'and so is the i18n form');
+});
+
+test('an icon-only button also says what it does on hover', () => {
+  /* `aria-label` is for a screen reader. It produces NO tooltip, so a sighted
+   * shop hovering an icon gets nothing — reported as "when floating over a
+   * button the description is not shown; it's confusing knowing what each
+   * button does when it's only an icon".
+   *
+   * Fifty buttons were in that state, and the reason is visible in this file:
+   * the test above enforces the accessible name and nothing enforced the
+   * hover. Passing an accessibility check is not the same as being usable.
+   *
+   * `title` must match `aria-label`: for an icon-only button they state the
+   * same fact, and two wordings would drift apart.
+   */
+  const missing = [];
+  for (const file of sources()) {
+    const src = fs.readFileSync(file, 'utf8');
+    for (const m of src.matchAll(/<button([^>]*)>([\s\S]{0,200}?)<\/button>/g)) {
+      const [, attrs, inner] = m;
+      if (!/aria-label=/.test(attrs)) continue;
+      if (visibleText(inner)) continue;          // has a label of its own
+      if (/title=/.test(attrs)) continue;
+      const line = src.slice(0, m.index).split('\n').length;
+      missing.push(`${path.basename(file)}:${line}`);
+    }
+  }
+  assert.deepEqual(missing, [],
+    `these icon-only buttons show nothing on hover:\n  ${missing.join('\n  ')}`);
 });
