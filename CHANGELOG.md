@@ -29,6 +29,8 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- Importing a printer's job history no longer stops if the printer sends back a
+  malformed entry.
 - **Icon-only buttons say what they do when you hover them.** Fifty of them
   announced themselves to a screen reader and showed nothing to everyone else.
 
