@@ -5213,6 +5213,11 @@ function saveSettingsFromForm() {
   i18n.set(settings.lang);
   applyTheme(settings.theme);
   if (typeof applyDesignSettings === 'function') applyDesignSettings();
+  // The sidebar now carries the shop's name, so a shop that has just entered or
+  // changed it must see that immediately rather than after a theme switch.
+  if (typeof KhaytThemes !== 'undefined' && typeof KhaytThemes.syncSidebarSubtitle === 'function') {
+    KhaytThemes.syncSidebarSubtitle(document.documentElement.dataset.design);
+  }
   applyMode();
   renderInventory();
   refreshCurrencyLabels();

@@ -559,6 +559,8 @@
   "pay.gift_card_credit": "ギフトカードのクレジットを適用しました",
   "pay.order_fully_covered": "注文はすでに全額支払い済みです",
   "oe.title": "注文を編集",
+  "oe.non_business": "業務外 — 売上とレポートから除外する",
+  "oe.non_business_hint": "テスト、贈り物、工房自身のためのもの。ノズル摩耗には引き続き計上され、プリンターも占有します。",
   "oe.due_date": "納期",
   "oe.due_overdue": "{n}日超過",
   "oe.due_today": "本日期限",

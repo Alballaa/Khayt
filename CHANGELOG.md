@@ -6,6 +6,13 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Added
 
+- **Mark a print as not business.** A calibration cube, a gift, a bracket for
+  your own shelf — tick the box in the order editor and it stays out of revenue,
+  order counts and every report. It still counts towards nozzle wear and still
+  occupies the machine, because it really printed.
+- **The sidebar shows your business name** instead of the name of whichever
+  theme you have active. The theme is still named in Settings, where you choose
+  it.
 - **The machines page shows what each printer is actually doing.** It had no live
   state at all — every figure on the card came from your order book, so a printer
   running a job you sent straight from your slicer looked like it had nothing on.

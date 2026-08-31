@@ -559,6 +559,8 @@
   "pay.gift_card_credit": "Geschenkkarten-Guthaben angewendet",
   "pay.order_fully_covered": "Auftrag ist bereits vollständig gedeckt",
   "oe.title": "Auftrag bearbeiten",
+  "oe.non_business": "Nicht geschäftlich — aus Umsatz und Berichten heraushalten",
+  "oe.non_business_hint": "Ein Test, ein Geschenk, etwas für die Werkstatt selbst. Zählt weiterhin für den Düsenverschleiß und belegt die Maschine.",
   "oe.due_date": "Fälligkeitsdatum",
   "oe.due_overdue": "{n} Tage überfällig",
   "oe.due_today": "Heute fällig",

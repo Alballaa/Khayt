@@ -111,10 +111,23 @@
    * reduction of the sale.
    */
   function orderNetRevenueBase(o) {
+    /* A print the shop marked as not business earns nothing, everywhere at once.
+     *
+     * This function is the single chokepoint for revenue in stats — 53 call
+     * sites, and NOT used by any order's own invoice, statement or work order,
+     * which read `price` directly. So gating here excludes a personal print from
+     * every reported figure without altering the document for the one order that
+     * might still have a price on it.
+     *
+     * lib/business-scope.js says why the flag stops at money and trade counts:
+     * the print still wears the nozzle and still occupies the machine. */
+    if (typeof KhaytBusinessScope !== 'undefined' && !KhaytBusinessScope.countsForBusiness(o)) return 0;
     return Math.max(0, orderRevenueBase(o) - orderCreditedBase(o));
   }
 
   function orderOwedBase(o) {
+    // Nothing is owed on a print that was never sold.
+    if (typeof KhaytBusinessScope !== 'undefined' && !KhaytBusinessScope.countsForBusiness(o)) return 0;
     const cur = orderCurrency(o);
     // Credit notes reduce what's owed (refund / cancelled charge).
     return Math.max(

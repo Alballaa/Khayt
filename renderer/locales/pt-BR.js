@@ -560,6 +560,8 @@
   "pay.gift_card_credit": "Crédito de vale-presente aplicado",
   "pay.order_fully_covered": "O pedido já está totalmente coberto",
   "oe.title": "Editar pedido",
+  "oe.non_business": "Não é negócio — manter fora da receita e dos relatórios",
+  "oe.non_business_hint": "Um teste, um presente, algo para a própria oficina. Ainda conta para o desgaste do bico e ainda ocupa a máquina.",
   "oe.due_date": "Data de entrega",
   "oe.due_overdue": "Atrasado em {n}d",
   "oe.due_today": "Vence hoje",

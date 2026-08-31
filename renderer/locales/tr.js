@@ -559,6 +559,8 @@
   "pay.gift_card_credit": "Hediye kartı kredisi uygulandı",
   "pay.order_fully_covered": "Sipariş zaten tamamen karşılandı",
   "oe.title": "Siparişi düzenle",
+  "oe.non_business": "Ticari değil — cirodan ve raporlardan çıkar",
+  "oe.non_business_hint": "Bir test, bir hediye, atölyenin kendisi için bir şey. Nozul aşınmasına yine sayılır ve makineyi yine meşgul eder.",
   "oe.due_date": "Termin",
   "oe.due_overdue": "{n}g gecikti",
   "oe.due_today": "Bugün teslim",

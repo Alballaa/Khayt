@@ -559,6 +559,8 @@
   "pay.gift_card_credit": "Crédit de carte cadeau appliqué",
   "pay.order_fully_covered": "La commande est déjà entièrement couverte",
   "oe.title": "Modifier la commande",
+  "oe.non_business": "Hors activité — exclure du chiffre d'affaires et des rapports",
+  "oe.non_business_hint": "Un test, un cadeau, quelque chose pour l'atelier lui-même. Compte toujours pour l'usure de la buse et occupe la machine.",
   "oe.due_date": "Date d'échéance",
   "oe.due_overdue": "{n} jours de retard",
   "oe.due_today": "Échéance aujourd'hui",

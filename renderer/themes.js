@@ -33,6 +33,23 @@
   function syncSidebarSubtitle(designId) {
     const sub = document.querySelector('.sidebar-subtitle');
     if (!sub) return;
+
+    /* The shop's own name, where the theme's name used to be.
+     *
+     * This read `خيط · COMMAND` — the ACTIVE THEME, announced in the brand
+     * lockup every time anyone glanced at the sidebar. Reported as "why is the
+     * top bar for left bar saying khayt command", which is the right question:
+     * the theme is something you picked once in Settings, and Settings is where
+     * its name belongs. Whose shop this is, is worth the space.
+     *
+     * shopField() resolves the shop's own content languages, so a shop writing
+     * Turkish sees its Turkish name rather than a blank. A shop that has not
+     * filled anything in yet falls through to the product wordmark, which is
+     * what was there before and is never wrong.
+     */
+    const biz = (typeof shopField === 'function' ? shopField('biz') : '').trim();
+    if (biz) { sub.textContent = biz.toUpperCase(); return; }
+
     // Bed Ready is its own product — never stamp the Khayt (خيط) wordmark here.
     if (document.documentElement.dataset.app === 'bedready') { sub.textContent = 'MAKER STUDIO'; return; }
     const theme = reg()?.getTheme(designId);
@@ -268,7 +285,9 @@
     populateDesignSelects,
     populateAccentSelect,
     normalizeDesign: (id) => reg()?.normalizeDesignId(id) || 'workbench',
-    accentsForDesign: (id) => reg()?.accentsForTheme(id) || {},
+    accentsForDesign: (id) => reg()?.accentsForTheme(id) || {
+    syncSidebarSubtitle,
+  },
     DESIGNS: reg()?.BUILTIN_THEMES,
   };
 

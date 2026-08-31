@@ -559,6 +559,8 @@
   "pay.gift_card_credit": "已应用礼品卡余额",
   "pay.order_fully_covered": "订单已全额支付",
   "oe.title": "编辑订单",
+  "oe.non_business": "非业务 — 不计入收入和报表",
+  "oe.non_business_hint": "测试、赠品或工作室自用的东西。仍计入喷嘴磨损，也仍占用打印机。",
   "oe.due_date": "截止日期",
   "oe.due_overdue": "已逾期 {n} 天",
   "oe.due_today": "今天截止",

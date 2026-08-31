@@ -559,6 +559,8 @@
   "pay.gift_card_credit": "Crédito de tarjeta de regalo aplicado",
   "pay.order_fully_covered": "El pedido ya está totalmente cubierto",
   "oe.title": "Editar pedido",
+  "oe.non_business": "No es negocio — mantener fuera de ingresos e informes",
+  "oe.non_business_hint": "Una prueba, un regalo, algo para el propio taller. Sigue contando para el desgaste de la boquilla y ocupa la máquina.",
   "oe.due_date": "Fecha de entrega",
   "oe.due_overdue": "{n} días de retraso",
   "oe.due_today": "Entrega hoy",
