@@ -4,6 +4,8 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.7.0-beta.18] - 2026-08-31
+
 ### Security
 
 - **A printer camera can no longer inject code into Khayt.** A device answering
