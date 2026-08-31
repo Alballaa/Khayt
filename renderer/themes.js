@@ -48,7 +48,26 @@
      * what was there before and is never wrong.
      */
     const biz = (typeof shopField === 'function' ? shopField('biz') : '').trim();
-    if (biz) { sub.textContent = biz.toUpperCase(); return; }
+    /* The default business name is the PRODUCT'S name.
+     *
+     * renderer/app-state.js seeds `bizEn` with 'Khayt' (or 'Bed Ready') so that
+     * an invoice printed before anyone visits Settings is not headed by a blank.
+     * That makes "has a business name" and "has entered a business name" two
+     * different questions, and only the second one should replace the wordmark:
+     * a shop that has never been near Settings would otherwise see KHAYT where
+     * خيط · STUDIO used to be, which is not its name and is a worse lockup.
+     *
+     * Found by running the app rather than by reading it — the unit tests all
+     * passed, and the fresh profile showed "KHAYT".
+     */
+    const seeded = ['khayt', 'خيط', 'bed ready', 'بيد ريدي'];
+    if (biz && !seeded.includes(biz.toLowerCase())) {
+      // NOT uppercased. The old subtitle was a wordmark and shouted by design;
+      // a shop's name is a proper noun it chose, and "iPhone Repairs" is not
+      // improved by becoming IPHONE REPAIRS.
+      sub.textContent = biz;
+      return;
+    }
 
     // Bed Ready is its own product — never stamp the Khayt (خيط) wordmark here.
     if (document.documentElement.dataset.app === 'bedready') { sub.textContent = 'MAKER STUDIO'; return; }
@@ -285,9 +304,8 @@
     populateDesignSelects,
     populateAccentSelect,
     normalizeDesign: (id) => reg()?.normalizeDesignId(id) || 'workbench',
-    accentsForDesign: (id) => reg()?.accentsForTheme(id) || {
+    accentsForDesign: (id) => reg()?.accentsForTheme(id) || {},
     syncSidebarSubtitle,
-  },
     DESIGNS: reg()?.BUILTIN_THEMES,
   };
 

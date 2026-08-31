@@ -26,6 +26,12 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **Entering your business name updates the sidebar straight away.** It only
+  changed after switching theme or restarting.
+- **The sidebar shows the Khayt wordmark again until you have actually entered a
+  business name.** A shop that had never opened Settings saw "KHAYT" in place of
+  it, which is the product's name rather than the shop's. Your own name is shown
+  exactly as you typed it, not forced into capitals.
 - **Hover descriptions appear when you hover.** Icon-only buttons relied on the
   browser's own tooltip, which waits about a second before showing anything and
   never shows on keyboard focus at all. They now appear promptly, and keyboard
