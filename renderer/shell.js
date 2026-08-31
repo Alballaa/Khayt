@@ -647,7 +647,7 @@ function renderGlobalResults(term) {
       <div class="gs-result" data-gs-action="product" data-gs-id="${escapeHtml(p.id)}">
         <span class="gs-icon">📦</span>
         <span class="gs-title">${escapeHtml(localName(p))}</span>
-        <span class="gs-meta">${fmtPrice(p.basePrice || 0)}</span>
+        <span class="gs-meta">${fmtPrice(p.price != null ? p.price : (p.basePrice || 0))}</span>
       </div>`).join(''));
   }
 
