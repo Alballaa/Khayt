@@ -71,6 +71,53 @@ down here rather than discovered.
 
 ---
 
+## Two surfaces, two spellings
+
+Both are built from the same published catalogue, and they name their fields
+differently on purpose:
+
+| | `/v1/shops/{shopId}` — the catalogue | `/v1/shops/{shopId}/feed/{platform}` — the feed |
+|---|---|---|
+| what it is | Khayt's own record, what the storefront page reads | what another platform imports |
+| convention | **camelCase** | **snake_case** |
+| the three specs | `printHours` `weightGrams` `material` | `print_hours` `weight_grams` `material` |
+| names | `name` `nameAr` `alt` | `title` `description` |
+| price | `price` (string, shop's currency) | `price` + `currency` |
+
+Neither is wrong. The catalogue is camelCase like every field already on it —
+`nameAr`, `soldOut` — and the feed is snake_case because that is the convention
+where these are read as product metadata.
+
+**Written down here because the pair had never been.** An integrator built a
+parser to the feed's names, pointed it at the catalogue, and would have dropped
+both numbers silently — the value arrives, nothing errors, and the field is
+simply missing for ever. Both spellings are pinned by tests in khayt-cloud now,
+so neither can drift.
+
+### `material` is a list
+
+One string, comma-joined, when a product mixes filaments: `"PLA+ 2.0, TPU"`.
+Distinct, in the order the shop listed the parts. A consumer combining materials
+across an order has to **split on the comma before de-duplicating** — whole-string
+de-duplication turns `"PLA+ 2.0, TPU"` and `"TPU"` into
+`"PLA+ 2.0, TPU, TPU"`.
+
+### `photo` is derived, not sent
+
+A listing carries `photos[]`, up to three, each labelled. `photo` is a view of
+`photos[0]` for pages written before the gallery existed — **the server derives
+it** from the gallery it stores, so it can never point at a picture the gallery
+does not have. Read `photos[]`; fall back to `photo` only when there is no
+gallery at all.
+
+### One picture is capped at 400 KB
+
+A photo larger than that is **dropped, not refused** — the rest of the catalogue
+stores and the publish reports success. The app will not send one, so this
+matters only to something publishing to the API directly.
+
+---
+
 ## Feed URLs
 
 **Settings → Integrations → Copy feed link**, per platform. The format follows the
