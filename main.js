@@ -4571,18 +4571,12 @@ ipcMain.handle('hub:ai-extract', async (_e, { apiKey, model, system, request, im
 // passphrase is never stored, so the renderer re-unlocks each launch.
 let cloudBackend = null;
 
-ipcMain.handle('hub:cloud-health', (_e, url) => cloudClient.health(url));
 // Same probe, but says WHY it failed — timeout, unreachable, wrong server, bad
 // address — so the user is told which of those to go and fix.
 ipcMain.handle('hub:cloud-health-detail', (_e, url) => cloudClient.healthDetail(url));
 
 ipcMain.handle('hub:cloud-create-keyset', (_e, passphrase) => {
   try { return { ok: true, ...cloudClient.createKeyset(String(passphrase || '')) }; }
-  catch (e) { return { ok: false, error: String(e && e.message || e) }; }
-});
-
-ipcMain.handle('hub:cloud-register', async (_e, { url, registerSecret } = {}) => {
-  try { return { ok: true, ...(await cloudClient.register(url, registerSecret)) }; }
   catch (e) { return { ok: false, error: String(e && e.message || e) }; }
 });
 
@@ -4716,13 +4710,6 @@ ipcMain.handle('hub:cloud-catalog-publish', async (_e, { url, shopId, token, cat
   try {
     token = resolveStoreSecret(token, d => d?.settings?.cloud?.token);
     return { ok: true, ...(await cloudClient.putCatalog(url, shopId, token, catalog)) };
-  } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
-});
-
-ipcMain.handle('hub:cloud-catalog-get', async (_e, { url, shopId, token } = {}) => {
-  try {
-    token = resolveStoreSecret(token, d => d?.settings?.cloud?.token);
-    return { ok: true, ...(await cloudClient.getCatalog(url, shopId, token)) };
   } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
 });
 
@@ -4962,13 +4949,6 @@ ipcMain.handle('hub:cloud-put-keyset', async (_e, { url, shopId, token, keyset }
   } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
 });
 
-ipcMain.handle('hub:cloud-get-keyset', async (_e, { url, shopId, token } = {}) => {
-  try {
-    token = resolveStoreSecret(token, d => d?.settings?.cloud?.token);
-    return { ok: true, keyset: await cloudClient.getKeyset(url, shopId, token) };
-  } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
-});
-
 ipcMain.handle('hub:cloud-unlock', (_e, { url, shopId, token, keyset, passphrase } = {}) => {
   try {
     token = resolveStoreSecret(token, d => d?.settings?.cloud?.token);
@@ -5153,8 +5133,6 @@ ipcMain.handle('hub:org-members', async (_e, { url, shopId, token } = {}) => {
 });
 
 ipcMain.handle('hub:cloud-lock', () => { cloudBackend = null; clearOrgSession(); return { ok: true }; });
-ipcMain.handle('hub:cloud-status', () => ({ unlocked: !!cloudBackend, status: cloudBackend ? cloudBackend.status() : 'off' }));
-
 ipcMain.handle('hub:cloud-push', async (_e, snapshot) => {
   if (!cloudBackend) return { ok: false, error: 'locked' };
   try { return { ok: true, ...(await cloudBackend.push(snapshot)) }; }
