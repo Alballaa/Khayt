@@ -2,14 +2,19 @@
 
 Living priorities for maintainers. Not a public commitment calendar — reorder as the product needs.
 
-## Now (post-3.6.0, 3.7.0-beta.18 published — on `main`)
+## Now (post-3.6.0, 3.7.0-beta.19 being cut — on `main`)
 
 **Stable is v3.6.0** (2026-08-21) — the 3.6.0 line, promoted from
 `v3.6.0-rc.4` unchanged after a seven-day soak. rc.4 was the first candidate on
 this line that `main` did not overtake, so for once replace-vs-promote resolved
 to *promote*; rc.1, rc.2 and rc.3 were each replaced instead.
 
-**`v3.7.0-beta.18` is PUBLISHED** (2026-08-31). It carries a
+**`v3.7.0-beta.19` is the cut being made now** (2026-09-01). A shop can give
+its storefront a readable web address — `/shop/your-shop-name` rather than a long
+id — with the original link never breaking and a renamed one still working for
+ninety days. The cloud's emails are bilingual too; they were English only,
+including the sign-in code a CUSTOMER receives. `beta.18` (2026-08-31) carried
+the camera-header security fix and remains published. It carries a
 SECURITY fix — a device answering a printer's camera URL could send a content
 type that escaped the image tag and ran script inside the app — along with a
 default working week that was four days and matched no calendar anywhere, a
@@ -75,7 +80,8 @@ link that was explicitly asked for among them. The pattern each time: a correct
 module, a wiring test that finds the listener, and nothing driving the actual
 screen. A green suite is not evidence that a feature exists.
 
-**The newest *published* pre-release is `v3.7.0-beta.18`** (2026-08-31) — all
+**The newest *published* pre-release is `v3.7.0-beta.18`** (2026-08-31), until
+`beta.19` publishes — all
 three platforms, published from `ccc3cb7` via the `cut-release` workflow, with
 every asset its three manifests name verified to serve 200. **Do not recommend
 anything before it to a shop that does not write English or Arabic**: its own
