@@ -2729,7 +2729,18 @@ function renderCloudSettings() {
         ${(settings.cloud?.role || 'owner') === 'owner' ? `<button id="btnCloudStorefront" class="btn small">🏬 ${escapeHtml(t('store.title') || 'Storefront')}</button>` : ''}
         <button id="btnCloudDisconnect" class="btn danger small">${escapeHtml(t('cloud.disconnect') || 'Sign out')}</button>
         <span id="cloudResult" style="font-size:12px;"></span>
-      </div>`}
+      </div>
+      ${(settings.cloud?.role || 'owner') === 'owner' ? `
+      <!-- A shop id is shop_282eb707… — not something anyone puts on a card. -->
+      <label style="margin-top:12px;">${escapeHtml(t('cloud.slug_label') || 'Public web address')}</label>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <span style="font-size:12px;color:var(--text-muted);" dir="ltr">${escapeHtml(String(settings.cloud?.url || '').replace(/\/+$/, ''))}/shop/</span>
+        <input type="text" id="cloudSlug" dir="ltr" spellcheck="false" maxlength="32" style="width:180px;"
+               placeholder="${escapeHtml(t('cloud.slug_ph') || 'your-shop-name')}">
+        <button id="btnCloudSlug" class="btn small">${escapeHtml(t('common.save') || 'Save')}</button>
+        <span id="cloudSlugResult" style="font-size:12px;"></span>
+      </div>
+      <p style="font-size:11.5px;color:var(--text-muted);margin:6px 0 0;">${escapeHtml(t('cloud.slug_hint') || 'Lower case letters, numbers and hyphens. Your old address keeps working for 90 days if you change it, and the original link never stops working.')}</p>` : ''}`}
     ${cloudPlansHtml()}`;
 
   const result = (msg, color) => { const r = el.querySelector('#cloudResult'); if (r) { r.textContent = msg; r.style.color = color || 'var(--text-muted)'; } };
@@ -2961,6 +2972,38 @@ function renderCloudSettings() {
   el.querySelector('#btnCloudTeam')?.addEventListener('click', openTeamModal);
   el.querySelector('#btnCloudOrg')?.addEventListener('click', openOrgModal);
   el.querySelector('#btnCloudStorefront')?.addEventListener('click', openStorefrontModal);
+
+  /* The shop's public web address.
+   *
+   * The cloud has served /v1/shops/{id}/slug since it shipped, and until now
+   * NOTHING in the app called it — the endpoint existed and no shop could reach
+   * it, which is the same "built and never plugged in" this repo keeps catching.
+   */
+  (async () => {
+    const slugInput = el.querySelector('#cloudSlug');
+    if (!slugInput) return;
+    const c = settings.cloud || {};
+    const say = (msg, color) => {
+      const r = el.querySelector('#cloudSlugResult');
+      if (r) { r.textContent = msg || ''; r.style.color = color || 'var(--text-muted)'; }
+    };
+    try {
+      const r = await window.hubAPI.cloudGetSlug({ url: c.url, shopId: c.shopId, token: c.token });
+      if (r?.ok && r.slug) slugInput.value = r.slug;
+    } catch (e) { /* not fatal: the field simply starts empty */ }
+
+    el.querySelector('#btnCloudSlug')?.addEventListener('click', async () => {
+      const slug = slugInput.value.trim().toLowerCase();
+      if (!slug) { say(t('cloud.slug_empty') || 'Type a name first.', 'var(--danger)'); return; }
+      say(t('common.saving') || 'Saving…');
+      const r = await window.hubAPI.cloudSetSlug({ url: c.url, shopId: c.shopId, token: c.token, slug });
+      // The server owns the rules — reserved words, what is already taken — so
+      // its message is the one worth showing rather than a guess made here.
+      if (!r?.ok) { say(r?.error || (t('cloud.slug_failed') || 'Could not save that name.'), 'var(--danger)'); return; }
+      slugInput.value = r.slug;
+      say(t('cloud.slug_saved') || 'Saved — your shop is reachable at that address.', 'var(--success)');
+    });
+  })();
 
   el.querySelector('#btnCloudDisconnect')?.addEventListener('click', async () => {
     if (!(await confirmModal(t('cloud.disconnect_q') || 'Sign out of Khayt Cloud on this device? Local data stays; the cloud copy is kept.', { danger: true }))) return;
