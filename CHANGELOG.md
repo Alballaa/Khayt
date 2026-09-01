@@ -4,6 +4,13 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Added
+
+- **Give your shop a web address people can read.** Settings → Online → Khayt
+  Cloud now has a *Public web address* field, so your storefront can live at
+  `/shop/your-shop-name` instead of a long id. Your original link never stops
+  working, and if you change the name the old one keeps working for 90 days.
+
 ## [3.7.0-beta.18] - 2026-08-31
 
 ### Security

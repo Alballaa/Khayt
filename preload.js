@@ -211,6 +211,8 @@ contextBridge.exposeInMainWorld('hubAPI', {
   cloudAcceptInvite: (opts) => ipcRenderer.invoke('hub:cloud-accept-invite', opts),
   cloudMemberInvite: (opts) => ipcRenderer.invoke('hub:cloud-member-invite', opts),
   cloudMembersList: (opts) => ipcRenderer.invoke('hub:cloud-members-list', opts),
+  cloudGetSlug:    (opts) => ipcRenderer.invoke('hub:cloud-get-slug', opts),
+  cloudSetSlug:    (opts) => ipcRenderer.invoke('hub:cloud-set-slug', opts),
   cloudMemberRemove: (opts) => ipcRenderer.invoke('hub:cloud-member-remove', opts),
   cloudCatalogPublish: (opts) => ipcRenderer.invoke('hub:cloud-catalog-publish', opts),
   cloudCatalogGet: (opts) => ipcRenderer.invoke('hub:cloud-catalog-get', opts),

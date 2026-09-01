@@ -4618,6 +4618,20 @@ ipcMain.handle('hub:cloud-members-list', async (_e, { url, shopId, token } = {})
   } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
 });
 
+ipcMain.handle('hub:cloud-get-slug', async (_e, { url, shopId, token } = {}) => {
+  try {
+    token = resolveStoreSecret(token, d => d?.settings?.cloud?.token);
+    return { ok: true, ...(await cloudClient.getShopSlug(url, shopId, token)) };
+  } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+});
+
+ipcMain.handle('hub:cloud-set-slug', async (_e, { url, shopId, token, slug } = {}) => {
+  try {
+    token = resolveStoreSecret(token, d => d?.settings?.cloud?.token);
+    return { ok: true, ...(await cloudClient.setShopSlug(url, shopId, token, slug)) };
+  } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+});
+
 ipcMain.handle('hub:cloud-member-remove', async (_e, { url, shopId, token, email } = {}) => {
   try {
     token = resolveStoreSecret(token, d => d?.settings?.cloud?.token);
