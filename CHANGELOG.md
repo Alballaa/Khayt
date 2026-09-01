@@ -4,6 +4,18 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Fixed
+
+- **The Medusa subscriber Khayt gives you now sends the material.** It asked only
+  for the line item, and material lives on the product — so it arrived empty on
+  every order request, with nothing to show that anything was missing. It also
+  carries a link straight back to the order in your Medusa admin, if you set
+  `MEDUSA_ADMIN_URL`.
+- **A failed import is now retried instead of only logged.** The subscriber used
+  to swallow failures, because a retry could once have filed a second order
+  request. It cannot any more — Khayt Cloud recognises a repeat and answers it —
+  so a delivery that fails keeps being tried until it lands.
+
 ## [3.7.0-beta.19] - 2026-09-01
 
 ### Added
