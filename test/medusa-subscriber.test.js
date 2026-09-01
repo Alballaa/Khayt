@@ -23,7 +23,10 @@ test('it fetches the order, because the event does not carry one', () => {
   assert.ok(src.includes('SubscriberArgs<{ id: string }>'), 'typed as the id-only payload');
   assert.ok(src.includes('query.graph('), 'resolves the order before sending');
   assert.ok(src.includes('filters: { id: data.id }'));
-  assert.ok(src.includes('JSON.stringify(order)'), 'sends the ORDER, not the event payload');
+  // It posts `payload` — the order with the product's material folded onto each
+  // line and the product object dropped. Still the order, not the event.
+  assert.ok(src.includes('JSON.stringify(payload)'), 'sends the ORDER, not the event payload');
+  assert.ok(src.includes('const payload = {') && src.includes('...order,'), 'and payload is built from the order');
   assert.ok(!/body: JSON\.stringify\(data\)/.test(src), 'must not post the bare event payload');
 });
 
@@ -39,14 +42,23 @@ test('every expandable field the mapper reads is requested', () => {
   }
 });
 
-test('a failed POST is logged, never thrown', () => {
-  // A subscriber that throws is retried by Medusa. Until the import endpoint
-  // rejects duplicates, a retry is a second order in the shop's queue — the
-  // exact defect #745 fixed for Salla and Zid on the LAN side.
+test('a failed POST is thrown, so Medusa retries it', () => {
+  /* This used to assert the opposite, and the reason it did has gone away.
+   *
+   * A subscriber that throws is retried by Medusa, and swallowing was right
+   * while a retry could become a second order request. The import endpoint
+   * deduplicates on `medusa:#{display_id}`, answers 200 to a repeat with
+   * `duplicate: true`, and notifies the shop only on a genuine first delivery —
+   * proven by a contract test against both backends, not assumed.
+   *
+   * So swallowing is now the worse option: it puts a failed import in a log and
+   * nowhere else. Throwing means Medusa keeps trying until it lands.
+   */
   const src = subscriberSource(URL);
-  assert.ok(src.includes('try {') && src.includes('catch'), 'the POST is guarded');
-  assert.ok(/logger\.error/.test(src), 'failure is reported');
-  assert.ok(!/throw /.test(src), 'nothing rethrows, so Medusa does not retry into a duplicate');
+  assert.ok(src.includes('try {') && src.includes('catch'), 'the POST is still guarded');
+  assert.ok(/logger\.error/.test(src), 'and the failure is still reported before it propagates');
+  assert.ok(/throw new Error\(/.test(src), 'a non-2xx throws');
+  assert.ok(/throw e/.test(src), 'and an unreachable endpoint rethrows rather than being swallowed');
 });
 
 test('the URL cannot break out of the string literal it is placed in', () => {
@@ -133,4 +145,32 @@ test('the event and its payload are the ones Medusa emits', () => {
   assert.match(src, /event: "order\.placed"/);
   assert.match(src, /SubscriberArgs<\{ id: string \}>/);
   assert.match(src, /filters: \{ id: data\.id \}/, 'the id from the event is what is fetched');
+});
+
+test('material is fetched from the product, because the line does not carry it', () => {
+  /* `material` is a native PRODUCT column. The line-item DTO denormalises some
+   * product columns — product_title, product_description, product_subtitle —
+   * but not that one, so a subscriber asking only for `items.*` sends nothing
+   * for it, for ever, silently. Khayt's importer reads `items[].metadata`, so
+   * the subscriber has to fetch the product's column and fold it onto the line.
+   *
+   * Found by the integrator running the first real Medusa storefront, against a
+   * freshly migrated database rather than the DTO's types — which cannot tell
+   * you what the module graph can traverse.
+   */
+  const src = subscriberSource(URL);
+  assert.ok(FIELDS.includes('items.product.material'),
+    '`items.*` does not bring material — the relation has to be named');
+  assert.match(src, /material: line\.metadata\?\.material \?\? product\?\.material/,
+    'folded onto the line, with the line winning so a commission can override the catalogue');
+  assert.match(src, /\(\{ product, \.\.\.line \}/,
+    'and the product object is dropped — fetched for one string, not for its shape');
+});
+
+test('the admin link is optional and never invented', () => {
+  // Khayt cannot derive it: the admin lives wherever the shop hosts it. Absent
+  // env var means no admin_url key at all, rather than a broken link.
+  const src = subscriberSource(URL);
+  assert.match(src, /const MEDUSA_ADMIN_URL = process\.env\.MEDUSA_ADMIN_URL/);
+  assert.match(src, /MEDUSA_ADMIN_URL \? \{ admin_url:/, 'only added when it is set');
 });
