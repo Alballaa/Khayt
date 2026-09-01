@@ -4,6 +4,15 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Fixed
+
+- **Storefront photos are published at a size worth looking at.** A published
+  picture was the 240px thumbnail Khayt makes for the product grid — and that
+  was also the main image on the storefront's product page, where a print
+  deserves better. The full picture had been saved on your machine all along and
+  nothing ever read it back; now it does. If a catalogue with a lot of photos
+  does not fit, pictures get smaller before any of them are dropped.
+
 ### Added
 
 - **Your catalogue now publishes print time, weight and material.** Khayt has
