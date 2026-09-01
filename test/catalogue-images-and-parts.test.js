@@ -365,3 +365,106 @@ test('the file-link handler actually calls it', () => {
   assert.match(body, /KhaytPartFromPrintFile\.autoFill/,
     'linking a print file must fill the part in, not just record the link');
 });
+
+/* ── The published picture is the original, not the grid thumbnail ───────────
+ *
+ * A published photo was `thumbnail`, which is 240px on its long edge. That is
+ * right for the product grid and it was also the HERO IMAGE on the storefront's
+ * product page. Measured on a live catalogue: 240×240 and 180×240.
+ *
+ * The full picture was never lost — it is written to disk on save and nothing
+ * had ever read it back.
+ */
+test('a published photo is the full picture when there is one to read', () => {
+  const hero = 'data:image/jpeg;base64,' + 'H'.repeat(4000);
+  const thumb = 'data:image/jpeg;base64,' + 'T'.repeat(100);
+  const p = { id: 'P1', images: [{ id: 'i1', path: 'p1.jpeg', thumbnail: thumb, kind: 'print' }] };
+  const out = PI.storefrontPhotos(p, { hero: () => hero });
+  assert.equal(out[0].src, hero, 'the storefront gets the picture, not the grid icon');
+  assert.equal(out[0].kind, 'print');
+  assert.equal(out[0].thumb, thumb, 'the small one rides along, for the budget to fall back to');
+});
+
+test('a picture with nothing on disk still publishes, at thumbnail size', () => {
+  // Products saved before per-image files have no `path`, and a file can be
+  // missing. A small picture beats no picture, and this must never fail a publish.
+  const thumb = 'data:image/jpeg;base64,' + 'T'.repeat(100);
+  const p = { id: 'P1', images: [{ id: 'i1', path: '', thumbnail: thumb, kind: 'render' }] };
+  for (const hero of [() => '', () => null, () => 'not-a-data-url', undefined]) {
+    const out = PI.storefrontPhotos(p, hero ? { hero } : undefined);
+    assert.equal(out[0].src, thumb);
+    assert.ok(!('thumb' in out[0]), 'no fallback field when there was nothing to fall back from');
+  }
+});
+
+test('a catalogue that will not fit loses resolution before it loses pictures', () => {
+  /* Publishing at ~1000px is roughly seven times the bytes of a 240px thumbnail.
+   * Without this pass, making pictures better would make a large catalogue
+   * publish FEWER of them — a listing that used to show a poor photo would show
+   * none, which is a worse outcome than showing a small one. */
+  const hero = (n) => 'data:image/jpeg;base64,' + 'H'.repeat(n);
+  const thumb = 'data:image/jpeg;base64,' + 'T'.repeat(50);
+  const items = [
+    { id: 'A', photos: [{ src: hero(9000), kind: 'render', thumb }, { src: hero(9000), kind: 'print', thumb }] },
+    { id: 'B', photos: [{ src: hero(9000), kind: 'render', thumb }] },
+  ];
+  const r = PI.fitCatalogPhotos(items, 5000);
+  assert.equal(r.dropped, 0, 'nothing was dropped');
+  assert.equal(r.downgraded, 3, 'all three shrank instead');
+  assert.ok(r.fits);
+  assert.equal(items[0].photos.length, 2, 'both of A\'s pictures survived');
+  assert.equal(items[1].photos.length, 1);
+  for (const it of items) for (const ph of it.photos) assert.equal(ph.src, thumb);
+});
+
+test('the heaviest picture shrinks first, and only as far as it has to', () => {
+  const thumb = 'data:image/jpeg;base64,' + 'T'.repeat(50);
+  const big = 'data:image/jpeg;base64,' + 'H'.repeat(9000);
+  const small = 'data:image/jpeg;base64,' + 'H'.repeat(1000);
+  const items = [
+    { id: 'A', photos: [{ src: big, kind: 'render', thumb }] },
+    { id: 'B', photos: [{ src: small, kind: 'render', thumb }] },
+  ];
+  const r = PI.fitCatalogPhotos(items, 2000);
+  assert.equal(r.downgraded, 1, 'one was enough');
+  assert.equal(items[0].photos[0].src, thumb, 'the heavy one gave way');
+  assert.equal(items[1].photos[0].src, small, 'the light one kept its resolution');
+});
+
+test('a catalogue of thumbnails that still does not fit falls back to dropping', () => {
+  // The old behaviour has to survive underneath: shrinking is a first resort,
+  // not a replacement for the budget.
+  const thumb = 'data:image/jpeg;base64,' + 'T'.repeat(500);
+  const items = [
+    { id: 'A', photos: [{ src: thumb, kind: 'render' }, { src: thumb, kind: 'print' }] },
+    { id: 'B', photos: [{ src: thumb, kind: 'render' }] },
+  ];
+  const r = PI.fitCatalogPhotos(items, 1100);
+  assert.ok(r.dropped >= 1, 'it still drops when there is nothing left to shrink');
+  assert.equal(items[1].photos.length, 1, 'and the only-photo listing kept its one');
+});
+
+test('the fallback thumbnail never reaches the wire', () => {
+  /* `thumb` exists so the budget can undo a decision. Publishing it would put
+   * every picture on the wire twice — the opposite of what the budget is for. */
+  const thumb = 'data:image/jpeg;base64,' + 'T'.repeat(50);
+  const items = [{ id: 'A', photos: [{ src: 'data:image/jpeg;base64,' + 'H'.repeat(400), kind: 'render', thumb }] }];
+  PI.fitCatalogPhotos(items, 10 * 1024 * 1024);
+  assert.ok(!('thumb' in items[0].photos[0]), 'stripped even when nothing was trimmed');
+  assert.ok(!JSON.stringify(items).includes('"thumb"'));
+});
+
+test('the hero size is bounded by the budget it is spent out of', () => {
+  /* MEASURED, not derived: a real 1600×1600 product photo from the store,
+   * re-encoded at 1000px, lands around 260 KB once base64 has added its third.
+   * That is the number the default has to be chosen against, because every one
+   * of those bytes is spent out of the server's 8 MB cap on a catalogue. */
+  const HERO_BYTES = 260_000;
+  assert.equal(PI.HERO_MAX_DIM, 1000);
+  assert.ok(PI.HERO_QUALITY > 0.7 && PI.HERO_QUALITY < 0.9);
+  assert.ok(HERO_BYTES * 3 * 8 < PI.CATALOG_PHOTO_BUDGET,
+    'eight photo-rich listings must publish all three pictures whole');
+  // And the ceiling is real, which is why the downgrade pass above exists: a
+  // shop with thirty photo-rich listings cannot have all of it at this size.
+  assert.ok(HERO_BYTES * 3 * 30 > PI.CATALOG_PHOTO_BUDGET);
+});

@@ -36,9 +36,18 @@ test('the catalog grid says which listings show no real photo', () => {
 test('the storefront publishes the labelled photos, not just one', () => {
   const src = read('renderer/settings.js');
   const build = src.slice(src.indexOf('const buildCatalog = '), src.indexOf('#storeCopy'));
-  assert.match(build, /KhaytProductImages\.storefrontPhotos\(p\)/,
+  assert.match(build, /KhaytProductImages\.storefrontPhotos\(p, \{/,
     'the storefront asks the module, so the selection is testable rather than sealed in a modal');
   assert.match(build, /it\.photos = photos/, 'more than one picture reaches the storefront');
+  /* The hero has to be OFFERED, or every listing quietly publishes the 240px
+   * grid thumbnail as its product-page picture again — which is what it did,
+   * and which looks like a working publish. */
+  assert.match(build, /hero: \(img\) =>/, 'the publish must offer the full-size picture');
+  assert.match(build, /await loadHeroPhotos\(pubProducts\)/,
+    'and must have read them off disk first');
+  const publish = src.slice(src.indexOf("'#storePublish'"), src.indexOf("'#storeUnpublish'"));
+  assert.match(publish, /await buildCatalog\(/,
+    'buildCatalog reads files now; a missing await publishes a Promise');
   assert.match(build, /it\.photo = photos\[0\]\.src/,
     'the single-photo field stays, so an un-updated storefront page still renders');
   // The budget itself is asserted in catalogue-images-and-parts.test.js, where

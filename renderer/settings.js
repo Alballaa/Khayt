@@ -1309,6 +1309,78 @@ function showOrgRecoveryKeyModal(recoveryKey) {
 
 // Storefront modal (owner): publish the product catalog as a public shop page,
 // copy the link, or unpublish. Customer orders arrive in "Order requests".
+/* ── Publishing a picture at a size worth looking at ─────────────────────────
+ *
+ * A published photo was the 240px grid thumbnail. That is the right size for
+ * the product grid, and it was also the HERO IMAGE on the storefront's product
+ * page, where a 240px picture of a printed part is visibly poor next to
+ * anything else on the page.
+ *
+ * The full picture was never lost. It is written to disk on save — `img.path`,
+ * around 1600px — and nothing had ever read it back. So this reads it, resizes
+ * it once to a web size, and hands it to storefrontPhotos(). The size and the
+ * quality live in lib/product-images.js, next to the catalogue budget that is
+ * the real constraint on them.
+ */
+
+/* Keyed by file name, which carries the image id: a replaced picture is written
+ * under a new name, so a stale entry cannot be served. A shop publishes far more
+ * often than it re-photographs, and this is the expensive part of a publish. */
+const heroPhotoCache = new Map();
+
+/**
+ * A data URL's bytes, as something FileReader will take.
+ *
+ * Decoded by hand rather than with `fetch(dataUrl).blob()`, which is the obvious
+ * one-liner and is REFUSED by the renderer's content-security policy — `Failed
+ * to fetch`, at publish time, on a path no unit test can reach.
+ */
+function dataUrlToBlob(dataUrl) {
+  const m = /^data:([^;,]+);base64,([\s\S]*)$/.exec(String(dataUrl || ''));
+  if (!m) return null;
+  const bin = atob(m[2]);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new Blob([bytes], { type: m[1] });
+}
+
+/**
+ * A web-sized rendition of one product image, or '' when there is nothing to read.
+ *
+ * '' is cached as readily as a picture: a product saved before per-image files
+ * has no `path`, and retrying that on every publish would be a guaranteed miss
+ * every time. The caller falls back to the thumbnail, which is the right answer
+ * for those products and cannot be bettered without the shop re-adding the photo.
+ */
+async function heroPhotoFor(img) {
+  const name = img && img.path;
+  if (!name || !window.hubAPI?.loadProductImage) return '';
+  if (heroPhotoCache.has(name)) return heroPhotoCache.get(name);
+  let out = '';
+  try {
+    const full = await window.hubAPI.loadProductImage(name);
+    const blob = /^data:image\//.test(String(full || '')) ? dataUrlToBlob(full) : null;
+    if (blob) out = await resizeImage(blob, KhaytProductImages.HERO_MAX_DIM, KhaytProductImages.HERO_QUALITY);
+  } catch (err) {
+    // One unreadable file costs that picture its resolution, never the publish.
+    console.error('hero photo failed', name, err);
+  }
+  heroPhotoCache.set(name, out);
+  return out;
+}
+
+/** Every product image resized once, keyed by file name, before a catalogue is built. */
+async function loadHeroPhotos(products) {
+  const map = new Map();
+  for (const p of (products || [])) {
+    for (const img of KhaytProductImages.normalise(p).images) {
+      if (!img.path || map.has(img.path)) continue;
+      map.set(img.path, await heroPhotoFor(img));
+    }
+  }
+  return map;
+}
+
 async function openStorefrontModal() {
   const c = settings.cloud || {};
   if (!c.shopId || !c.token) { toast(t('intake.connect_first'), 'error'); return; }
@@ -1473,8 +1545,12 @@ async function openStorefrontModal() {
         settings.storefront = sf;
         saveAll();
       };
-      const buildCatalog = (withPhotos) => {
+      const buildCatalog = async (withPhotos) => {
+        /* Read the form BEFORE the await. Resizing every picture takes long
+         * enough to type in, and a field edited during it would otherwise be
+         * captured into a catalogue the shop thought it had already described. */
         captureConfig();
+        const heroes = withPhotos ? await loadHeroPhotos(pubProducts) : null;
         const payload = {
           shopName: (shopField('biz') || 'Khayt').trim(),
           currency: cur,
@@ -1565,7 +1641,9 @@ async function openStorefrontModal() {
              * updated still renders.
              */
             if (withPhotos) {
-              const photos = KhaytProductImages.storefrontPhotos(p);
+              const photos = KhaytProductImages.storefrontPhotos(p, {
+                hero: (img) => (heroes && heroes.get(img.path)) || '',
+              });
               if (photos.length) {
                 it.photo = photos[0].src;
                 it.photos = photos;
@@ -1611,9 +1689,12 @@ async function openStorefrontModal() {
         insEl.innerHTML = `<div style="margin-bottom:6px;">${funnel}</div>` + (top ? `<div style="margin-top:6px;border-top:1px solid var(--border-soft);padding-top:6px;">${top}</div>` : '');
       }).catch(() => { if (insEl) insEl.textContent = t('store.insights_empty') || 'No storefront activity yet.'; });
       modal.querySelector('#storePublish')?.addEventListener('click', async () => {
-        const cat = buildCatalog(modal.querySelector('#storePhotos').checked);
-        if (!cat.items.length) { setRes('✗ ' + (t('store.no_products') || 'Add products to your catalog first'), false); return; }
+        /* Say something BEFORE the build, not after it. Building now reads every
+         * picture off disk and resizes it, which on a photo-rich catalogue is
+         * seconds of a button that looks like it did nothing. */
         setRes(t('store.publishing') || 'Publishing…', true);
+        const cat = await buildCatalog(modal.querySelector('#storePhotos').checked);
+        if (!cat.items.length) { setRes('✗ ' + (t('store.no_products') || 'Add products to your catalog first'), false); return; }
         try {
           const r = await window.hubAPI.cloudCatalogPublish({ url: c.url, shopId: c.shopId, token: c.token, catalog: cat });
           if (r.ok) setRes('✓ ' + (t('store.published') || 'Storefront is live') + ` — ${cat.items.length}`, true);
@@ -6057,6 +6138,13 @@ function renderTelegramSettings() {
     orgLateLine,
     orgMoneyLine,
     orgTotalMoneyLine,
+    /* The picture pipeline, exported so it can be RUN rather than eyeballed.
+     * It needs a canvas and the file system, so a unit test cannot reach it —
+     * but the Electron smoke run can, and does. Publishing 240px thumbnails as
+     * product-page heroes was a defect nothing failed on: the publish
+     * succeeded, the pictures appeared, and they were simply too small. */
+    loadHeroPhotos,
+    heroPhotoFor,
   };
 
   Object.assign(global, api);
