@@ -4,6 +4,8 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.7.0-beta.19] - 2026-09-01
+
 ### Added
 
 - **Give your shop a web address people can read.** Settings → Online → Khayt
