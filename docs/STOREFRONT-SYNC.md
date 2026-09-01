@@ -172,6 +172,34 @@ of the *actual printed part* travels with the listing.
 Unpublishing takes the pictures down with it — they are served from the published
 catalogue, not from separate storage.
 
+#### `?v=` is the picture; the path is only the slot
+
+The URL ends `?v=<12 hex>`, a hash of **that photograph's own bytes**. It is not
+decoration and it is not the catalogue's version:
+
+- **Replace a photo and republish, and its URL changes.** The path alone —
+  `/feed-image/{item}/0` — names a *slot*, so before this it was byte-identical
+  before and after, and nothing downstream could tell that anything had happened.
+  Two things were relying on that and both were wrong: the route cached for an
+  hour on the reasoning that "the URL changes with the item it belongs to" (which
+  is identity, not content), and the Medusa subscriber deliberately does not
+  re-push images on a URL that has not changed — so a shop that replaced a
+  product photograph went on showing the old one.
+- **Republish an unchanged photo and its URL does not change**, and neither does
+  any other picture on the listing when one of them is replaced. A version over
+  the whole catalogue would expire every image every six hours, which is how
+  versioning gets abandoned for a purge button.
+
+A consumer that stores these URLs can therefore compare them: **a URL that has
+not changed is a picture that has not changed.**
+
+The picture also carries an `ETag` now, so asking whether it changed no longer
+means downloading it — it was the largest payload in the cloud and the only one
+a cache could not revalidate. A URL carrying the current `v` is served
+`immutable` for a year; one without it, or with an old one, is short-lived and
+**still serves the current picture**. An address stored before any of this
+existed is an old URL, not a wrong one, and it heals on the next request.
+
 ### Size
 
 A published catalogue is capped at **8 MB** after sanitising. Three photos at
