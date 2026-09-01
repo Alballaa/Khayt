@@ -4,6 +4,8 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.7.0-beta.22] - 2026-09-01
+
 ### Fixed
 
 - **A photo too big for the cloud is no longer sent and lost.** The cloud stores

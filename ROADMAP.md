@@ -2,12 +2,22 @@
 
 Living priorities for maintainers. Not a public commitment calendar — reorder as the product needs.
 
-## Now (post-3.6.0, 3.7.0-beta.21 published — on `main`)
+## Now (post-3.6.0, 3.7.0-beta.22 being cut — on `main`)
 
 **Stable is v3.6.0** (2026-08-21) — the 3.6.0 line, promoted from
 `v3.6.0-rc.4` unchanged after a seven-day soak. rc.4 was the first candidate on
 this line that `main` did not overtake, so for once replace-vs-promote resolved
 to *promote*; rc.1, rc.2 and rc.3 were each replaced instead.
+
+**`v3.7.0-beta.22` is being cut** (2026-09-01). The cloud caps one published
+picture at a fixed size and DROPS anything larger rather than refusing it, so a
+publish reported success and the picture was simply gone — which is what
+happened to the first catalogue to publish at the new size, reported from the
+live payload by the integrator reading it. The app no longer sends what the
+server will not keep, and no longer sends each listing's main photo twice: the
+storefront needs a `photo` field beside the gallery and it was being uploaded a
+second time rather than derived at the other end, uncounted by the budget that
+decides how many pictures a catalogue can carry.
 
 **`v3.7.0-beta.21` is PUBLISHED** (2026-09-01). It exists because the
 same Medusa integration that produced `beta.20` needs two things a catalogue could
