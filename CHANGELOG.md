@@ -4,6 +4,15 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Added
+
+- **Your catalogue now publishes print time, weight and material.** Khayt has
+  always known all three — print hours are what work out when a job can start —
+  but a storefront never saw them, so you typed each one again into its admin. A
+  number typed twice drifts, and then two places both look right. They travel
+  with a publish now, and a product with no parts publishes nothing for them
+  rather than a zero that would read as "prints instantly".
+
 ## [3.7.0-beta.20] - 2026-09-01
 
 ### Fixed

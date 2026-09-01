@@ -1535,6 +1535,20 @@ async function openStorefrontModal() {
             if (price != null && String(price).trim() !== '') it.price = String(price);
             if (sf.categories[p.id]) it.category = sf.categories[p.id];
             if (sf.soldOut[p.id]) it.soldOut = true;
+            /* What the thing is, for a storefront that has to reason about it.
+             *
+             * Khayt already knows all three and had never published them, so a
+             * shop typed each one again into its storefront's admin — and a
+             * hand-typed number that drifts from the shop's own record is worse
+             * than none, because both look authoritative.
+             *
+             * printHours is MACHINE time only. Finishing is published separately
+             * as part of the lead-time snapshot's handlingDays; adding prep and
+             * post here would have a consumer count finishing twice. */
+            const spec = KhaytProductSpecs.productSpecs(p);
+            if (spec.printHours != null) it.printHours = spec.printHours;
+            if (spec.weightGrams != null) it.weightGrams = spec.weightGrams;
+            if (spec.material) it.material = spec.material;
             const og = parseOptionGroups(sf.options[p.id]);
             if (og.length) it.options = og;
             /* PHOTOS: more than one now, and each says what it is.
