@@ -4,6 +4,8 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.7.0-beta.20] - 2026-09-01
+
 ### Fixed
 
 - **The Medusa subscriber Khayt gives you now sends the material.** It asked only
