@@ -202,10 +202,8 @@ contextBridge.exposeInMainWorld('hubAPI', {
   // first; the parser only reads those and a spooled job can be hundreds of MB.
   intakeModelBytes: (filename, bytes, opts) => ipcRenderer.invoke('hub:intake-model-bytes', { filename, bytes, ...(opts || {}) }),
   aiExtract: (opts) => ipcRenderer.invoke('hub:ai-extract', opts),
-  cloudHealth: (url) => ipcRenderer.invoke('hub:cloud-health', url),
   cloudHealthDetail: (url) => ipcRenderer.invoke('hub:cloud-health-detail', url),
   cloudCreateKeyset: (passphrase) => ipcRenderer.invoke('hub:cloud-create-keyset', passphrase),
-  cloudRegister: (opts) => ipcRenderer.invoke('hub:cloud-register', opts),
   cloudSignup: (opts) => ipcRenderer.invoke('hub:cloud-signup', opts),
   cloudLogin: (opts) => ipcRenderer.invoke('hub:cloud-login', opts),
   cloudAcceptInvite: (opts) => ipcRenderer.invoke('hub:cloud-accept-invite', opts),
@@ -215,7 +213,6 @@ contextBridge.exposeInMainWorld('hubAPI', {
   cloudSetSlug:    (opts) => ipcRenderer.invoke('hub:cloud-set-slug', opts),
   cloudMemberRemove: (opts) => ipcRenderer.invoke('hub:cloud-member-remove', opts),
   cloudCatalogPublish: (opts) => ipcRenderer.invoke('hub:cloud-catalog-publish', opts),
-  cloudCatalogGet: (opts) => ipcRenderer.invoke('hub:cloud-catalog-get', opts),
   cloudReviewSummary: (opts) => ipcRenderer.invoke('hub:cloud-review-summary', opts),
   cloudRequestReset: (opts) => ipcRenderer.invoke('hub:cloud-request-reset', opts),
   cloudResetPassword: (opts) => ipcRenderer.invoke('hub:cloud-reset-password', opts),
@@ -232,7 +229,6 @@ contextBridge.exposeInMainWorld('hubAPI', {
   webhookPost: (opts) => ipcRenderer.invoke('hub:webhook-post', opts),
   cloudBillingMe: (opts) => ipcRenderer.invoke('hub:cloud-billing-me', opts),
   cloudPutKeyset: (opts) => ipcRenderer.invoke('hub:cloud-put-keyset', opts),
-  cloudGetKeyset: (opts) => ipcRenderer.invoke('hub:cloud-get-keyset', opts),
   cloudUnlock: (opts) => ipcRenderer.invoke('hub:cloud-unlock', opts),
 
   // ── Organisations (multi-shop). docs/KHAYT-3.0-ORG-DATA-KEY.md ──────────────
@@ -255,7 +251,6 @@ contextBridge.exposeInMainWorld('hubAPI', {
   orgJoin: (opts) => ipcRenderer.invoke('hub:org-join', opts),
   orgMembers: (opts) => ipcRenderer.invoke('hub:org-members', opts),
   cloudLock: () => ipcRenderer.invoke('hub:cloud-lock'),
-  cloudStatus: () => ipcRenderer.invoke('hub:cloud-status'),
   cloudPush: (snapshot) => ipcRenderer.invoke('hub:cloud-push', snapshot),
   cloudPull: () => ipcRenderer.invoke('hub:cloud-pull'),
   // Call after a restore or import replaces local state, so the next sync is a
