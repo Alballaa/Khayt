@@ -23,6 +23,29 @@ missing from the other for the same reason.
 | Product name and description | **in both of your content languages** |
 | Up to three photos per listing | each labelled — render, actual print, detail, scale, packaging |
 | Price | **from the catalogue** |
+| Print time, weight, material | **worked out from the product's parts** |
+
+### The three specs are not typed twice
+
+Khayt already knows how long a product takes on a machine, what it weighs and
+what it is made of — print hours are what work out when a job can start. Those
+travel with a publish, so a storefront that wants them does not send you back to
+its admin to type each one again. A number typed in two places drifts, and then
+both places look right.
+
+**Print time is machine time only.** Preparation and finishing are published
+separately, inside the lead time, so anything adding them here would count
+finishing twice and quote later than you meant.
+
+**Weight is print plus supports, times quantity** — the same grams the app takes
+off your stock when the job completes, so the published figure and your own
+deduction can never disagree.
+
+A product with **no parts publishes nothing** for time and weight rather than a
+zero. Zero reads as an answer — as *"prints instantly"* — and something nobody
+has costed would be quoted same-day.
+
+Dimensions are not published, because Khayt does not hold them.
 
 ### The price comes from the catalogue
 
