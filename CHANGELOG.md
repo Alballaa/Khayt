@@ -4,6 +4,20 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Fixed
+
+- **A photo too big for the cloud is no longer sent and lost.** The cloud stores
+  one picture up to a fixed size and quietly drops anything larger — so a
+  publish reported success and the picture was simply missing. The app now sends
+  the smaller version instead of a picture that cannot arrive, and the cloud's
+  limit has been raised so a real photograph fits either way. **Republish to get
+  your pictures back.**
+- **A published listing no longer sends its main photo twice.** The storefront
+  needs a `photo` field as well as the gallery, and it was being uploaded a
+  second time rather than worked out at the other end — half a publish, for
+  nothing, and it was not counted against the size limit that decides how many
+  pictures a catalogue can carry.
+
 ## [3.7.0-beta.21] - 2026-09-01
 
 ### Added

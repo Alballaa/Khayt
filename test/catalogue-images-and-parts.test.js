@@ -271,12 +271,18 @@ test('extra photos go before anyone\'s only photo', () => {
   assert.equal(fat.photos.length < 3, true);
 });
 
-test('the legacy photo field follows what survived', () => {
+test('the legacy photo field is never put on the wire', () => {
+  /* It is a view of photos[0] and the server derives it from the gallery, so
+   * sending it meant every listing's primary photo travelled twice — invisible
+   * at 30 KB a thumbnail, half the payload at 200 KB a photograph.
+   *
+   * Deleted rather than left alone: a caller that set it would otherwise ship a
+   * picture this function has just dropped, which is worse than not sending it. */
   const items = [listing(3, 200000)];
   items[0].photo = items[0].photos[0].src;
   PI.fitCatalogPhotos(items, 300000);   // only one 200 KB photo can fit
   assert.equal(items[0].photos.length, 1);
-  assert.equal(items[0].photo, items[0].photos[0].src, 'photo mirrors photos[0], here as everywhere');
+  assert.equal('photo' in items[0], false, 'the server derives it; the wire does not carry it');
 });
 
 test('a budget nothing fits leaves listings without pictures, not a failed publish', () => {
@@ -467,4 +473,43 @@ test('the hero size is bounded by the budget it is spent out of', () => {
   // And the ceiling is real, which is why the downgrade pass above exists: a
   // shop with thirty photo-rich listings cannot have all of it at this size.
   assert.ok(HERO_BYTES * 3 * 30 > PI.CATALOG_PHOTO_BUDGET);
+});
+
+test('a photo the server would drop is never sent', () => {
+  /* The server stores the rest of the catalogue and drops the oversized photo,
+   * so the publish REPORTS SUCCESS and the picture is simply gone. That is what
+   * happened on the first real catalogue to publish heroes: a 262 KB primary
+   * image and the `photo` field with it, against a ceiling of 200 KB that had
+   * been written when a published picture was a 240px thumbnail.
+   *
+   * A thumbnail that arrives beats a photograph that does not. */
+  const thumb = 'data:image/jpeg;base64,' + 'T'.repeat(100);
+  const over = 'data:image/jpeg;base64,' + 'H'.repeat(PI.PUBLISH_PHOTO_BYTES);
+  const under = 'data:image/jpeg;base64,' + 'H'.repeat(PI.PUBLISH_PHOTO_BYTES - 100);
+  const p = (hero) => PI.storefrontPhotos(
+    { id: 'P', images: [{ id: 'i', path: 'p.jpeg', thumbnail: thumb, kind: 'print' }] },
+    { hero: () => hero });
+
+  assert.equal(p(over)[0].src, thumb, 'over the ceiling falls back rather than vanishing');
+  assert.ok(!('thumb' in p(over)[0]), 'and has nothing left to fall back to');
+  assert.equal(p(under)[0].src, under, 'under it is published as the photograph it is');
+});
+
+test('the send-side ceiling is the server\'s ceiling', () => {
+  /* These are two repositories and one number. When they disagreed the app
+   * published pictures that were accepted, stored nowhere, and reported as a
+   * successful publish — so this asserts the cloud's own source where it is
+   * checked out, rather than restating the constant. */
+  assert.equal(PI.PUBLISH_PHOTO_BYTES, 400000);
+  const fs = require('fs');
+  const path = require('path');
+  for (const f of ['index.php', 'src/server.js']) {
+    const p = path.join(__dirname, '..', 'khayt-cloud', f);
+    if (!fs.existsSync(p)) continue;   // separate repo, absent in CI
+    const src = fs.readFileSync(p, 'utf8');
+    assert.ok(/<=\s*400[_ ]?000/.test(src), `${f} must cap one photo at the same number`);
+  }
+  // And a hero has to fit inside it, or the fallback above fires on every photo
+  // and the whole feature silently reverts to thumbnails. 262 KB measured.
+  assert.ok(262_415 < PI.PUBLISH_PHOTO_BYTES, 'a 1000px square photograph must fit');
 });

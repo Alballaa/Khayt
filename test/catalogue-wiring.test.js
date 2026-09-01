@@ -48,8 +48,12 @@ test('the storefront publishes the labelled photos, not just one', () => {
   const publish = src.slice(src.indexOf("'#storePublish'"), src.indexOf("'#storeUnpublish'"));
   assert.match(publish, /await buildCatalog\(/,
     'buildCatalog reads files now; a missing await publishes a Promise');
-  assert.match(build, /it\.photo = photos\[0\]\.src/,
-    'the single-photo field stays, so an un-updated storefront page still renders');
+  /* `photo` must NOT be sent. It is a view of photos[0], the server derives it
+   * from the gallery it stores, and sending it put every listing's primary
+   * photo on the wire twice — invisible at 30 KB a thumbnail, half the payload
+   * at 200 KB a photograph. */
+  assert.equal(/it\.photo\s*=/.test(build), false,
+    'the legacy field is derived by the server, not duplicated onto the wire');
   // The budget itself is asserted in catalogue-images-and-parts.test.js, where
   // it can be exercised rather than pattern-matched.
 });

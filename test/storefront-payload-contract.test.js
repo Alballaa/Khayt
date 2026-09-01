@@ -32,7 +32,6 @@ const CONTRACT = {
   'catalog.langs': /langs:\s*KhaytContentLanguages\.contentLangs/,
   'item.photos': /it\.photos = photos/,
   'item.alt': /it\.alt = \{ lang:/,
-  'item.photo': /it\.photo = photos\[0\]\.src/,     // kept for older pages
   'item.nameAr': /nameAr: \(p\.nameAr \|\| ''\)/,   // kept for older pages
 };
 
@@ -41,6 +40,26 @@ test('the publish payload still carries every field the storefront needs', () =>
   for (const [field, re] of Object.entries(CONTRACT)) {
     assert.match(build, re, `the catalogue publish must send ${field}`);
   }
+});
+
+test('`photo` still exists for older pages, derived rather than duplicated', () => {
+  /* It used to be sent, which put every listing's primary photo on the wire
+   * TWICE — invisible at 30 KB a thumbnail, half the payload at 200 KB a
+   * photograph. The server derives it from the gallery it stores instead, so
+   * the field a page falls back on is still there and cannot disagree with
+   * photos[0]. See khayt-cloud's sanitizeCatalog.
+   *
+   * The page-side half of this contract is asserted below: storefront.js reads
+   * `photos` first and `photo` only as a fallback, so a stored catalogue with
+   * both keeps rendering either way. */
+  const build = SETTINGS.slice(SETTINGS.indexOf('const buildCatalog = '), SETTINGS.indexOf('#storeCopy'));
+  assert.equal(/it\.photo\s*=/.test(build), false, 'the app must not send the duplicate');
+
+  const php = path.join(ROOT, 'khayt-cloud', 'index.php');
+  if (!fs.existsSync(php)) return;   // separate repo, absent in CI
+  const src = fs.readFileSync(php, 'utf8');
+  assert.match(src, /\$o\['photo'\] = \$photos\[0\]\['src'\]/,
+    'the server must derive it, or an older page loses its only picture');
 });
 
 test('a published item is priced from the catalogue, not from a second form', () => {
