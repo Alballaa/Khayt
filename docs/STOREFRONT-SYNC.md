@@ -94,6 +94,31 @@ both numbers silently — the value arrives, nothing errors, and the field is
 simply missing for ever. Both spellings are pinned by tests in khayt-cloud now,
 so neither can drift.
 
+### The feed says which language it is in
+
+The JSON feed carries `locale` and `locales` at the top, and a product carries
+`translations` keyed by locale where the shop wrote a second language:
+
+```json
+{ "locale": "en", "locales": ["en", "ar"],
+  "products": [{
+    "title": "Portrait", "description": "A portrait",
+    "translations": { "ar": { "title": "صورة الملك عبدالعزيز", "description": "صورة" } }
+  }] }
+```
+
+**Keyed by locale, not suffixed.** A shop writes in one or two of nine
+languages, so `title_ar` would need eight more spellings and would still not say
+what the plain `title` is. Locale keys map straight onto a translation module.
+
+`translations` is **absent** when a shop wrote only one language — never an
+empty object. A catalogue published before `alt` existed carries `nameAr` alone,
+which becomes a title-only `ar` entry: no description, because an empty one
+would overwrite a real translation on import.
+
+This is JSON only. CSV and XML feeds are the shapes their platforms define, and
+neither has a place to put a second language.
+
 ### `material` is a list
 
 One string, comma-joined, when a product mixes filaments: `"PLA+ 2.0, TPU"`.
