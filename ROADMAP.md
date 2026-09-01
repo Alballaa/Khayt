@@ -2,12 +2,23 @@
 
 Living priorities for maintainers. Not a public commitment calendar — reorder as the product needs.
 
-## Now (post-3.6.0, 3.7.0-beta.20 published — on `main`)
+## Now (post-3.6.0, 3.7.0-beta.21 being cut — on `main`)
 
 **Stable is v3.6.0** (2026-08-21) — the 3.6.0 line, promoted from
 `v3.6.0-rc.4` unchanged after a seven-day soak. rc.4 was the first candidate on
 this line that `main` did not overtake, so for once replace-vs-promote resolved
 to *promote*; rc.1, rc.2 and rc.3 were each replaced instead.
+
+**`v3.7.0-beta.21` is being cut** (2026-09-01). It exists because the
+same Medusa integration that produced `beta.20` needs two things a catalogue could
+not tell it. A product's print time, weight and material were all known to Khayt —
+print hours are what work out when a job can start — and none of the three were
+ever published, so a shop typed each one again into its storefront's admin, where
+it drifts. And a published photo was the 240px thumbnail built for the product
+grid, which was also serving as the HERO IMAGE on the storefront's product page:
+measured on the live catalogue, 240x240 and 180x240. The full picture had been
+written to disk on save all along and nothing ever read it back. Both only reach a
+shop through an installed build, which is the whole reason to cut.
 
 **`v3.7.0-beta.20` is PUBLISHED** (2026-09-01). It exists because
 of the first real Medusa storefront integration: the subscriber Khayt hands a shop
@@ -15,8 +26,7 @@ to paste asked only for the line item, and `material` is a native PRODUCT column
 so it arrived empty on every order request with nothing to show anything was
 missing. The same file also still told shops to swallow a failed import, on advice
 that expired when the cloud's import endpoint became idempotent. Both are fixed,
-and the corrected template only reaches a shop through an installed build — which
-is the whole reason to cut. `beta.19` (2026-09-01) remains published. A shop can give
+and the corrected template only reaches a shop through an installed build. `beta.19` (2026-09-01) remains published. A shop can give
 its storefront a readable web address — `/shop/your-shop-name` rather than a long
 id — with the original link never breaking and a renamed one still working for
 ninety days. The cloud's emails are bilingual too; they were English only,
