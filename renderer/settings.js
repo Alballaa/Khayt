@@ -1644,10 +1644,11 @@ async function openStorefrontModal() {
               const photos = KhaytProductImages.storefrontPhotos(p, {
                 hero: (img) => (heroes && heroes.get(img.path)) || '',
               });
-              if (photos.length) {
-                it.photo = photos[0].src;
-                it.photos = photos;
-              }
+              /* `photo` is NOT set here. It is a view of photos[0] and the
+               * server derives it from the gallery, so sending it put every
+               * listing's primary photo on the wire twice — half a payload,
+               * for a field the other end computes anyway. */
+              if (photos.length) it.photos = photos;
             }
             return it;
           }).filter((it) => it.name),
