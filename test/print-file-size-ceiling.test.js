@@ -39,23 +39,23 @@ const mainJs = read('main.js');
 const printfiles = read('renderer/printfiles.js');
 const intakeView = read('lib/intake-view.js');
 
-test('there is one ceiling, and every reader of a print file uses it', () => {
-  assert.match(mainJs, /const PRINT_FILE_MAX_BYTES = 150 \* 1024 \* 1024;/,
-    'the ceiling must be named once');
+test('every reader of a print file measures against a named budget', () => {
+  assert.match(mainJs, /const PRINT_FILE_MAX_BYTES = /, 'the read budget must be named');
+  assert.match(mainJs, /const MESH_ANALYSIS_MAX_BYTES = /, 'and so must the mesh budget');
 
-  // 150 MB is written once. The other two literals are gone from the file, and
-  // 50_000_000 survives only where it means something else entirely — the
-  // recovered-store size, which is not a print file.
+  // Each is written once. 50_000_000 survives only where it means something
+  // else entirely — the recovered-store size, which is not a print file.
   assert.equal(mainJs.split('150 * 1024 * 1024').length - 1, 1,
-    'the ceiling is written twice — that is how the three of them happened');
+    'a budget written twice is how the four of them happened');
+  assert.equal(mainJs.split('1024 * 1024 * 1024').length - 1, 1);
   assert.equal(mainJs.split('60_000_000').length - 1, 0);
 
-  /* Every handler that reads a print file measures against the shared name.
-   * The fourth one, extract-thumbnail, is the one this test found: it had its
-   * own 50 MB line, so a big 3MF also silently lost its picture. */
+  /* Every handler that reads a print file measures against one of the two
+   * NAMES. extract-thumbnail is the one this test found: it had its own 50 MB
+   * line, so a big 3MF also silently lost its picture. */
   const readers = {
     'hub:intake-model-bytes': 6000,
-    'hub:parse-print-file': 8000,
+    'hub:parse-print-file': 9000,
     'hub:printlib-read-bytes': 2000,
     'hub:extract-thumbnail': 3000,
   };
@@ -63,11 +63,67 @@ test('there is one ceiling, and every reader of a print file uses it', () => {
     const from = mainJs.indexOf(`ipcMain.handle('${handler}'`);
     assert.ok(from > 0, `${handler} is gone`);
     const body = mainJs.slice(from, from + span);
-    assert.match(body, /PRINT_FILE_MAX_BYTES|INTAKE_MAX_BYTES/,
-      `${handler} does not measure against the shared ceiling`);
+    assert.match(body, /PRINT_FILE_MAX_BYTES|MESH_ANALYSIS_MAX_BYTES|INTAKE_MAX_BYTES/,
+      `${handler} does not measure against a named budget`);
     assert.doesNotMatch(body, /_000_000/,
       `${handler} still carries a size limit of its own`);
   }
+});
+
+/* TWO BUDGETS, BECAUSE THERE ARE TWO COSTS — which is not the same mistake as
+ * the four numbers above.
+ *
+ * Measuring a mesh is a running total and costs the file buffer. KEEPING every
+ * triangle, which only the overhang report and the rendered preview need, costs
+ * roughly six times the file's size in heap. Collapsing them means either
+ * refusing a file that could have been measured, or promising an analysis that
+ * will exhaust the heap. */
+test('a file too big to DRAW is still a file that gets measured', () => {
+  assert.match(mainJs, /const PRINT_FILE_MAX_BYTES = 1024 \* 1024 \* 1024;/);
+  assert.match(mainJs, /const MESH_ANALYSIS_MAX_BYTES = 150 \* 1024 \* 1024;/);
+
+  // The picture is the mesh budget on both routes to one.
+  for (const handler of ['hub:printlib-read-bytes', 'hub:extract-thumbnail']) {
+    const from = mainJs.indexOf(`ipcMain.handle('${handler}'`);
+    assert.match(mainJs.slice(from, from + 3000), /MESH_ANALYSIS_MAX_BYTES/,
+      `${handler} draws a picture and must be bounded by the mesh budget`);
+  }
+
+  // Reading is the read budget, and the overhang report degrades inside it
+  // rather than turning into a refusal of the whole file.
+  const parseFrom = mainJs.indexOf("ipcMain.handle('hub:parse-print-file'");
+  const parseBody = mainJs.slice(parseFrom, parseFrom + 9000);
+  assert.match(parseBody, /mfStat\.size > PRINT_FILE_MAX_BYTES/);
+  assert.match(parseBody, /risk: wantRisk && mfStat\.size <= MESH_ANALYSIS_MAX_BYTES/,
+    'past the mesh budget the file must still be measured, just not analysed');
+
+  // And the report is only computed for a caller that reads it. The library
+  // import passes a bare path and never looks at `risk`; asking for it anyway
+  // is what made every import pay for a triangle list.
+  assert.match(parseBody, /const wantRisk = !!payload && payload\.risk !== false;/);
+});
+
+test('an STL is measured from disk, not base64-ed to the renderer to be measured', () => {
+  const from = printfiles.indexOf('async function enrichPrintFile');
+  const body = printfiles.slice(from, printfiles.indexOf('\n  }\n', from));
+
+  // Volume, bbox, triangle count and the geometry key used to come from a
+  // keepTriangles parse of the whole file IN THE RENDERER, so a model too big
+  // to draw got no identity either — and geometry matching is the only key that
+  // survives a re-slice.
+  assert.match(body, /\(ext === 'stl' \|\| ext === 'obj'\) && hub\.parsePrintFile/,
+    'STL/OBJ measurements must come from the main-process read');
+  assert.match(body, /rec\.geometryKey = mi\.geometryKey\(rec\.parsed\)/);
+
+  // The bytes still cross for the picture — and only for the picture.
+  const pic = body.slice(body.indexOf("ext === 'stl' && !rec.thumb"));
+  assert.ok(pic.length > 0, 'the thumbnail branch is gone');
+  assert.match(pic, /keepTriangles: true/, 'drawing is the one thing that needs them');
+  assert.doesNotMatch(pic, /geometryKey/, 'identity must not depend on being able to draw');
+
+  // Two different sentences: nothing could be read, versus read but not drawn.
+  assert.match(body, /noPicture/);
+  assert.match(body, /t\('plib\.no_preview_large'\)/);
 });
 
 test('a refusal is shaped so a caller cannot mistake it for an answer', () => {

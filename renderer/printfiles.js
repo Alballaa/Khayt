@@ -884,7 +884,7 @@
     // does not need a file either.
     if (!rec || !rec.sourceFile) return;
     const ext = rec.sourceFile.ext;
-    let tooBig = false, problem = '';
+    let tooBig = false, noPicture = false, problem = '';
     try {
       if (ext === 'gcode' || ext === 'gco' || ext === '3mf') {
         if (hub.parsePrintFile) {
@@ -902,7 +902,13 @@
             // Not only the size ceiling: this handler also refuses a path
             // outside the directories it will read. That refusal was silent too.
             else problem = problem || p.error || '';
-          } else if (p) rec.parsed = Object.assign({}, rec.parsed, { printTimeMins: p.printTimeMins, filamentGrams: p.filamentGrams, filamentType: p.filamentType, slicer: p.slicer });
+          } else if (p && p.warnings && p.warnings.includes('mesh-too-large')) {
+            // Read fine, too many surfaces to measure. The file is not at fault
+            // and re-exporting it smaller — or slicing it — is the actual fix,
+            // so it gets its own sentence rather than "too large to read".
+            problem = problem || (t('intake.mesh_too_large') || '');
+          }
+          if (p && p.ok !== false) rec.parsed = Object.assign({}, rec.parsed, { printTimeMins: p.printTimeMins, filamentGrams: p.filamentGrams, filamentType: p.filamentType, slicer: p.slicer });
           // A g-code file has no mesh, so it used to get no geometryKey at all —
           // and its contentHash changes on every re-slice, so the same model came
           // back a stranger and per-file calibration never reached MIN_JOBS. The
@@ -927,8 +933,9 @@
           const th = await hub.extractThumbnail(fullPath);
           // An empty answer is ordinary — plenty of 3MFs carry no thumbnail —
           // so the refusal has to say it is one, or a big file looks like a
-          // plain one.
-          if (th && th.tooLarge) tooBig = true;
+          // plain one. It costs the PICTURE and not the numbers, which is a
+          // different sentence.
+          if (th && th.tooLarge) noPicture = true;
           if (th) {
             if (Array.isArray(th.colors) && th.colors.length) rec.colors = th.colors;
             if (th.swapCount) rec.swapCount = th.swapCount;
@@ -936,46 +943,61 @@
           }
         }
       }
-      // Identity is not a thumbnail concern, and must not be gated like one.
-      //
-      // This block used to require `!rec.thumb && … && KhaytStlThumb`, so a file
-      // that already had a picture, or an app that shipped without the thumbnail
-      // RENDERER, silently got no geometryKey — and geometry matching is the only
-      // thing that still recognises a model after it has been re-sliced, since
-      // both other keys change: contentHash hashes the bytes, and a slicer that
-      // writes its time estimate into the filename (SnapmakerOrca:
-      // `MBS_PLA_5h36m.gcode`) changes fileRef too.
-      //
-      // Neither guard was failing yet — both callers pass a record with
-      // thumb:null and both HTML entry points load stl-thumbnail.js — so this is
-      // the same latent shape as the bug the comment below records, caught before
-      // it cost anything rather than after.
-      //
-      // What identity actually needs is the PARSER. What the picture needs is the
-      // renderer, and a slot to put it in.
-      if (ext === 'stl' && hub.printLibReadBytes && KhaytStl) {
+      /* IDENTITY IS NOT A THUMBNAIL CONCERN, and must not be gated like one.
+       *
+       * geometry matching is the only key that still recognises a model after a
+       * re-slice: contentHash hashes the bytes, and a slicer that writes its own
+       * time estimate into the filename (SnapmakerOrca: `MBS_PLA_5h36m.gcode`)
+       * changes fileRef too. So every condition this sits behind is a condition
+       * on whether a model can be recognised at all.
+       *
+       * It used to sit behind `!rec.thumb && … && KhaytStlThumb` — a file that
+       * already had a picture, or a build shipped without the thumbnail
+       * RENDERER, silently got no key. Then, still behind the base64 round trip
+       * and a keepTriangles parse IN THE PAGE, which is the expensive shape: a
+       * model too big to DRAW got no volume, no bounding box and no key either,
+       * and per-file calibration quietly fell back to the machine median for it.
+       *
+       * Measuring and drawing are different questions. The measurements come
+       * from main now, off the file already on disk, with no bytes crossing
+       * IPC — so a big STL is measured and simply not drawn. */
+      if ((ext === 'stl' || ext === 'obj') && hub.parsePrintFile) {
+        const p = await hub.parsePrintFile(fullPath);
+        if (p && p.ok === false) {
+          if (p.warnings && p.warnings.includes('too-large')) tooBig = true;
+          else problem = problem || p.error || '';
+        } else if (p && p.geometry) {
+          rec.parsed = Object.assign({}, rec.parsed, {
+            triangleCount: p.geometry.triangleCount,
+            volumeMm3: p.geometry.volumeMm3,
+            bbox: p.geometry.bbox,
+          });
+          // A weaker signal than the hash: the same mesh in a different
+          // container. Never presented as certainty — see lib/model-identity.
+          //
+          // Through MI(), not the bare global. This file already guards every other use
+          // that way, and this one did not: in an app that does not load model-identity
+          // the bare name threw a ReferenceError straight into the catch below, so
+          // geometryKey was never set and geometry matching silently did nothing. The
+          // catch is for a malformed mesh, not for a missing module.
+          const mi = MI();
+          if (mi) { try { rec.geometryKey = mi.geometryKey(rec.parsed); } catch (_) { /* non-fatal */ } }
+        }
+      }
+
+      // The picture, and only the picture. Refused past the mesh budget, which
+      // is a smaller number than the one above on purpose: a triangle list costs
+      // about six times the file's own size, and by now the numbers are in.
+      if (ext === 'stl' && !rec.thumb && hub.printLibReadBytes && KhaytStl && KhaytStlThumb) {
         // {ok, b64|reason}. This used to be a bare string or null, and `if (b64)`
-        // skipped the mesh, the geometry key AND the thumbnail for all four
-        // reasons null could mean — including a file that was merely big. Same
-        // silence as the branch above, reached by a different route.
+        // skipped everything for all four reasons null could mean — including a
+        // file that was merely big.
         const rb = await hub.printLibReadBytes(fullPath);
-        const b64 = rb && rb.ok ? rb.b64 : '';
-        if (rb && rb.ok === false && rb.reason === 'too-large') tooBig = true;
-        if (b64) {
+        if (rb && rb.ok === false && rb.reason === 'too-large') noPicture = true;
+        if (rb && rb.ok && rb.b64) {
           try {
-            const g = KhaytStl.parseStl(base64ToArrayBuffer(b64), { keepTriangles: true });
-            rec.parsed = Object.assign({}, rec.parsed, { triangleCount: g.triangleCount, volumeMm3: g.volumeMm3, bbox: g.bbox });
-            // A weaker signal than the hash: the same mesh in a different
-            // container. Never presented as certainty — see lib/model-identity.
-            //
-            // Through MI(), not the bare global. This file already guards every other use
-            // that way, and this one did not: in an app that does not load model-identity
-            // the bare name threw a ReferenceError straight into the catch below, so
-            // geometryKey was never set and geometry matching silently did nothing. The
-            // catch is for a malformed mesh, not for a missing module.
-            const mi = MI();
-            if (mi) { try { rec.geometryKey = mi.geometryKey(rec.parsed); } catch (_) { /* non-fatal */ } }
-            if (!rec.thumb && KhaytStlThumb && g.triangles && g.triangles.length) {
+            const g = KhaytStl.parseStl(base64ToArrayBuffer(rb.b64), { keepTriangles: true });
+            if (g.triangles && g.triangles.length) {
               const r = KhaytStlThumb.renderStlThumbnail(g.triangles, { size: 300 });
               if (r.ok && r.dataUrl) { rec.thumb = r.dataUrl; rec.thumbSource = 'render'; }
             }
@@ -983,12 +1005,16 @@
         }
       }
     } catch (_) { /* keep whatever we got */ }
-    /* Said out loud. The record is deliberately KEPT — the file is in the vault,
-     * it opens in a slicer, it can be printed — so this is not a failed import
-     * and must not read as one. What is missing is the numbers, and the shop can
-     * type those in once it knows nothing is coming. */
+    /* Said out loud, and the two sentences are not the same.
+     *
+     * The record is KEPT either way — the file is in the vault, it opens in a
+     * slicer, it prints. `tooBig` means nothing could be read and the shop has
+     * numbers to type. `noPicture` means it WAS read and only the preview is
+     * missing, which is worth a quieter note and no work. Collapsing them would
+     * tell a shop to go and type figures that are already on the card. */
     if (tooBig) toast(t('intake.too_large') || 'That file is too large for Khayt to read.', 'warning', 6000);
     else if (problem) toast(problem, 'warning', 6000);
+    else if (noPicture) toast(t('plib.no_preview_large') || 'Too big to draw a preview — its measurements are in.', 'info', 5000);
     rec.updatedAt = Date.now();
     saveAll();
     renderPrintFiles();

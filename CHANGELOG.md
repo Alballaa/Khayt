@@ -6,16 +6,31 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
-- **A big print file can be added again, and one that genuinely is too big says
-  so.** Four different size limits governed reading the same file — 150 MB when
-  you dropped it on the calculator, 50 MB when you picked it with Browse…, 60 MB
-  for an STL's shape and thumbnail, 50 MB for a 3MF's picture — so the same
-  60 MB model was read one way and refused another. Past a limit, nothing said
-  anything: the file joined your library looking imported and holding no print
-  time, no weight, no material and no picture. **One limit now, 150 MB**, and a
-  file over it is still added to your library — you are told the numbers need
-  typing in rather than left to find the blanks yourself. The message is in your
-  own language, not English.
+- **A big print file can be added again, and it is measured.** Adding a file
+  larger than about 50 MB left it in your library with no print time, no weight,
+  no material and no picture — and said nothing, so the import looked like it
+  had worked. Four different size limits were governing the same act of reading
+  one file, and past any of them the answer was silence. Reading was also
+  costing about six times the file's own size in memory, because the reader
+  built a list of every triangle even when all it was asked for was the volume
+  and the bounding box: a 250 MB model needed 1.5 GB and a second and a half. It
+  now needs a fifth of a second, and the figures are identical to the last
+  digit. **You can add a model up to 1 GB**, and an STL is measured from the
+  file on disk instead of being copied whole into the interface first.
+- **A 3MF is measured, or it says it could not be — it no longer freezes the
+  app trying.** Reading a 3MF's shape costs by the number of surfaces in it, not
+  by the size of the file, and a 28 MB model was taking eight seconds and nearly
+  2 GB of memory to work out. Khayt now counts the surfaces first, which takes
+  milliseconds, and a model beyond what it can measure keeps everything its
+  slicer already recorded — print time, weight, material — and tells you the
+  rest needs typing in.
+- **Too big to draw is no longer treated as too big to read.** Only the preview
+  picture and the overhang report need every triangle; print time, weight,
+  material, volume and size do not. Past 150 MB a model still gets all of those
+  — it simply does not get a picture, and tells you that rather than leaving you
+  to find the blanks. If a file genuinely cannot be read, it is still added to
+  your library and you are told the figures need typing in — in your own
+  language, not English.
 
 ## [3.7.0-beta.22] - 2026-09-01
 

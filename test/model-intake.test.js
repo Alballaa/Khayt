@@ -233,3 +233,57 @@ test('exact is never true without both numbers present', () => {
     }
   }
 });
+
+/* A 3MF'S MESH IS PRICED PER FACET, AND THE PRICE IS ASKED BEFORE IT IS PAID.
+ *
+ * Reading one is the most expensive thing in this module and its cost is not in
+ * the file's size: a 3MF is compressed XML, so bytes are a poor proxy. Measured
+ * on real files, a geometry-only 3MF costs about 68x its own size in heap once
+ * the nested arrays exist — 27.8 MB in, 1,886 MB out, 8.2 seconds — because
+ * _extractCore holds the resolved objects AND a second transformed copy of
+ * every triangle.
+ *
+ * countTriangles is a byte scan: 2.33M facets counted in 366 ms and 5 MB against
+ * 8.2 s and 1,886 MB to build them, so the decision can be made before the
+ * memory is spent. Over the budget the file keeps everything the slicer
+ * metadata gave it and loses only the geometric fallback.
+ */
+test('a 3MF with more facets than the budget is not built, and says so', () => {
+  const zip = require('../lib/zip-write.js');
+  const bytes = zip.writeZip([
+    { name: '3D/3dmodel.model', data: Buffer.from('<model><build><item objectid="1"/></build></model>') },
+  ]);
+
+  // No escape hatch: a fixture that failed to build would otherwise let this
+  // test pass by doing nothing, which is the shape of guard that cannot catch
+  // what it was written for.
+  const mf = require('../lib/mf-convert.js');
+  assert.ok(bytes && bytes.length, 'the fixture zip was not written');
+  assert.deepEqual(mf.readMembers(bytes).map((m) => m.name), ['3D/3dmodel.model'],
+    'the fixture is not a readable 3MF, so the guard would not be reached');
+  assert.deepEqual(intake({ filename: 'ok.3mf', bytes }, { risk: false }).warnings, ['no-geometry'],
+    'under the budget this file takes the ordinary path — so a pass below means the GUARD fired');
+
+  const realCount = mf.countTriangles;
+  const realExtract = mf.extractTriangles;
+  let built = 0;
+  mf.countTriangles = () => 9000000;
+  mf.extractTriangles = (...a) => { built++; return realExtract(...a); };
+  try {
+    const r = intake({ filename: 'huge.3mf', bytes }, { risk: false });
+    assert.ok(r.warnings.includes('mesh-too-large'), 'the shop must be told which kind of nothing this is');
+    assert.equal(r.geometry, null, 'no geometry was invented');
+    assert.equal(built, 0, 'the mesh was built anyway — the count exists to avoid exactly that');
+  } finally {
+    mf.countTriangles = realCount;
+    mf.extractTriangles = realExtract;
+  }
+});
+
+test('counting a 3MF\'s facets does not build them', () => {
+  const mf = require('../lib/mf-convert.js');
+  assert.equal(typeof mf.countTriangles, 'function',
+    'the cheap count is what lets a caller decide before it commits');
+  assert.deepEqual(mf.countTriangles([]), 0);
+  assert.deepEqual(mf.countTriangles(null), 0, 'a caller with no members must not throw');
+});
