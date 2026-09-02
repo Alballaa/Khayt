@@ -2,14 +2,15 @@
 
 Living priorities for maintainers. Not a public commitment calendar — reorder as the product needs.
 
-## Now (post-3.6.0, 3.7.0-beta.23 being cut — on `main`)
+## Now (post-3.6.0, 3.7.0-beta.23 published — on `main`)
 
 **Stable is v3.6.0** (2026-08-21) — the 3.6.0 line, promoted from
 `v3.6.0-rc.4` unchanged after a seven-day soak. rc.4 was the first candidate on
 this line that `main` did not overtake, so for once replace-vs-promote resolved
 to *promote*; rc.1, rc.2 and rc.3 were each replaced instead.
 
-**`v3.7.0-beta.23` is BEING CUT** (2026-09-02). It exists because a shop
+**`v3.7.0-beta.23` is PUBLISHED** (2026-09-02) — all three platforms, from
+`7f0699c`, with every asset its three manifests name verified to serve 200. It exists because a shop
 could not add its own files. A print file over about 50 MB joined the library
 holding no print time, no weight, no material and no picture — and said nothing,
 so the import looked like it had worked. Four separate size ceilings governed
@@ -132,9 +133,10 @@ link that was explicitly asked for among them. The pattern each time: a correct
 module, a wiring test that finds the listener, and nothing driving the actual
 screen. A green suite is not evidence that a feature exists.
 
-**The newest *published* pre-release is `v3.7.0-beta.22`** (2026-09-01) — all
-three platforms, published from `74e74ef` via the `cut-release` workflow, with
-every asset its three manifests name verified to serve 200. **Do not recommend
+**The newest *published* pre-release is `v3.7.0-beta.23`** (2026-09-02) — all
+three platforms, published from `7f0699c` on the tag push, with every asset its
+three manifests name verified to serve 200. `beta.22` (2026-09-01, from
+`74e74ef`) is superseded rather than withdrawn. **Do not recommend
 anything before it to a shop that does not write English or Arabic**: its own
 name, its clients' names and the seller address on its ZATCA e-invoices all
 came out blank. `beta.14` cannot accept a catalogue photo at all.
