@@ -243,6 +243,7 @@
   "plib.name": "الاسم",
   "plib.material": "الخامة",
   "plib.slicer_profile": "ملف إعدادات المُقطّع",
+  "plib.tags_reuse": "وسوم تستخدمها بالفعل",
   "plib.tags": "الوسوم (مفصولة بفواصل)",
   "plib.tested_notes": "إعدادات مجرّبة / ملاحظات",
   "plib.photo": "صورة (اختياري)",

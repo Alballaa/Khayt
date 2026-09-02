@@ -243,6 +243,7 @@
   "plib.name": "名称",
   "plib.material": "材料",
   "plib.slicer_profile": "切片软件配置",
+  "plib.tags_reuse": "你已经使用的标签",
   "plib.tags": "标签（用逗号分隔）",
   "plib.tested_notes": "经测试的设置／备注",
   "plib.photo": "照片（可选）",

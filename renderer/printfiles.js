@@ -93,6 +93,15 @@
     return { folders: [...counts.entries()].sort((a, b) => a[0].localeCompare(b[0])), unfiled };
   }
 
+  /** Every tag the shop already uses, most-used first. The dialog offers these
+   *  so a tag is REUSED rather than retyped — retyping is where "resin" and
+   *  "Resin" come from. */
+  function knownTags() {
+    const shared = _T();
+    if (shared) return shared.tagCounts(printFiles || []).map(([label]) => label);
+    return [...new Set((printFiles || []).flatMap((r) => (r.tags || []).map((x) => String(x).trim())).filter(Boolean))];
+  }
+
   function folderOptions() {
     const names = [...new Set((printFiles || []).map((r) => (r.folder || '').trim()).filter(Boolean))].sort();
     return names.map((f) => `<option value="${escapeHtml(f)}"></option>`).join('');
@@ -110,8 +119,17 @@
     return `<div class="pf-folderbar" role="group" aria-label="${escapeHtml(t('plib.filter_folders') || 'Filter by folder')}">${html}</div>`;
   }
 
-  // Distinct tags across all files, most-used first, for the filter bar.
+  /* Distinct tags across all files, most-used first, for the filter bar.
+   *
+   * Through lib/tags.js, which folds the spellings. This keyed on the exact
+   * string, so a shop that had typed "resin" and "Resin" saw TWO chips for one
+   * idea and each found only its own share of the files — the drift the tag
+   * work exists to stop. The chip now says the spelling used most and its count
+   * is the real one. */
+  const _T = () => (typeof window !== 'undefined' && window.KhaytTags) || null;
   function allTags() {
+    const shared = _T();
+    if (shared) return shared.tagCounts(printFiles || []);
     const counts = new Map();
     for (const r of (printFiles || [])) for (const tg of (r.tags || [])) {
       const key = String(tg).trim();
@@ -1176,6 +1194,18 @@
           <div>
             <label>${escapeHtml(t('plib.tags') || 'Tags (comma separated)')}</label>
             <input type="text" id="pfTags" value="${escapeHtml((rec.tags || []).join(', '))}">
+            <!-- A <datalist> cannot help here: it matches the WHOLE value of an
+                 input, and this one holds a list. So the tags the shop already
+                 uses are offered as chips instead — one press adds or removes
+                 one, which is what keeps a library on one spelling per idea. -->
+            ${(() => {
+              const known = knownTags().slice(0, 24);
+              if (!known.length) return '';
+              const on = new Set((rec.tags || []).map((x) => String(x).trim().toLowerCase()));
+              return `<div class="pf-tagpick" role="group" aria-label="${escapeHtml(t('plib.tags_reuse') || 'Tags you already use')}">`
+                + known.map((tg) => `<button type="button" class="pf-tagchip ${on.has(tg.toLowerCase()) ? 'on' : ''}" data-tagpick="${escapeHtml(tg)}">${escapeHtml(tg)}</button>`).join('')
+                + '</div>';
+            })()}
           </div>
         </div>
         <label style="margin-top:10px;">${escapeHtml(t('plib.tested_notes') || 'Tested settings / notes')}</label>
@@ -1187,6 +1217,24 @@
           ${rec.userPhoto ? `<button type="button" class="btn small ghost" id="pfPhotoClear">${escapeHtml(t('common.remove') || 'Remove')}</button>` : ''}
         </div>`,
       onMount(modal) {
+        /* Clicking a chip edits the text box rather than a hidden model, so what
+         * you see in the field is always what will be saved — and a tag typed by
+         * hand and one added by chip end up in the same place. */
+        const tagsInput = modal.querySelector('#pfTags');
+        modal.querySelectorAll('[data-tagpick]').forEach((chip) => {
+          chip.addEventListener('click', () => {
+            const tag = chip.dataset.tagpick;
+            const cur = _T() ? _T().normaliseTags(tagsInput.value, knownTags())
+                             : tagsInput.value.split(',').map((x) => x.trim()).filter(Boolean);
+            const k = String(tag).toLowerCase();
+            const next = cur.some((x) => String(x).toLowerCase() === k)
+              ? cur.filter((x) => String(x).toLowerCase() !== k)
+              : cur.concat([tag]);
+            tagsInput.value = next.join(', ');
+            chip.classList.toggle('on');
+          });
+        });
+
         let stagedPhoto = rec.userPhoto || null;
         let cleared = false;
         const prev = modal.querySelector('#pfPhotoPrev');
@@ -1205,7 +1253,13 @@
         rec.name = name;
         rec.material = modal.querySelector('#pfMaterial').value.trim();
         rec.slicerProfileId = modal.querySelector('#pfProfile').value || null;
-        rec.tags = modal.querySelector('#pfTags').value.split(',').map((s) => s.trim()).filter(Boolean);
+        /* Reconciled against what the shop already uses, so typing "Resin" where
+         * "resin" exists files it under the tag they already have rather than
+         * inventing a second one. A genuinely new tag keeps the spelling typed —
+         * see lib/tags.js for why this does not simply lower-case everything. */
+        rec.tags = _T()
+          ? _T().normaliseTags(modal.querySelector('#pfTags').value, knownTags())
+          : modal.querySelector('#pfTags').value.split(',').map((s) => s.trim()).filter(Boolean);
         rec.folder = (modal.querySelector('#pfFolder').value || '').trim();
         rec.testedNotes = modal.querySelector('#pfNotes').value.trim();
         const ph = modal._getPhoto ? modal._getPhoto() : null;

@@ -6,6 +6,14 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Added
 
+- **Your tags stay one tag.** The tags box was free text with nothing to guide
+  it, so "resin" and "Resin" became two tags — and the filter bar showed two
+  chips for one idea, each finding only some of your files. The tags you already
+  use now sit beside the box: press one to add or remove it. Type a tag that
+  already exists in another spelling and it files under the one you have. A tag
+  that really is new is kept exactly as you typed it, so "ABS" and "PLA+" are
+  safe.
+
 - **An update that changes how you work now asks before it happens.** Khayt's
   update prompt could not tell you what was in a release — every release ever
   published carried the same one-line note, "See README for full release

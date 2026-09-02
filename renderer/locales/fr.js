@@ -243,6 +243,7 @@
   "plib.name": "Nom",
   "plib.material": "Matériau",
   "plib.slicer_profile": "Profil de slicer",
+  "plib.tags_reuse": "Étiquettes que vous utilisez déjà",
   "plib.tags": "Étiquettes (séparées par des virgules)",
   "plib.tested_notes": "Réglages testés / notes",
   "plib.photo": "Photo (facultatif)",

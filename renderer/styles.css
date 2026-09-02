@@ -5568,3 +5568,11 @@ body.khayt-workbench .wb-glist li.is-openable { cursor: pointer; }
 .update-consent-accept input { width: auto; margin: 2px 0 0; flex: 0 0 auto; }
 /* A disabled primary has to LOOK unavailable, or the gate reads as a bug. */
 .update-modal .btn.primary[disabled] { opacity: .45; cursor: not-allowed; }
+
+
+/* The tags a shop already uses, offered beside the box so a tag is reused
+   rather than retyped — retyping is where "resin" and "Resin" come from.
+   A <datalist> cannot do this: it matches the whole value of an input, and
+   that one holds a list. */
+.pf-tagpick { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 7px; max-height: 84px; overflow-y: auto; }
+.pf-tagpick .pf-tagchip { cursor: pointer; }
