@@ -2,12 +2,37 @@
 
 Living priorities for maintainers. Not a public commitment calendar — reorder as the product needs.
 
-## Now (post-3.6.0, 3.7.0-beta.22 published — on `main`)
+## Now (post-3.6.0, 3.7.0-beta.23 being cut — on `main`)
 
 **Stable is v3.6.0** (2026-08-21) — the 3.6.0 line, promoted from
 `v3.6.0-rc.4` unchanged after a seven-day soak. rc.4 was the first candidate on
 this line that `main` did not overtake, so for once replace-vs-promote resolved
 to *promote*; rc.1, rc.2 and rc.3 were each replaced instead.
+
+**`v3.7.0-beta.23` is BEING CUT** (2026-09-02). It exists because a shop
+could not add its own files. A print file over about 50 MB joined the library
+holding no print time, no weight, no material and no picture — and said nothing,
+so the import looked like it had worked. Four separate size ceilings governed
+one act of reading a file (150/50/60/50 MB), and past any of them every refusal
+was shaped like an answer: `{ok:false}` is truthy, `null` is what a missing file
+returns, `empty` is what a 3MF with no thumbnail returns, and every caller read
+them as answers.
+
+Underneath it, reading a mesh ALLOCATED the mesh: `parseStl` built a list of
+every triangle whether or not the caller wanted one, so a 250 MB STL cost
+1,488 MB of heap and 1,459 ms — now 4 MB and 164 ms, with the numbers asserted
+EQUAL to the old parser rather than close. A 3MF was worse at roughly 68x its
+own size, because `_extractCore` materialises twice; `measureMesh` folds each
+facet into a running total instead. Measured on the shop's own library — 3,415
+models, 30.6 GB, the 3MFs running 8-16 MILLION facets and none of them sliced,
+so the mesh is the only place their numbers can come from. Those three files now
+measure in about nine seconds and 5-35 MB of heap; they did not finish at all
+before.
+
+It also carries one action row and one overflow menu across eight screens (the
+print library, both queues, clients, the waiting list, quotes, products and the
+converter), Khayt's own line icons in place of emoji, and forty strings that
+were still English in German, Spanish, French and Chinese.
 
 **`v3.7.0-beta.22` is PUBLISHED** (2026-09-01). The cloud caps one published
 picture at a fixed size and DROPS anything larger rather than refusing it, so a
