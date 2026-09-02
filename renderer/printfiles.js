@@ -360,10 +360,236 @@
     </details>`;
   }
 
+  /**
+   * The bar that appears once selecting is on.
+   *
+   * It says how many are held even when the filter has moved on, because the
+   * alternative — a count of what is both selected and visible — would make
+   * "select the busts, then also the minis" impossible to trust.
+   */
+  function bulkBarHtml() {
+    if (!_selectMode) return '';
+    const n = _selected.size;
+    const shown = filtered(_query);
+    const allShown = shown.length > 0 && shown.every((r) => _selected.has(r.id));
+    const has = n > 0;
+    return `<div class="pf-bulk" role="group" aria-label="${escapeHtml(t('plib.bulk_label') || 'Work on several files')}">
+      <span class="pf-bulk-n">${escapeHtml(t('plib.n_selected', { n: String(n) }) || `${n} selected`)}</span>
+      <button class="btn small ghost" data-act="pf-pick-all">${escapeHtml(
+        (allShown ? t('plib.pick_none_shown') : t('plib.pick_all_shown', { n: String(shown.length) }))
+        || (allShown ? 'Clear these' : `Select all ${shown.length} shown`))}</button>
+      <span class="pf-bulk-sep"></span>
+      <button class="btn small ghost" data-act="pf-bulk-group" ${has ? '' : 'disabled'}>${_bi('folder', '🗂')}${escapeHtml(t('plib.group') || 'Group')}</button>
+      <button class="btn small ghost" data-act="pf-bulk-cat" ${has ? '' : 'disabled'}>${_bi('board', '▦')}${escapeHtml(t('plib.category') || 'Category')}</button>
+      <button class="btn small ghost" data-act="pf-bulk-tag" ${has ? '' : 'disabled'}>${escapeHtml(t('plib.tags_short') || 'Tags')}</button>
+      <button class="btn small ghost danger" data-act="pf-bulk-del" ${has ? '' : 'disabled'}>${_bi('trash', '🗑')}${escapeHtml(t('common.delete') || 'Delete')}</button>
+      <span class="act-end"></span>
+      <button class="btn small" data-act="pf-select-off">${escapeHtml(t('common.done') || 'Done')}</button>
+    </div>`;
+  }
+
+  /** The held records, in library order, skipping any that have since gone. */
+  const selectedRecords = () => (printFiles || []).filter((r) => _selected.has(r.id));
+
+  function renderBulkBar() {
+    const host = document.getElementById('pfBulk');
+    if (host) host.innerHTML = bulkBarHtml();
+  }
+
+  /**
+   * Toggle one card WITHOUT redrawing the grid.
+   *
+   * A full redraw is 41 ms at a thousand cards and 79 ms at two thousand, and
+   * selecting twenty files would pay it twenty times. Only the one card and the
+   * bar change, so this stays instant however big the library is.
+   */
+  function togglePick(id) {
+    if (_selected.has(id)) _selected.delete(id); else _selected.add(id);
+    const card = document.querySelector(`.pf-card[data-id="${CSS.escape(id)}"]`);
+    if (card) {
+      const on = _selected.has(id);
+      card.classList.toggle('is-picked', on);
+      const box = card.querySelector('[data-act="pf-pick"]');
+      if (box) { box.checked = on; box.setAttribute('aria-checked', String(on)); }
+    }
+    renderBulkBar();
+  }
+
+  function pickAllShown() {
+    const shown = filtered(_query);
+    const allShown = shown.length > 0 && shown.every((r) => _selected.has(r.id));
+    for (const r of shown) { if (allShown) _selected.delete(r.id); else _selected.add(r.id); }
+    renderList();
+    renderBulkBar();
+  }
+
+  function setSelectMode(on) {
+    _selectMode = on;
+    if (!on) _selected.clear();
+    renderPrintFiles();
+  }
+
+  /**
+   * File everything selected under one name.
+   *
+   * Through lib/organise.js, so the name lands in the spelling the shop already
+   * uses — the whole point of doing two hundred at once is that they end up
+   * identical, and two hundred records each carrying whatever was typed that
+   * time is the drift this exists to stop.
+   *
+   * An empty box CLEARS the field on all of them. That is a real thing to want
+   * ("take these out of the group") and the dialog says so rather than leaving
+   * a shop guessing whether blank means "clear" or "leave alone".
+   */
+  function bulkFile(field) {
+    const recs = selectedRecords();
+    if (!recs.length) return;
+    const isCat = field === 'category';
+    const known = knownNames(field);
+    openFormModal({
+      title: (isCat ? t('plib.bulk_cat_title') : t('plib.bulk_group_title')) || 'Set for the selected files',
+      sizeLg: false, saveLabel: t('common.save') || 'Save',
+      bodyHtml: `
+        <p class="pf-pick-hint">${escapeHtml((t('plib.bulk_count', { n: String(recs.length) }) || `${recs.length} files selected.`))}</p>
+        <label>${escapeHtml((isCat ? t('plib.category') : t('plib.group')) || 'Name')}</label>
+        <input type="text" id="pfBulkName" list="pfBulkList" maxlength="60" value=""
+               placeholder="${escapeHtml((isCat ? t('plib.category_ph') : t('plib.group_ph')) || '')}">
+        <datalist id="pfBulkList">${known.map((n) => `<option value="${escapeHtml(n)}"></option>`).join('')}</datalist>
+        <p class="pf-pick-hint" style="margin-top:8px;">${escapeHtml(t('plib.bulk_clear_hint') || 'Leave it empty to take these files out of it.')}</p>`,
+      onSave(modal) {
+        const value = modal.querySelector('#pfBulkName').value || '';
+        const O = _O();
+        const kn = { group: knownNames('group'), category: knownNames('category') };
+        for (const rec of recs) {
+          Object.assign(rec, O ? O.assign(rec, { [field]: value }, kn)
+            : (isCat ? { category: value.trim() } : { group: value.trim(), folder: value.trim() }));
+          rec.updatedAt = Date.now();
+        }
+        saveAll();
+        renderPrintFiles();
+        toast(t('plib.bulk_filed', { n: String(recs.length) }) || `${recs.length} files updated`, 'success');
+      },
+    });
+  }
+
+  /**
+   * Add or remove a tag across the selection.
+   *
+   * Two separate actions rather than one box that replaces everything: tags are
+   * a list, and a bulk edit that REPLACED them would quietly throw away whatever
+   * each file already carried. Adding is the safe, common case.
+   */
+  function bulkTag() {
+    const recs = selectedRecords();
+    if (!recs.length) return;
+    const known = knownTags();
+    openFormModal({
+      title: t('plib.bulk_tag_title') || 'Tags for the selected files',
+      sizeLg: false, saveLabel: t('common.save') || 'Save',
+      bodyHtml: `
+        <p class="pf-pick-hint">${escapeHtml((t('plib.bulk_count', { n: String(recs.length) }) || `${recs.length} files selected.`))}</p>
+        <label>${escapeHtml(t('plib.tags') || 'Tags (comma separated)')}</label>
+        <input type="text" id="pfBulkTags" value="" placeholder="${escapeHtml(known.slice(0, 3).join(', '))}">
+        <div class="pf-tagpicks">${known.slice(0, 24).map((tg) => `<button type="button" class="pf-tag" data-bulktag="${escapeHtml(tg)}">${escapeHtml(tg)}</button>`).join('')}</div>
+        <div class="seg" style="margin-top:10px;" role="group" aria-label="${escapeHtml(t('plib.bulk_tag_mode') || 'Add or remove')}">
+          <button type="button" class="btn small state-on" id="pfTagAdd" aria-pressed="true">${escapeHtml(t('plib.bulk_tag_add') || 'Add to these files')}</button>
+          <button type="button" class="btn small" id="pfTagRemove" aria-pressed="false">${escapeHtml(t('plib.bulk_tag_remove') || 'Remove from these files')}</button>
+        </div>`,
+      onMount(modal) {
+        const input = modal.querySelector('#pfBulkTags');
+        modal.querySelectorAll('[data-bulktag]').forEach((chip) => chip.addEventListener('click', () => {
+          const cur = input.value.split(',').map((x) => x.trim()).filter(Boolean);
+          const k = String(chip.dataset.bulktag).toLowerCase();
+          const next = cur.some((x) => x.toLowerCase() === k)
+            ? cur.filter((x) => x.toLowerCase() !== k)
+            : cur.concat(chip.dataset.bulktag);
+          input.value = next.join(', ');
+          chip.classList.toggle('on');
+        }));
+        const add = modal.querySelector('#pfTagAdd'), rem = modal.querySelector('#pfTagRemove');
+        const mode = (removing) => {
+          add.classList.toggle('state-on', !removing); add.setAttribute('aria-pressed', String(!removing));
+          rem.classList.toggle('state-on', removing); rem.setAttribute('aria-pressed', String(removing));
+          modal.dataset.removing = removing ? '1' : '';
+        };
+        add.addEventListener('click', () => mode(false));
+        rem.addEventListener('click', () => mode(true));
+      },
+      onSave(modal) {
+        const T = _T();
+        const typed = T ? T.normaliseTags(modal.querySelector('#pfBulkTags').value, known)
+          : modal.querySelector('#pfBulkTags').value.split(',').map((x) => x.trim()).filter(Boolean);
+        if (!typed.length) return false;              // nothing to do; keep the dialog open
+        const removing = !!modal.dataset.removing;
+        const keys = new Set(typed.map((x) => String(x).toLowerCase()));
+        for (const rec of recs) {
+          const have = Array.isArray(rec.tags) ? rec.tags : [];
+          rec.tags = removing
+            ? have.filter((x) => !keys.has(String(x).toLowerCase()))
+            // Through normaliseTags so the ADDED tag adopts the shop's spelling
+            // and a file that already carries it does not gain a second copy.
+            : (T ? T.normaliseTags(have.concat(typed), known) : have.concat(typed.filter((x) => !have.some((y) => String(y).toLowerCase() === String(x).toLowerCase()))));
+          rec.updatedAt = Date.now();
+        }
+        saveAll();
+        renderPrintFiles();
+        toast((removing ? t('plib.bulk_untagged', { n: String(recs.length) }) : t('plib.bulk_tagged', { n: String(recs.length) }))
+          || `${recs.length} files updated`, 'success');
+      },
+    });
+  }
+
+  /**
+   * Delete everything selected, and its files.
+   *
+   * The count is in the sentence and in the button, because "Delete" over a
+   * selection the shop can no longer see all of is the most expensive mistake
+   * this screen can make. Deleting reports what actually went: a file that could
+   * not be removed from disk must not read as gone.
+   */
+  function bulkDelete() {
+    const recs = selectedRecords();
+    if (!recs.length) return;
+    const n = recs.length;
+    openFormModal({
+      title: t('plib.bulk_del_title') || 'Delete the selected files',
+      sizeLg: false,
+      saveLabel: (t('plib.bulk_del_btn', { n: String(n) }) || `Delete ${n} files`),
+      bodyHtml: `<p>${escapeHtml((t('plib.bulk_del_confirm', { n: String(n) })
+        || `Remove ${n} print files and everything they hold on disk? This cannot be undone.`))}</p>
+        <ul class="pf-del-list">${recs.slice(0, 8).map((r) => `<li>${escapeHtml(r.name || r.originalName || r.id)}</li>`).join('')}
+        ${n > 8 ? `<li class="pf-del-more">${escapeHtml(t('plib.and_n_more', { n: String(n - 8) }) || `…and ${n - 8} more`)}</li>` : ''}</ul>`,
+      async onSave() {
+        const hub = api();
+        let allGone = true, removed = 0;
+        for (const rec of recs) {
+          if (hub && hub.printLibList && hub.printLibDelete) {
+            try {
+              const files = await hub.printLibList(rec.id);
+              for (const f of (files || [])) if ((await hub.printLibDelete(f.fullPath)) === false) allGone = false;
+            } catch (e) { console.error('printLibDelete:', e); allGone = false; }
+          }
+          removed++;
+        }
+        const ids = new Set(recs.map((r) => r.id));
+        printFiles = (printFiles || []).filter((r) => !ids.has(r.id));
+        _selected.clear();
+        saveAll();
+        renderPrintFiles();
+        if (allGone) toast(t('plib.bulk_deleted', { n: String(removed) }) || `${removed} files deleted`, 'success');
+        else toast('⚠ ' + (t('plib.delete_partial') || 'Removed from the library, but some files could not be deleted from disk'), 'error', 7000);
+      },
+    });
+  }
+
   function cardHtml(rec) {
     const prof = rec.slicerProfileId && (slicerProfiles || []).find((s) => s.id === rec.slicerProfileId);
     return `
-      <div class="pf-card" data-id="${escapeHtml(rec.id)}">
+      <div class="pf-card${_selectMode && _selected.has(rec.id) ? ' is-picked' : ''}" data-id="${escapeHtml(rec.id)}">
+        <!-- Not wrapped in a <label>: a label click forwards a SECOND click to
+             the input, so the handler ran twice and the card never changed. The
+             box is sized in CSS to be a real target instead. -->
+        ${_selectMode ? `<input type="checkbox" class="pf-pick" data-act="pf-pick" data-id="${escapeHtml(rec.id)}"${_selected.has(rec.id) ? ' checked' : ''} title="${escapeHtml(t('plib.pick') || 'Select this file')}" aria-label="${escapeHtml(t('plib.pick') || 'Select this file')}">` : ''}
         <button class="pf-fav ${rec.favorite ? 'on' : ''}" data-act="pf-fav" data-id="${escapeHtml(rec.id)}" title="${escapeHtml(t('plib.favorite') || 'Favorite')}">${rec.favorite ? '★' : '☆'}</button>
         ${thumbHtml(rec)}
         <div class="pf-body">
@@ -450,6 +676,15 @@
   const UNFILED = '\u0000unfiled'; // sentinel: files with no folder
   let _folderFilter = ''; // '' = all, UNFILED = no group, else group name
   let _catFilter = '';    // the other axis; the two narrow together
+  /* ── WORKING ON MANY FILES AT ONCE ────────────────────────────────────────
+   * Groups and categories are worth nothing at scale without this: filing two
+   * hundred kings one dialog at a time is not filing them. Selection is by
+   * RECORD ID and survives the filter changing, deliberately — the way you
+   * select a big set is to narrow to part of it, take all of that, narrow to
+   * the next part, and take that too. The bar always says how many are held,
+   * including the ones no longer on screen. */
+  let _selectMode = false;
+  const _selected = new Set();
   let _view = 'library'; // 'library' | 'gallery'
 
   // Finished-prints gallery: a photo-forward showcase of every print file you've
@@ -528,11 +763,13 @@
               <button class="pf-view-btn ${isGallery ? 'on' : ''}" data-act="pf-view-gallery" aria-pressed="${isGallery}">${escapeHtml(t('plib.view_gallery') || 'Gallery')}</button>
             </div>
             ${isGallery ? '' : `<input type="search" id="pfSearch" class="pf-search" placeholder="${escapeHtml(t('common.search') || 'Search')}" value="${escapeHtml(_query)}" aria-label="${escapeHtml(t('common.search') || 'Search')}">`}
+            ${isGallery ? '' : `<button class="btn ghost${_selectMode ? ' state-on' : ''}" data-act="pf-select-toggle" aria-pressed="${_selectMode}" title="${escapeHtml(t('plib.select_hint') || 'Work on several files at once — group, categorise, tag or delete them together')}">${_bi('check', '✓')}${escapeHtml(t('plib.select') || 'Select')}</button>`}
             ${typeof openCalibration === 'function' ? `<button class="btn ghost" data-act="pf-calibrate">${_bi('target', '🎯')}${escapeHtml(t('plib.calibrate') || 'Calibrate')}</button>` : ''}
             ${_cloudOn() ? `<button class="btn ghost" data-act="pf-sync" title="${escapeHtml(t('plib.sync_hint') || 'Push this library to Khayt Cloud now, instead of waiting for the next automatic sync.')}">${_bi('cloud', '☁')}${escapeHtml(t('plib.sync') || 'Sync')}</button>` : ''}
             <button class="btn primary" data-act="pf-add" ${hasHub ? '' : 'disabled'} title="${escapeHtml(t('plib.add_multi_hint') || 'Add one or more files — select several at once')}">＋ ${escapeHtml(t('plib.add') || 'Add file')}</button>
           </div>
         </div>
+        <div id="pfBulk">${bulkBarHtml()}</div>
         <div id="pfList">${listInnerHtml()}</div>
       </div>`;
 
@@ -589,6 +826,14 @@
       case 'pf-identify': identifyPrintFile(id); break;
       case 'pf-log-print': logPrint(id, true); break;
       case 'pf-log-fail':  logPrint(id, false); break;
+      case 'pf-pick': togglePick(id); break;
+      case 'pf-pick-all': pickAllShown(); break;
+      case 'pf-select-toggle': setSelectMode(!_selectMode); break;
+      case 'pf-select-off': setSelectMode(false); break;
+      case 'pf-bulk-group': bulkFile('group'); break;
+      case 'pf-bulk-cat': bulkFile('category'); break;
+      case 'pf-bulk-tag': bulkTag(); break;
+      case 'pf-bulk-del': bulkDelete(); break;
       case 'pf-view-library': if (_view !== 'library') { _view = 'library'; renderPrintFiles(); } break;
       case 'pf-view-gallery': if (_view !== 'gallery') { _view = 'gallery'; renderPrintFiles(); } break;
       case 'pf-tag': { const tg = btn.dataset.tag || ''; _tagFilter = (_tagFilter.toLowerCase() === tg.toLowerCase()) ? '' : tg; renderList(); break; }
