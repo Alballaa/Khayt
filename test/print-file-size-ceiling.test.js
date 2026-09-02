@@ -94,8 +94,17 @@ test('a file too big to DRAW is still a file that gets measured', () => {
   const parseFrom = mainJs.indexOf("ipcMain.handle('hub:parse-print-file'");
   const parseBody = mainJs.slice(parseFrom, parseFrom + 9000);
   assert.match(parseBody, /mfStat\.size > PRINT_FILE_MAX_BYTES/);
-  assert.match(parseBody, /risk: wantRisk && mfStat\.size <= MESH_ANALYSIS_MAX_BYTES/,
+  assert.match(parseBody, /const doRisk = wantRisk && mfStat\.size <= MESH_ANALYSIS_MAX_BYTES;/,
     'past the mesh budget the file must still be measured, just not analysed');
+
+  /* And a 3MF that has to be measured goes to the worker. Folding a real
+   * poster's thirteen million facets is ~9 s wherever it happens, and this
+   * handler is in the main process — nine seconds here is nine seconds of
+   * frozen app in every window. Gated on the EFFECTIVE risk decision, because
+   * when the overhang report is being built the triangles are here anyway. */
+  assert.match(parseBody, /deferMesh: ext === '\.3mf' && !doRisk/);
+  assert.match(parseBody, /mfRun\('measure'/,
+    'the deferred measurement has to actually be taken somewhere');
 
   // And the report is only computed for a caller that reads it. The library
   // import passes a bare path and never looks at `risk`; asking for it anyway

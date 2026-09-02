@@ -3936,7 +3936,6 @@
   "intake.estimate_advice": "目安としてお使いください。確定見積もりには、ファイルをスライスしてその結果をここにドロップしてください。",
   "intake.estimate_toast": "モデル形状からの推定です。スライス結果ではありません。",
   "intake.too_large": "このファイルは大きすぎて Khayt では読めません。ライブラリには残りますが、印刷時間と重量は手入力が必要です。",
-  "intake.mesh_too_large": "このモデルは面が多すぎて Khayt では測定できません。ライブラリにあり印刷は問題ありません。印刷時間と重量を手入力するか、スライスしたファイルを追加してください。",
   "intake.no_summary": "この G-code には時間やフィラメントの要約がありません。スライサーから書き出し直してください。",
   "intake.unsupported": "Khayt が読めるのは STL・OBJ・3MF・G-code です。",
   "intake.your_slicer": "お使いのスライサー",

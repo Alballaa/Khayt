@@ -3936,7 +3936,6 @@
   "intake.estimate_advice": "Nimm sie als Ausgangspunkt. Für ein verbindliches Angebot slice die Datei und lege das Ergebnis hier ab.",
   "intake.estimate_toast": "Aus der Geometrie geschätzt — keine Slicer-Zahl.",
   "intake.too_large": "Diese Datei ist zu groß, als dass Khayt sie lesen könnte. Sie bleibt in deiner Bibliothek — Druckzeit und Gewicht musst du eintragen.",
-  "intake.mesh_too_large": "Dieses Modell hat zu viele Flächen, als dass Khayt es vermessen könnte. Es liegt in deiner Bibliothek und druckt normal — trage Druckzeit und Gewicht ein, oder slice es und füge die geslicete Datei hinzu.",
   "intake.no_summary": "Dieser G-Code enthält keine Zeit- oder Filamentzusammenfassung — exportiere ihn erneut aus deinem Slicer.",
   "intake.unsupported": "Khayt kann STL-, OBJ-, 3MF- und G-Code-Dateien lesen.",
   "intake.your_slicer": "deinem Slicer",

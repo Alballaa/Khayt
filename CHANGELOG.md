@@ -17,13 +17,12 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   now needs a fifth of a second, and the figures are identical to the last
   digit. **You can add a model up to 1 GB**, and an STL is measured from the
   file on disk instead of being copied whole into the interface first.
-- **A 3MF is measured, or it says it could not be — it no longer freezes the
-  app trying.** Reading a 3MF's shape costs by the number of surfaces in it, not
-  by the size of the file, and a 28 MB model was taking eight seconds and nearly
-  2 GB of memory to work out. Khayt now counts the surfaces first, which takes
-  milliseconds, and a model beyond what it can measure keeps everything its
-  slicer already recorded — print time, weight, material — and tells you the
-  rest needs typing in.
+- **A big 3MF is measured instead of being given up on.** Working out a 3MF's
+  size and volume used to build every surface in it twice over, so a poster or a
+  kit — the files that are actually 200 MB — wanted six to twelve gigabytes of
+  memory and never finished. Khayt now adds each surface up as it reads it: the
+  same numbers to the last digit, a few hundred megabytes instead of gigabytes,
+  and it happens outside the window so the app keeps drawing while it works.
 - **Too big to draw is no longer treated as too big to read.** Only the preview
   picture and the overhang report need every triangle; print time, weight,
   material, volume and size do not. Past 150 MB a model still gets all of those

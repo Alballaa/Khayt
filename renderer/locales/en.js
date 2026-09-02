@@ -3939,7 +3939,6 @@
   "intake.estimate_advice": "Treat it as a starting point. For a firm quote, slice the file and drop the result here.",
   "intake.estimate_toast": "Estimated from the model's geometry — not a sliced figure.",
   "intake.too_large": "That file is too large for Khayt to read. It is still in your library — the print time and weight need typing in.",
-  "intake.mesh_too_large": "That model has too many surfaces for Khayt to measure. It is in your library and prints normally — the print time and weight need typing in, or slice it and add the sliced file.",
   "intake.no_summary": "That G-code has no time or filament summary — re-export it from your slicer.",
   "intake.unsupported": "Khayt can read STL, OBJ, 3MF and G-code files.",
   "intake.your_slicer": "your slicer",
