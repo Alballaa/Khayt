@@ -5566,7 +5566,10 @@ body.khayt-workbench .wb-glist li.is-openable { cursor: pointer; }
 }
 .update-consent-accept:hover { background: var(--surface-2); }
 .update-consent-accept input { width: auto; margin: 2px 0 0; flex: 0 0 auto; }
-/* A disabled primary has to LOOK unavailable, or the gate reads as a bug. */
+/* A disabled primary has to LOOK unavailable, or the gate reads as a bug.
+   Kept as the update modal's own rule for the record; the general one below now
+   covers it, and this stays only because the gate is the one place where being
+   wrong about it is expensive. */
 .update-modal .btn.primary[disabled] { opacity: .45; cursor: not-allowed; }
 
 
@@ -5677,3 +5680,36 @@ body.khayt-workbench .wb-glist li.is-openable { cursor: pointer; }
   padding: 18px 0 6px;
 }
 .pf-more-n { font-size: 11.5px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+
+/* A DISABLED CONTROL HAS TO LOOK DISABLED.
+ *
+ * This was true of exactly one button — the update gate's Download — and of
+ * nothing else. Measured rather than eyeballed: a disabled `.btn` anywhere else
+ * came back `opacity: 1; cursor: pointer`, pixel-identical to a working one,
+ * with the pointer still promising it would do something.
+ *
+ * There are ~90 `disabled` in the renderer: Add file with no library configured,
+ * Save with an empty form, every bulk action with nothing selected. A person
+ * presses one, nothing happens, and the app looks broken rather than
+ * unavailable — which is the same failure the update gate's own comment names,
+ * everywhere except the update gate.
+ *
+ * `:disabled` and `[disabled]` both, because the attribute is what the markup
+ * writes and the pseudo-class is what a live `el.disabled = true` sets.
+ */
+.btn:disabled,
+.btn[disabled] {
+  opacity: .45;
+  cursor: not-allowed;
+  /* No hover lift or colour change on something that cannot be pressed. */
+  pointer-events: auto;          /* keep the tooltip; the click is already inert */
+  box-shadow: none;
+  transform: none;
+}
+.btn:disabled:hover,
+.btn[disabled]:hover {
+  opacity: .45;
+  box-shadow: none;
+  transform: none;
+  filter: none;
+}
