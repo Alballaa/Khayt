@@ -258,6 +258,31 @@ test('every key the code asks for exists in en.js', () => {
         const key = m[1];
         if (en[key] === undefined && !extra.has(key)) missing.set(key, `${rel}:${i + 1}`);
       }
+      /* THE FORM THIS GUARD COULD NOT SEE, AND THE ONE THE APP MOSTLY USES.
+       *
+       * `t('plib.folder') || 'Folder'` serves the English fallback in all nine
+       * languages, exactly like tr(k, fallback) — and it was invisible here,
+       * because only `tr`/`tt` were matched. So was the ternary,
+       * `t(isCat ? 'a' : 'b')`, which hides a key inside a call this once
+       * scanned but never looked into.
+       *
+       * 33 keys were in that state when this was widened: the whole print-file
+       * filter bar, the batch converter's colour dialog, "Delivered", "Done".
+       * Every gate was green — locale parity compares each language to en.js,
+       * and a key that is in NO file is in neither side of that comparison.
+       *
+       * Every t(…) call on the line, and every key-shaped literal inside it. */
+      for (const call of line.matchAll(/\bt\(([^()]*(?:\([^()]*\)[^()]*)*)\)(\s*\|\|\s*'((?:[^'\\]|\\.)*)')?/g)) {
+        const fallback = call[3];
+        if (!fallback) continue;          // no English is being served
+        for (const lit of call[1].matchAll(/'([a-z0-9_]+(?:\.[a-z0-9_]+)+)'/gi)) {
+          const key = lit[1];
+          // A trailing underscore is a PREFIX: t('audit.act_' + kind). The real
+          // key is the concatenation and cannot be read from the source.
+          if (key.endsWith('_')) continue;
+          if (en[key] === undefined && !extra.has(key)) missing.set(key, `${rel}:${i + 1}`);
+        }
+      }
     });
   }
   const report = [...missing].map(([k, at]) => `${k}  (${at})`);

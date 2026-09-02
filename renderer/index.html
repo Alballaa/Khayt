@@ -593,6 +593,10 @@
         <button class="btn small ghost hidden" id="btnCatalogPublish" data-i18n="cat.publish" title="Publish this catalogue to your online storefront and product feeds">☁ Publish</button>
         <button class="btn primary" id="btnAddProduct" data-i18n="cat.add">+ Add Product</button>
       </div>
+      <!-- One row of chips per axis, drawn by renderCatalog() and absent
+           entirely while nothing is filed — an empty filter bar teaches the
+           shop nothing. Same markup and same rules as the print-file library. -->
+      <div id="catalogFilters"></div>
       <div id="catalogGrid" class="product-grid"></div>
     </section>
 
@@ -2761,6 +2765,7 @@
 <script src="webgl-viewer.js"></script>
 <script src="model-viewer.js"></script>
 <script src="../lib/tags.js"></script>
+<script src="../lib/organise.js"></script>
 <script src="../lib/print-file-parts.js"></script>
 <script src="../lib/print-versions.js"></script>
 <script src="../lib/thumb-store.js"></script>

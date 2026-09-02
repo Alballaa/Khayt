@@ -75,22 +75,40 @@
       ? list.filter((r) => (r.name + ' ' + (r.originalName || '') + ' ' + (r.tags || []).join(' ') + ' ' + (r.material || '')).toLowerCase().includes(q))
       : list.slice();
     if (_tagFilter) rows = rows.filter((r) => (r.tags || []).some((tg) => tg.toLowerCase() === _tagFilter.toLowerCase()));
-    if (_folderFilter === UNFILED) rows = rows.filter((r) => !r.folder);
-    else if (_folderFilter) rows = rows.filter((r) => (r.folder || '').toLowerCase() === _folderFilter.toLowerCase());
+    /* Both axes narrow at once, deliberately: "the busts in the Saudi Kings"
+     * is the question a library of hundreds is actually asked. */
+    if (_folderFilter === UNFILED) rows = rows.filter((r) => !groupOf(r));
+    else if (_folderFilter) rows = rows.filter((r) => groupOf(r).toLowerCase() === _folderFilter.toLowerCase());
+    if (_catFilter === UNFILED) rows = rows.filter((r) => !categoryOf(r));
+    else if (_catFilter) rows = rows.filter((r) => categoryOf(r).toLowerCase() === _catFilter.toLowerCase());
     return rows.sort((a, b) => (b.favorite ? 1 : 0) - (a.favorite ? 1 : 0) || (b.updatedAt || 0) - (a.updatedAt || 0));
   }
 
-  // Distinct folders (single-assignment collections), alphabetical, with counts. Files with no folder
-  // fall under an "Unfiled" bucket shown only when some files ARE filed.
-  function allFolders() {
-    const counts = new Map();
+  /**
+   * Distinct groups or categories, with counts, and how many are in neither.
+   *
+   * Through lib/organise.js, which FOLDS THE SPELLINGS. This counted the exact
+   * string, so a shop that had typed "Saudi Kings" once and "saudi kings" twice
+   * saw two chips for one collection and each found part of it — the same drift
+   * the tag work exists to stop, and worse here because a group is the thing you
+   * reach for when you want the whole set.
+   *
+   * Sorted most-used first rather than alphabetically: with fifty groups the
+   * ones a shop actually works in should not be below the fold.
+   */
+  function filedUnder(field) {
+    const shared = _O();
+    const read = field === 'category' ? categoryOf : groupOf;
+    const names = shared
+      ? shared.counts(printFiles || [], field)
+      : (() => {
+          const m = new Map();
+          for (const r of (printFiles || [])) { const v = read(r); if (v) m.set(v, (m.get(v) || 0) + 1); }
+          return [...m.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+        })();
     let unfiled = 0;
-    for (const r of (printFiles || [])) {
-      const f = (r.folder || '').trim();
-      if (f) counts.set(f, (counts.get(f) || 0) + 1);
-      else unfiled++;
-    }
-    return { folders: [...counts.entries()].sort((a, b) => a[0].localeCompare(b[0])), unfiled };
+    for (const r of (printFiles || [])) if (!read(r)) unfiled++;
+    return { names, unfiled };
   }
 
   /** Every tag the shop already uses, most-used first. The dialog offers these
@@ -102,21 +120,43 @@
     return [...new Set((printFiles || []).flatMap((r) => (r.tags || []).map((x) => String(x).trim())).filter(Boolean))];
   }
 
-  function folderOptions() {
-    const names = [...new Set((printFiles || []).map((r) => (r.folder || '').trim()).filter(Boolean))].sort();
-    return names.map((f) => `<option value="${escapeHtml(f)}"></option>`).join('');
+  /**
+   * Every group or category already in use, for the box to offer.
+   *
+   * Across the print files AND the catalogue, because a shop with "Saudi Kings"
+   * on both screens has ONE collection. Offering only this screen's names is how
+   * the same group gets typed twice and drifts.
+   */
+  function knownNames(field) {
+    const shared = _O();
+    const pool = (printFiles || []).concat(typeof products !== 'undefined' && Array.isArray(products) ? products : []);
+    if (shared) return shared.known(pool, field);
+    const read = field === 'category' ? categoryOf : groupOf;
+    return [...new Set(pool.map(read).filter(Boolean))].sort();
   }
 
-  function folderBarHtml() {
-    const { folders, unfiled } = allFolders();
-    if (!folders.length) return ''; // nothing filed yet → no bar
+  const nameOptions = (field) =>
+    knownNames(field).map((f) => `<option value="${escapeHtml(f)}"></option>`).join('');
+
+  /**
+   * A row of chips for one axis. Absent entirely when nothing is filed under it,
+   * because an empty filter bar is a control that teaches the shop nothing.
+   */
+  function fileBarHtml(field) {
+    const { names, unfiled } = filedUnder(field);
+    if (!names.length) return '';
+    const isCat = field === 'category';
+    const act = isCat ? 'pf-cat' : 'pf-folder';
+    const attr = isCat ? 'data-cat' : 'data-folder';
+    const active = isCat ? _catFilter : _folderFilter;
     const total = (printFiles || []).length;
     const chip = (val, label, n, on) =>
-      `<button type="button" class="pf-folderchip ${on ? 'on' : ''}" data-act="pf-folder" data-folder="${escapeHtml(val)}">${escapeHtml(label)}${n != null ? ` <span class="pf-tagchip-n">${n}</span>` : ''}</button>`;
-    let html = chip('', t('plib.all_files') || 'All files', total, !_folderFilter);
-    html += folders.map(([f, n]) => chip(f, f, n, _folderFilter && _folderFilter.toLowerCase() === f.toLowerCase())).join('');
-    if (unfiled) html += chip(UNFILED, t('plib.unfiled') || 'Unfiled', unfiled, _folderFilter === UNFILED);
-    return `<div class="pf-folderbar" role="group" aria-label="${escapeHtml(t('plib.filter_folders') || 'Filter by folder')}">${html}</div>`;
+      `<button type="button" class="pf-folderchip ${on ? 'on' : ''}" data-act="${act}" ${attr}="${escapeHtml(val)}">${escapeHtml(label)}${n != null ? ` <span class="pf-tagchip-n">${n}</span>` : ''}</button>`;
+    let html = chip('', t(isCat ? 'plib.all_cats' : 'plib.all_files') || 'All', total, !active);
+    html += names.map(([f, n]) => chip(f, f, n, active && active.toLowerCase() === f.toLowerCase())).join('');
+    if (unfiled) html += chip(UNFILED, t(isCat ? 'plib.uncategorised' : 'plib.unfiled') || 'Unfiled', unfiled, active === UNFILED);
+    const label = t(isCat ? 'plib.filter_cats' : 'plib.filter_folders') || 'Filter';
+    return `<div class="pf-folderbar" role="group" aria-label="${escapeHtml(label)}">${html}</div>`;
   }
 
   /* Distinct tags across all files, most-used first, for the filter bar.
@@ -131,6 +171,13 @@
    *  head, two arms and a torso). Falls back to reading the record the old way
    *  so a build that has not loaded the module still shows the primary file. */
   const _P = () => (typeof window !== 'undefined' && window.KhaytPrintParts) || null;
+  /** lib/organise.js — GROUPS (a set that belongs together: the Saudi Kings)
+   *  and CATEGORIES (what a thing is: busts, functional parts). One vocabulary
+   *  shared with the catalogue, and one spelling per name. `group` is the field
+   *  that used to be called `folder`; nothing is migrated, both are written. */
+  const _O = () => (typeof window !== 'undefined' && window.KhaytOrganise) || null;
+  const groupOf = (rec) => (_O() ? _O().groupOf(rec) : String((rec && (rec.group || rec.folder)) || '').trim());
+  const categoryOf = (rec) => (_O() ? _O().categoryOf(rec) : String((rec && rec.category) || '').trim());
   const partsOf = (rec) => (_P() ? _P().partsOf(rec) : (rec && rec.sourceFile ? [rec.sourceFile] : []));
   /** lib/print-versions.js — big and small, coloured and plain: alternatives
    *  printed INSTEAD OF each other, each with its own time and weight. */
@@ -326,7 +373,23 @@
           ${colorDotsHtml(rec)}
           ${prof ? `<div class="pf-prof">${_bi('nozzle', '🛠')}${escapeHtml(prof.name)}</div>` : ''}
           ${rec.testedNotes ? `<div class="pf-notes">${escapeHtml(rec.testedNotes)}</div>` : ''}
-          ${(rec.folder || (Array.isArray(rec.tags) && rec.tags.length)) ? `<div class="pf-tags">${rec.folder ? `<button type="button" class="pf-folder ${_folderFilter && _folderFilter.toLowerCase() === String(rec.folder).toLowerCase() ? 'on' : ''}" data-act="pf-folder" data-folder="${escapeHtml(rec.folder)}" title="${escapeHtml(t('plib.folder') || 'Folder')}">${_bi('folder', '🗂')}${escapeHtml(rec.folder)}</button>` : ''}${(rec.tags || []).map((tg) => `<button type="button" class="pf-tag ${_tagFilter && _tagFilter.toLowerCase() === String(tg).toLowerCase() ? 'on' : ''}" data-act="pf-tag" data-tag="${escapeHtml(tg)}">${escapeHtml(tg)}</button>`).join('')}</div>` : ''}
+          ${(() => {
+            /* Where this print is filed, and what it is. Both are buttons that
+             * FILTER — the fastest way to "show me the rest of the Saudi Kings"
+             * is the chip on the king you are already looking at. */
+            const g = groupOf(rec), c = categoryOf(rec);
+            const tags = Array.isArray(rec.tags) ? rec.tags : [];
+            if (!g && !c && !tags.length) return '';
+            const chip = (act, attr, val, icon, title, on) =>
+              `<button type="button" class="pf-folder ${on ? 'on' : ''}" data-act="${act}" ${attr}="${escapeHtml(val)}" title="${escapeHtml(title)}">${icon}${escapeHtml(val)}</button>`;
+            return '<div class="pf-tags">'
+              + (g ? chip('pf-folder', 'data-folder', g, _bi('folder', '🗂'), t('plib.group') || 'Group',
+                          _folderFilter && _folderFilter.toLowerCase() === g.toLowerCase()) : '')
+              + (c ? chip('pf-cat', 'data-cat', c, _bi('board', '▦'), t('plib.category') || 'Category',
+                          _catFilter && _catFilter.toLowerCase() === c.toLowerCase()) : '')
+              + tags.map((tg) => `<button type="button" class="pf-tag ${_tagFilter && _tagFilter.toLowerCase() === String(tg).toLowerCase() ? 'on' : ''}" data-act="pf-tag" data-tag="${escapeHtml(tg)}">${escapeHtml(tg)}</button>`).join('')
+              + '</div>';
+          })()}
           ${duplicateLine(rec)}
           ${recommendedLine(rec)}
           ${(rec.timesPrinted || rec.timesFailed) ? `<div class="pf-history" title="${escapeHtml(t('plib.history_title') || 'Print history')}">${_bi('printer', '🖨')}${(rec.timesPrinted || 0)}× ${escapeHtml(t('plib.printed') || 'printed')}${rec.timesFailed ? ` · ${rec.timesFailed} ${escapeHtml(t('plib.failed') || 'failed')}` : ''}${rec.lastPrinted ? ` · ${escapeHtml(t('plib.last') || 'last')} ${escapeHtml(fmtPfDate(rec.lastPrinted))}` : ''}</div>` : ''}
@@ -385,7 +448,8 @@
   let _query = '';
   let _tagFilter = ''; // active tag filter (empty = all)
   const UNFILED = '\u0000unfiled'; // sentinel: files with no folder
-  let _folderFilter = ''; // '' = all, UNFILED = no folder, else folder name
+  let _folderFilter = ''; // '' = all, UNFILED = no group, else group name
+  let _catFilter = '';    // the other axis; the two narrow together
   let _view = 'library'; // 'library' | 'gallery'
 
   // Finished-prints gallery: a photo-forward showcase of every print file you've
@@ -417,8 +481,10 @@
   // deleted) so the grid can't get stuck on an empty, unclearable filter.
   function normalizeFilters() {
     const list = printFiles || [];
-    if (_folderFilter === UNFILED) { if (!list.some((r) => !r.folder)) _folderFilter = ''; }
-    else if (_folderFilter && !list.some((r) => (r.folder || '').toLowerCase() === _folderFilter.toLowerCase())) _folderFilter = '';
+    if (_folderFilter === UNFILED) { if (!list.some((r) => !groupOf(r))) _folderFilter = ''; }
+    else if (_folderFilter && !list.some((r) => groupOf(r).toLowerCase() === _folderFilter.toLowerCase())) _folderFilter = '';
+    if (_catFilter === UNFILED) { if (!list.some((r) => !categoryOf(r))) _catFilter = ''; }
+    else if (_catFilter && !list.some((r) => categoryOf(r).toLowerCase() === _catFilter.toLowerCase())) _catFilter = '';
     if (_tagFilter && !list.some((r) => (r.tags || []).some((tg) => tg.toLowerCase() === _tagFilter.toLowerCase()))) _tagFilter = '';
   }
 
@@ -432,8 +498,8 @@
     if (isGallery) return galleryHtml();
     const grid = rows.length
       ? `<div class="pf-grid">${rows.map(cardHtml).join('')}</div>`
-      : `<div class="pf-empty">${escapeHtml(total ? ((_tagFilter || _folderFilter) ? (t('plib.no_filter_match') || 'No files match this filter.') : (t('plib.no_match') || 'No files match your search.')) : (t('plib.empty') || 'No print files yet. Add your first STL, 3MF or G-code file.'))}</div>`;
-    return folderBarHtml() + tagBarHtml() + grid;
+      : `<div class="pf-empty">${escapeHtml(total ? ((_tagFilter || _folderFilter || _catFilter) ? (t('plib.no_filter_match') || 'No files match this filter.') : (t('plib.no_match') || 'No files match your search.')) : (t('plib.empty') || 'No print files yet. Add your first STL, 3MF or G-code file.'))}</div>`;
+    return fileBarHtml('group') + fileBarHtml('category') + tagBarHtml() + grid;
   }
 
   function renderList() {
@@ -528,6 +594,7 @@
       case 'pf-tag': { const tg = btn.dataset.tag || ''; _tagFilter = (_tagFilter.toLowerCase() === tg.toLowerCase()) ? '' : tg; renderList(); break; }
       case 'pf-tag-clear': _tagFilter = ''; renderList(); break;
       case 'pf-folder': { const fv = btn.dataset.folder || ''; _folderFilter = (_folderFilter === fv) ? '' : fv; renderList(); break; }
+      case 'pf-cat': { const cv = btn.dataset.cat || ''; _catFilter = (_catFilter === cv) ? '' : cv; renderList(); break; }
     }
   }
 
@@ -1610,10 +1677,22 @@
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;">
           <div>
-            <label>${escapeHtml(t('plib.folder') || 'Folder')}</label>
-            <input type="text" id="pfFolder" list="pfFolderList" value="${escapeHtml(rec.folder || '')}" placeholder="${escapeHtml(t('plib.folder_ph') || 'e.g. Client work')}">
-            <datalist id="pfFolderList">${folderOptions(rec.folder)}</datalist>
+            <!-- A SET THAT BELONGS TOGETHER. This box is the one that used to
+                 say "Folder" and holds the same field; what changed is that the
+                 name now means something on the catalogue too. -->
+            <label>${escapeHtml(t('plib.group') || 'Group')}</label>
+            <input type="text" id="pfFolder" list="pfFolderList" maxlength="60" value="${escapeHtml(groupOf(rec))}" placeholder="${escapeHtml(t('plib.group_ph') || 'e.g. Saudi Kings')}">
+            <datalist id="pfFolderList">${nameOptions('group')}</datalist>
           </div>
+          <div>
+            <!-- WHAT THE THING IS. The question you ask when you do not know
+                 what you want yet, which is what a library of hundreds does. -->
+            <label>${escapeHtml(t('plib.category') || 'Category')}</label>
+            <input type="text" id="pfCategory" list="pfCatList" maxlength="60" value="${escapeHtml(categoryOf(rec))}" placeholder="${escapeHtml(t('plib.category_ph') || 'e.g. Busts')}">
+            <datalist id="pfCatList">${nameOptions('category')}</datalist>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr;gap:10px;margin-top:10px;">
           <div>
             <label>${escapeHtml(t('plib.tags') || 'Tags (comma separated)')}</label>
             <input type="text" id="pfTags" value="${escapeHtml((rec.tags || []).join(', '))}">
@@ -1683,7 +1762,20 @@
         rec.tags = _T()
           ? _T().normaliseTags(modal.querySelector('#pfTags').value, knownTags())
           : modal.querySelector('#pfTags').value.split(',').map((s) => s.trim()).filter(Boolean);
-        rec.folder = (modal.querySelector('#pfFolder').value || '').trim();
+        /* Through lib/organise.js, so a name that matches one already in use
+         * ADOPTS ITS SPELLING. Typed straight onto the record, "saudi kings"
+         * became a second collection holding part of the first — and a group is
+         * exactly the thing you reach for when you want the whole set.
+         *
+         * `folder` is written alongside `group`; see lib/organise.js. */
+        const _org = _O();
+        const _patch = {
+          group: (modal.querySelector('#pfFolder').value || ''),
+          category: (modal.querySelector('#pfCategory').value || ''),
+        };
+        Object.assign(rec, _org
+          ? _org.assign(rec, _patch, { group: knownNames('group'), category: knownNames('category') })
+          : { group: _patch.group.trim(), folder: _patch.group.trim(), category: _patch.category.trim() });
         rec.testedNotes = modal.querySelector('#pfNotes').value.trim();
         const ph = modal._getPhoto ? modal._getPhoto() : null;
         if (ph) { if (ph.cleared) rec.userPhoto = null; else if (ph.stagedPhoto) rec.userPhoto = ph.stagedPhoto; }

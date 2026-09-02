@@ -1407,14 +1407,20 @@ async function openStorefrontModal() {
     return `<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;flex-wrap:wrap;">
       <span style="flex:1;min-width:90px;font-size:12.5px;">${escapeHtml(nm)}</span>
       <input class="sfPrice" data-pid="${escapeHtml(p.id)}" aria-label="${escapeHtml(nm || p.id)} — ${escapeHtml(cur)}" type="number" min="0" step="0.01" inputmode="decimal" placeholder="${escapeHtml(p.price != null ? String(p.price) : (p.basePrice != null ? String(p.basePrice) : '0'))}" value="${escapeHtml(sf.prices[p.id] != null ? String(sf.prices[p.id]) : '')}" style="width:72px;font-size:12.5px;text-align:right;" title="${escapeHtml(cur)}">
-      <input class="sfCat" data-pid="${escapeHtml(p.id)}" aria-label="${escapeHtml(nm || p.id)} — ${escapeHtml(t('store.category_ph') || 'category')}" type="text" maxlength="60" placeholder="${escapeHtml(t('store.category_ph') || 'category')}" value="${escapeHtml(sf.categories[p.id] || '')}" list="sfCatList" style="width:96px;font-size:12px;">
+      <input class="sfCat" data-pid="${escapeHtml(p.id)}" aria-label="${escapeHtml(nm || p.id)} — ${escapeHtml(t('store.category_ph') || 'category')}" type="text" maxlength="60" placeholder="${escapeHtml((typeof productCategoryOf === 'function' ? productCategoryOf(p) : (p.category || '')) || t('store.category_ph') || 'category')}" value="${escapeHtml(sf.categories[p.id] || '')}" list="sfCatList" style="width:96px;font-size:12px;">
       <label style="font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:3px;cursor:pointer;" title="${escapeHtml(t('store.sold_out') || 'Sold out')}">
         <input class="sfSold" data-pid="${escapeHtml(p.id)}" aria-label="${escapeHtml(nm || p.id)} — ${escapeHtml(t('store.sold_out') || 'Sold out')}" type="checkbox" style="width:auto;margin:0;" ${sf.soldOut[p.id] ? 'checked' : ''}>${escapeHtml(t('store.sold_out') || 'Sold out')}
       </label>
       <input class="sfOpts" data-pid="${escapeHtml(p.id)}" type="text" maxlength="240" placeholder="${escapeHtml(t('store.options_ph') || 'Options — Color: Black, White; Size: S, M')}" value="${escapeHtml(sf.options[p.id] || '')}" title="${escapeHtml(t('store.options_hint') || 'Optional product choices. Format: Group: value, value; Group: value')}" style="flex-basis:100%;font-size:12px;">
     </div>`;
   }).join('') || `<p style="font-size:12px;color:var(--text-muted);">${escapeHtml(t('store.no_products') || 'Add products to your catalog first')}</p>`;
-  const catList = [...new Set(Object.values(sf.categories || {}).filter(Boolean))];
+  /* Offer the categories the CATALOGUE already uses, not only the ones typed
+   * into this dialog before — otherwise the box that is meant to stop drift is
+   * the one place that cannot see it. */
+  const catList = [...new Set(
+    Object.values(sf.categories || {}).filter(Boolean)
+      .concat(typeof organiseKnown === 'function' ? organiseKnown('category') : []),
+  )];
   openFormModal({
     title: `🏬 ${t('store.title') || 'Storefront'}`,
     noSave: true,
@@ -1609,7 +1615,26 @@ async function openStorefrontModal() {
               ? sfPrice
               : (p.price != null ? p.price : p.basePrice);
             if (price != null && String(price).trim() !== '') it.price = String(price);
-            if (sf.categories[p.id]) it.category = sf.categories[p.id];
+            /* THE SAME OVERRIDE-NOT-ONLY-SOURCE FIX THE PRICE ABOVE GOT.
+             *
+             * `sf.categories[p.id]` is a map typed into a 96px box inside the
+             * Storefront dialog, and it was the ONLY source — so a shop that had
+             * categorised its whole catalogue on the catalogue screen published
+             * a storefront where nothing had a category, and had to type all of
+             * it a second time into a different form. The product feeds other
+             * platforms import from are built from this same payload, so they
+             * inherited the blank too.
+             *
+             * The override still wins where it is set; the product's own record
+             * is what fills the rest. */
+            const sfCat = sf.categories[p.id];
+            const cat = (sfCat && String(sfCat).trim()) || (typeof productCategoryOf === 'function' ? productCategoryOf(p) : (p.category || ''));
+            if (cat) it.category = cat;
+            /* The collection this belongs to, so a storefront can show the seven
+             * Saudi Kings together rather than scattered through one long grid.
+             * Khayt has always known it and never published it. */
+            const grp = (typeof productGroupOf === 'function' ? productGroupOf(p) : (p.group || p.folder || ''));
+            if (grp) it.group = grp;
             if (sf.soldOut[p.id]) it.soldOut = true;
             /* What the thing is, for a storefront that has to reason about it.
              *

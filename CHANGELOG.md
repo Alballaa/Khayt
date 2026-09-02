@@ -4,6 +4,14 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Before you update
+
+- **The box on a print file that said "Folder" now says "Group", and it means
+  something on your catalogue too.** Nothing is re-filed and nothing is lost —
+  whatever you had typed in there is exactly where it was, under a name that
+  says what you were using it for. A group is a set that belongs together: the
+  seven Saudi Kings, findable and offerable as one collection.
+
 ### Added
 
 - **A print can now be several files.** Spiderman is a head, two arms and a
@@ -22,10 +30,34 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Changed
 
+- **Groups and categories, on your files and your products.** A library of
+  hundreds needs two different questions answered: *what belongs with this*
+  (the Saudi Kings) and *what is this* (a bust, a functional part). Both now
+  exist on print files and on catalogue products, both filter with one press,
+  and the two narrow together — "the busts in the Saudi Kings" is one click and
+  then another. A name you have already used anywhere is offered as you type,
+  and typing it in a different case joins what you have rather than starting a
+  second copy of one collection.
+- **Your storefront publishes the category you already set.** It read only the
+  box inside the Storefront dialog, so a shop that had categorised its whole
+  catalogue published a storefront where nothing had a category, and had to
+  type it all again. Your product's own category is used unless you override it
+  there — the same fix the price got. The group is published too, so a
+  storefront can show a collection together.
 - **Dropping in a zip now asks what it is.** An archive of twelve models is
   either twelve prints or one print in twelve pieces, and nothing inside it says
   which. It used to always make twelve entries; it now asks once — and asks once
   per drop, not once per archive.
+
+### Fixed
+
+- **Thirty-three buttons and messages were showing English in every language.**
+  The bar that filters your library by folder and tag, the batch converter's
+  colour dialog, "Delivered", "Done", "Resent". Nothing was broken and every
+  check was green: the way those strings ask for a translation was invisible to
+  the check that finds missing ones, so a key that existed in no language at all
+  sat in neither half of the comparison. All thirty-three are translated, and
+  the check now sees that form.
 
 
 ## [3.7.0-beta.24] - 2026-09-02
