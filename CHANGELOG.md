@@ -62,6 +62,21 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **The Print Files screen no longer freezes on a big library.** Every card in
+  the library was drawn every time — on every filter you pressed, every file you
+  starred, and every round of the preview move below. At three and a half
+  thousand files that was about **seven tenths of a second of frozen window,
+  every time**. A screenful is drawn now and the rest arrives as you scroll:
+  the same work takes **28 ms**. Nothing is hidden — search and the filters
+  still look through the whole library, and *Select all shown* still means every
+  file that matches, not the ones on screen.
+- **Moving your previews out of the data file now finishes on the first
+  launch.** It did forty at a time, because drawing the screen after each round
+  was so expensive — so a library of three and a half thousand needed **eighty-six
+  launches**, and until it finished, the data file stayed too big to save. It
+  takes about a second and a half now, in the background, and your library is
+  safe to save again the same day you update. Measured end to end on 3,415
+  files: every preview moved, verified on disk, none lost.
 - **Fifty-nine buttons and messages were showing their own internal name.** Not
   English text — the literal `plib.unfiled`, on a chip in your library, in every
   language including English. The bar that filters by folder and tag, the batch

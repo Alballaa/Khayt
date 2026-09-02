@@ -247,6 +247,8 @@
   "plib.n_files": "{n} 个文件",
   "plib.versions": "版本",
   "plib.version_n": "版本 {n}",
+  "plib.show_more": "再显示 {n} 个",
+  "plib.n_of_m": "{m} 个中的 {n} 个",
   "bundle.follows": "跟随「{name}」",
   "bundle.from_groups": "你的分组",
   "bundle.make_package": "做成套装",

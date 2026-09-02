@@ -247,6 +247,8 @@
   "plib.n_files": "{n} files",
   "plib.versions": "Versions",
   "plib.version_n": "Version {n}",
+  "plib.show_more": "Show {n} more",
+  "plib.n_of_m": "{n} of {m}",
   "bundle.follows": "follows {name}",
   "bundle.from_groups": "Your groups",
   "bundle.make_package": "Make a package",

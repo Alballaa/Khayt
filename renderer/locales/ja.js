@@ -247,6 +247,8 @@
   "plib.n_files": "{n} ファイル",
   "plib.versions": "バージョン",
   "plib.version_n": "バージョン {n}",
+  "plib.show_more": "さらに {n} 件を表示",
+  "plib.n_of_m": "{m} 件中 {n} 件",
   "bundle.follows": "{name} に追従",
   "bundle.from_groups": "グループ",
   "bundle.make_package": "パッケージにする",

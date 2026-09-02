@@ -267,7 +267,7 @@ test('every key the code asks for exists in en.js', () => {
        *
        * That is what shipped. A screenshot of v3.7.0-beta.24's print-file
        * library shows a filter chip labelled `plib.unfiled`, in English, in the
-       * released app. 33 keys were in that state: the whole filter bar, the
+       * released app. 59 keys were in that state: the whole filter bar, the
        * batch converter's colour dialog, "Delivered", "Done", "Resent", and the
        * placeholder in the product-name box.
        *
@@ -275,12 +275,32 @@ test('every key the code asks for exists in en.js', () => {
        * a key that is in NO file sits in neither half of that comparison.
        *
        * SO THE RULE IS NOT "does it have a fallback" — no fallback can help.
-       * Every key-shaped literal inside any t(…) call must exist in en.js. The
-       * first version of this checked only `tr(k, fallback)`; the second tried
-       * to detect `|| 'x'` and missed `|| \`x\``, a parenthesised ternary and
-       * anything spanning two lines. Chasing the syntax was the mistake. */
-      for (const call of line.matchAll(/\bt\(([^()]*(?:\([^()]*\)[^()]*)*)\)/g)) {
-        for (const lit of call[1].matchAll(/'([a-z0-9_]+(?:\.[a-z0-9_]+)+)'/gi)) {
+       * Every key-shaped literal inside any t(…) call must exist in en.js.
+       *
+       * ── AND IT IS NOT A REGEX ──────────────────────────────────────────────
+       * Three versions of this were regexes and each had a hole:
+       *
+       *   v1 matched only tr(k, fallback);
+       *   v2 tried to detect `|| 'x'` and missed `|| \`x\``, a parenthesised
+       *      ternary, and anything spanning two lines;
+       *   v3 matched one level of nested parens — so
+       *      t('plib.show_more', { n: String(Math.min(a, b)) }) was invisible,
+       *      which I found by adding exactly that call and watching the guard
+       *      stay green.
+       *
+       * A balanced scan is not hard and has no holes. Find `t(`, count
+       * parentheses to the matching close, read the literals in between. */
+      for (let at = line.indexOf('t('); at !== -1; at = line.indexOf('t(', at + 1)) {
+        // `t(` and not `format(`, `print(`, `.at(` — the char before must not be
+        // part of an identifier.
+        if (at > 0 && /[A-Za-z0-9_$.]/.test(line[at - 1])) continue;
+        let depth = 0, end = -1;
+        for (let j = at + 1; j < line.length; j++) {
+          if (line[j] === '(') depth++;
+          else if (line[j] === ')') { depth--; if (depth === 0) { end = j; break; } }
+        }
+        const inner = line.slice(at + 2, end === -1 ? line.length : end);
+        for (const lit of inner.matchAll(/'([a-z0-9_]+(?:\.[a-z0-9_]+)+)'/gi)) {
           const key = lit[1];
           // A trailing underscore is a PREFIX: t('audit.act_' + kind). The real
           // key is the concatenation and cannot be read from the source.

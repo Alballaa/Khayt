@@ -415,6 +415,9 @@
     renderBulkBar();
   }
 
+  /* "Shown" means every record the filter matches, NOT the page that happens to
+   * be painted. A shop that narrows to seven hundred kings and presses this is
+   * asking for seven hundred, and the bar's count says seven hundred. */
   function pickAllShown() {
     const shown = filtered(_query);
     const allShown = shown.length > 0 && shown.every((r) => _selected.has(r.id));
@@ -685,6 +688,17 @@
    * including the ones no longer on screen. */
   let _selectMode = false;
   const _selected = new Set();
+  /* ── HOW MANY CARDS ARE ACTUALLY DRAWN ────────────────────────────────────
+   * Measured, not guessed: painting every card takes 95 ms at 400 records and
+   * 701 ms at 3,415 — and that is paid on every filter press, every star, and
+   * every round of the thumbnail migration. Nearly a second of frozen window
+   * for a library the size of a real one.
+   *
+   * So a page is drawn and the rest arrives as you reach it. The number is not
+   * a limit on anything: search and the filters narrow the WHOLE library first
+   * (0.2-1.0 ms per thousand), and it is the painting that costs. */
+  const PAGE = 120;
+  let _page = PAGE;
   let _view = 'library'; // 'library' | 'gallery'
 
   // Finished-prints gallery: a photo-forward showcase of every print file you've
@@ -731,8 +745,14 @@
     const total = (printFiles || []).length;
     if (!hasHub) return `<div class="pf-empty">${escapeHtml(t('plib.desktop_only') || 'The print-file library is available in the desktop app.')}</div>`;
     if (isGallery) return galleryHtml();
+    const painted = rows.slice(0, _page);
+    const more = rows.length - painted.length;
     const grid = rows.length
-      ? `<div class="pf-grid">${rows.map(cardHtml).join('')}</div>`
+      ? `<div class="pf-grid">${painted.map(cardHtml).join('')}</div>`
+        + (more > 0 ? `<div class="pf-more" id="pfMore">
+             <button class="btn ghost small" data-act="pf-more">${escapeHtml(t('plib.show_more', { n: String(Math.min(more, PAGE)) }))}</button>
+             <span class="pf-more-n">${escapeHtml(t('plib.n_of_m', { n: String(painted.length), m: String(rows.length) }))}</span>
+           </div>` : '')
       : `<div class="pf-empty">${escapeHtml(total ? ((_tagFilter || _folderFilter || _catFilter) ? (t('plib.no_filter_match') || 'No files match this filter.') : (t('plib.no_match') || 'No files match your search.')) : (t('plib.empty') || 'No print files yet. Add your first STL, 3MF or G-code file.'))}</div>`;
     return fileBarHtml('group') + fileBarHtml('category') + tagBarHtml() + grid;
   }
@@ -740,9 +760,35 @@
   function renderList() {
     const list = document.getElementById('pfList');
     if (list) list.innerHTML = listInnerHtml();
-    // The pictures for what was just drawn, in one call, filled in as they land.
-    warmThumbs(filtered(_query));
+    // The pictures for WHAT WAS JUST DRAWN. This asked for every match — 3,415
+    // thumbnails off disk to fill in 120 cards, on every keystroke.
+    warmThumbs(filtered(_query).slice(0, _page));
+    watchForMore();
   }
+
+  /* Growing the page as you reach the bottom, so nothing needs pressing. The
+   * button stays: an observer that never fires (no layout, a hidden tab) must
+   * not be the only way to see the rest of a library. */
+  let _moreObserver = null;
+  function watchForMore() {
+    if (_moreObserver) { _moreObserver.disconnect(); _moreObserver = null; }
+    const sentinel = document.getElementById('pfMore');
+    if (!sentinel || typeof IntersectionObserver !== 'function') return;
+    _moreObserver = new IntersectionObserver((entries) => {
+      if (entries.some((e) => e.isIntersecting)) showMore();
+    }, { rootMargin: '600px' });
+    _moreObserver.observe(sentinel);
+  }
+
+  function showMore() {
+    const total = filtered(_query).length;
+    if (_page >= total) return;
+    _page += PAGE;
+    renderList();
+  }
+
+  /** Back to one page. Every filter, search or view change starts at the top. */
+  function resetPage() { _page = PAGE; }
 
   function renderPrintFiles() {
     const el = document.getElementById('printfiles-tab');
@@ -791,9 +837,20 @@
       search.oninput = (e) => {
         _query = e.target.value;
         if (_searchTimer) clearTimeout(_searchTimer);
-        _searchTimer = setTimeout(() => { _searchTimer = null; renderList(); }, 120);
+        _searchTimer = setTimeout(() => { _searchTimer = null; resetPage(); renderList(); }, 120);
       };
     }
+    /* This builds the tab's markup itself rather than going through renderList,
+     * so the two things renderList does AFTER writing the DOM have to happen
+     * here too. They did not: on a fresh render the pictures were never fetched
+     * and the observer that grows the page was never attached, so the first
+     * screen a shop sees had thumbnails that filled in only after some other
+     * action and a list that stopped at 120 until the button was pressed.
+     *
+     * Found by looking at a screenshot — the E2E pressed the button, which
+     * works, and never scrolled. */
+    warmThumbs(filtered(_query).slice(0, _page));
+    watchForMore();
   }
 
   function onClick(e) {
@@ -836,10 +893,13 @@
       case 'pf-bulk-del': bulkDelete(); break;
       case 'pf-view-library': if (_view !== 'library') { _view = 'library'; renderPrintFiles(); } break;
       case 'pf-view-gallery': if (_view !== 'gallery') { _view = 'gallery'; renderPrintFiles(); } break;
-      case 'pf-tag': { const tg = btn.dataset.tag || ''; _tagFilter = (_tagFilter.toLowerCase() === tg.toLowerCase()) ? '' : tg; renderList(); break; }
-      case 'pf-tag-clear': _tagFilter = ''; renderList(); break;
-      case 'pf-folder': { const fv = btn.dataset.folder || ''; _folderFilter = (_folderFilter === fv) ? '' : fv; renderList(); break; }
-      case 'pf-cat': { const cv = btn.dataset.cat || ''; _catFilter = (_catFilter === cv) ? '' : cv; renderList(); break; }
+      case 'pf-more': showMore(); break;
+      /* Every narrowing starts at the top again: a shop that has scrolled deep
+       * into one group and then picks another is asking a new question. */
+      case 'pf-tag': { const tg = btn.dataset.tag || ''; _tagFilter = (_tagFilter.toLowerCase() === tg.toLowerCase()) ? '' : tg; resetPage(); renderList(); break; }
+      case 'pf-tag-clear': _tagFilter = ''; resetPage(); renderList(); break;
+      case 'pf-folder': { const fv = btn.dataset.folder || ''; _folderFilter = (_folderFilter === fv) ? '' : fv; resetPage(); renderList(); break; }
+      case 'pf-cat': { const cv = btn.dataset.cat || ''; _catFilter = (_catFilter === cv) ? '' : cv; resetPage(); renderList(); break; }
     }
   }
 
@@ -2061,9 +2121,26 @@
     const plan = TS.planMigration(printFiles || []);
     if (!plan.length) return;
     _migrating = true;
-    let moved = 0;
+    let moved = 0, sinceSave = 0;
     try {
-      for (const item of plan.slice(0, 40)) {          // a slice per launch, not the lot
+      /* THE WHOLE LIBRARY, NOT FORTY OF IT.
+       *
+       * This did `plan.slice(0, 40)` — one slice per launch — because a round
+       * was expensive: painting every card cost 701 ms at 3,415 records and was
+       * paid on every round. So a shop with 3,415 files needed EIGHTY-SIX
+       * launches to finish, and until it did, its data file stayed over the size
+       * the store will save at. The thing this migration exists to fix stayed
+       * broken for months of daily use.
+       *
+       * Painting is bounded now (a page, not the library), and the write itself
+       * was never the cost: 0.8 ms per preview, measured. 3,415 of them is about
+       * six seconds of background work, yielding to the window between each, and
+       * the shop is under the cap when they next close the app instead of in
+       * March.
+       *
+       * Saved every 400 so progress survives a quit half way; a crash before a
+       * save leaves verified files on disk that the next run simply rewrites. */
+      for (const item of plan) {
         const rec = (printFiles || []).find((r) => r.id === item.id);
         if (!rec || !TS.isDataUrl(rec.thumb)) continue;
         let res = null;
@@ -2074,6 +2151,8 @@
         delete rec.thumb;
         rec.thumbFile = patch.thumbFile;
         moved++;
+        sinceSave++;
+        if (sinceSave >= 400) { sinceSave = 0; saveAll(); }
         await new Promise((r) => setTimeout(r, 0));    // let the window breathe
       }
     } finally { _migrating = false; }
