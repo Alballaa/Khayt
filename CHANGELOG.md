@@ -14,6 +14,11 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Added
 
+- **Offer a collection as one package.** A group with two or more products can
+  be made a package in one press, from **🎁 Bundles** in the catalogue — and it
+  then *follows the group*. File an eighth king into the Saudi Kings and he is
+  in the package, with nothing to remember. Quoting it puts every member in the
+  build in one tap. Packages you built by hand are untouched and keep working.
 - **Work on many files at once.** Press **Select** in Print Files, tick what you
   want — or take everything a filter is showing in one press — and then group,
   categorise, tag or delete the lot together. What you have picked stays picked
