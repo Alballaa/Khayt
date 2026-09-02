@@ -243,6 +243,7 @@
   "plib.name": "Ad",
   "plib.material": "Malzeme",
   "plib.slicer_profile": "Dilimleyici profili",
+  "plib.tags_reuse": "Zaten kullandığın etiketler",
   "plib.tags": "Etiketler (virgülle ayrılmış)",
   "plib.tested_notes": "Test edilmiş ayarlar / notlar",
   "plib.photo": "Fotoğraf (isteğe bağlı)",

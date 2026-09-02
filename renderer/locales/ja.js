@@ -243,6 +243,7 @@
   "plib.name": "名前",
   "plib.material": "マテリアル",
   "plib.slicer_profile": "スライサープロファイル",
+  "plib.tags_reuse": "すでに使っているタグ",
   "plib.tags": "タグ（カンマ区切り）",
   "plib.tested_notes": "テスト済み設定／メモ",
   "plib.photo": "写真（任意）",

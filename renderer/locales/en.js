@@ -243,6 +243,7 @@
   "plib.name": "Name",
   "plib.material": "Material",
   "plib.slicer_profile": "Slicer profile",
+  "plib.tags_reuse": "Tags you already use",
   "plib.tags": "Tags (comma separated)",
   "plib.tested_notes": "Tested settings / notes",
   "plib.photo": "Photo (optional)",
