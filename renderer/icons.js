@@ -34,6 +34,51 @@
     spool: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/><path d="M12 3v6M12 15v6"/>',
     // play / start shift
     play: '<path d="M6 3l14 9-14 9V3z"/>',
+    // pause / hold production
+    pause: '<path d="M9 4.5v15M15 4.5v15"/>',
+
+    /* ── Added for the print library, which was still on emoji ──────────────
+     * This file has said since it was written: "never inline an emoji in
+     * markup that this could cover." The print-file cards were covered by
+     * nothing — `_bi()` only reached for a real icon in the Bed Ready flavour,
+     * so Khayt drew 🖨 🛠 🔎 🧊 🎨 🔄 🗑 in a row, at whatever colour and
+     * metrics the OS emoji font chose. These are the glyphs that row needed. */
+    // tool / the settings that worked
+    nozzle: '<path d="M7 3h10l-1.4 8H8.4L7 3z"/><path d="M10 11l2 4 2-4"/>',
+    // magnifier / identify this model
+    search: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-4.3-4.3"/>',
+    // cube / view in 3D
+    cube: '<path d="M12 2.5l8.5 4.8v9.4L12 21.5 3.5 16.7V7.3L12 2.5z"/><path d="M12 21.5V12M3.5 7.3L12 12l8.5-4.7"/>',
+    // palette / plan colours
+    palette: '<path d="M12 3a9 9 0 1 0 0 18c1 0 1.6-.6 1.6-1.4 0-.5-.3-.9-.6-1.2-.3-.4-.5-.7-.5-1.2 0-.8.7-1.4 1.5-1.4H16a5 5 0 0 0 5-5c0-4.4-4-7.8-9-7.8z"/><circle cx="7.5" cy="11.5" r=".9"/><circle cx="10.5" cy="7.5" r=".9"/><circle cx="15" cy="8.5" r=".9"/>',
+    // two arrows round / convert to another printer
+    convert: '<path d="M20.5 11A8.5 8.5 0 0 0 6.4 5.6L3.5 8.2"/><path d="M3.5 13A8.5 8.5 0 0 0 17.6 18.4l2.9-2.6"/><path d="M3.5 3.4v4.8h4.8M20.5 20.6v-4.8h-4.8"/>',
+    // bin / delete
+    trash: '<path d="M4 7h16M9.5 7V5.2a1.2 1.2 0 0 1 1.2-1.2h2.6a1.2 1.2 0 0 1 1.2 1.2V7M6.5 7l.9 12.4a1.4 1.4 0 0 0 1.4 1.3h6.4a1.4 1.4 0 0 0 1.4-1.3L17.5 7M10.3 11v6M13.7 11v6"/>',
+    // pencil / edit
+    pencil: '<path d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0-3-3L5 17v3z"/><path d="M14.5 6.5l3 3"/>',
+    // tick / it printed
+    check: '<path d="M20 6.5L9.3 17.2 4 12"/>',
+    // cross / it failed
+    cross: '<path d="M17.5 6.5l-11 11M6.5 6.5l11 11"/>',
+    /* Three dots, FILLED: outlined circles at 15px read as three rings rather
+     * than as dots. The wrapper sets fill:none for the line glyphs, so these
+     * say otherwise for themselves. */
+    more: '<circle cx="5.2" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="18.8" cy="12" r="1.5" fill="currentColor" stroke="none"/>',
+    // plus / add a file
+    plus: '<path d="M12 5.2v13.6M5.2 12h13.6"/>',
+    // up-down arrows / sort
+    sort: '<path d="M7 20V4.5M7 4.5L4.2 7.6M7 4.5l2.8 3.1M17 4v15.5M17 19.5l-2.8-3.1M17 19.5l2.8-3.1"/>',
+    // columns / board view
+    board: '<rect x="3.5" y="4.5" width="5" height="15" rx="1.2"/><rect x="9.5" y="4.5" width="5" height="10" rx="1.2"/><rect x="15.5" y="4.5" width="5" height="13" rx="1.2"/>',
+    // rows / list view
+    list: '<path d="M4 7h16M4 12h16M4 17h10"/>',
+    // target / calibrate
+    target: '<circle cx="12" cy="12" r="7.5"/><circle cx="12" cy="12" r="2.8"/><path d="M12 2.2v2.6M12 19.2v2.6M2.2 12h2.6M19.2 12h2.6"/>',
+    // folder
+    folder: '<path d="M3 7.5a2 2 0 0 1 2-2h3.8l2 2H19a2 2 0 0 1 2 2v7.5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-9.5z"/>',
+    // cloud / sync
+    cloud: '<path d="M7.2 18.5a4.2 4.2 0 0 1 .3-8.4 6 6 0 0 1 11.3 2 3.6 3.6 0 0 1-.8 6.4H7.2z"/>',
   };
 
   /**

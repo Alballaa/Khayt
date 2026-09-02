@@ -612,22 +612,36 @@
 
       <div class="khayt-queue-toolbar row between wrap gap12" style="margin-bottom:16px;">
         <h3 class="card-head sec-title" style="margin:0; flex:1; min-width:120px;"><span class="swatch"></span><span data-i18n="queue.title">Active Production Queue</span></h3>
+        <!-- Every control here used to carry its own size vocabulary —
+             `btn-sm btn ghost small` stacks two size classes, and the menu below
+             held three different combinations of them. One class each now, and
+             the menu items are styled by .ovf-menu rather than by pretending to
+             be buttons in a row. -->
         <div class="khayt-queue-toolbar-actions">
           <input type="search" id="kanSearch" class="toolbar-search" data-i18n-placeholder="kan.search_ph" placeholder="Filter by client, project…" style="max-width:200px;">
-          <button id="btnKanbanSort" class="btn-sm btn ghost small" data-i18n-title="queue.sort_btn" title="Sort cards by urgency">⬆ <span data-i18n="queue.sort_btn">Sort</span></button>
-          <button type="button" id="btnQueueView" class="btn-sm btn ghost small" aria-pressed="false" data-i18n="queue.board_view">Board view</button>
-          <button id="btnPauseProduction" class="btn small" style="background:rgba(220,38,38,0.15);color:#f87171;border-color:rgba(220,38,38,0.3);" data-i18n="prod.pause">⏸ Pause production</button>
-          <details class="queue-overflow">
-            <summary class="btn-sm btn ghost small" aria-label="More queue actions" data-i18n-title="common.more" title="More actions">⋯</summary>
-            <div class="queue-overflow-menu">
-              <button id="btnStartShift" class="btn btn-sm btn-secondary"><span data-khayt-icon="play"></span> <span data-i18n="startShift">Start Shift</span></button>
-              <button id="btnEndOfDay" class="btn btn-sm btn-secondary"><span data-khayt-icon="clipboard"></span> <span data-i18n="endOfDayReport">End of Day</span></button>
-              <button id="btnScheduleView" class="btn-sm btn ghost small"><span data-khayt-icon="calendar"></span> <span data-i18n="kan.schedule_view">Schedule</span></button>
-              <button id="btnCalendarView" class="btn-sm btn ghost small"><span data-khayt-icon="calendar"></span> <span data-i18n="kan.calendar_view">Calendar</span></button>
-              <button id="btnBatchPlanner" class="btn small ghost"><span data-khayt-icon="clipboard"></span> <span data-i18n="kan.batch_planner">Batch Planner</span></button>
-              <button id="btnSuggestSchedule" class="btn small ghost"><span data-khayt-icon="wand"></span> <span data-i18n="sched.suggest_btn">Suggest assignments</span></button>
-              <label class="btn small ghost" style="display:inline-flex;align-items:center;gap:5px;cursor:pointer;" data-i18n-title="sched.auto_hint" title="Automatically assign queued jobs to free, compatible machines"><input type="checkbox" id="chkAutoSchedule" style="width:auto;margin:0;"> <span data-i18n="sched.auto_toggle">Auto-assign</span></label>
-              <button id="btnKioskView" class="btn-sm btn ghost small"><span data-khayt-icon="monitor"></span> <span data-i18n="kan.kiosk_view">Kiosk</span></button>
+          <!-- List and Board are two ways of looking at ONE queue, so they are
+               one control. As two loose buttons, "Board view" read as a command
+               and gave no hint that a list view was what you were already in. -->
+          <div class="seg" role="group" data-i18n-aria="queue.view_group" aria-label="Queue view">
+            <button type="button" id="btnQueueViewList" aria-pressed="true"><span data-khayt-icon="list"></span> <span data-i18n="queue.list_view">List</span></button>
+            <button type="button" id="btnQueueView" aria-pressed="false"><span data-khayt-icon="board"></span> <span data-i18n="queue.board_view">Board</span></button>
+          </div>
+          <button id="btnKanbanSort" class="btn ghost small" data-i18n-title="queue.sort_btn" title="Sort cards by urgency"><span data-khayt-icon="sort"></span> <span data-i18n="queue.sort_btn">Sort</span></button>
+          <!-- Quiet at rest, loud when production is actually paused: a button
+               that is red all day is a red button nobody reads. `state-on` is
+               added by the handler that does the pausing. -->
+          <button id="btnPauseProduction" class="btn ghost small"><span class="pp-ico" data-khayt-icon="pause"></span> <span class="pp-label" data-i18n="prod.pause">Pause production</span></button>
+          <details class="ovf">
+            <summary class="btn ghost small icon" role="button" aria-label="More queue actions" data-i18n-title="common.more" title="More actions"><span data-khayt-icon="more" data-icon-size="16"></span></summary>
+            <div class="ovf-menu">
+              <button id="btnStartShift"><span data-khayt-icon="play"></span> <span data-i18n="startShift">Start Shift</span></button>
+              <button id="btnEndOfDay"><span data-khayt-icon="clipboard"></span> <span data-i18n="endOfDayReport">End of Day</span></button>
+              <button id="btnScheduleView"><span data-khayt-icon="schedule"></span> <span data-i18n="kan.schedule_view">Schedule</span></button>
+              <button id="btnCalendarView"><span data-khayt-icon="calendar"></span> <span data-i18n="kan.calendar_view">Calendar</span></button>
+              <button id="btnBatchPlanner"><span data-khayt-icon="clipboard"></span> <span data-i18n="kan.batch_planner">Batch Planner</span></button>
+              <button id="btnSuggestSchedule"><span data-khayt-icon="wand"></span> <span data-i18n="sched.suggest_btn">Suggest assignments</span></button>
+              <label data-i18n-title="sched.auto_hint" title="Automatically assign queued jobs to free, compatible machines"><input type="checkbox" id="chkAutoSchedule" style="width:auto;margin:0;"> <span data-i18n="sched.auto_toggle">Auto-assign</span></label>
+              <button id="btnKioskView"><span data-khayt-icon="monitor"></span> <span data-i18n="kan.kiosk_view">Kiosk</span></button>
             </div>
           </details>
         </div>

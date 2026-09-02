@@ -167,21 +167,38 @@ function applyProductionPause() {
     const reason = settings.pauseReason ? ` — ${escapeHtml(settings.pauseReason)}` : '';
     banner.innerHTML = `⏸ ${escapeHtml(t('prod.paused_banner'))}${reason} <button data-act="resume-production">${escapeHtml(t('prod.resume'))}</button>`;
     banner.style.display = 'flex';
-    if (btn) {
-      btn.textContent = '▶ ' + t('prod.resume');
-      btn.style.background = 'rgba(34,197,94,0.15)';
-      btn.style.color = '#4ade80';
-      btn.style.borderColor = 'rgba(34,197,94,0.3)';
-    }
+    setPauseButton(btn, 'play', t('prod.resume'), true);
   } else {
     banner.style.display = 'none';
-    if (btn) {
-      btn.textContent = '⏸ ' + t('prod.pause');
-      btn.style.background = 'rgba(220,38,38,0.15)';
-      btn.style.color = '#f87171';
-      btn.style.borderColor = 'rgba(220,38,38,0.3)';
-    }
+    setPauseButton(btn, 'pause', t('prod.pause'), false);
   }
+}
+
+/**
+ * The pause control, in whichever of its two states it is in.
+ *
+ * It used to be written with `textContent` and four inline style properties,
+ * which meant the colours lived here rather than in the stylesheet, and setting
+ * the text deleted the icon inside the button. Worse, it was red at rest — a
+ * button that is red all day is a red button nobody reads. It is quiet now
+ * until production is ACTUALLY paused, which is the state worth shouting about.
+ */
+function setPauseButton(btn, iconName, label, paused) {
+  if (!btn) return;
+  const ico = (typeof window !== 'undefined' && window.KhaytIcons)
+    ? window.KhaytIcons.icon(iconName, 15) : '';
+  const lbl = btn.querySelector('.pp-label');
+  if (lbl) {
+    lbl.textContent = label;
+    const slot = btn.querySelector('.pp-ico');
+    if (slot) { slot.innerHTML = ico; slot.setAttribute('data-icon-done', '1'); }
+  } else {
+    // A build whose markup predates the icon slots still gets a correct button.
+    btn.innerHTML = `<span class="pp-ico" data-icon-done="1">${ico}</span> <span class="pp-label"></span>`;
+    btn.querySelector('.pp-label').textContent = label;
+  }
+  btn.classList.toggle('state-on', !!paused);
+  btn.classList.toggle('state-resume', !!paused);
 }
 
 function pauseProduction() {

@@ -4,7 +4,32 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Changed
+
+- **The buttons on a print file are one tidy row instead of a block of ten.**
+  A card carried up to ten buttons that wrapped onto two or three ragged lines,
+  and because two cards rarely hold the same actions they wrapped at different
+  points — so nothing lined up across the page and a card could end with a lone
+  bin on a line of its own. Now every card reads the same: open it in your
+  slicer, mark it printed or failed, and one **···** for the rest. Delete moved
+  to the bottom of that menu, under a divider; it used to sit one button away
+  from "Open in slicer".
+- **The queue's view switch is one control that shows where you are.** It was a
+  single button that renamed itself, reading "Board view" while you were looking
+  at the list — so the word on it was the place you were going one moment and
+  the place you were in the next. **List** and **Board** now sit together with
+  the current one marked.
+- **Pause production is quiet until production is actually paused.** A button
+  that is red all day is a red button nobody reads.
+- **The print library's icons are drawn, not typed.** It was showing emoji, which
+  arrive in whatever colour and shape each computer decides, and the rest of the
+  app had already moved to Khayt's own line icons years' worth of screens ago.
+
 ### Fixed
+
+- **An icon no longer sits flush against the words next to it** — the print
+  history line read "printed3x printed". In Arabic the gap was on the wrong side
+  of the glyph entirely.
 
 - **A big print file can be added again, and it is measured.** Adding a file
   larger than about 50 MB left it in your library with no print time, no weight,

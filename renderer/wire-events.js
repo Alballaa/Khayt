@@ -1330,8 +1330,14 @@ function wireEvents() {
   });
 
   // Kanban — production columns
+  // Each half selects its own view rather than toggling. A segment that toggles
+  // can be pressed twice and land back where it started, which a segmented
+  // control is not supposed to do.
   $('#btnQueueView')?.addEventListener('click', () => {
-    window.KhaytQueueList?.setQueueView?.(window.KhaytQueueList.isListView() ? 'kanban' : 'list');
+    window.KhaytQueueList?.setQueueView?.('kanban');
+  });
+  $('#btnQueueViewList')?.addEventListener('click', () => {
+    window.KhaytQueueList?.setQueueView?.('list');
   });
   document.querySelector('.kanban')?.addEventListener('click', (e) => {
     const kanbanTimeline = e.target.closest('[data-act="order-timeline"]');
