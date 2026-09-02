@@ -32,6 +32,15 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **Forty pieces of the app were still in English in German, Spanish, French and
+  Chinese.** The whole CSV import dialog, the resin calculator's fields, the
+  order status page and the waste report had never been translated — they had
+  simply been copied across from English, so every check that counts
+  translations said they were done. They are translated now, along with three
+  more in Arabic, Japanese and French.
+- **A button no longer gains or loses its "+" depending on the language.**
+  Buttons like "+ Add photo" and "+ Add location" carry that mark in the text
+  itself, and eight of them had lost it in some languages.
 - **An icon no longer sits flush against the words next to it** — the print
   history line read "printed3x printed". In Arabic the gap was on the wrong side
   of the glyph entirely.

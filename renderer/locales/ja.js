@@ -1642,7 +1642,7 @@
   "inv.thank_you": "ご利用ありがとうございます！",
   "inv.services_default": "3Dプリントサービス",
   "inv.walk_in": "飛び込み客",
-  "legal": "All rights reserved.",
+  "legal": "無断転載を禁じます。",
   "an.filament_perf": "フィラメント別パフォーマンス",
   "an.mat_usage_title": "月別素材使用量",
   "an.mat_usage_empty": "使用データがまだありません。注文が完了すると重量が更新されます。",
