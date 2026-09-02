@@ -5576,3 +5576,16 @@ body.khayt-workbench .wb-glist li.is-openable { cursor: pointer; }
    that one holds a list. */
 .pf-tagpick { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 7px; max-height: 84px; overflow-y: auto; }
 .pf-tagpick .pf-tagchip { cursor: pointer; }
+
+
+/* The versions of a print — big and small, coloured and plain. A row of
+   choices, not a list of files: picking one changes what the card describes,
+   including the time and weight it is quoted from. */
+.pf-versions { display: flex; flex-wrap: wrap; gap: 5px; padding: 0 12px 8px; }
+.pf-verchip {
+  font-size: 11.5px; padding: 3px 10px; border-radius: 999px; cursor: pointer;
+  background: var(--bg); color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+.pf-verchip:hover { color: var(--text); }
+.pf-verchip.on { background: var(--surface-2); color: var(--text); border-color: var(--accent, #199e8f); }

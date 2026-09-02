@@ -245,6 +245,8 @@
   "plib.slicer_profile": "Slicer-Profil",
   "plib.tags_reuse": "Tags, die du schon verwendest",
   "plib.n_files": "{n} Dateien",
+  "plib.versions": "Varianten",
+  "plib.version_n": "Variante {n}",
   "plib.tags": "Tags (durch Komma getrennt)",
   "plib.tested_notes": "Getestete Einstellungen / Notizen",
   "plib.photo": "Foto (optional)",

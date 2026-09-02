@@ -246,6 +246,8 @@
   "plib.slicer_profile": "Perfil do fatiador",
   "plib.tags_reuse": "Etiquetas que você já usa",
   "plib.n_files": "{n} arquivos",
+  "plib.versions": "Versões",
+  "plib.version_n": "Versão {n}",
   "plib.tags": "Etiquetas (separadas por vírgula)",
   "plib.tested_notes": "Configurações testadas / observações",
   "plib.photo": "Foto (opcional)",

@@ -245,6 +245,8 @@
   "plib.slicer_profile": "切片软件配置",
   "plib.tags_reuse": "你已经使用的标签",
   "plib.n_files": "{n} 个文件",
+  "plib.versions": "版本",
+  "plib.version_n": "版本 {n}",
   "plib.tags": "标签（用逗号分隔）",
   "plib.tested_notes": "经测试的设置／备注",
   "plib.photo": "照片（可选）",

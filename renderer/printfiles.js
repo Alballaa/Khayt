@@ -132,6 +132,9 @@
    *  so a build that has not loaded the module still shows the primary file. */
   const _P = () => (typeof window !== 'undefined' && window.KhaytPrintParts) || null;
   const partsOf = (rec) => (_P() ? _P().partsOf(rec) : (rec && rec.sourceFile ? [rec.sourceFile] : []));
+  /** lib/print-versions.js — big and small, coloured and plain: alternatives
+   *  printed INSTEAD OF each other, each with its own time and weight. */
+  const _V = () => (typeof window !== 'undefined' && window.KhaytPrintVersions) || null;
   function allTags() {
     const shared = _T();
     if (shared) return shared.tagCounts(printFiles || []);
@@ -295,7 +298,22 @@
           ${duplicateLine(rec)}
           ${recommendedLine(rec)}
           ${(rec.timesPrinted || rec.timesFailed) ? `<div class="pf-history" title="${escapeHtml(t('plib.history_title') || 'Print history')}">${_bi('printer', '🖨')}${(rec.timesPrinted || 0)}× ${escapeHtml(t('plib.printed') || 'printed')}${rec.timesFailed ? ` · ${rec.timesFailed} ${escapeHtml(t('plib.failed') || 'failed')}` : ''}${rec.lastPrinted ? ` · ${escapeHtml(t('plib.last') || 'last')} ${escapeHtml(fmtPfDate(rec.lastPrinted))}` : ''}</div>` : ''}
-          ${Array.isArray(rec.converted) && rec.converted.length ? `<div class="pf-converted">${rec.converted.map((c) => `
+          ${(() => {
+            /* The versions of this print, as a row of choices. Picking one
+             * changes what the card describes — its files, and the time and
+             * weight it is quoted from — because that is what a version IS. */
+            const V = _V();
+            if (!V || !V.hasVersions(rec)) return '';
+            const active = V.activeVersion(rec);
+            return `<div class="pf-versions" role="group" aria-label="${escapeHtml(t('plib.versions') || 'Versions')}">`
+              + V.versionsOf(rec).map((v, i) => {
+                  const label = v.name || (t('plib.version_n', { n: String(i + 1) }) || `Version ${i + 1}`);
+                  const on = active && String(active.id) === String(v.id);
+                  return `<button type="button" class="pf-verchip ${on ? 'on' : ''}" data-act="pf-version" data-id="${escapeHtml(rec.id)}" data-ver="${escapeHtml(v.id)}" aria-pressed="${on ? 'true' : 'false'}">${escapeHtml(label)}</button>`;
+                }).join('')
+              + '</div>';
+          })()}
+          ${Array.isArray(rec.converted) && rec.converted.length && !(_V() && _V().hasVersions(rec)) ? `<div class="pf-converted">${rec.converted.map((c) => `
             <div class="pf-conv-row">
               <span class="pf-conv-name" title="${escapeHtml(c.filename)}">${_bi('convert', '🔄')}${escapeHtml(c.targetName || c.targetId || (t('conv.convert_short') || 'Converted'))}</span>
               <button class="btn small ghost icon" data-act="pf-conv-open" data-id="${escapeHtml(rec.id)}" data-fn="${escapeHtml(c.filename)}" title="${escapeHtml(t('plib.open_slicer') || 'Open in slicer')}">${_bi('printer', '🖨')}</button>
@@ -455,6 +473,11 @@
       case 'pf-edit':  editPrintFile(id); break;
       case 'pf-del':   deletePrintFile(id); break;
       case 'pf-fav':   toggleFav(id); break;
+      case 'pf-version': {
+        const V = _V(); const r = (printFiles || []).find((x) => x.id === id);
+        if (V && r) { Object.assign(r, V.selectVersion(r, btn.dataset.ver)); r.updatedAt = Date.now(); saveAll(); renderPrintFiles(); }
+        break;
+      }
       case 'pf-plan':  { const r = (printFiles || []).find((x) => x.id === id); if (r && typeof openColorPlanner === 'function') openColorPlanner(r); break; }
       case 'pf-convert': convertPrintFile(id); break;
       case 'pf-conv-open': openConvertedInSlicer(id, btn.dataset.fn); break;
@@ -1021,6 +1044,11 @@
     // below, so enrichment died before the thumbnail and geometry work that
     // does not need a file either.
     if (!rec || !rec.sourceFile) return;
+    /* A converted file is an alternative to this print made for another
+     * printer, which is what a version is — so the old list becomes the new one
+     * rather than sitting beside it as a fourth vocabulary for one idea. Adds
+     * nothing and selects nothing new; the original stays on show. */
+    if (_V()) { const patch = _V().fromConverted(rec); if (patch && patch.versions) Object.assign(rec, patch); }
     const ext = rec.sourceFile.ext;
     let tooBig = false, noPicture = false, problem = '';
     try {

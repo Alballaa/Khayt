@@ -245,6 +245,8 @@
   "plib.slicer_profile": "スライサープロファイル",
   "plib.tags_reuse": "すでに使っているタグ",
   "plib.n_files": "{n} ファイル",
+  "plib.versions": "バージョン",
+  "plib.version_n": "バージョン {n}",
   "plib.tags": "タグ（カンマ区切り）",
   "plib.tested_notes": "テスト済み設定／メモ",
   "plib.photo": "写真（任意）",
