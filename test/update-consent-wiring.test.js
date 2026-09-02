@@ -33,6 +33,37 @@ test('the release carries its own notes, not a link to them', () => {
     'the release is being created with the boilerplate note again');
 });
 
+test('the job that builds the notes has the repo they come from', () => {
+  /* v3.7.0-beta.24 published the boilerplate line despite all of this being in
+   * place, because the "Create GitHub Release" job had never needed a checkout
+   * — it only ran `gh`. `node scripts/changelog-section.js` failed with "file
+   * not found", the guard fell through to its fallback, and the release said
+   * "See README" like every release before it.
+   *
+   * The script was right and the call was right. The job they ran in had no
+   * repo, which no test could see because every test here reads the repo it is
+   * already standing in. */
+  const wf = read('.github/workflows/release.yml');
+  const at = wf.indexOf('name: Create GitHub Release');
+  assert.ok(at > -1, 'the release-creating job is gone');
+  /* The job ends at the next JOB, found structurally — a line at job indent.
+   * Slicing to the next `gh release create` ended the job early, because that
+   * phrase appears in a comment above the command it names. */
+  const rest = wf.slice(at);
+  const nextJob = rest.slice(1).search(/\n {2}[a-z][\w-]*:\n/);
+  const job = nextJob === -1 ? rest : rest.slice(0, nextJob + 1);
+  assert.match(job, /uses: actions\/checkout/,
+    'the job builds the release notes from CHANGELOG.md but never checks the repo out');
+  /* Anchored on the INVOCATION, `node scripts/changelog-section.js`, not on the
+   * bare filename — the comment explaining this very fix names the file, sits
+   * above the checkout, and made the first version of this assertion fail
+   * against prose rather than against code. Fourth time today a source-text
+   * test matched the wrong thing; they match what you write about the code as
+   * readily as the code. */
+  assert.ok(job.indexOf('actions/checkout') < job.indexOf('node scripts/changelog-section.js'),
+    'the checkout has to come before the script that needs it');
+});
+
 test('the updater parses the notes and sends the verdict with the offer', () => {
   const src = read('lib/updater.js');
   assert.match(src, /require\('\.\/major-changes'\)/);
