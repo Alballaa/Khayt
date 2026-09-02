@@ -47,6 +47,21 @@ jobs:
     outputs:
       prerelease: ${{ steps.flags.outputs.prerelease }}
     steps:
+      # THE NOTES COME OUT OF THE REPO, SO THE REPO HAS TO BE HERE.
+      #
+      # This job only ever needed `gh`, so it never checked anything out — and
+      # when the release body started being built from CHANGELOG.md the call to
+      # scripts/changelog-section.js failed with "file not found", the guard fell
+      # through to its fallback, and v3.7.0-beta.24 published the same "See
+      # README" line every release before it had. The script was right and the
+      # call was right; the job they ran in had no repo.
+      #
+      # Fetch-depth 1 on purpose: this reads one file at the tagged commit.
+      - name: Check out the tagged commit (for the release notes)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
       - name: Detect pre-release
         id: flags
         run: |
