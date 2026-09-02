@@ -62,6 +62,21 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **The "Unfiled" chip in Print Files has never worked, and now does.** Pressing
+  it looked like it showed everything, because the filter it set could never
+  match — so there was no way to find the files you had not filed anywhere. The
+  new "Uncategorised" chip had inherited the same fault before anyone saw it.
+- **Adding a file to a print that has versions no longer loses it.** If a print
+  had versions — which happens by itself once you convert one for another
+  printer — then adding, removing or re-ordering its files and afterwards
+  pressing a version chip put the old set of files back, and anything added
+  since was gone from the entry.
+- **Making a different file the main one now drops what the old one said.** A
+  print whose main file was a colourful sliced 3MF kept showing that file's
+  colours, swap count, print time and weight after you promoted a plain model
+  inside it — the previous file's numbers under the new file's name.
+- **The selection bar now counts what the filter is showing.** Turn on Select,
+  then narrow to a group, and it still said how many the *previous* filter had.
 - **Buttons that cannot be pressed now look like it.** Only one in the whole app
   did: the Download button on the update screen, which stays off until you have
   read what is changing. Everywhere else a disabled button was the same colour
