@@ -524,7 +524,17 @@ function switchTab(tabId) {
   if (tabId === 'dashboard-tab')  renderDashboard();
   if (tabId === 'expenses-tab')   { renderExpenses(); populateExpOrderDatalist(); }
   if (tabId === 'catalog-tab')    renderCatalog();
-  if (tabId === 'printfiles-tab') renderPrintFiles();
+  if (tabId === 'printfiles-tab') {
+    renderPrintFiles();
+    /* Move any thumbnails still living in the store into their records' vault
+     * folders — a slice at a time, on proof, never deleting the copy it has
+     * until the copy it wrote reads back. See migrateThumbsToDisk().
+     *
+     * Here rather than at boot because it is only worth doing where the pictures
+     * are actually used, and because a shop that never opens this tab should not
+     * pay for it on every launch. */
+    try { window.KhaytPrintFiles?.migrateThumbsToDisk?.(); } catch (_) {}
+  }
   if (tabId === 'colorstudio-tab') renderColorStudio();
   if (tabId === 'converter-tab')  renderConverter();
   if (tabId === 'hueforge-tab' && typeof renderHueForge === 'function') renderHueForge();

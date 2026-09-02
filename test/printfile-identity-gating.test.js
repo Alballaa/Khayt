@@ -57,8 +57,23 @@ const enrich = fn('enrichPrintFile');
  * every assertion about what the guard does NOT mention passed for free.
  */
 function stlGuard(body) {
-  const at = body.search(/if \([^{]*ext === 'stl'/);
-  assert.ok(at > -1, 'no STL branch found in enrichPrintFile()');
+  /* Anchored from the CONDITION back to its own `if`, not forward from an `if`
+   * to a condition.
+   *
+   * This searched `/if \([^{]*ext === 'stl'/` — "an `if (` with no brace between
+   * it and the test". Whether that finds the right `if` depends on how many
+   * braces happen to sit between the two, so removing a pair of braces from an
+   * unrelated statement above it silently re-anchored the match to an earlier
+   * `if` and the guard started reading a different condition entirely. That is
+   * what happened when the thumbnail write became a one-line call.
+   *
+   * Second time this helper has been wrong in a way that changed what it was
+   * checking rather than failing outright, so: find the thing, then find the
+   * `if` that owns it. */
+  const cond = body.indexOf("ext === 'stl'");
+  assert.ok(cond > -1, 'no STL branch found in enrichPrintFile()');
+  const at = body.lastIndexOf('if (', cond);
+  assert.ok(at > -1, "found `ext === 'stl'` with no `if` before it");
   const open = body.indexOf('(', at);
   let depth = 0;
   for (let i = open; i < body.length; i++) {

@@ -136,6 +136,10 @@ contextBridge.exposeInMainWorld('hubAPI', {
   printLibDelete:     (fullPath)          => ipcRenderer.invoke('hub:printlib-delete', fullPath),
   printLibSaveImage:  (id, name, dataUrl) => ipcRenderer.invoke('hub:printlib-save-image', { id, name, dataUrl }),
   printLibLoadImage:  (fullPath)          => ipcRenderer.invoke('hub:printlib-load-image', fullPath),
+  // Thumbnails live in each record's vault folder, not in the store — the
+  // picture was 94% of a record and the store has a 50 MB ceiling.
+  printLibSaveThumb:  (id, dataUrl)       => ipcRenderer.invoke('hub:printlib-save-thumb', { id, dataUrl }),
+  printLibLoadThumbs: (wanted)            => ipcRenderer.invoke('hub:printlib-load-thumbs', wanted),
   printLibOpenSlicer: (filePath, slicerPath) => ipcRenderer.invoke('hub:printlib-open-in-slicer', { filePath, slicerPath }),
   printLibReadBytes:  (fullPath)          => ipcRenderer.invoke('hub:printlib-read-bytes', fullPath),
   printLibMesh:       (fullPath)          => ipcRenderer.invoke('hub:printlib-mesh', fullPath),
