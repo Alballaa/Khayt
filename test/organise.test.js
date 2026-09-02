@@ -97,3 +97,39 @@ test('an unknown field answers nothing rather than guessing', () => {
   assert.deepEqual(O.counts([{ group: 'x' }], 'tags'), []);
   assert.equal(O.isIn({ group: 'x' }, 'tags', 'x'), false);
 });
+
+test('a package that follows a group grows with it', () => {
+  // The whole reason to build a package from a group rather than from ticked
+  // checkboxes: a bundle froze at the moment it was made, so the eighth king
+  // joined the collection and the package silently stayed at seven.
+  const products = [
+    { id: 'p1', group: 'Saudi Kings' },
+    { id: 'p2', group: 'saudi kings' },   // the other spelling still counts
+    { id: 'p3', group: 'Dragons' },
+  ];
+  const pkg = { id: 'BND1', name: 'Saudi Kings', group: 'Saudi Kings' };
+  assert.deepEqual(O.setMembers(pkg, products).map((p) => p.id), ['p1', 'p2']);
+  products.push({ id: 'p4', group: 'Saudi Kings' });
+  assert.deepEqual(O.setMembers(pkg, products).map((p) => p.id), ['p1', 'p2', 'p4'],
+    'a package that follows a group did not pick up a new member');
+});
+
+test('a package pinned to ids still works and is not migrated', () => {
+  // Every bundle that exists today is this shape.
+  const products = [{ id: 'p1' }, { id: 'p2' }, { id: 'p3' }];
+  const pinned = { id: 'BND2', name: 'Desk set', productIds: ['p1', 'p3'] };
+  assert.deepEqual(O.setMembers(pinned, products).map((p) => p.id), ['p1', 'p3']);
+  assert.equal(O.followsGroup(pinned), false);
+  assert.equal(O.followsGroup({ group: 'Saudi Kings' }), true);
+  // A pinned id that no longer exists is simply absent, not a hole in the list.
+  assert.deepEqual(O.setMembers({ productIds: ['p1', 'gone'] }, products).map((p) => p.id), ['p1']);
+});
+
+test('an empty or missing set holds nothing rather than everything', () => {
+  const products = [{ id: 'p1', group: 'X' }, { id: 'p2' }];
+  assert.deepEqual(O.setMembers(null, products), []);
+  assert.deepEqual(O.setMembers({}, products), []);
+  // A group nobody is in is empty — NOT "every product with no group".
+  assert.deepEqual(O.setMembers({ group: 'Nobody' }, products), []);
+  assert.deepEqual(O.setMembers({ group: '' }, products), []);
+});

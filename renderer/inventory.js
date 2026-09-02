@@ -3005,10 +3005,21 @@ function quoteFromProduct(productId) {
 }
 
 /** Quote a bundle: append every member product's parts into one build. */
+/** The products a package holds — a group's members if it follows one, else its
+ *  own pinned list. lib/organise.js holds the rule; both callers use this. */
+function bundleMembers(b) {
+  const o = _org();
+  const list = (typeof products !== 'undefined' && Array.isArray(products)) ? products : [];
+  if (o) return o.setMembers(b, list);
+  if (b && b.group) return list.filter((p) => productGroupOf(p).toLowerCase() === String(b.group).toLowerCase());
+  const ids = new Set((b && b.productIds) || []);
+  return list.filter((p) => ids.has(p.id));
+}
+
 function quoteFromBundle(bundleId) {
   const b = (settings.bundles || []).find(x => x.id === bundleId);
   if (!b) return;
-  const members = (b.productIds || []).map(id => products.find(p => p.id === id)).filter(Boolean);
+  const members = bundleMembers(b);
   if (!members.length) { toast(t('bundle.empty') || 'This bundle has no products', 'error'); return; }
   members.forEach(appendProductParts);
   currentBuildFromProductId = null;
@@ -3020,16 +3031,38 @@ function quoteFromBundle(bundleId) {
 /** Manage bundles: list (quote/delete) + create a new named set of products. */
 function openBundlesModal() {
   if (!settings.bundles) settings.bundles = [];
-  const nameOf = (id) => { const p = products.find(x => x.id === id); return p ? (localName(p) || p.nameEn || id) : ''; };
-  const rows = settings.bundles.map((b) => `
+  const rows = settings.bundles.map((b) => {
+    const members = bundleMembers(b);
+    const names = members.map((p) => localName(p) || p.nameEn || p.id).filter(Boolean).join(' · ');
+    return `
     <div class="card" data-bid="${escapeHtml(b.id)}" style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 12px;margin-bottom:6px;">
-      <div><div style="font-size:13px;font-weight:600;">${escapeHtml(b.name)}</div>
-        <div style="font-size:11px;color:var(--text-muted);">${escapeHtml((b.productIds || []).map(nameOf).filter(Boolean).join(' · ') || (t('bundle.empty') || 'empty'))}</div></div>
+      <div><div style="font-size:13px;font-weight:600;">${escapeHtml(b.name)}${b.group ? ` <span class="pf-part-tag">${escapeHtml(t('bundle.follows', { name: b.group }))}</span>` : ''}</div>
+        <div style="font-size:11px;color:var(--text-muted);">${escapeHtml(names || (t('bundle.empty') || 'empty'))}</div></div>
       <div style="display:flex;gap:6px;flex-shrink:0;">
         <button class="btn small success" data-bq="${escapeHtml(b.id)}">${escapeHtml(t('cat.quote') || 'Quote')}</button>
         <button class="btn small danger" data-bd="${escapeHtml(b.id)}">${escapeHtml(t('common.delete') || 'Delete')}</button>
       </div>
-    </div>`).join('') || `<p style="font-size:12px;color:var(--text-muted);">${escapeHtml(t('bundle.none') || 'No bundles yet.')}</p>`;
+    </div>`;
+  }).join('') || `<p style="font-size:12px;color:var(--text-muted);">${escapeHtml(t('bundle.none') || 'No bundles yet.')}</p>`;
+
+  /* THE GROUPS THAT ARE ALREADY PACKAGES AND NOBODY HAS SAID SO.
+   *
+   * A shop that has filed seven kings under "Saudi Kings" has already told
+   * Khayt they belong together. Making them a package should not mean ticking
+   * seven checkboxes and typing the name again — and a package built that way
+   * FREEZES: an eighth king joins the group and the package stays at seven.
+   *
+   * One press instead, and the package FOLLOWS the group from then on. */
+  const packaged = new Set((settings.bundles || []).map((b) => String(b.group || '').toLowerCase()).filter(Boolean));
+  const offerable = catalogFiledUnder('group').names.filter(([name, n]) => n >= 2 && !packaged.has(name.toLowerCase()));
+  const groupOffers = offerable.length ? `
+    <label style="margin-top:14px;">${escapeHtml(t('bundle.from_groups') || 'Your groups')}</label>
+    <div id="bundleGroups">${offerable.map(([name, n]) => `
+      <div class="card" style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 12px;margin-bottom:6px;">
+        <div><div style="font-size:13px;font-weight:600;">${escapeHtml(name)}</div>
+          <div style="font-size:11px;color:var(--text-muted);">${escapeHtml(t('bundle.n_products', { n: String(n) }))}</div></div>
+        <button class="btn small" data-bgroup="${escapeHtml(name)}">${escapeHtml(t('bundle.make_package') || 'Make a package')}</button>
+      </div>`).join('')}</div>` : '';
   const prodOpts = (products || []).map((p) => `<label style="display:flex;align-items:center;gap:6px;font-size:12.5px;padding:2px 0;cursor:pointer;"><input type="checkbox" class="bundleProd" value="${escapeHtml(p.id)}" style="width:auto;margin:0;"> ${escapeHtml(localName(p) || p.nameEn || p.id)}</label>`).join('')
     || `<p style="font-size:12px;color:var(--text-muted);">${escapeHtml(t('store.no_products') || 'Add products first')}</p>`;
   openFormModal({
@@ -3037,6 +3070,7 @@ function openBundlesModal() {
     noSave: true,
     bodyHtml: `
       <div id="bundleList">${rows}</div>
+      ${groupOffers}
       <hr style="border:none;border-top:1px solid var(--border-soft);margin:12px 0;">
       <label>${escapeHtml(t('bundle.new') || 'New bundle')}</label>
       <input id="bundleName" type="text" maxlength="80" placeholder="${escapeHtml(t('bundle.name_ph') || 'e.g. Desk set')}">
@@ -3053,6 +3087,15 @@ function openBundlesModal() {
         if (!(await confirmModal(t('bundle.delete_q') || 'Delete this bundle?', { danger: true }))) return;
         settings.bundles = settings.bundles.filter((x) => x.id !== b.dataset.bd); saveAll();
         b.closest('[data-bid]')?.remove();
+      }));
+      modal.querySelectorAll('[data-bgroup]').forEach((b) => b.addEventListener('click', () => {
+        const name = b.dataset.bgroup;
+        // `group`, not a snapshot of ids: the package is the collection, and the
+        // collection is allowed to grow.
+        settings.bundles.push({ id: uid('BND'), name, group: name, createdAt: new Date().toISOString() });
+        saveAll();
+        openBundlesModal();
+        toast(t('bundle.packaged', { name }) || `"${name}" can be quoted as one package`, 'success');
       }));
       modal.querySelector('#bundleCreate')?.addEventListener('click', () => {
         const name = modal.querySelector('#bundleName').value.trim();
@@ -4790,6 +4833,7 @@ async function printSpoolLabel(itemId) {
     productCategoryOf,
     renderCatalogFilters,
     filterCatalogBy,
+    bundleMembers,
   };
   Object.assign(global, api);
   global.KhaytInventory = api;
