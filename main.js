@@ -2994,6 +2994,78 @@ ipcMain.handle('hub:printlib-save-image', async (_e, { id, name, dataUrl } = {})
   } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
 });
 
+/**
+ * Write a record's thumbnail into its own vault folder AND PROVE IT LANDED.
+ *
+ * The picture is 94% of a print-file record — 914 bytes without it, 14,900 with
+ * — and the store is one encrypted JSON document with a hard 50 MB ceiling. At
+ * 5,000 files the thumbnails alone are 71 MB, past which every save is refused
+ * and a shop loses its day at the next launch. On disk, 10,000 files is 8.9 MB.
+ *
+ * The write and the read-back are ONE call, in main, on purpose. The caller has
+ * to drop its in-store copy to get the saving, and it must only do that on
+ * proof — so the proof cannot be a second round trip the caller might skip,
+ * mis-order, or lose to a reload in between. `verified` is true only when the
+ * bytes were read back off the disk afterwards and match what went in.
+ *
+ * A failure returns {ok:false} and the caller keeps its copy. Nothing here ever
+ * deletes anything.
+ */
+ipcMain.handle('hub:printlib-save-thumb', async (_e, { id, dataUrl } = {}) => {
+  try {
+    const m = /^data:image\/(png|jpe?g|webp);base64,([A-Za-z0-9+/=]+)$/.exec(String(dataUrl || ''));
+    if (!m) return { ok: false, error: 'Unsupported image data' };
+    const bytes = Buffer.from(m[2], 'base64');
+    if (!bytes.length) return { ok: false, error: 'Empty image' };
+    requirePrintLib();
+    const dir = printLibItemDir(id);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    const filename = m[1] === 'png' ? 'thumb.png' : (m[1] === 'webp' ? 'thumb.webp' : 'thumb.jpg');
+    const dest = path.join(dir, filename);
+    await fs.promises.writeFile(dest, bytes);
+    /* Read it back. A write that returned without throwing is not evidence the
+     * file is there and whole: a full disk, a share that dropped mid-write and
+     * a folder that was removed underneath all come back quiet. */
+    let verified = false;
+    try {
+      const back = await fs.promises.readFile(dest);
+      verified = back.length === bytes.length && back.equals(bytes);
+    } catch (_) { verified = false; }
+    return { ok: true, filename, verified };
+  } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+});
+
+/**
+ * Thumbnails for many records at once, by record id and filename.
+ *
+ * By ID rather than by path, because the library can be MOVED — see
+ * lib/print-library-location.js — and a full path stored in a record would rot
+ * the moment somebody pointed the vault at a different disk. Main resolves the
+ * folder each time, so a moved library keeps its pictures.
+ *
+ * In one call rather than one per card: a thousand-card grid is a thousand IPC
+ * round trips otherwise, which is the cost this whole change exists to avoid.
+ */
+ipcMain.handle('hub:printlib-load-thumbs', async (_e, wanted) => {
+  const out = {};
+  if (!Array.isArray(wanted)) return out;
+  for (const item of wanted.slice(0, 400)) {
+    const id = item && item.id;
+    const file = item && item.file;
+    if (!id || !file) continue;
+    try {
+      const safeName = path.basename(String(file));
+      const full = path.join(printLibItemDir(id), safeName);
+      if (!printLibContains(path.resolve(full))) continue;
+      const buf = await fs.promises.readFile(full);
+      const ext = path.extname(safeName).slice(1).toLowerCase();
+      const mime = ext === 'png' ? 'image/png' : (ext === 'webp' ? 'image/webp' : 'image/jpeg');
+      out[id] = `data:${mime};base64,${buf.toString('base64')}`;
+    } catch (_) { /* a missing picture is a card with no picture, not an error */ }
+  }
+  return out;
+});
+
 // Load a saved image back as a data URL for display.
 ipcMain.handle('hub:printlib-load-image', async (_e, fullPath) => {
   const safe = path.resolve(String(fullPath || ''));

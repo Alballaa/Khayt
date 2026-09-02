@@ -187,9 +187,46 @@
     return !!(c.enabled && c.url && c.shopId && _cloudSync());
   }
 
+  /* Pictures fetched from the vault, kept for the life of the window.
+   *
+   * Bounded, because the point of moving them out of the store was to stop
+   * holding every picture in the library at once: a thousand thumbnails is
+   * 14 MB whether it is the store holding them or this Map. Oldest out first —
+   * a shop scrolls a library, it does not revisit at random. */
+  const _thumbCache = new Map();
+  const THUMB_CACHE_MAX = 300;
+  function cacheThumb(id, src) {
+    if (_thumbCache.has(id)) _thumbCache.delete(id);
+    _thumbCache.set(id, src);
+    while (_thumbCache.size > THUMB_CACHE_MAX) _thumbCache.delete(_thumbCache.keys().next().value);
+  }
+
+  /** Fetch the pictures for the rows just drawn, in ONE call, and fill them in
+   *  where they belong — patching the <img> rather than re-rendering, so the
+   *  grid is not rebuilt for something as small as a picture arriving. */
+  async function warmThumbs(rows) {
+    const hub = api();
+    if (!hub || !hub.printLibLoadThumbs) return;
+    const wanted = (rows || [])
+      .filter((r) => r && r.thumbFile && !r.thumb && !_thumbCache.has(r.id))
+      .map((r) => ({ id: r.id, file: r.thumbFile }));
+    if (!wanted.length) return;
+    let got = null;
+    try { got = await hub.printLibLoadThumbs(wanted); } catch (_) { return; }
+    for (const [id, src] of Object.entries(got || {})) {
+      cacheThumb(id, src);
+      const img = document.querySelector(`.pf-card[data-id="${CSS.escape(id)}"] .pf-thumb`);
+      if (img && img.tagName === 'IMG') img.src = safeImageSrc(src);
+    }
+  }
+
   function thumbHtml(rec) {
-    const src = rec.thumb || rec.userPhoto || null;
+    const src = rec.thumb || rec.userPhoto || _thumbCache.get(rec.id) || null;
     if (src) return `<img class="pf-thumb" src="${safeImageSrc(src)}" alt="" loading="lazy">`;
+    /* Known to have a picture, just not fetched yet. An empty <img> holds the
+     * card's shape so the grid does not jump when it arrives — a reflow of a
+     * thousand cards is the thing this change is trying not to do. */
+    if (rec.thumbFile) return `<img class="pf-thumb" src="" alt="" loading="lazy">`;
     const ext = rec.sourceFile?.ext;
     const ico = (_BDR && window.BedReadyIcons)
       ? window.BedReadyIcons.get(EXT_ICON_NAME[ext] || 'cube', 44)
@@ -351,6 +388,8 @@
   function renderList() {
     const list = document.getElementById('pfList');
     if (list) list.innerHTML = listInnerHtml();
+    // The pictures for what was just drawn, in one call, filled in as they land.
+    warmThumbs(filtered(_query));
   }
 
   function renderPrintFiles() {
@@ -951,6 +990,29 @@
     })();
   }
 
+  /**
+   * Put a freshly made thumbnail where thumbnails live now: the record's vault
+   * folder, not the store. Falls back to the store if the write cannot be
+   * verified — a picture in the store is a picture, and losing it to be tidy
+   * would be a bad trade.
+   */
+  async function setThumb(rec, dataUrl, source) {
+    if (!rec || !dataUrl) return;
+    rec.thumbSource = source;
+    const hub = api();
+    if (hub && hub.printLibSaveThumb) {
+      let res = null;
+      try { res = await hub.printLibSaveThumb(rec.id, dataUrl); } catch (_) { res = null; }
+      if (res && res.ok && res.verified && res.filename) {
+        rec.thumbFile = res.filename;
+        delete rec.thumb;
+        cacheThumb(rec.id, dataUrl);
+        return;
+      }
+    }
+    rec.thumb = dataUrl;      // unverified, so it stays where it is known to be
+  }
+
   async function enrichPrintFile(rec, fullPath) {
     const hub = api(); if (!hub) return;
     // A record can legitimately have NO file: the library also holds entries
@@ -1010,7 +1072,7 @@
           if (th) {
             if (Array.isArray(th.colors) && th.colors.length) rec.colors = th.colors;
             if (th.swapCount) rec.swapCount = th.swapCount;
-            if (th.pngBase64) { rec.thumb = await resizeDataUrl('data:image/png;base64,' + th.pngBase64, 280, 0.82); rec.thumbSource = 'embedded'; }
+            if (th.pngBase64) await setThumb(rec, await resizeDataUrl('data:image/png;base64,' + th.pngBase64, 280, 0.82), 'embedded');
           }
         }
       }
@@ -1070,7 +1132,7 @@
             const g = KhaytStl.parseStl(base64ToArrayBuffer(rb.b64), { keepTriangles: true });
             if (g.triangles && g.triangles.length) {
               const r = KhaytStlThumb.renderStlThumbnail(g.triangles, { size: 300 });
-              if (r.ok && r.dataUrl) { rec.thumb = r.dataUrl; rec.thumbSource = 'render'; }
+              if (r.ok && r.dataUrl) await setThumb(rec, r.dataUrl, 'render');
             }
           } catch (_) { /* obj / bad stl → icon fallback */ }
         }
@@ -1303,7 +1365,52 @@
   // this one we already have?" — that any future ingest path needs, not just
   // the picker. It is also the one branch here that DELETES a record, so it
   // is worth being able to drive end to end.
-  const pub = { renderPrintFiles, addPrintFile, openInSlicer, editPrintFile, deletePrintFile, attachConverted, importConvertedAsNew, warnIfAlreadyHave, identifyPrintFile };
+  /**
+   * Move thumbnails out of the store, one record at a time, on proof.
+   *
+   * THE ONLY RULE THAT MATTERS: the in-store copy is dropped after the on-disk
+   * one has been read back and compared, and never before. `printLibSaveThumb`
+   * does the write and the read-back in a single main-process call for exactly
+   * that reason — a verification the renderer had to ask for separately is one
+   * a reload could land in the middle of.
+   *
+   * A record that fails keeps its picture where it is and is tried again next
+   * launch. Nothing is deleted, ever: the worst case is a library that has not
+   * shrunk yet.
+   *
+   * Paced deliberately. A shop with three thousand thumbnails is 40 MB of
+   * base64 to rewrite, and doing it in one pass would freeze the window on the
+   * launch after an update — which is exactly when somebody is least willing to
+   * believe nothing is wrong.
+   */
+  let _migrating = false;
+  async function migrateThumbsToDisk() {
+    const hub = api();
+    const TS = (typeof window !== 'undefined' && window.KhaytThumbStore) || null;
+    if (_migrating || !TS || !hub || !hub.printLibSaveThumb) return;
+    const plan = TS.planMigration(printFiles || []);
+    if (!plan.length) return;
+    _migrating = true;
+    let moved = 0;
+    try {
+      for (const item of plan.slice(0, 40)) {          // a slice per launch, not the lot
+        const rec = (printFiles || []).find((r) => r.id === item.id);
+        if (!rec || !TS.isDataUrl(rec.thumb)) continue;
+        let res = null;
+        try { res = await hub.printLibSaveThumb(rec.id, rec.thumb); } catch (_) { res = null; }
+        const patch = TS.completeMigration(rec, res && res.ok ? res : null);
+        if (!patch.migrated) continue;                 // keeps its picture, tried again next time
+        cacheThumb(rec.id, rec.thumb);                 // so the card does not blink
+        delete rec.thumb;
+        rec.thumbFile = patch.thumbFile;
+        moved++;
+        await new Promise((r) => setTimeout(r, 0));    // let the window breathe
+      }
+    } finally { _migrating = false; }
+    if (moved) { saveAll(); renderPrintFiles(); }
+  }
+
+  const pub = { renderPrintFiles, migrateThumbsToDisk, addPrintFile, openInSlicer, editPrintFile, deletePrintFile, attachConverted, importConvertedAsNew, warnIfAlreadyHave, identifyPrintFile };
   Object.assign(global, pub);
   global.KhaytPrintFiles = pub;
   if (typeof module !== 'undefined' && module.exports) module.exports = pub;

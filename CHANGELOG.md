@@ -4,6 +4,16 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Changed
+
+- **Your library can now hold thousands of files.** Previews were kept inside
+  Khayt's data file, and a preview is about nine tenths of what a print file
+  costs to store — so a library of five thousand simply stopped saving, and
+  everything you did after that was lost when you next opened the app. Previews
+  now live beside the model files they belong to. Ten thousand files take less
+  space than a thousand did, and nothing you already have is touched until its
+  new copy has been written and read back to prove it is there.
+
 ### Fixed
 
 - **Search no longer stutters in a big library.** Every letter you typed redrew
