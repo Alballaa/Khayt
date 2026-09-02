@@ -63,16 +63,59 @@ test('a multi-part print shows its parts, and each part can be acted on', () => 
   }
 });
 
-test('changing which file is the main one re-reads it', () => {
+test('changing which file is the main one drops what the old one said', () => {
   // The record's print time, weight, colours and picture were read off the OLD
   // primary and describe that file alone. Left as they were, the card quietly
   // reports one part's figures under another part's name.
+  //
+  // And re-reading is NOT enough on its own: enrichPrintFile's STL branch merges
+  // only triangleCount/volumeMm3/bbox onto whatever `parsed` already held and
+  // never touches `colors`, so promoting a plain STL inside a five-colour print
+  // left the dots, the swap count and the slicer time standing.
+  //
+  // Sliced to the NEXT function rather than a fixed number of characters: this
+  // read `slice(at, at + 900)` and a comment explaining the fix pushed the line
+  // it was looking for outside the window. Same trap, third time in this repo.
   const at = pf.indexOf('async function makePartPrimary(');
   assert.ok(at > -1, 'makePartPrimary went missing');
-  const body = pf.slice(at, at + 900);
+  const rest = pf.slice(at + 10);
+  const next = rest.search(/\n {2}(?:async )?function [A-Za-z_$]/);
+  const body = pf.slice(at, next === -1 ? pf.length : at + 10 + next);
   assert.ok(body.includes('makePrimary('), 'makePartPrimary does not reorder the parts');
   assert.ok(body.includes('enrichPrintFile('),
     'the new main file is never re-read — the card keeps the old part\'s numbers');
+  for (const [field, what] of [['rec.parsed = {}', 'the time and weight'],
+                               ['rec.colors = []', 'the colours'],
+                               ['rec.swapCount = 0', 'the swap count']]) {
+    assert.ok(body.includes(field),
+      `${what} of the OLD main file survives — enrich does not overwrite it`);
+  }
+  // The re-read has to come AFTER the clear, or it clears what it just read.
+  assert.ok(body.indexOf('rec.parsed = {}') < body.indexOf('enrichPrintFile('),
+    'the record is cleared after it is re-read, which throws the new figures away');
+});
+
+test('every path that changes a print\'s parts writes the version back', () => {
+  // The record MIRRORS its active version, so rec.files changing IS that version
+  // changing. Without writing it back, the next press of a version chip restored
+  // the frozen snapshot: parts added since disappeared, and a part removed AND
+  // deleted from disk came back as a row that opens nothing.
+  assert.match(pf, /function partsChanged\(rec\)/, 'there is no single place that persists a parts change');
+  const at = pf.indexOf('function partsChanged(rec)');
+  const body = pf.slice(at, at + 400);
+  assert.ok(body.includes('syncActive('), 'partsChanged does not write the version back');
+  assert.ok(body.includes('saveAll()'), 'partsChanged does not persist');
+  const V = require('../lib/print-versions.js');
+  assert.equal(typeof V.syncActive, 'function', 'lib/print-versions.js lost syncActive');
+  // Every mutation goes through it — a fourth one added later must too.
+  for (const fn of ['addPartsToPrint', 'makePartPrimary', 'removePartFromPrint']) {
+    const f = pf.indexOf(fn === 'addPartsToPrint' ? 'async function addPartsToPrint(' : `function ${fn}(`);
+    assert.ok(f > -1, `${fn} went missing`);
+    const rest2 = pf.slice(f + 10);
+    const nx = rest2.search(/\n {2}(?:async )?function [A-Za-z_$]/);
+    const b = pf.slice(f, nx === -1 ? pf.length : f + 10 + nx);
+    assert.ok(b.includes('partsChanged('), `${fn} changes the parts and never persists the version`);
+  }
 });
 
 test('opening a print opens all of it, in one slicer', () => {

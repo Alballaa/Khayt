@@ -151,7 +151,9 @@
     const active = isCat ? _catFilter : _folderFilter;
     const total = (printFiles || []).length;
     const chip = (val, label, n, on) =>
-      `<button type="button" class="pf-folderchip ${on ? 'on' : ''}" data-act="${act}" ${attr}="${escapeHtml(val)}">${escapeHtml(label)}${n != null ? ` <span class="pf-tagchip-n">${n}</span>` : ''}</button>`;
+      `<button type="button" class="pf-folderchip ${on ? 'on' : ''}" data-act="${act}"`
+      + (val === UNFILED ? ' data-unfiled="1"' : ` ${attr}="${escapeHtml(val)}"`)
+      + `>${escapeHtml(label)}${n != null ? ` <span class="pf-tagchip-n">${n}</span>` : ''}</button>`;
     let html = chip('', t(isCat ? 'plib.all_cats' : 'plib.all_files') || 'All', total, !active);
     html += names.map(([f, n]) => chip(f, f, n, active && active.toLowerCase() === f.toLowerCase())).join('');
     if (unfiled) html += chip(UNFILED, t(isCat ? 'plib.uncategorised' : 'plib.unfiled') || 'Unfiled', unfiled, active === UNFILED);
@@ -244,7 +246,23 @@
    * 14 MB whether it is the store holding them or this Map. Oldest out first —
    * a shop scrolls a library, it does not revisit at random. */
   const _thumbCache = new Map();
-  const THUMB_CACHE_MAX = 300;
+  /* Big enough to hold what is on screen, always.
+   *
+   * A fixed 300 was fine while the grid drew one screenful; with paging, a shop
+   * who has grown the page to 600 has 600 cards wanting a picture against a
+   * 300-entry cache, so EVERY repaint refetched the whole page from disk and the
+   * arriving batch evicted the front of itself. Starring one file cost 300 disk
+   * reads — the exact per-press cost paging exists to remove.
+   *
+   * It follows the page instead: a headroom of one page over what is painted, so
+   * the entries evicted are ones that scrolled away. Each entry is a ~13 KB data
+   * URL, so 1,000 is about 13 MB — the ceiling is there to stop a very long
+   * session, not to ration a screen. */
+  let THUMB_CACHE_MAX = 300;
+  const THUMB_CACHE_CEILING = 1000;
+  function growThumbCache(painted) {
+    THUMB_CACHE_MAX = Math.min(THUMB_CACHE_CEILING, Math.max(300, painted + PAGE));
+  }
   function cacheThumb(id, src) {
     if (_thumbCache.has(id)) _thumbCache.delete(id);
     _thumbCache.set(id, src);
@@ -368,7 +386,10 @@
    * "select the busts, then also the minis" impossible to trust.
    */
   function bulkBarHtml() {
-    if (!_selectMode) return '';
+    /* Not in the gallery. Its figures have no checkbox and no picked state, so
+     * the bar was floating over photos it could not mark — while still offering
+     * Delete for a selection nobody could see. */
+    if (!_selectMode || _view === 'gallery') return '';
     const n = _selected.size;
     const shown = filtered(_query);
     const allShown = shown.length > 0 && shown.every((r) => _selected.has(r.id));
@@ -676,9 +697,27 @@
 
   let _query = '';
   let _tagFilter = ''; // active tag filter (empty = all)
-  const UNFILED = '\u0000unfiled'; // sentinel: files with no folder
+  /* "In neither" is its OWN ATTRIBUTE, not a magic value in the name attribute.
+   *
+   * This was `'\u0000unfiled'`, written into `data-folder` — and the HTML
+   * tokenizer replaces U+0000 in an attribute value with U+FFFD, so what came
+   * back off `dataset` was `'\uFFFDunfiled'` and never equalled the sentinel it
+   * was compared against. The Unfiled chip set a filter matching no group,
+   * normalizeFilters quietly reset it, and the grid redrew identical to All. It
+   * has never worked, and adding a Category axis doubled it into two dead chips.
+   *
+   * Verified in a real parser: `fffd,75,6e,66,69,6c,65,64`.
+   *
+   * A separate attribute cannot collide with a name and cannot be mangled. The
+   * value still travels in code, where a string is a string. */
+  const UNFILED = '\u2400unfiled';   // in code only; never written to markup
   let _folderFilter = ''; // '' = all, UNFILED = no group, else group name
   let _catFilter = '';    // the other axis; the two narrow together
+  /** Two filter values meaning the same thing. UNFILED compares exactly; a name
+   *  compares the way the rest of this file compares names. */
+  const sameFilter = (a, b) => (a === UNFILED || b === UNFILED)
+    ? a === b
+    : String(a || '').toLowerCase() === String(b || '').toLowerCase();
   /* ── WORKING ON MANY FILES AT ONCE ────────────────────────────────────────
    * Groups and categories are worth nothing at scale without this: filing two
    * hundred kings one dialog at a time is not filing them. Selection is by
@@ -788,6 +827,11 @@
     // thumbnails off disk to fill in 120 cards, on every keystroke.
     warmThumbs(visibleRows().slice(0, _page));
     watchForMore();
+    /* The bar lives OUTSIDE #pfList, so narrowing the grid left its count
+     * speaking for the old filter: "Select all 3,415 shown" over seven kings,
+     * and "Clear these" when none of the seven were held. The count being
+     * trustworthy is the entire reason that bar says a number. */
+    renderBulkBar();
   }
 
   /* Growing the page as you reach the bottom, so nothing needs pressing. The
@@ -807,11 +851,16 @@
   function showMore() {
     if (_page >= visibleRows().length) return;
     _page += PAGE;
+    /* The cache has to hold what is PAINTED, or every repaint re-reads the
+     * whole page off disk and the batch evicts the front of itself as it lands.
+     * At 600 painted cards against a 300-entry cache, starring one file re-read
+     * 300 thumbnails — the cost paging exists to remove. */
+    growThumbCache(_page);
     renderList();
   }
 
   /** Back to one page. Every filter, search or view change starts at the top. */
-  function resetPage() { _page = PAGE; }
+  function resetPage() { _page = PAGE; growThumbCache(PAGE); }
 
   function renderPrintFiles() {
     const el = document.getElementById('printfiles-tab');
@@ -915,14 +964,29 @@
       case 'pf-bulk-tag': bulkTag(); break;
       case 'pf-bulk-del': bulkDelete(); break;
       case 'pf-view-library': if (_view !== 'library') { _view = 'library'; resetPage(); renderPrintFiles(); } break;
-      case 'pf-view-gallery': if (_view !== 'gallery') { _view = 'gallery'; resetPage(); renderPrintFiles(); } break;
+      // Leaving the library drops the selection rather than carrying it
+      // invisibly into a screen with no way to see or change it.
+      case 'pf-view-gallery': if (_view !== 'gallery') { _view = 'gallery'; resetPage(); setSelectMode(false); } break;
       case 'pf-more': showMore(); break;
       /* Every narrowing starts at the top again: a shop that has scrolled deep
        * into one group and then picks another is asking a new question. */
       case 'pf-tag': { const tg = btn.dataset.tag || ''; _tagFilter = (_tagFilter.toLowerCase() === tg.toLowerCase()) ? '' : tg; resetPage(); renderList(); break; }
       case 'pf-tag-clear': _tagFilter = ''; resetPage(); renderList(); break;
-      case 'pf-folder': { const fv = btn.dataset.folder || ''; _folderFilter = (_folderFilter === fv) ? '' : fv; resetPage(); renderList(); break; }
-      case 'pf-cat': { const cv = btn.dataset.cat || ''; _catFilter = (_catFilter === cv) ? '' : cv; resetPage(); renderList(); break; }
+      /* `data-unfiled` rather than a value, and case-folded like every other
+       * comparison here: the bar's chip carries the spelling used MOST while a
+       * card's carries that record's own, so a strict === meant pressing the lit
+       * chip on a "saudi kings" card did not clear a filter set from the
+       * "Saudi Kings" bar — it replaced it, and the filter looked stuck. */
+      case 'pf-folder': {
+        const fv = btn.dataset.unfiled ? UNFILED : (btn.dataset.folder || '');
+        _folderFilter = sameFilter(_folderFilter, fv) ? '' : fv;
+        resetPage(); renderList(); break;
+      }
+      case 'pf-cat': {
+        const cv = btn.dataset.unfiled ? UNFILED : (btn.dataset.cat || '');
+        _catFilter = sameFilter(_catFilter, cv) ? '' : cv;
+        resetPage(); renderList(); break;
+      }
     }
   }
 
@@ -975,6 +1039,7 @@
         if (modal.querySelector('#dupRemove')?.checked) {
           const at = (printFiles || []).findIndex((x) => x.id === rec.id);
           if (at !== -1) printFiles.splice(at, 1);
+          _selected.delete(rec.id);   // every removal, not just the ones you asked for
           saveAll();
         }
         renderPrintFiles();
@@ -1302,6 +1367,24 @@
     try { await hub.printLibUnpackCleanup(dir); } catch (_) { /* best effort */ }
   }
 
+  /**
+   * Persist a change to a print's parts.
+   *
+   * The record mirrors its ACTIVE VERSION, so `rec.files` changing is that
+   * version changing — and without writing it back, the next press of a version
+   * chip called `mirror()` and restored the frozen snapshot: parts added since
+   * disappeared, and a part that had been removed AND deleted from disk came
+   * back as a row that opens nothing.
+   *
+   * Every path that touches `rec.files` goes through here.
+   */
+  function partsChanged(rec) {
+    const V = _V();
+    if (V && V.syncActive) Object.assign(rec, V.syncActive(rec));
+    rec.updatedAt = Date.now();
+    saveAll();
+  }
+
   /** The `sourceFile`/`files[]` descriptor for a file the main process copied in. */
   function fileDescriptor(copied) {
     const ext = String(copied.ext || '').toLowerCase();
@@ -1340,8 +1423,8 @@
       try { picked = await hub.printLibPick(id); } catch (err) { toast(String(err.message || err), 'error'); return; }
       if (!picked) return;
       Object.assign(rec, P.addParts(rec, fileDescriptor(picked)));
-      rec.updatedAt = Date.now();
-      saveAll(); renderPrintFiles();
+      partsChanged(rec);
+      renderPrintFiles();
       toast(t('plib.parts_added', { n: '1' }) || '1 file added to this print', 'success');
       return;
     } else return;
@@ -1372,8 +1455,8 @@
 
     if (!added.length) { toast(t('plib.drop_bad') || 'Drop STL, 3MF, OBJ or G-code files.', 'error'); return; }
     Object.assign(rec, P.addParts(rec, added));
-    rec.updatedAt = Date.now();
-    saveAll(); renderPrintFiles();
+    partsChanged(rec);
+    renderPrintFiles();
     toast(t('plib.parts_added', { n: String(added.length) }) || `${added.length} files added to this print`, 'success');
     // Said separately: a count that quietly swallowed the rejects would read as
     // "all of them came in".
@@ -1402,8 +1485,23 @@
     const rec = (printFiles || []).find((r) => r && r.id === id); if (!rec) return;
     const P = _P(); if (!P) return;
     Object.assign(rec, P.makePrimary(rec, filename));
-    rec.updatedAt = Date.now();
-    saveAll(); renderPrintFiles();
+    /* WHAT THE OLD PRIMARY SAID IS DROPPED, not left to be half-overwritten.
+     *
+     * This said the record was "re-read", and enrichPrintFile does not do that:
+     * its STL branch merges only triangleCount/volumeMm3/bbox onto whatever
+     * `parsed` already held, and never touches `colors`. So promoting a plain
+     * STL inside a print whose primary was a five-colour 3MF left the card
+     * showing five colour dots, "12 swaps", "6h 0m" and "120 g" — the previous
+     * file's figures under the new file's name, which is exactly the card
+     * quietly lying that this exists to prevent.
+     *
+     * Cleared first and re-read after: a print whose main file is an STL HAS no
+     * slicer time, so showing nothing is right and showing the 3MF's is not. */
+    rec.parsed = {};
+    rec.colors = [];
+    rec.swapCount = 0;
+    partsChanged(rec);
+    renderPrintFiles();
     const full = await resolveModelPath(rec);
     if (full) await enrichPrintFile(rec, full);
     renderPrintFiles();
@@ -1434,8 +1532,9 @@
         // shop is told.
         const wasPrimary = String(P.primaryOf(rec) && P.primaryOf(rec).filename) === String(filename);
         Object.assign(rec, P.removePart(rec, filename));
-        rec.updatedAt = Date.now();
-        saveAll(); renderPrintFiles();
+        if (wasPrimary) { rec.parsed = {}; rec.colors = []; rec.swapCount = 0; }
+        partsChanged(rec);
+        renderPrintFiles();
         if (!gone) toast('⚠ ' + (t('plib.delete_partial') || 'Removed from the library, but some files could not be deleted from disk'), 'error', 7000);
         if (wasPrimary) {
           const full = await resolveModelPath(rec);
@@ -1973,6 +2072,8 @@
           } catch (e) { console.error('printLibDelete:', e); allGone = false; }
         }
         printFiles = (printFiles || []).filter((r) => r.id !== id);
+        // …and out of the selection, or the bar counts a record that is gone.
+        _selected.delete(id);
         saveAll(); renderPrintFiles();
         if (allGone) toast(t('plib.deleted') || 'File deleted', 'success');
         else toast('⚠ ' + (t('plib.delete_partial') || 'Removed from the library, but some files could not be deleted from disk'), 'error', 7000);

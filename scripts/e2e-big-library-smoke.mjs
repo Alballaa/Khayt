@@ -163,6 +163,51 @@ async function testTheGalleryIsPagedToo(window) {
   await window.evaluate(() => { for (const r of printFiles) r.userPhoto = null; renderPrintFiles(); });
 }
 
+async function testTheUnfiledChipActuallyFilters(window) {
+  /* It never has. `UNFILED` was `'\u0000unfiled'` written into `data-folder`,
+   * and the HTML tokenizer turns U+0000 in an attribute into U+FFFD — so what
+   * came back off `dataset` never equalled the sentinel, the filter matched no
+   * group, and normalizeFilters quietly reset it. The grid redrew identical to
+   * All, so it looked like a chip that simply showed everything. */
+  const chip = '.pf-folderbar [data-act="pf-folder"][data-unfiled]';
+  const present = await window.evaluate((sel) => !!document.querySelector(sel), chip);
+  if (!present) throw new Error('there is no Unfiled chip to press');
+  const total = await window.evaluate(() => printFiles.length);
+  const ungrouped = await window.evaluate(() => printFiles.filter((r) => !(r.group || r.folder)).length);
+  if (ungrouped === total) throw new Error('the seed has nothing grouped, so this proves nothing');
+  await window.click(chip);
+  await window.waitForTimeout(150);
+  // The PAINTED count cannot tell these apart — both are one page. What the
+  // filter matched can: the sentinel line says "120 of N".
+  const m = (await moreLabel(window)).match(/(\d[\d,]*)\s*$/);
+  const matched = m ? Number(m[1].replace(/,/g, '')) : 0;
+  if (matched === total) throw new Error(`the Unfiled chip matched the whole library (${matched} of ${total})`);
+  if (matched !== ungrouped) throw new Error(`Unfiled matched ${matched}, expected ${ungrouped}`);
+  // …and pressing it again clears, rather than sticking.
+  await window.click(chip);
+  await window.waitForTimeout(150);
+  const back = (await moreLabel(window)).match(/(\d[\d,]*)\s*$/);
+  if (!back || Number(back[1].replace(/,/g, '')) !== total) {
+    throw new Error('pressing Unfiled again did not clear the filter');
+  }
+}
+
+async function testTheBarsCountFollowsTheFilter(window) {
+  // The bar lives outside #pfList, so narrowing the grid used to leave its count
+  // speaking for the previous filter — "Select all 1,200 shown" over 12 kings.
+  await window.click('[data-act="pf-select-toggle"]');
+  await window.waitForSelector('.pf-bulk');
+  await window.click('.pf-folderbar [data-folder="Saudi Kings"]');
+  await window.waitForTimeout(150);
+  const label = await window.evaluate(() =>
+    document.querySelector('[data-act="pf-pick-all"]')?.textContent.trim() || '');
+  if (/1200|1,200/.test(label)) throw new Error(`the bar still speaks for the old filter: "${label}"`);
+  if (!/12\b/.test(label)) throw new Error(`the bar does not say how many the filter matched: "${label}"`);
+  await window.click('.pf-folderbar [data-folder="Saudi Kings"]');
+  await window.click('[data-act="pf-select-off"]');
+  await window.waitForTimeout(100);
+}
+
 async function testPaintingAPageIsFast(window) {
   // The number this exists for. Generous against CI, and still ~20x under what
   // painting every card cost.
@@ -190,6 +235,8 @@ try {
   await testANewQuestionStartsAtTheTop(window);
   await testSearchFindsWhatWasNeverPainted(window);
   await testSelectAllShownMeansEveryMatchNotThePage(window);
+  await testTheUnfiledChipActuallyFilters(window);
+  await testTheBarsCountFollowsTheFilter(window);
   await testTheGalleryIsPagedToo(window);
   await testPaintingAPageIsFast(window);
 
