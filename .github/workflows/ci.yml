@@ -196,6 +196,9 @@ jobs:
       - name: E2E smoke (groups and categories, both screens)
         run: xvfb-run -a npm run test:e2e:organise
 
+      - name: E2E smoke (working on many files at once)
+        run: xvfb-run -a npm run test:e2e:bulk
+
       - name: E2E smoke (already have this model)
         run: xvfb-run -a npm run test:e2e:dedupe
 

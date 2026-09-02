@@ -14,6 +14,12 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Added
 
+- **Work on many files at once.** Press **Select** in Print Files, tick what you
+  want — or take everything a filter is showing in one press — and then group,
+  categorise, tag or delete the lot together. What you have picked stays picked
+  while you change the filter, so the way to handle a big set is to narrow to
+  part of it, take that, narrow to the next part and take that too. Filing two
+  hundred files one dialog at a time was not filing them.
 - **A print can now be several files.** Spiderman is a head, two arms and a
   torso, and he is one thing you print — not four. Until now the library could
   only hold one file per entry, so a kit downloaded as twelve STLs became twelve
@@ -51,13 +57,12 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
-- **Thirty-three buttons and messages were showing English in every language.**
-  The bar that filters your library by folder and tag, the batch converter's
-  colour dialog, "Delivered", "Done", "Resent". Nothing was broken and every
-  check was green: the way those strings ask for a translation was invisible to
-  the check that finds missing ones, so a key that existed in no language at all
-  sat in neither half of the comparison. All thirty-three are translated, and
-  the check now sees that form.
+- **Fifty-nine buttons and messages were showing their own internal name.** Not
+  English text — the literal `plib.unfiled`, on a chip in your library, in every
+  language including English. The bar that filters by folder and tag, the batch
+  converter's colour dialog, "Delivered", "Done", "Resent", and the hint inside
+  the product name box. Every one is written properly now, in all nine
+  languages, and Khayt will not build if another one appears.
 
 
 ## [3.7.0-beta.24] - 2026-09-02

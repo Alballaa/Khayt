@@ -260,21 +260,26 @@ test('every key the code asks for exists in en.js', () => {
       }
       /* THE FORM THIS GUARD COULD NOT SEE, AND THE ONE THE APP MOSTLY USES.
        *
-       * `t('plib.folder') || 'Folder'` serves the English fallback in all nine
-       * languages, exactly like tr(k, fallback) — and it was invisible here,
-       * because only `tr`/`tt` were matched. So was the ternary,
-       * `t(isCat ? 'a' : 'b')`, which hides a key inside a call this once
-       * scanned but never looked into.
+       * `t('plib.folder') || 'Folder'` looks like a safe fallback and is not
+       * one: i18n.js line 91 ends `|| key`, so a MISSING key comes back as the
+       * key itself — truthy — and the `||` never fires. The screen renders the
+       * literal text `plib.folder`.
        *
-       * 33 keys were in that state when this was widened: the whole print-file
-       * filter bar, the batch converter's colour dialog, "Delivered", "Done".
-       * Every gate was green — locale parity compares each language to en.js,
-       * and a key that is in NO file is in neither side of that comparison.
+       * That is what shipped. A screenshot of v3.7.0-beta.24's print-file
+       * library shows a filter chip labelled `plib.unfiled`, in English, in the
+       * released app. 33 keys were in that state: the whole filter bar, the
+       * batch converter's colour dialog, "Delivered", "Done", "Resent", and the
+       * placeholder in the product-name box.
        *
-       * Every t(…) call on the line, and every key-shaped literal inside it. */
-      for (const call of line.matchAll(/\bt\(([^()]*(?:\([^()]*\)[^()]*)*)\)(\s*\|\|\s*'((?:[^'\\]|\\.)*)')?/g)) {
-        const fallback = call[3];
-        if (!fallback) continue;          // no English is being served
+       * Every gate was green. Locale parity compares each language to en.js, so
+       * a key that is in NO file sits in neither half of that comparison.
+       *
+       * SO THE RULE IS NOT "does it have a fallback" — no fallback can help.
+       * Every key-shaped literal inside any t(…) call must exist in en.js. The
+       * first version of this checked only `tr(k, fallback)`; the second tried
+       * to detect `|| 'x'` and missed `|| \`x\``, a parenthesised ternary and
+       * anything spanning two lines. Chasing the syntax was the mistake. */
+      for (const call of line.matchAll(/\bt\(([^()]*(?:\([^()]*\)[^()]*)*)\)/g)) {
         for (const lit of call[1].matchAll(/'([a-z0-9_]+(?:\.[a-z0-9_]+)+)'/gi)) {
           const key = lit[1];
           // A trailing underscore is a PREFIX: t('audit.act_' + kind). The real
@@ -287,7 +292,8 @@ test('every key the code asks for exists in en.js', () => {
   }
   const report = [...missing].map(([k, at]) => `${k}  (${at})`);
   assert.deepEqual(report, [],
-    `these silently serve English in all nine languages:\n  ${report.join('\n  ')}`);
+    'these render their own key name on screen — `plib.unfiled`, not "Unfiled" — '
+    + `in every language, because i18n.t() returns the key when it has no string:\n  ${report.join('\n  ')}`);
 });
 
 test('every settings section head and hint is translatable', () => {
