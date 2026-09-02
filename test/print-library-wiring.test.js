@@ -42,7 +42,14 @@ test('no confinement check is written against a single root any more', () => {
     name: m[1],
     body: mainJs.slice(m.index, i + 1 < marks.length ? marks[i + 1].index : m.index + 4000),
   }));
-  const takesAPath = bodies.filter((h) => /path\.resolve\(String\((?:fullPath|filePath)/.test(h.body));
+  // Keyed on what the handler ACCEPTS, not on how it happens to normalise it.
+  // This read `path.resolve(String(fullPath|filePath` — the exact spelling of
+  // one line inside the body — so a handler that took a caller's path and then
+  // resolved it any other way (a list resolved in a loop, say) stopped being
+  // seen as one that takes a path at all, and its confinement stopped being
+  // checked. The signature is the thing that cannot be rewritten without
+  // changing what the handler is.
+  const takesAPath = bodies.filter((h) => /\b(?:filePaths?|fullPath)\b/.test(h.body.slice(0, h.body.indexOf('=> {') + 4)));
   assert.ok(takesAPath.length >= 5,
     `expected the handlers that take a caller path, found ${takesAPath.length}: ${bodies.map((b) => b.name).join(', ')}`);
   for (const h of takesAPath) {

@@ -3079,28 +3079,56 @@ ipcMain.handle('hub:printlib-load-image', async (_e, fullPath) => {
 });
 
 // Open a library model in the user's installed slicer GUI (detached — outlives us).
-ipcMain.handle('hub:printlib-open-in-slicer', async (_e, { filePath, slicerPath } = {}) => {
-  const safe = path.resolve(String(filePath || ''));
-  if (!printLibContains(safe)) return { ok: false, error: 'File is outside the library.' };
-  // The slicer opens a path, so the bytes have to be there before it launches —
-  // handing it a tiered file would open an empty window with no explanation.
-  // The error is surfaced rather than folded into "File not found": "your bucket
-  // credentials expired" and "you deleted this" need different responses.
-  const back = await printLibRehydrate(safe);
-  if (!back.ok) return { ok: false, error: back.error };
-  if (!fs.existsSync(safe)) return { ok: false, error: 'File not found.' };
+/**
+ * Open a print in the slicer — ALL of it.
+ *
+ * Spiderman is a head, two arms and a torso, and opening him means opening the
+ * four of them together. This took exactly one path, so a four-part print
+ * opened its head and nothing else, and the only way to load the rest was four
+ * more trips through the library.
+ *
+ * `filePaths` (a list) is the shape now; `filePath` still works and is what
+ * every single-file caller sends. The list is spawned as ONE command with four
+ * arguments rather than four commands: every slicer that takes a file on the
+ * command line takes several, and four `spawn`s would be four slicer windows
+ * each holding one limb.
+ *
+ * Every path is checked and rehydrated before ANY of them launches. A part that
+ * is missing or stuck in the bucket stops the whole open and says which one —
+ * a slicer that came up holding three quarters of a print, with the fourth
+ * silently dropped, is how you print a Spiderman with one arm.
+ */
+ipcMain.handle('hub:printlib-open-in-slicer', async (_e, { filePath, filePaths, slicerPath } = {}) => {
+  const wanted = (Array.isArray(filePaths) && filePaths.length ? filePaths : [filePath])
+    .map((f) => String(f || '')).filter(Boolean);
+  if (!wanted.length) return { ok: false, error: 'File not found.' };
+  const safes = [];
+  for (const w of wanted) {
+    const safe = path.resolve(w);
+    if (!printLibContains(safe)) return { ok: false, error: 'File is outside the library.' };
+    // The slicer opens a path, so the bytes have to be there before it launches —
+    // handing it a tiered file would open an empty window with no explanation.
+    // The error is surfaced rather than folded into "File not found": "your bucket
+    // credentials expired" and "you deleted this" need different responses.
+    const back = await printLibRehydrate(safe);
+    if (!back.ok) return { ok: false, error: back.error };
+    if (!fs.existsSync(safe)) return { ok: false, error: `File not found: ${path.basename(safe)}` };
+    safes.push(safe);
+  }
   if (slicerPath && fs.existsSync(slicerPath) && isSafeSlicerBinary(slicerPath)) {
     try {
       const { spawn } = require('node:child_process');
-      const child = spawn(slicerPath, [safe], { detached: true, stdio: 'ignore', windowsHide: false });
+      const child = spawn(slicerPath, safes, { detached: true, stdio: 'ignore', windowsHide: false });
       child.on('error', () => {});
       child.unref();
-      return { ok: true, opened: 'slicer' };
+      return { ok: true, opened: 'slicer', count: safes.length };
     } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
   }
   // No slicer configured — fall back to the OS default handler for the file type.
-  try { await shell.openPath(safe); return { ok: true, opened: 'os' }; }
-  catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+  try {
+    for (const safe of safes) await shell.openPath(safe);
+    return { ok: true, opened: 'os', count: safes.length };
+  } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
 });
 
 // Read a library model file's raw bytes (base64) so the renderer can parse/render an

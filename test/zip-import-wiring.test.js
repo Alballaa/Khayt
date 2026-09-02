@@ -92,8 +92,39 @@ test('a partly-imported archive says so instead of counting as a success', () =>
   assert.match(pf, /plib\.zip_truncated/, 'there is no message for a truncated archive');
 });
 
-test('the temp folder is cleaned up', () => {
-  assert.match(pf, /printLibUnpackCleanup\(z\.dir\)/, 'temp folders accumulate on every import');
+test('every place that unpacks an archive also removes the folder', () => {
+  // This read `printLibUnpackCleanup(z.dir)`, which was the one call site there
+  // was. There are two now — the library import, and adding files to a print
+  // that already exists — and a third is the obvious next one. What is checked
+  // is therefore not a line but a pairing: unpacking and cleaning up are done by
+  // the same function, always, and the cleanup lives in ONE named place.
+  //
+  // NOT claimed: that every BRANCH within such a function reaches the cleanup.
+  // A source-text test cannot see control flow, and a name promising it would be
+  // the kind of guard that reads as proof and is not.
+  const at = pf.indexOf('function cleanupZip(dir)');
+  assert.ok(at > -1, 'the one named cleanup is gone — check every exit still reaches one');
+  assert.ok(pf.slice(at, at + 400).includes('printLibUnpackCleanup(dir)'),
+    'cleanupZip does not call the handler that removes the folder');
+
+  // Function boundaries by indentation: these are two-space-indented members of
+  // the file's IIFE, so the next one starts the next body.
+  const fns = [...pf.matchAll(/^ {2}(?:async )?function ([A-Za-z_$][\w$]*)\(/gm)];
+  const unpackers = [];
+  fns.forEach((m, i) => {
+    const body = pf.slice(m.index, i + 1 < fns.length ? fns[i + 1].index : pf.length);
+    if (body.includes('printLibUnpackZip(')) unpackers.push({ name: m[1], body });
+  });
+  assert.ok(unpackers.length >= 2,
+    `expected the import paths that unpack archives, found ${unpackers.length}`);
+  for (const u of unpackers) {
+    assert.ok(u.body.includes('cleanupZip('),
+      `${u.name}() unpacks an archive into a temp folder and never removes it`);
+  }
+
+  // And nothing else is handed a temp folder.
+  const uses = [...new Set([...pf.matchAll(/([A-Za-z]+)\(z\.dir\)/g)].map((m) => m[1]))];
+  assert.deepEqual(uses, ['cleanupZip'], `a z.dir goes somewhere other than the cleanup: ${uses.join(', ')}`);
 });
 
 test('the bridges exist and the picker offers zips', () => {

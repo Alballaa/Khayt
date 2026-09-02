@@ -276,10 +276,41 @@
     /* The size of the PRINT, not of its first file. A four-part Spiderman that
      * said "42 MB" because that is what the head weighs would be describing a
      * quarter of what you are about to print. */
-    const parts = partsOf(rec);
     const sz = fmtSize(_P() ? _P().totalSize(rec) : rec.sourceFile?.size); if (sz) chips.push(sz);
-    if (parts.length > 1) chips.push(t('plib.n_files', { n: String(parts.length) }) || `${parts.length} files`);
+    /* No "7 files" chip: partsListHtml() below says it on the same condition,
+     * and says it as something you can open. The card carried both, one inert
+     * line under the other. */
     return chips.map((c) => `<span class="pf-chip">${escapeHtml(String(c))}</span>`).join('');
+  }
+
+  /**
+   * The files this print is made of, when there is more than one.
+   *
+   * Collapsed. A Spiderman kit is a dozen STLs, and a dozen rows on every card
+   * would bury the print under its own parts — the row of chips already says
+   * "12 files", and this is where you go when that number is the thing you want
+   * to act on.
+   *
+   * The primary is marked rather than hidden: it is the file the card speaks
+   * for — its icon, its extension, what "Convert" and "View in 3D" resolve to —
+   * so which part holds that job has to be visible and has to be changeable.
+   */
+  function partsListHtml(rec) {
+    const parts = partsOf(rec);
+    if (parts.length < 2) return '';
+    const primaryLabel = t('plib.part_primary') || 'Main file';
+    return `<details class="pf-parts">
+      <summary>${_bi('doc', '📄')}${escapeHtml(t('plib.n_files', { n: String(parts.length) }) || `${parts.length} files`)}</summary>
+      <div class="pf-part-list">${parts.map((f, i) => `
+        <div class="pf-part${i === 0 ? ' is-primary' : ''}">
+          <span class="pf-part-name" title="${escapeHtml(f.originalName || f.filename)}">${escapeHtml(f.originalName || f.filename)}</span>
+          ${i === 0 ? `<span class="pf-part-tag">${escapeHtml(primaryLabel)}</span>` : ''}
+          <span class="pf-part-size">${escapeHtml(fmtSize(f.size) || '')}</span>
+          <button class="btn small ghost icon" data-act="pf-part-open" data-id="${escapeHtml(rec.id)}" data-fn="${escapeHtml(f.filename)}" aria-label="${escapeHtml(t('plib.open_slicer') || 'Open in slicer')}" title="${escapeHtml(t('plib.open_slicer') || 'Open in slicer')}">${_bi('printer', '🖨')}</button>
+          ${i === 0 ? '' : `<button class="btn small ghost icon" data-act="pf-part-primary" data-id="${escapeHtml(rec.id)}" data-fn="${escapeHtml(f.filename)}" aria-label="${escapeHtml(t('plib.make_primary') || 'Make this the main file')}" title="${escapeHtml(t('plib.make_primary') || 'Make this the main file')}">${_bi('target', '◎')}</button>`}
+          <button class="btn small ghost danger icon" data-act="pf-part-del" data-id="${escapeHtml(rec.id)}" data-fn="${escapeHtml(f.filename)}" aria-label="${escapeHtml(t('plib.remove_part') || 'Remove this file from the print')}" title="${escapeHtml(t('plib.remove_part') || 'Remove this file from the print')}">${_bi('trash', '🗑')}</button>
+        </div>`).join('')}</div>
+    </details>`;
   }
 
   function cardHtml(rec) {
@@ -291,6 +322,7 @@
         <div class="pf-body">
           <div class="pf-name" title="${escapeHtml(rec.originalName || rec.name)}">${escapeHtml(rec.name || rec.originalName || 'Untitled')}</div>
           <div class="pf-chips">${metaChips(rec)}</div>
+          ${partsListHtml(rec)}
           ${colorDotsHtml(rec)}
           ${prof ? `<div class="pf-prof">${_bi('nozzle', '🛠')}${escapeHtml(prof.name)}</div>` : ''}
           ${rec.testedNotes ? `<div class="pf-notes">${escapeHtml(rec.testedNotes)}</div>` : ''}
@@ -338,6 +370,7 @@
               ${!rec.geometryKey ? `<button data-act="pf-identify" data-id="${escapeHtml(rec.id)}" title="${escapeHtml(t('plib.identify_hint') || 'Let Khayt recognise this model when you print it again')}">${_bi('search', '🔎')}${escapeHtml(t('plib.identify') || 'Identify')}</button>` : ''}
               ${Array.isArray(rec.colors) && rec.colors.filter((c) => c && c.hex).length > 1 ? `<button data-act="pf-plan" data-id="${escapeHtml(rec.id)}">${_bi('palette', '🎨')}${escapeHtml(t('plan.title') || 'Plan colours')}</button>` : ''}
               ${rec.sourceFile?.ext === '3mf' ? `<button data-act="pf-convert" data-id="${escapeHtml(rec.id)}">${_bi('convert', '🔄')}${escapeHtml(t('conv.convert_short') || 'Convert')}</button>` : ''}
+              <button data-act="pf-add-parts" data-id="${escapeHtml(rec.id)}" title="${escapeHtml(t('plib.add_parts_hint') || 'A print can be several files — a head, two arms, a torso')}">${_bi('plus', '＋')}${escapeHtml(t('plib.add_parts') || 'Add files to this print')}</button>
               <button data-act="pf-edit" data-id="${escapeHtml(rec.id)}">${_bi('pencil', '✏')}${escapeHtml(t('common.edit') || 'Edit')}</button>
               <!-- Under a rule and last: delete used to sit one button along
                    from "Open in slicer". -->
@@ -480,6 +513,10 @@
       }
       case 'pf-plan':  { const r = (printFiles || []).find((x) => x.id === id); if (r && typeof openColorPlanner === 'function') openColorPlanner(r); break; }
       case 'pf-convert': convertPrintFile(id); break;
+      case 'pf-add-parts': addPartsToPrint(id); break;
+      case 'pf-part-open': openPart(id, btn.dataset.fn); break;
+      case 'pf-part-primary': makePartPrimary(id, btn.dataset.fn); break;
+      case 'pf-part-del': removePartFromPrint(id, btn.dataset.fn); break;
       case 'pf-conv-open': openConvertedInSlicer(id, btn.dataset.fn); break;
       case 'pf-conv-del':  deleteConverted(id, btn.dataset.fn); break;
       case 'pf-setups': openSetups(id); break;
@@ -779,11 +816,18 @@
   }
 
   // Build + persist a record from a copied-in file (shape from printLibPick / printLibCopyPath).
-  function ingestPicked(id, picked) {
+  //
+  // `opts.name` overrides the name taken from the file — an archive imported as
+  // ONE print is called after the archive, not after whichever of its twelve
+  // files happened to be extracted first.
+  // `opts.parts` are the rest of the files this print is made of, already copied
+  // into the same record's vault.
+  function ingestPicked(id, picked, opts) {
+    const o = opts || {};
     const ext = (picked.ext || '').toLowerCase();
     const rec = {
       id,
-      name: (picked.originalName || 'Untitled').replace(/\.[^.]+$/, ''),
+      name: o.name || (picked.originalName || 'Untitled').replace(/\.[^.]+$/, ''),
       originalName: picked.originalName,
       createdAt: Date.now(), updatedAt: Date.now(),
       sourceFile: { filename: picked.filename, originalName: picked.originalName, size: picked.size, ext, kind: /^(stl|3mf|obj)$/.test(ext) ? 'model' : 'gcode' },
@@ -794,6 +838,7 @@
       // becoming a second entry with none of the first one's history.
       contentHash: picked.contentHash || null, geometryKey: null,
     };
+    if (o.parts && o.parts.length && _P()) Object.assign(rec, _P().addParts(rec, o.parts));
     if (!Array.isArray(printFiles)) printFiles = [];
     printFiles.unshift(rec);
     saveAll();
@@ -853,6 +898,158 @@
       rec.geometryKey ? 'success' : 'warning');
   }
 
+  /** Remove the temp folder an archive was unpacked into. The ONE place that
+   *  does it: every way an import ends has to come through here, or temp
+   *  folders pile up for as long as the app is open. */
+  async function cleanupZip(dir) {
+    const hub = api();
+    if (!hub || !hub.printLibUnpackCleanup || !dir) return;
+    try { await hub.printLibUnpackCleanup(dir); } catch (_) { /* best effort */ }
+  }
+
+  /** The `sourceFile`/`files[]` descriptor for a file the main process copied in. */
+  function fileDescriptor(copied) {
+    const ext = String(copied.ext || '').toLowerCase();
+    return {
+      filename: copied.filename,
+      originalName: copied.originalName,
+      size: copied.size,
+      ext,
+      kind: /^(stl|3mf|obj)$/.test(ext) ? 'model' : 'gcode',
+    };
+  }
+
+  /**
+   * Add more files to a print that already exists.
+   *
+   * The library could only ever make a NEW entry per file, so the way to record
+   * a Spiderman was twelve entries with nothing tying them together. This is
+   * the other direction: the files land in THIS record's own vault folder, and
+   * the record grows a part.
+   *
+   * A zip is offered here too — a pack downloaded for a print you already have.
+   */
+  async function addPartsToPrint(id) {
+    const hub = api(); if (!hub || !hub.printLibCopyPath) return;
+    const rec = (printFiles || []).find((r) => r && r.id === id); if (!rec) return;
+    const P = _P(); if (!P) return;
+
+    let paths = [];
+    if (hub.printLibPickMulti) {
+      let res;
+      try { res = await hub.printLibPickMulti(); } catch (err) { toast(String(err.message || err), 'error'); return; }
+      if (!res || !res.ok || !Array.isArray(res.paths) || !res.paths.length) return;
+      paths = res.paths;
+    } else if (hub.printLibPick) {
+      let picked;
+      try { picked = await hub.printLibPick(id); } catch (err) { toast(String(err.message || err), 'error'); return; }
+      if (!picked) return;
+      Object.assign(rec, P.addParts(rec, fileDescriptor(picked)));
+      rec.updatedAt = Date.now();
+      saveAll(); renderPrintFiles();
+      toast(t('plib.parts_added', { n: '1' }) || '1 file added to this print', 'success');
+      return;
+    } else return;
+
+    // An archive chosen here is unpacked INTO this print — every model in it
+    // becomes a part of it. No question to ask: you chose the print it belongs
+    // to before you chose the archive.
+    //
+    // Copied and cleaned up one archive at a time rather than collecting the
+    // temp folders to delete afterwards, so there is no list to forget to drain.
+    const added = [];
+    let bad = 0;
+    const copyInto = async (pth) => {
+      let r; try { r = await hub.printLibCopyPath(id, pth); } catch (_) { r = null; }
+      if (!r || !r.ok) { bad++; return; }
+      added.push(fileDescriptor(r));
+    };
+    for (const pth of paths) {
+      if (/\.zip$/i.test(String(pth)) && hub.printLibUnpackZip) {
+        let z; try { z = await hub.printLibUnpackZip(pth); } catch (_) { z = null; }
+        if (!z || !z.ok) { toast((z && z.error) || (t('plib.zip_empty') || 'No print files in that archive.'), 'error'); continue; }
+        for (const f of z.files) await copyInto(f.path);
+        await cleanupZip(z.dir);
+        continue;
+      }
+      await copyInto(pth);
+    }
+
+    if (!added.length) { toast(t('plib.drop_bad') || 'Drop STL, 3MF, OBJ or G-code files.', 'error'); return; }
+    Object.assign(rec, P.addParts(rec, added));
+    rec.updatedAt = Date.now();
+    saveAll(); renderPrintFiles();
+    toast(t('plib.parts_added', { n: String(added.length) }) || `${added.length} files added to this print`, 'success');
+    // Said separately: a count that quietly swallowed the rejects would read as
+    // "all of them came in".
+    if (bad) toast(`${bad} ${t('plib.parts_rejected') || 'were not print files and were skipped'}`, 'info');
+  }
+
+  /** Open ONE part of a multi-part print, rather than the whole thing. */
+  async function openPart(id, filename) {
+    const hub = api(); if (!hub || !hub.printLibList) return;
+    let files = [];
+    try { files = await hub.printLibList(id); } catch (_) { files = []; }
+    const f = (files || []).find((x) => x.filename === filename);
+    if (!f) { toast(t('plib.file_missing') || 'File is missing.', 'error'); return; }
+    openInSlicer(id, f.fullPath);
+  }
+
+  /**
+   * Make a different part the file the card speaks for.
+   *
+   * The record's numbers — print time, weight, colours, the picture — were read
+   * off the OLD primary, and they describe that file and no other. So the new
+   * primary is re-read here rather than left with the previous part's figures
+   * under a new name, which would be a card quietly lying about what it holds.
+   */
+  async function makePartPrimary(id, filename) {
+    const rec = (printFiles || []).find((r) => r && r.id === id); if (!rec) return;
+    const P = _P(); if (!P) return;
+    Object.assign(rec, P.makePrimary(rec, filename));
+    rec.updatedAt = Date.now();
+    saveAll(); renderPrintFiles();
+    const full = await resolveModelPath(rec);
+    if (full) await enrichPrintFile(rec, full);
+    renderPrintFiles();
+  }
+
+  /** Take a file out of a print — and off the disk, since nothing else holds it. */
+  function removePartFromPrint(id, filename) {
+    const rec = (printFiles || []).find((r) => r && r.id === id); if (!rec) return;
+    const P = _P(); if (!P) return;
+    const part = P.partsOf(rec).find((f) => String(f.filename) === String(filename));
+    openFormModal({
+      title: t('plib.remove_part') || 'Remove this file from the print',
+      sizeLg: false, saveLabel: t('common.delete') || 'Delete',
+      bodyHtml: `<p>${escapeHtml((t('plib.remove_part_confirm') || 'Remove "{name}" from this print and delete it? The rest of the print is untouched.')
+        .replace('{name}', (part && (part.originalName || part.filename)) || filename))}</p>`,
+      async onSave() {
+        const hub = api();
+        let gone = true;
+        if (hub && hub.printLibList && hub.printLibDelete) {
+          try {
+            const files = await hub.printLibList(id);
+            const f = (files || []).find((x) => x.filename === filename);
+            if (f && (await hub.printLibDelete(f.fullPath)) === false) gone = false;
+          } catch (e) { console.error('printLibDelete:', e); gone = false; }
+        }
+        // The record forgets the part either way: leaving it listed when the file
+        // is gone gives a card a row that opens nothing. What differs is what the
+        // shop is told.
+        const wasPrimary = String(P.primaryOf(rec) && P.primaryOf(rec).filename) === String(filename);
+        Object.assign(rec, P.removePart(rec, filename));
+        rec.updatedAt = Date.now();
+        saveAll(); renderPrintFiles();
+        if (!gone) toast('⚠ ' + (t('plib.delete_partial') || 'Removed from the library, but some files could not be deleted from disk'), 'error', 7000);
+        if (wasPrimary) {
+          const full = await resolveModelPath(rec);
+          if (full) { await enrichPrintFile(rec, full); renderPrintFiles(); }
+        }
+      },
+    });
+  }
+
   async function addPrintFile() {
     const hub = api(); if (!hub) return;
     // Prefer the multi-select picker (bulk import); each file is copied into its own record's vault via
@@ -873,11 +1070,57 @@
     toast(t('plib.added') || 'File added', 'success');
   }
 
+  /**
+   * Ask whether an archive is one print or many.
+   *
+   * Resolves to 'one', 'many', or null if the shop closed the question without
+   * answering — which is a real answer here and means "import nothing", not
+   * "pick one for me".
+   *
+   * @param {string} zipPath   full path of the archive, for its name
+   * @param {number} n         print files found inside it
+   * @param {number} howMany   archives in this drop, so the question can say
+   *                           that the answer covers all of them
+   */
+  function askZipShape(zipPath, n, howMany) {
+    const name = String(zipPath).split(/[\\/]/).pop();
+    return new Promise((resolve) => {
+      let choice = null;
+      openFormModal({
+        title: t('plib.zip_shape_title') || 'One print, or many?',
+        sizeLg: false, noSave: true,
+        bodyHtml: `
+          <p class="pf-pick-hint">${escapeHtml((t('plib.zip_shape_q') || '"{name}" holds {n} print files.').replace('{name}', name).replace('{n}', String(n)))}</p>
+          <div class="pf-zip-choices">
+            <button type="button" class="btn pf-zip-pick" data-shape="one">
+              <span class="pf-zip-pick-t">${escapeHtml((t('plib.zip_one') || 'One print, {n} parts').replace('{n}', String(n)))}</span>
+              <span class="pf-zip-pick-d">${escapeHtml(t('plib.zip_one_d') || 'A model that comes in pieces — a head, two arms, a torso. One entry you open all of at once.')}</span>
+            </button>
+            <button type="button" class="btn pf-zip-pick" data-shape="many">
+              <span class="pf-zip-pick-t">${escapeHtml((t('plib.zip_many') || '{n} separate prints').replace('{n}', String(n)))}</span>
+              <span class="pf-zip-pick-d">${escapeHtml(t('plib.zip_many_d') || 'A pack of unrelated models. Each gets its own entry, its own tags and its own history.')}</span>
+            </button>
+          </div>
+          ${howMany > 1 ? `<p class="pf-pick-hint">${escapeHtml((t('plib.zip_shape_all') || 'This answer is used for all {n} archives you dropped.').replace('{n}', String(howMany)))}</p>` : ''}`,
+        onMount(modal) {
+          modal.querySelectorAll('[data-shape]').forEach((b) => b.addEventListener('click', () => {
+            choice = b.dataset.shape;
+            modal.querySelector('[data-act="cancel"]').click();
+          }));
+        },
+        onClose() { resolve(choice); },
+      });
+    });
+  }
+
   // Import files dropped onto the library (each copied into its own record's vault). Skips anything the
   // main-process handler rejects (non-print extensions).
   async function addDroppedFiles(paths) {
     const hub = api(); if (!hub || !hub.printLibCopyPath) return;
     let added = 0, bad = 0, skipped = 0, truncated = false;
+    // Asked at the first multi-file archive and then held for the whole drop.
+    let zipShape = null;                                   // null | 'one' | 'many'
+    const zipCount = paths.filter((x) => /\.zip$/i.test(String(x))).length;
     for (const p of paths) {
       // A .zip is a pack of models, not a model. It is unpacked to a temp
       // folder and each file then goes through the ORDINARY intake below, so a
@@ -891,18 +1134,46 @@
           if (z && z.empty) toast(z.error || (t('plib.zip_empty') || 'No print files in that archive.'), 'error');
           continue;
         }
-        for (const f of z.files) {
+        // AN ARCHIVE IS AMBIGUOUS AND ONLY THE SHOP KNOWS WHICH IT IS.
+        //
+        // A pack of twelve files is either twelve prints (a bundle of keychains)
+        // or one print in twelve pieces (Spiderman). Both are ordinary; nothing
+        // in the zip says which, and guessing gets it wrong half the time — in
+        // one direction leaving eleven strays to delete, in the other a print
+        // you cannot open in one go. So it is asked, ONCE for the whole drop:
+        // somebody dropping four packs at once is dropping four of the same kind
+        // of thing, and four dialogs to say so twice would be its own bug.
+        if (z.files.length > 1 && zipShape == null) {
+          zipShape = await askZipShape(String(p), z.files.length, zipCount);
+          if (!zipShape) { skipped += z.files.length; await cleanupZip(z.dir); continue; }
+        }
+        if (z.files.length > 1 && zipShape === 'one') {
           const zid = uid('PF');
-          let zr;
-          try { zr = await hub.printLibCopyPath(zid, f.path); } catch (_) { zr = null; }
-          if (!zr || !zr.ok) { skipped++; continue; }
-          ingestPicked(zid, zr);
-          added++;
+          const copied = [];
+          for (const f of z.files) {
+            let zr; try { zr = await hub.printLibCopyPath(zid, f.path); } catch (_) { zr = null; }
+            if (!zr || !zr.ok) { skipped++; continue; }
+            copied.push(zr);
+          }
+          if (copied.length) {
+            // Named after the archive: "spider-man-pack", not "left-arm".
+            const packName = String(p).split(/[\\/]/).pop().replace(/\.zip$/i, '');
+            ingestPicked(zid, copied[0], { name: packName, parts: copied.slice(1).map(fileDescriptor) });
+            added++;
+          }
+        } else {
+          for (const f of z.files) {
+            const zid = uid('PF');
+            let zr;
+            try { zr = await hub.printLibCopyPath(zid, f.path); } catch (_) { zr = null; }
+            if (!zr || !zr.ok) { skipped++; continue; }
+            ingestPicked(zid, zr);
+            added++;
+          }
         }
         skipped += (z.skipped || []).length + (z.failed || []).length;
         truncated = truncated || !!z.truncated;
-        // The temp folder is ours; leaving it behind grows without bound.
-        if (hub.printLibUnpackCleanup) { try { await hub.printLibUnpackCleanup(z.dir); } catch (_) { /* best effort */ } }
+        await cleanupZip(z.dir);
         continue;
       }
       const id = uid('PF');
@@ -1200,11 +1471,38 @@
     openModelViewer({ verts: m.verts, count: m.count, bbox: m.bbox, colors: m.colors, triColors: m.triColors, triObj: m.triObj, triCode: m.triCode, palette: m.palette, plates: m.plates, volumeMm3: m.volumeMm3, name: rec.name || rec.sourceFile?.filename || '' });
   }
 
+  /**
+   * Every part of this print, as paths on disk, in the record's own order.
+   *
+   * Silently short: a part whose file is not in the vault is dropped rather
+   * than turning the open into an error, because a print with eleven of its
+   * twelve files is still worth opening. The COUNT comes back with the paths so
+   * the toast can say eleven and not twelve.
+   */
+  async function resolvePartPaths(rec) {
+    const hub = api(); if (!hub || !hub.printLibList) return [];
+    let files = [];
+    try { files = await hub.printLibList(rec.id); } catch (_) { files = []; }
+    if (!Array.isArray(files) || !files.length) return [];
+    const byName = new Map(files.map((f) => [String(f.filename), f.fullPath]));
+    const paths = partsOf(rec).map((p) => byName.get(String(p.filename))).filter(Boolean);
+    // A record whose parts name nothing on disk still opens what IS there —
+    // this is the pre-`files[]` shape, and the old code took files[0].
+    return paths.length ? paths : [files[0].fullPath];
+  }
+
+  /**
+   * Open a print in the slicer.
+   *
+   * `overrideFull` opens exactly one file and is what a converted file and a
+   * single part use. Without it the WHOLE print opens — all four of Spiderman's
+   * files in one slicer window, not just his head.
+   */
   async function openInSlicer(id, overrideFull) {
     const rec = (printFiles || []).find((r) => r.id === id); if (!rec) return;
     const hub = api(); if (!hub || !hub.printLibOpenSlicer) return;
-    const full = overrideFull || await resolveModelPath(rec);
-    if (!full) { toast(t('plib.file_missing') || 'File is missing.', 'error'); return; }
+    const full = overrideFull ? [overrideFull] : await resolvePartPaths(rec);
+    if (!full.length) { toast(t('plib.file_missing') || 'File is missing.', 'error'); return; }
     const slicers = (global.KhaytSlicers ? KhaytSlicers.listSlicers(settings) : []);
     // More than one slicer configured → let the maker pick which to launch.
     if (slicers.length > 1) {
@@ -1227,14 +1525,21 @@
     await doOpen(rec, full, (global.KhaytSlicers ? KhaytSlicers.defaultSlicer(settings) : null));
   }
 
+  /** `full` is a LIST of paths — a print may be several files. */
   async function doOpen(rec, full, slicer) {
     const hub = api(); if (!hub || !hub.printLibOpenSlicer) return;
+    const paths = Array.isArray(full) ? full : [full];
     const slicerPath = slicer ? slicer.path : ((settings.slicer && settings.slicer.path) || '');
     // Remember the maker's choice on the file so next time it's pre-highlighted.
     if (slicer && slicer.id && rec.slicerId !== slicer.id) { rec.slicerId = slicer.id; rec.updatedAt = Date.now(); saveAll(); }
-    const r = await hub.printLibOpenSlicer(full, slicerPath);
+    // One command with several arguments where the main process can take it, so
+    // a twelve-part print is one slicer window. An older main process only knows
+    // the single-path shape; it gets the primary, which is what it did before.
+    const r = paths.length > 1 && hub.printLibOpenSlicerAll
+      ? await hub.printLibOpenSlicerAll(paths, slicerPath)
+      : await hub.printLibOpenSlicer(paths[0], slicerPath);
     if (!r || !r.ok) toast((r && r.error) || (t('plib.open_failed') || 'Could not open the file.'), 'error');
-    else if (r.opened === 'slicer') toast((t('plib.opened_slicer') || 'Opened in your slicer.') + (slicer ? ` (${slicer.name})` : ''), 'success');
+    else if (r.opened === 'slicer') toast(((r.count > 1 ? (t('plib.opened_slicer_n', { n: String(r.count) }) || `Opened ${r.count} files in your slicer.`) : (t('plib.opened_slicer') || 'Opened in your slicer.'))) + (slicer ? ` (${slicer.name})` : ''), 'success');
     else toast(t('plib.opened_os') || 'Opened. Set a slicer path in Settings → Printers to open there.', 'info', 4200);
   }
 

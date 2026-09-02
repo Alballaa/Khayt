@@ -191,7 +191,11 @@ function wireFormLabels(root) {
   });
 }
 
-function openFormModal({ title, bodyHtml, onMount, onSave, saveLabel, sizeLg = true, noSave = false }) {
+// `onClose` fires whenever the modal goes away — the × , the footer button, the
+// backdrop, Escape, or a save that succeeded. A modal that ASKS something needs
+// it: without a single place that runs on the way out, "they closed it without
+// answering" is a case the caller cannot see, and it is the common one.
+function openFormModal({ title, bodyHtml, onMount, onSave, onClose, saveLabel, sizeLg = true, noSave = false }) {
   const mount = $('#modalMount');
   mount.innerHTML = `
     <div class="modal-backdrop">
@@ -218,6 +222,7 @@ function openFormModal({ title, bodyHtml, onMount, onSave, saveLabel, sizeLg = t
     if (idx !== -1) _escHandlerStack.splice(idx, 1);
     releaseFocus();
     mount.innerHTML = '';
+    if (onClose) { try { onClose(); } catch (err) { console.error('Modal close handler:', err); } }
   };
   const escHandler = (e) => {
     if (e.key !== 'Escape') return;

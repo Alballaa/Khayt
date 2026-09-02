@@ -5589,3 +5589,55 @@ body.khayt-workbench .wb-glist li.is-openable { cursor: pointer; }
 }
 .pf-verchip:hover { color: var(--text); }
 .pf-verchip.on { background: var(--surface-2); color: var(--text); border-color: var(--accent, #199e8f); }
+
+/* THE PARTS OF A PRINT — Spiderman is a head, two arms and a torso.
+   Collapsed by design: a twelve-part kit listed flat would bury the print under
+   its own files, and the chip row already says "12 files". This is where you go
+   when that number is the thing you want to act on. */
+.pf-parts { margin: 2px 0 0; }
+.pf-parts > summary {
+  display: inline-flex; align-items: center; gap: 5px; cursor: pointer;
+  font-size: 11.5px; color: var(--text-muted); padding: 2px 0; list-style: none;
+}
+.pf-parts > summary::-webkit-details-marker { display: none; }
+.pf-parts > summary:hover { color: var(--text); }
+/* Drawn, not typed. renderer/icons.js's rule — a glyph "renders in whatever
+   colour and metrics the OS font decides" — applies to a caret as much as to a
+   toolbar: U+25BE is a different size in every font that has it, and absent in
+   some. Borders are the same triangle everywhere, and take currentColor. */
+.pf-parts > summary::after {
+  content: ''; width: 0; height: 0; margin-top: 1px;
+  border-left: 3.5px solid transparent;
+  border-right: 3.5px solid transparent;
+  border-top: 4px solid currentColor;
+  opacity: .7; transition: transform .12s ease;
+}
+.pf-parts[open] > summary::after { transform: rotate(180deg); }
+.pf-part-list { display: flex; flex-direction: column; gap: 3px; margin-top: 5px; }
+.pf-part {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--surface-2); border-radius: 6px; padding: 3px 4px;
+  padding-inline-start: 8px;
+}
+/* The main file is the one the card speaks for — its icon, its extension, what
+   "Convert" and "View in 3D" resolve to. Marked, never hidden. */
+.pf-part.is-primary { border-inline-start: 2px solid var(--accent, #199e8f); }
+.pf-part-name {
+  flex: 1 1 auto; min-width: 0; font-size: 11.5px; color: var(--text);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.pf-part-tag {
+  flex: 0 0 auto; font-size: 10px; color: var(--accent, #199e8f);
+  border: 1px solid var(--border); border-radius: 999px; padding: 1px 6px;
+}
+.pf-part-size { flex: 0 0 auto; font-size: 10.5px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+
+/* One print or many? — the question an archive cannot answer for itself. */
+.pf-zip-choices { display: flex; flex-direction: column; gap: 8px; }
+.pf-zip-pick {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 3px;
+  text-align: start; padding: 11px 13px; height: auto; white-space: normal;
+}
+.pf-zip-pick-t { font-size: 13.5px; font-weight: 600; }
+.pf-zip-pick-d { font-size: 11.5px; color: var(--text-muted); line-height: 1.45; font-weight: 400; }
+.pf-zip-pick:hover .pf-zip-pick-d { color: var(--text); }

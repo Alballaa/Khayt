@@ -190,6 +190,9 @@ jobs:
       - name: E2E smoke (settings that worked)
         run: xvfb-run -a npm run test:e2e:setups
 
+      - name: E2E smoke (one print, several files)
+        run: xvfb-run -a npm run test:e2e:multipart
+
       - name: E2E smoke (already have this model)
         run: xvfb-run -a npm run test:e2e:dedupe
 
