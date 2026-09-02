@@ -247,6 +247,8 @@
   "plib.n_files": "{n} ملفات",
   "plib.versions": "الإصدارات",
   "plib.version_n": "إصدار {n}",
+  "plib.show_more": "عرض {n} إضافية",
+  "plib.n_of_m": "{n} من {m}",
   "bundle.follows": "يتبع {name}",
   "bundle.from_groups": "مجموعاتك",
   "bundle.make_package": "إنشاء حزمة",

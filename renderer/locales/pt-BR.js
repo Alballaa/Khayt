@@ -248,6 +248,8 @@
   "plib.n_files": "{n} arquivos",
   "plib.versions": "Versões",
   "plib.version_n": "Versão {n}",
+  "plib.show_more": "Mostrar mais {n}",
+  "plib.n_of_m": "{n} de {m}",
   "bundle.follows": "segue {name}",
   "bundle.from_groups": "Seus grupos",
   "bundle.make_package": "Criar um pacote",

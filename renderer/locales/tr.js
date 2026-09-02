@@ -247,6 +247,8 @@
   "plib.n_files": "{n} dosya",
   "plib.versions": "Sürümler",
   "plib.version_n": "Sürüm {n}",
+  "plib.show_more": "{n} tane daha göster",
+  "plib.n_of_m": "{m} içinden {n}",
   "bundle.follows": "{name} grubunu izler",
   "bundle.from_groups": "Gruplarınız",
   "bundle.make_package": "Paket oluştur",

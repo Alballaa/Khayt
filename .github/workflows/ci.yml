@@ -202,6 +202,9 @@ jobs:
       - name: E2E smoke (a collection offered as one package)
         run: xvfb-run -a npm run test:e2e:package
 
+      - name: E2E smoke (a library the size of a real one)
+        run: xvfb-run -a npm run test:e2e:biglib
+
       - name: E2E smoke (already have this model)
         run: xvfb-run -a npm run test:e2e:dedupe
 
