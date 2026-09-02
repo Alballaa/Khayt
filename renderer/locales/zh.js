@@ -3934,6 +3934,7 @@
   "intake.estimate_unreliable": "这种形状很难估算——薄件或细节丰富的模型可能相差很多。报价前请先切片。",
   "intake.estimate_advice": "请作为起点参考。要给出确定报价，请先切片，再把切片结果拖到这里。",
   "intake.estimate_toast": "根据模型几何估算，并非切片数据。",
+  "intake.too_large": "该文件太大，Khayt 无法读取（超过 150 MB）。它仍在你的库中，但打印时间和重量需要手动填写。",
   "intake.no_summary": "该 G-code 没有时间或耗材摘要 — 请从切片软件重新导出。",
   "intake.unsupported": "Khayt 可以读取 STL、OBJ、3MF 和 G-code 文件。",
   "intake.your_slicer": "你的切片软件",

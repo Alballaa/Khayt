@@ -3934,6 +3934,7 @@
   "intake.estimate_unreliable": "この形状は見積もりが難しく、薄いものや細部の多いモデルは大きくずれることがあります。見積もり前にスライスしてください。",
   "intake.estimate_advice": "目安としてお使いください。確定見積もりには、ファイルをスライスしてその結果をここにドロップしてください。",
   "intake.estimate_toast": "モデル形状からの推定です。スライス結果ではありません。",
+  "intake.too_large": "このファイルは大きすぎて Khayt では読めません（150 MB 超）。ライブラリには残りますが、印刷時間と重量は手入力が必要です。",
   "intake.no_summary": "この G-code には時間やフィラメントの要約がありません。スライサーから書き出し直してください。",
   "intake.unsupported": "Khayt が読めるのは STL・OBJ・3MF・G-code です。",
   "intake.your_slicer": "お使いのスライサー",

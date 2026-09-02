@@ -3934,6 +3934,7 @@
   "intake.estimate_unreliable": "Diese Form lässt sich schlecht schätzen — dünne oder sehr detaillierte Modelle können weit danebenliegen. Vor dem Angebot slicen.",
   "intake.estimate_advice": "Nimm sie als Ausgangspunkt. Für ein verbindliches Angebot slice die Datei und lege das Ergebnis hier ab.",
   "intake.estimate_toast": "Aus der Geometrie geschätzt — keine Slicer-Zahl.",
+  "intake.too_large": "Diese Datei ist zu groß, als dass Khayt sie lesen könnte (über 150 MB). Sie bleibt in deiner Bibliothek — Druckzeit und Gewicht musst du eintragen.",
   "intake.no_summary": "Dieser G-Code enthält keine Zeit- oder Filamentzusammenfassung — exportiere ihn erneut aus deinem Slicer.",
   "intake.unsupported": "Khayt kann STL-, OBJ-, 3MF- und G-Code-Dateien lesen.",
   "intake.your_slicer": "deinem Slicer",

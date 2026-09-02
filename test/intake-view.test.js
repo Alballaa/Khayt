@@ -96,6 +96,14 @@ test('an unreadable file explains which kind of unreadable', () => {
   const unsupported = presentIntake({ exact: false, source: null, warnings: ['unsupported'] }, opts);
   assert.equal(unsupported.toast.key, 'intake.unsupported');
 
+  /* The one kind of unreadable with an action attached, and it was the one
+   * being reported as "could not read that file" — which reads as a BROKEN
+   * file, so the shop re-exports a file that was never the problem. */
+  const tooLarge = presentIntake({ ok: false, error: 'File too large (max 150 MB)',
+    warnings: ['too-large'], filename: 'huge.3mf' }, opts);
+  assert.equal(tooLarge.mode, 'none');
+  assert.equal(tooLarge.toast.key, 'intake.too_large');
+
   const other = presentIntake({ exact: false, source: null, warnings: ['parse-failed'] }, opts);
   assert.equal(other.toast.key, 'calc.parse_failed');
 

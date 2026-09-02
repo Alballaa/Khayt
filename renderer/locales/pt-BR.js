@@ -3935,6 +3935,7 @@
   "intake.estimate_unreliable": "Esta forma é difícil de estimar — peças finas ou muito detalhadas podem ficar bem longe. Fatie antes de orçar.",
   "intake.estimate_advice": "Use como ponto de partida. Para um orçamento firme, fatie o arquivo e solte o resultado aqui.",
   "intake.estimate_toast": "Estimado pela geometria do modelo — não é um número de fatiamento.",
+  "intake.too_large": "Esse arquivo é grande demais para o Khayt ler (mais de 150 MB). Ele continua na sua biblioteca — o tempo de impressão e o peso precisam ser digitados.",
   "intake.no_summary": "Esse G-code não tem resumo de tempo nem de filamento — exporte-o de novo do seu fatiador.",
   "intake.unsupported": "O Khayt lê arquivos STL, OBJ, 3MF e G-code.",
   "intake.your_slicer": "seu fatiador",

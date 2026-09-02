@@ -3934,6 +3934,7 @@
   "intake.estimate_unreliable": "Cette forme est difficile à estimer — les pièces fines ou très détaillées peuvent s'écarter fortement. Trancher le fichier avant de chiffrer.",
   "intake.estimate_advice": "À prendre comme point de départ. Pour un devis ferme, tranche le fichier et dépose le résultat ici.",
   "intake.estimate_toast": "Estimé d’après la géométrie du modèle, pas d’après un tranchage.",
+  "intake.too_large": "Ce fichier est trop volumineux pour que Khayt le lise (plus de 150 Mo). Il reste dans ta bibliothèque — le temps d’impression et le poids sont à saisir.",
   "intake.no_summary": "Ce G-code n’a aucun résumé de temps ni de filament — réexporte-le depuis ton trancheur.",
   "intake.unsupported": "Khayt peut lire les fichiers STL, OBJ, 3MF et G-code.",
   "intake.your_slicer": "ton trancheur",
