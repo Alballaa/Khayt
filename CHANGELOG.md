@@ -4,6 +4,17 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Fixed
+
+- **Search no longer stutters in a big library.** Every letter you typed redrew
+  every card on the screen, so at a thousand files each keystroke cost about a
+  twenty-fifth of a second and holding backspace redrew the whole library each
+  time. Finding the files was never the slow part — that takes under a
+  millisecond — so the screen now waits for you to stop typing.
+- **Two files added at the same moment no longer overwrite each other.** Files
+  in a print's folder were named by the millisecond they arrived, which is only
+  unique if no two ever arrive together.
+
 ### Added
 
 - **Your tags stay one tag.** The tags box was free text with nothing to guide

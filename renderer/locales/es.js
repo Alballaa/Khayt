@@ -244,6 +244,7 @@
   "plib.material": "Material",
   "plib.slicer_profile": "Perfil del slicer",
   "plib.tags_reuse": "Etiquetas que ya usas",
+  "plib.n_files": "{n} archivos",
   "plib.tags": "Etiquetas (separadas por comas)",
   "plib.tested_notes": "Ajustes probados / notas",
   "plib.photo": "Foto (opcional)",
