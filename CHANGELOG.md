@@ -21,9 +21,14 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   the current one marked.
 - **Pause production is quiet until production is actually paused.** A button
   that is red all day is a red button nobody reads.
-- **The print library's icons are drawn, not typed.** It was showing emoji, which
-  arrive in whatever colour and shape each computer decides, and the rest of the
-  app had already moved to Khayt's own line icons years' worth of screens ago.
+- **The same tidy-up across clients, the waiting list, quotes, products, the
+  converter and Bed Ready's queue.** Bed Ready's toolbar had nine buttons and no
+  "more" button at all. Everywhere a **Delete** or **Reject** used to sit beside
+  the button you were reaching for, it now sits under a divider in the menu.
+- **Icons are drawn, not typed.** Screens were showing emoji, which arrive in
+  whatever colour and shape each computer decides — the print library, the
+  queue, the catalogue, the converter and the order board all did. They use
+  Khayt's own line icons now, the ones the rest of the app already used.
 
 ### Fixed
 

@@ -2078,34 +2078,8 @@ button .khayt-ico, summary .khayt-ico { opacity: .85; }
    and Pause production, which halts work in progress and so must never need a
    click to reveal. The rest live behind a native <details> disclosure: no JS,
    keyboard-accessible for free. */
-.queue-overflow { position: relative; display: inline-block; }
-.queue-overflow > summary {
-  list-style: none;
-  cursor: pointer;
-  user-select: none;
-  min-width: 32px;
-  text-align: center;
-}
-.queue-overflow > summary::-webkit-details-marker { display: none; }
-.queue-overflow[open] > summary { background: var(--surface-2); }
-
-.queue-overflow-menu {
-  position: absolute;
-  inset-inline-end: 0;
-  top: calc(100% + 6px);
-  z-index: 40;
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 6px;
-  min-width: 220px;
-  padding: 8px;
-  background: var(--bg-card, var(--surface-1));
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
-}
-.queue-overflow-menu > * { justify-content: flex-start; width: 100%; }
+/* The queue's own overflow used to live here. It is `.ovf` now, at the foot of
+   this file, and six surfaces share it — see "Action rows and overflow menus". */
 
 /* Machine cards: the dashboard leads with Fleet now, so this repeats it. One
    line when shut; nothing removed. */
@@ -3968,8 +3942,7 @@ body.mode-enthusiast .biz-only { display: none !important; }
 .shop-name { flex: 1; }
 .shop-amt { color: var(--text-dim); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .shop-arrow { color: var(--text-muted); margin: 0 2px; }
-.pf-actions { display: flex; gap: 6px; padding: 8px 12px 12px; flex-wrap: wrap; }
-.pf-actions .btn { flex: 0 0 auto; }
+
 /* Bed Ready bespoke inline icons (replace emoji markers) — align with adjacent text */
 /* margin-INLINE-end, not margin-right: Khayt ships Arabic, and a right margin
    puts the gap on the wrong side of the glyph in an RTL layout — the icon ends

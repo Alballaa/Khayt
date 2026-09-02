@@ -4,8 +4,18 @@
 // Bed Ready swaps decorative emoji for its bespoke drafting glyphs (evaluated at render time,
 // after bedready-icons.js loads); Khayt keeps the emoji. `_iIco` = icon only, `_iIcoL` adds a space.
 const _invBdr = (typeof document !== 'undefined' && document.documentElement && document.documentElement.dataset.app === 'bedready');
-function _iIco(name, emoji, size) { return (_invBdr && window.BedReadyIcons) ? `<span class="br-ico">${window.BedReadyIcons.get(name, size || 15)}</span>` : emoji; }
-function _iIcoL(name, emoji, size) { return (_invBdr && window.BedReadyIcons) ? `<span class="br-ico">${window.BedReadyIcons.get(name, size || 15)}</span>` : emoji + ' '; }
+/* The flavour's own set, then the shared line icons, then the emoji — the same
+ * order printfiles.js and kanban.js use. This asked the Bed Ready set or fell
+ * straight to the glyph, so every Khayt screen here drew emoji. `emoji` is
+ * optional now; a name neither set draws yields '' rather than 'undefined'. */
+function _iGlyph(name, emoji, size) {
+  if (_invBdr && window.BedReadyIcons) return `<span class="br-ico">${window.BedReadyIcons.get(name, size || 15)}</span>`;
+  const svg = (typeof window !== 'undefined' && window.KhaytIcons) ? window.KhaytIcons.icon(name, size || 15) : '';
+  if (svg) return `<span class="pf-ico" aria-hidden="true">${svg}</span>`;
+  return emoji || '';
+}
+function _iIco(name, emoji, size) { return _iGlyph(name, emoji, size); }
+function _iIcoL(name, emoji, size) { const g = _iGlyph(name, emoji, size); return g ? (/^<span/.test(g) ? g : g + ' ') : ''; }
 let catalogSearchTerm = '';
 let invSearchTerm = '';
 let supplierSearchTerm = '';
@@ -2913,10 +2923,18 @@ function renderCatalog() {
           </div>
           ${stats.revenue > 0 ? `<div class="product-meta"><span style="color: var(--success);">${fmtPrice(stats.revenue)} ${escapeHtml(t('cat.revenue'))}</span></div>` : ''}
         </div>
-        <div class="product-actions">
-          <button class="btn success" data-act="cat-quote" data-id="${p.id}">${escapeHtml(t('cat.quote'))}</button>
-          <button class="btn" data-act="cat-edit" data-id="${p.id}">${escapeHtml(t('common.edit'))}</button>
-          <button class="btn danger" data-act="cat-del" data-id="${p.id}">${escapeHtml(t('common.delete'))}</button>
+        <!-- Quoting is what a catalogue product is for. Delete was two along
+             from it and permanently red; it is under the rule in the menu. -->
+        <div class="act product-actions">
+          <button class="btn success" data-act="cat-quote" data-id="${p.id}">${_iIco('forward')}${escapeHtml(t('cat.quote'))}</button>
+          <details class="ovf act-end">
+            <summary class="btn ghost small icon" role="button" aria-label="${escapeHtml(t('common.more') || 'More actions')}" title="${escapeHtml(t('common.more') || 'More actions')}">${_iIco('more', '', 16)}</summary>
+            <div class="ovf-menu">
+              <button data-act="cat-edit" data-id="${p.id}">${_iIco('pencil')}${escapeHtml(t('common.edit'))}</button>
+              <div class="ovf-sep"></div>
+              <button class="danger" data-act="cat-del" data-id="${p.id}">${_iIco('trash')}${escapeHtml(t('common.delete'))}</button>
+            </div>
+          </details>
         </div>
       </div>`;
   }).join('');

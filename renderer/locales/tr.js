@@ -924,7 +924,7 @@
   "pe.fill_kept": "Kendi girdiğiniz değerler korundu.",
   "pe.image_too_big": "Görsel çok büyük — 8 MB altında bir tane deneyin.",
   "cl.title": "Müşteriler",
-  "cl.add": "+ Müşteri Ekle",
+  "cl.add": "Müşteri Ekle",
   "cl.search_ph": "Müşteri ara…",
   "cl.empty": "Kayıtlı müşteri yok. Faturaları otomatik doldurmak ve tekrar eden işleri izlemek için bir tane ekleyin.",
   "cl.empty_search": "Bu aramayla eşleşen müşteri yok.",

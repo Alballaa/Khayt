@@ -924,7 +924,7 @@
   "pe.fill_kept": "Se conservaron tus propios valores.",
   "pe.image_too_big": "Imagen demasiado grande — use un archivo de menos de 8 MB.",
   "cl.title": "Clientes",
-  "cl.add": "+ Agregar cliente",
+  "cl.add": "Agregar cliente",
   "cl.search_ph": "Buscar clientes…",
   "cl.empty": "Sin clientes todavía.",
   "cl.empty_search": "No se encontraron clientes.",

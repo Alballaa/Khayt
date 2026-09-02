@@ -924,7 +924,7 @@
   "pe.fill_kept": "Your own values were kept.",
   "pe.image_too_big": "Image too large — try one under 8 MB.",
   "cl.title": "Clients",
-  "cl.add": "+ Add Client",
+  "cl.add": "Add Client",
   "cl.search_ph": "Search clients…",
   "cl.empty": "No saved clients. Add one to auto-fill invoices and track repeat business.",
   "cl.empty_search": "No clients match that search.",

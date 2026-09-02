@@ -924,7 +924,7 @@
   "pe.fill_kept": "您自己填写的数值已保留。",
   "pe.image_too_big": "图片过大——请使用 8 MB 以下的文件。",
   "cl.title": "客户",
-  "cl.add": "+ 添加客户",
+  "cl.add": "添加客户",
   "cl.search_ph": "搜索客户…",
   "cl.empty": "暂无客户。",
   "cl.empty_search": "未找到客户。",

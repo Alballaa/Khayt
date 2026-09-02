@@ -360,11 +360,6 @@
   function onClick(e) {
     const btn = e.target.closest('[data-act]');
     if (!btn) return;
-    /* An action taken from the overflow closes it. <details> has no reason to
-     * shut on its own, so without this the menu stays open over the card the
-     * click just changed — and the next render draws the card underneath it. */
-    const menu = btn.closest('details.ovf');
-    if (menu) menu.removeAttribute('open');
     const id = btn.dataset.id;
     switch (btn.dataset.act) {
       case 'pf-add':   addPrintFile(); break;

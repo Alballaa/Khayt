@@ -2,6 +2,13 @@
  * Job intake waiting list: funnel, CRUD, promote to calculator, reminders.
  */
 (function (global) {
+  /** Shared line icon, or nothing — never an emoji. See renderer/icons.js. */
+  const _wIco = (name, size) => {
+    const svg = (typeof window !== 'undefined' && window.KhaytIcons)
+      ? window.KhaytIcons.icon(name, size || 15) : '';
+    return svg ? `<span class="pf-ico" aria-hidden="true">${svg}</span>` : '';
+  };
+
 /* ── Waiting List (Job Intake) ──────────────────────────── */
 function renderWaitingList() {
   renderWaitingOnlinePanel?.();
@@ -40,12 +47,20 @@ function renderWaitingList() {
           ${isDueReminder ? `<div style="font-size:11px;color:var(--primary);">⏰ Reminder due: ${escapeHtml(item.reminderDate)}</div>` : ''}
         </div>
       </div>
-      <div class="waiting-item-actions">
-        <button class="btn small ghost" data-act="waiting-remind" data-id="${item.id}">💬 ${escapeHtml(t('waiting.remind') || 'Remind')}</button>
-        <button class="btn small ghost" data-act="waiting-decline" data-id="${item.id}">✕ ${escapeHtml(t('waiting.decline') || 'Decline')}</button>
-        <button class="btn small" data-act="waiting-promote" data-id="${item.id}" title="${escapeHtml(settings.mode !== 'professional' ? (t('waiting.promote_calc') || t('waiting.promote')) : t('waiting.promote'))}">→ ${escapeHtml(settings.mode !== 'professional' ? (t('waiting.promote_calc') || 'Quote in calculator') : t('waiting.promote'))}</button>
-        <button class="btn small ghost" data-act="waiting-edit" data-id="${item.id}">${escapeHtml(t('common.edit'))}</button>
-        <button class="btn small ghost danger" data-act="waiting-del" data-id="${item.id}" aria-label="${escapeHtml(`${t('common.delete') || 'Delete'} ${item.project || t('waiting.untitled')}`)}" title="${escapeHtml(`${t('common.delete') || 'Delete'} ${item.project || t('waiting.untitled')}`)}">🗑</button>
+      <!-- Promoting the enquiry is what this row is FOR, so it leads. Delete
+           used to sit two buttons along from it, in a row that wrapped. -->
+      <div class="act waiting-item-actions">
+        <button class="btn small primary" data-act="waiting-promote" data-id="${item.id}" title="${escapeHtml(settings.mode !== 'professional' ? (t('waiting.promote_calc') || t('waiting.promote')) : t('waiting.promote'))}">${_wIco('forward')}${escapeHtml(settings.mode !== 'professional' ? (t('waiting.promote_calc') || 'Quote in calculator') : t('waiting.promote'))}</button>
+        <button class="btn small ghost" data-act="waiting-remind" data-id="${item.id}">${_wIco('message')}${escapeHtml(t('waiting.remind') || 'Remind')}</button>
+        <details class="ovf act-end">
+          <summary class="btn small ghost icon" role="button" aria-label="${escapeHtml(t('common.more') || 'More actions')}" title="${escapeHtml(t('common.more') || 'More actions')}">${_wIco('more', 16)}</summary>
+          <div class="ovf-menu">
+            <button data-act="waiting-decline" data-id="${item.id}">${_wIco('cross')}${escapeHtml(t('waiting.decline') || 'Decline')}</button>
+            <button data-act="waiting-edit" data-id="${item.id}">${_wIco('pencil')}${escapeHtml(t('common.edit'))}</button>
+            <div class="ovf-sep"></div>
+            <button class="danger" data-act="waiting-del" data-id="${item.id}" aria-label="${escapeHtml(`${t('common.delete') || 'Delete'} ${item.project || t('waiting.untitled')}`)}" title="${escapeHtml(`${t('common.delete') || 'Delete'} ${item.project || t('waiting.untitled')}`)}">${_wIco('trash')}${escapeHtml(t('common.delete') || 'Delete')}</button>
+          </div>
+        </details>
       </div>
     </div>`;
   }).join('');

@@ -79,6 +79,28 @@
     folder: '<path d="M3 7.5a2 2 0 0 1 2-2h3.8l2 2H19a2 2 0 0 1 2 2v7.5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-9.5z"/>',
     // cloud / sync
     cloud: '<path d="M7.2 18.5a4.2 4.2 0 0 1 .3-8.4 6 6 0 0 1 11.3 2 3.6 3.6 0 0 1-.8 6.4H7.2z"/>',
+
+    /* ── For the toolbars and rows that followed the print library ────────── */
+    // sheet of paper / a form, a document
+    doc: '<path d="M6 2.8h7.5L19 8.3v12.9H6z"/><path d="M13.5 2.8v5.5H19M9 13h6M9 16.5h4"/>',
+    // arrow into a tray / export, download
+    download: '<path d="M12 3.5v11M12 14.5l-4-4M12 14.5l4-4M4.5 17.5v1.6a1.4 1.4 0 0 0 1.4 1.4h12.2a1.4 1.4 0 0 0 1.4-1.4v-1.6"/>',
+    // arrow out of a tray / import, upload
+    upload: '<path d="M12 15V4M12 4L8 8M12 4l4 4M4.5 17.5v1.6a1.4 1.4 0 0 0 1.4 1.4h12.2a1.4 1.4 0 0 0 1.4-1.4v-1.6"/>',
+    // megaphone / campaign
+    megaphone: '<path d="M4 10.5v3a1.5 1.5 0 0 0 1.5 1.5H8l6.5 4V5L8 9H5.5A1.5 1.5 0 0 0 4 10.5z"/><path d="M18 9.2a4.5 4.5 0 0 1 0 5.6M7.5 15v4.5h2.2"/>',
+    // arrows in a loop / a subscription, something that repeats
+    repeat: '<path d="M4.5 9.5A5 5 0 0 1 9.4 5.5h9.3"/><path d="M15.8 2.6l2.9 2.9-2.9 2.9"/><path d="M19.5 14.5a5 5 0 0 1-4.9 4H5.3"/><path d="M8.2 21.4l-2.9-2.9 2.9-2.9"/>',
+    // receipt / an activity log, a record of what happened
+    receipt: '<path d="M5.5 2.8h13v18.4l-2.2-1.5-2.2 1.5-2.1-1.5-2.2 1.5-2.2-1.5-2.1 1.5z"/><path d="M9 8h6M9 12h6"/>',
+    // speech bubble / a reminder sent to someone
+    message: '<path d="M20.5 12.2c0 3.8-3.8 6.9-8.5 6.9a10 10 0 0 1-2.6-.3L4 21l1.4-3.6a6.4 6.4 0 0 1-1.9-4.4c0-3.8 3.8-6.9 8.5-6.9s8.5 3.1 8.5 6.9z"/>',
+    // chain / a link to share
+    link: '<path d="M10 13.8a4 4 0 0 0 5.7 0l2.6-2.6a4 4 0 0 0-5.7-5.7l-1.5 1.5"/><path d="M14 10.2a4 4 0 0 0-5.7 0l-2.6 2.6a4 4 0 0 0 5.7 5.7l1.5-1.5"/>',
+    // arrow out of a box / share, send onward
+    share: '<path d="M12 3.5v11"/><path d="M8.4 7.1L12 3.5l3.6 3.6"/><path d="M4.8 12.5v6.6a1.4 1.4 0 0 0 1.4 1.4h11.6a1.4 1.4 0 0 0 1.4-1.4v-6.6"/>',
+    // arrow rightwards / move this on to the next thing
+    forward: '<path d="M4 12h15M13.5 6.5L20 12l-6.5 5.5"/>',
   };
 
   /**
