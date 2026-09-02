@@ -23,7 +23,14 @@
   // Toolbar/label emoji clash with Bed Ready's drafting chrome — strip them there, keep for Khayt.
   const _emo = (e) => _bdr ? '' : e + ' ';
   // Where a marker carries meaning (fit/over warnings, file/status glyphs), swap to a bespoke icon.
-  const _emoI = (name, emoji, size) => (_bdr && window.BedReadyIcons) ? `<span class="br-ico">${window.BedReadyIcons.get(name, size || 15)}</span>` : emoji + ' ';
+  /* Flavour set, then the shared line icons, then the emoji — the order every
+   * other module uses now. This one asked Bed Ready or gave up. */
+  const _emoI = (name, emoji, size) => {
+    if (_bdr && window.BedReadyIcons) return `<span class="br-ico">${window.BedReadyIcons.get(name, size || 15)}</span>`;
+    const svg = (typeof window !== 'undefined' && window.KhaytIcons) ? window.KhaytIcons.icon(name, size || 15) : '';
+    if (svg) return `<span class="pf-ico" aria-hidden="true">${svg}</span>`;
+    return emoji ? emoji + ' ' : '';
+  };
 
   function customPrinters() {
     return (typeof settings !== 'undefined' && Array.isArray(settings.customPrinters)) ? settings.customPrinters : [];
@@ -1076,12 +1083,23 @@
           <h2 class="conv-title">${_titleIco}${escapeHtml(t('conv.title') || 'Convert 3MF')}</h2>
           <p class="conv-sub">${escapeHtml(t('conv.subtitle') || 'Retarget a multicolour 3MF to a different printer, or normalize it to a clean standard 3MF. Geometry is never altered.')}</p>
         </div>
-        <div class="conv-actions">
-          <button class="btn primary" id="convPick">＋ ${escapeHtml(t('conv.pick') || 'Choose a 3MF file…')}</button>
-          <button class="btn ghost" id="convBatchPick">${_emo('🗂')}${escapeHtml(t('conv.batch_pick') || 'Batch convert…')}</button>
-          ${hub() && hub().stlPick ? `<button class="btn ghost" id="convStlBtn">${_emo('📐')}${escapeHtml(t('conv.stl_pick') || 'STL → 3MF…')}</button>` : ''}
-          ${hub() && hub().mfToStl ? `<button class="btn ghost" id="convToStlBtn">${_emo('📤')}${escapeHtml(t('conv.tostl_pick') || '3MF → STL…')}</button>` : ''}
-          ${hub() && hub().mfBands ? `<button class="btn ghost" id="convSwapBtn">${_emo('🎨')}${escapeHtml(t('conv.swap_pick') || 'Colour-swap plan…')}</button>` : ''}
+        <!-- One button opens a file; the other four open a file to do something
+             ELSE with it. Five side by side made none of them look like the
+             way in. -->
+        <div class="act conv-actions">
+          <button class="btn primary" id="convPick">${_emoI('plus', '＋')}${escapeHtml(t('conv.pick') || 'Choose a 3MF file…')}</button>
+          <!-- No act-end here: this is a row of ways IN, not a card's actions,
+               so the overflow belongs beside the primary rather than shoved to
+               the far edge of the panel where it reads as unrelated. -->
+          <details class="ovf">
+            <summary class="btn ghost small icon" role="button" aria-label="${escapeHtml(t('common.more') || 'More actions')}" title="${escapeHtml(t('common.more') || 'More actions')}">${_emoI('more', '⋯', 16)}</summary>
+            <div class="ovf-menu">
+              <button id="convBatchPick">${_emoI('folder', '🗂')}${escapeHtml(t('conv.batch_pick') || 'Batch convert…')}</button>
+              ${hub() && hub().stlPick ? `<button id="convStlBtn">${_emoI('cube', '📐')}${escapeHtml(t('conv.stl_pick') || 'STL → 3MF…')}</button>` : ''}
+              ${hub() && hub().mfToStl ? `<button id="convToStlBtn">${_emoI('share', '📤')}${escapeHtml(t('conv.tostl_pick') || '3MF → STL…')}</button>` : ''}
+              ${hub() && hub().mfBands ? `<button id="convSwapBtn">${_emoI('palette', '🎨')}${escapeHtml(t('conv.swap_pick') || 'Colour-swap plan…')}</button>` : ''}
+            </div>
+          </details>
         </div>
         <div class="conv-dropzone" id="convDrop" style="margin-top:14px;padding:20px;border:2px dashed var(--border,#cbd5d1);border-radius:14px;text-align:center;color:var(--text-muted,#869390);font-size:13.5px;transition:border-color .15s ease, background .15s ease;">⤓ ${escapeHtml(t('conv.drop') || 'or drag a 3MF / STL file here')}</div>
         <p class="conv-tip">${escapeHtml(t('conv.tip') || 'Tip: you can also hit Convert on any 3MF in your Print-File library.')}</p>

@@ -3,10 +3,23 @@
  */
 (function (global) {
 // Bed Ready swaps decorative emoji for its bespoke drafting glyphs (evaluated at render time);
-// Khayt keeps the emoji. `_kIco` = icon only, `_kIcoL` adds a trailing space before a label.
+/* `_kIco` = icon only, `_kIcoL` adds a trailing space before a label.
+ *
+ * Khayt used to keep the emoji here, exactly as printfiles.js did: the flavour's
+ * own set or nothing, so every Khayt screen fell through to the glyph. It asks
+ * the shared line icons first now (renderer/icons.js), which is what that file
+ * has always said should happen. `emoji` is the last resort for a name neither
+ * set draws, and is optional — a call with no emoji gets an empty string rather
+ * than the word "undefined", which is what the old signature did. */
 const _kBdr = (typeof document !== 'undefined' && document.documentElement && document.documentElement.dataset.app === 'bedready');
-function _kIco(name, emoji, size) { return (_kBdr && window.BedReadyIcons) ? `<span class="br-ico">${window.BedReadyIcons.get(name, size || 15)}</span>` : emoji; }
-function _kIcoL(name, emoji, size) { return (_kBdr && window.BedReadyIcons) ? `<span class="br-ico">${window.BedReadyIcons.get(name, size || 15)}</span>` : emoji + ' '; }
+function _kGlyph(name, emoji, size) {
+  if (_kBdr && window.BedReadyIcons) return `<span class="br-ico">${window.BedReadyIcons.get(name, size || 15)}</span>`;
+  const svg = (typeof window !== 'undefined' && window.KhaytIcons) ? window.KhaytIcons.icon(name, size || 15) : '';
+  if (svg) return `<span class="pf-ico" aria-hidden="true">${svg}</span>`;
+  return emoji || '';
+}
+function _kIco(name, emoji, size) { return _kGlyph(name, emoji, size); }
+function _kIcoL(name, emoji, size) { const g = _kGlyph(name, emoji, size); return g ? (/^<span/.test(g) ? g : g + ' ') : ''; }
 function updateKanbanLiveStatus() {
   const cards = document.querySelectorAll('.printer-live-status[data-machine-id]');
   cards.forEach(el => {
@@ -406,11 +419,20 @@ function renderKanban() {
               <div class="quote-title">${getPriorityLevel(q) !== 'normal' ? priorityBadgeHtml(q) + ' ' : ''}${escapeHtml(q.project || q.id)}</div>
               <div class="quote-meta">${escapeHtml(q.id)} · ${fmtPrice(q.price)} ${expiryHtml}</div>
             </div>
-            <div class="quote-actions">
-              <button class="btn small success" data-act="approve-quote" data-id="${q.id}">${escapeHtml(t('quote.approve'))}</button>
-              <button class="btn small" data-act="quote-approval-link" data-id="${q.id}">${escapeHtml(t('ord.quote_approval_link'))}</button>
-              <button class="btn small" data-act="share-quote" data-id="${q.id}">${escapeHtml(t('quote.share_pdf'))}</button>
-              <button class="btn danger small" data-act="reject-quote" data-id="${q.id}">${escapeHtml(t('quote.reject'))}</button>
+            <!-- Approving is the answer this row is waiting for. Rejecting sat
+                 next to it in red; it is under the rule in the menu now, where
+                 it cannot be hit on the way to the other one. -->
+            <div class="act quote-actions">
+              <button class="btn small success" data-act="approve-quote" data-id="${q.id}">${_kIco('check')}${escapeHtml(t('quote.approve'))}</button>
+              <details class="ovf act-end">
+                <summary class="btn small ghost icon" role="button" aria-label="${escapeHtml(t('common.more') || 'More actions')}" title="${escapeHtml(t('common.more') || 'More actions')}">${_kIco('more', 16)}</summary>
+                <div class="ovf-menu">
+                  <button data-act="quote-approval-link" data-id="${q.id}">${_kIco('link')}${escapeHtml(t('ord.quote_approval_link'))}</button>
+                  <button data-act="share-quote" data-id="${q.id}">${_kIco('share')}${escapeHtml(t('quote.share_pdf'))}</button>
+                  <div class="ovf-sep"></div>
+                  <button class="danger" data-act="reject-quote" data-id="${q.id}">${_kIco('cross')}${escapeHtml(t('quote.reject'))}</button>
+                </div>
+              </details>
             </div>
           </div>`;
       }).join('');

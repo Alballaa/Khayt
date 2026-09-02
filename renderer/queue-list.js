@@ -276,17 +276,31 @@
     syncQueueViewToggle();
   }
 
+  /**
+   * Reflect the current view in the segmented control.
+   *
+   * This used to be ONE button that renamed itself — reading "Board view" while
+   * you were in the list, so the label was the destination on one press and the
+   * origin on the next, and nothing on screen said which of the two you were
+   * looking at. Two halves with a pressed state say it without being read.
+   *
+   * It also set `textContent`, which would now delete the icon inside the
+   * button. Only the state is touched here; the labels are markup and stay in
+   * the markup, where the translator can see them.
+   */
   function syncQueueViewToggle() {
-    const btn = document.getElementById('btnQueueView');
-    if (!btn) return;
-    const list = isListView();
-    btn.setAttribute('aria-pressed', String(!list));
-    btn.textContent = list
-      ? tr('queue.view_kanban', 'Board view')
-      : tr('queue.view_list', 'List view');
-    btn.title = list
-      ? tr('queue.view_kanban_hint', 'Switch to the kanban board')
-      : tr('queue.view_list_hint', 'Switch to the grouped list');
+    const board = document.getElementById('btnQueueView');
+    const list = document.getElementById('btnQueueViewList');
+    if (!board && !list) return;
+    const onList = isListView();
+    if (board) {
+      board.setAttribute('aria-pressed', String(!onList));
+      board.title = tr('queue.view_kanban_hint', 'Switch to the kanban board');
+    }
+    if (list) {
+      list.setAttribute('aria-pressed', String(onList));
+      list.title = tr('queue.view_list_hint', 'Switch to the grouped list');
+    }
   }
 
   const api = { renderQueueList, setQueueView, isListView, syncQueueViewToggle };

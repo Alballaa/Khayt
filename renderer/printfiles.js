@@ -14,11 +14,27 @@
   const api = () => (typeof window !== 'undefined' && window.hubAPI) || null;
   const EXT_ICON = { stl: '🧊', obj: '🧊', '3mf': '🎨', gcode: '📄', gco: '📄' };
   const EXT_ICON_NAME = { stl: 'cube', obj: 'cube', '3mf': 'colour', gcode: 'doc', gco: 'doc' };
-  // Bed Ready swaps emoji markers for its bespoke drafting glyphs; Khayt keeps the emoji.
+  /* Bed Ready swaps in its bespoke drafting glyphs; KHAYT USED TO KEEP THE EMOJI,
+   * and that is what a row of 🖨 🛠 🔎 🧊 🎨 🔄 🗑 was. renderer/icons.js has
+   * said since it was written that a toolbar of emoji "breaks the rule twice:
+   * the glyphs shout, and they render in whatever colour and metrics the OS
+   * emoji font decides" — and it ends "never inline an emoji in markup that this
+   * could cover". This markup was covered by nothing, because the fallback here
+   * skipped straight past the shared set to the glyph.
+   *
+   * Order is deliberate: the flavour's own set first where there is one, then
+   * the shared line icons, then the emoji — which now only shows up for a name
+   * neither set draws. */
   const _BDR = (typeof document !== 'undefined' && document.documentElement && document.documentElement.dataset.app === 'bedready');
-  const _bi = (name, glyph, size) => (_BDR && window.BedReadyIcons)
-    ? `<span class="pf-ico" aria-hidden="true">${window.BedReadyIcons.get(name, size || 15)}</span>`
-    : (glyph ? glyph + ' ' : '');
+  const _bi = (name, glyph, size) => {
+    if (_BDR && window.BedReadyIcons) {
+      return `<span class="pf-ico" aria-hidden="true">${window.BedReadyIcons.get(name, size || 15)}</span>`;
+    }
+    const svg = (typeof window !== 'undefined' && window.KhaytIcons)
+      ? window.KhaytIcons.icon(name, size || 15) : '';
+    if (svg) return `<span class="pf-ico" aria-hidden="true">${svg}</span>`;
+    return glyph ? glyph + ' ' : '';
+  };
 
   function fmtTime(mins) {
     if (mins == null || !isFinite(mins) || mins <= 0) return '';
@@ -217,21 +233,35 @@
           ${Array.isArray(rec.converted) && rec.converted.length ? `<div class="pf-converted">${rec.converted.map((c) => `
             <div class="pf-conv-row">
               <span class="pf-conv-name" title="${escapeHtml(c.filename)}">${_bi('convert', '🔄')}${escapeHtml(c.targetName || c.targetId || (t('conv.convert_short') || 'Converted'))}</span>
-              <button class="btn small ghost" data-act="pf-conv-open" data-id="${escapeHtml(rec.id)}" data-fn="${escapeHtml(c.filename)}" title="${escapeHtml(t('plib.open_slicer') || 'Open in slicer')}">${_bi('printer', '🖨')}</button>
-              <button class="btn small ghost danger" data-act="pf-conv-del" data-id="${escapeHtml(rec.id)}" data-fn="${escapeHtml(c.filename)}" aria-label="${escapeHtml(t('common.delete') || 'Delete')}" title="${escapeHtml(t('common.delete') || 'Delete')}">${_bi('trash', '🗑')}</button>
+              <button class="btn small ghost icon" data-act="pf-conv-open" data-id="${escapeHtml(rec.id)}" data-fn="${escapeHtml(c.filename)}" title="${escapeHtml(t('plib.open_slicer') || 'Open in slicer')}">${_bi('printer', '🖨')}</button>
+              <button class="btn small ghost danger icon" data-act="pf-conv-del" data-id="${escapeHtml(rec.id)}" data-fn="${escapeHtml(c.filename)}" aria-label="${escapeHtml(t('common.delete') || 'Delete')}" title="${escapeHtml(t('common.delete') || 'Delete')}">${_bi('trash', '🗑')}</button>
             </div>`).join('')}</div>` : ''}
         </div>
-        <div class="pf-actions">
+        <!-- ONE ROW SHAPE, WHATEVER THIS FILE CAN DO.
+             Ten buttons wrapped here, and two cards side by side wrapped at
+             different points, so nothing lined up across the grid and one card
+             ended with a lone bin on a row of its own. What a record can do now
+             changes the MENU; the row is always: the thing you came to do, the
+             two things you do after every print, and everything else. -->
+        <div class="act">
           <button class="btn small primary" data-act="pf-slice" data-id="${escapeHtml(rec.id)}">${_bi('printer', '🖨')}${escapeHtml(t('plib.open_slicer') || 'Open in slicer')}</button>
-          <button class="btn small ghost" data-act="pf-setups" data-id="${escapeHtml(rec.id)}" title="${escapeHtml(t('setup.title') || 'Settings that worked')}">${_bi('nozzle', '🛠')}${escapeHtml(t('setup.short') || 'Setups')}</button>
-          ${!rec.geometryKey ? `<button class="btn small ghost" data-act="pf-identify" data-id="${escapeHtml(rec.id)}" title="${escapeHtml(t('plib.identify_hint') || 'Let Khayt recognise this model when you print it again')}">${_bi('search', '🔎')}${escapeHtml(t('plib.identify') || 'Identify')}</button>` : ''}
-          ${typeof openModelViewer === 'function' && /^(stl|3mf)$/i.test(rec.sourceFile?.ext || '') ? `<button class="btn small ghost" data-act="pf-view3d" data-id="${escapeHtml(rec.id)}" title="${escapeHtml(t('plib.view3d') || 'View in 3D')}">${_bi('cube', '🧊')}${escapeHtml(t('plib.view3d_short') || '3D')}</button>` : ''}
-          <button class="btn small ghost" data-act="pf-log-print" data-id="${escapeHtml(rec.id)}" title="${escapeHtml(t('plib.log_print') || 'Log a successful print')}">✓ ${escapeHtml(t('plib.log_print_short') || 'Printed')}</button>
-          <button class="btn small ghost" data-act="pf-log-fail" data-id="${escapeHtml(rec.id)}" title="${escapeHtml(t('plib.log_fail') || 'Log a failed print')}" aria-label="${escapeHtml(t('plib.log_fail') || 'Log a failed print')}">✗</button>
-          ${Array.isArray(rec.colors) && rec.colors.filter((c) => c && c.hex).length > 1 ? `<button class="btn small ghost" data-act="pf-plan" data-id="${escapeHtml(rec.id)}">${_bi('colour', '🎨')}${escapeHtml(t('plan.title') || 'Plan colours')}</button>` : ''}
-          ${rec.sourceFile?.ext === '3mf' ? `<button class="btn small ghost" data-act="pf-convert" data-id="${escapeHtml(rec.id)}">${_bi('convert', '🔄')}${escapeHtml(t('conv.convert_short') || 'Convert')}</button>` : ''}
-          <button class="btn small ghost" data-act="pf-edit" data-id="${escapeHtml(rec.id)}">${escapeHtml(t('common.edit') || 'Edit')}</button>
-          <button class="btn small ghost danger" data-act="pf-del" data-id="${escapeHtml(rec.id)}" title="${escapeHtml(t('common.delete') || 'Delete')}">${_bi('trash', '🗑')}</button>
+          <button class="btn small ghost icon" data-act="pf-log-print" data-id="${escapeHtml(rec.id)}" aria-label="${escapeHtml(t('plib.log_print') || 'Log a successful print')}" title="${escapeHtml(t('plib.log_print') || 'Log a successful print')}">${_bi('check', '✓')}</button>
+          <button class="btn small ghost icon" data-act="pf-log-fail" data-id="${escapeHtml(rec.id)}" aria-label="${escapeHtml(t('plib.log_fail') || 'Log a failed print')}" title="${escapeHtml(t('plib.log_fail') || 'Log a failed print')}">${_bi('cross', '✗')}</button>
+          <details class="ovf act-end">
+            <summary class="btn small ghost icon" role="button" aria-label="${escapeHtml(t('common.more') || 'More actions')}" title="${escapeHtml(t('common.more') || 'More actions')}">${_bi('more', '⋯', 16)}</summary>
+            <div class="ovf-menu">
+              <button data-act="pf-setups" data-id="${escapeHtml(rec.id)}">${_bi('nozzle', '🛠')}${escapeHtml(t('setup.title') || 'Settings that worked')}</button>
+              ${typeof openModelViewer === 'function' && /^(stl|3mf)$/i.test(rec.sourceFile?.ext || '') ? `<button data-act="pf-view3d" data-id="${escapeHtml(rec.id)}">${_bi('cube', '🧊')}${escapeHtml(t('plib.view3d') || 'View in 3D')}</button>` : ''}
+              ${!rec.geometryKey ? `<button data-act="pf-identify" data-id="${escapeHtml(rec.id)}" title="${escapeHtml(t('plib.identify_hint') || 'Let Khayt recognise this model when you print it again')}">${_bi('search', '🔎')}${escapeHtml(t('plib.identify') || 'Identify')}</button>` : ''}
+              ${Array.isArray(rec.colors) && rec.colors.filter((c) => c && c.hex).length > 1 ? `<button data-act="pf-plan" data-id="${escapeHtml(rec.id)}">${_bi('palette', '🎨')}${escapeHtml(t('plan.title') || 'Plan colours')}</button>` : ''}
+              ${rec.sourceFile?.ext === '3mf' ? `<button data-act="pf-convert" data-id="${escapeHtml(rec.id)}">${_bi('convert', '🔄')}${escapeHtml(t('conv.convert_short') || 'Convert')}</button>` : ''}
+              <button data-act="pf-edit" data-id="${escapeHtml(rec.id)}">${_bi('pencil', '✏')}${escapeHtml(t('common.edit') || 'Edit')}</button>
+              <!-- Under a rule and last: delete used to sit one button along
+                   from "Open in slicer". -->
+              <div class="ovf-sep"></div>
+              <button class="danger" data-act="pf-del" data-id="${escapeHtml(rec.id)}">${_bi('trash', '🗑')}${escapeHtml(t('common.delete') || 'Delete')}</button>
+            </div>
+          </details>
         </div>
       </div>`;
   }

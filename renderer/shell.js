@@ -4,6 +4,30 @@
 var _escHandlerStack = [];
 
 (function (global) {
+
+/* ── Overflow menus close themselves ──────────────────────────────────────
+ * `.ovf` is a <details>, which gets Escape and outside-click for free but has
+ * no reason to shut when something inside it is pressed. Without this the menu
+ * stays open over the card the click just changed, and the next render draws
+ * that card underneath it.
+ *
+ * Bound once, here, rather than in each module's own click handler: there are
+ * six surfaces using this now and every one of them would otherwise carry the
+ * same three lines, which is how the six different toolbar vocabularies
+ * happened in the first place.
+ *
+ * Capture phase, so the menu is already shut by the time the action's own
+ * handler re-renders the thing it belongs to.
+ */
+if (typeof document !== 'undefined') {
+  document.addEventListener('click', (e) => {
+    const hit = e.target && e.target.closest && e.target.closest('.ovf-menu button, .ovf-menu label');
+    if (!hit) return;
+    const menu = hit.closest('details.ovf');
+    if (menu) menu.removeAttribute('open');
+  }, true);
+}
+
 const FOCUSABLE_SEL = 'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 function attachFocusTrap(root) {

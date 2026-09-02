@@ -2078,34 +2078,8 @@ button .khayt-ico, summary .khayt-ico { opacity: .85; }
    and Pause production, which halts work in progress and so must never need a
    click to reveal. The rest live behind a native <details> disclosure: no JS,
    keyboard-accessible for free. */
-.queue-overflow { position: relative; display: inline-block; }
-.queue-overflow > summary {
-  list-style: none;
-  cursor: pointer;
-  user-select: none;
-  min-width: 32px;
-  text-align: center;
-}
-.queue-overflow > summary::-webkit-details-marker { display: none; }
-.queue-overflow[open] > summary { background: var(--surface-2); }
-
-.queue-overflow-menu {
-  position: absolute;
-  inset-inline-end: 0;
-  top: calc(100% + 6px);
-  z-index: 40;
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 6px;
-  min-width: 220px;
-  padding: 8px;
-  background: var(--bg-card, var(--surface-1));
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
-}
-.queue-overflow-menu > * { justify-content: flex-start; width: 100%; }
+/* The queue's own overflow used to live here. It is `.ovf` now, at the foot of
+   this file, and six surfaces share it — see "Action rows and overflow menus". */
 
 /* Machine cards: the dashboard leads with Fleet now, so this repeats it. One
    line when shut; nothing removed. */
@@ -3908,10 +3882,16 @@ body.mode-enthusiast .biz-only { display: none !important; }
 .pf-shot-name { font-weight: 600; font-size: 13.5px; }
 .pf-shot-meta { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 11.5px; color: var(--text-muted); margin-top: 3px; }
 .pf-shot-notes { font-size: 11.5px; color: var(--text-dim); margin-top: 6px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-.pf-card { position: relative; display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: 12px; background: var(--bg-elev); overflow: hidden; transition: box-shadow .15s, transform .15s; }
+/* `overflow: hidden` here was clipping the thumbnail's corners AND every menu
+   that opens out of the card — the action overflow was cut off at the card
+   edge. The clipping belongs to the picture, so it moved to the picture. */
+.pf-card { position: relative; display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: 12px; background: var(--bg-elev); transition: box-shadow .15s, transform .15s; }
+/* An open menu lifts its own card over its neighbours, or the card to the
+   right paints across it. */
+.pf-card:has(.ovf[open]) { z-index: 5; }
 .pf-card:hover { box-shadow: 0 6px 20px rgba(0,0,0,.12); transform: translateY(-1px); }
-.pf-thumb { width: 100%; height: 168px; object-fit: cover; background: var(--surface-2); display: block; }
-.pf-thumb-icon { display: flex; align-items: center; justify-content: center; font-size: 52px; }
+.pf-thumb { width: 100%; height: 168px; object-fit: cover; background: var(--surface-2); display: block; border-start-start-radius: 11px; border-start-end-radius: 11px; }
+.pf-thumb-icon { display: flex; align-items: center; justify-content: center; font-size: 52px; overflow: hidden; border-start-start-radius: 11px; border-start-end-radius: 11px; }
 .pf-fav { position: absolute; top: 8px; inset-inline-end: 8px; z-index: 2; border: none; background: rgba(0,0,0,.45); color: #ffd45e; width: 30px; height: 30px; border-radius: 50%; cursor: pointer; font-size: 15px; line-height: 1; }
 .pf-fav.on { background: rgba(0,0,0,.6); }
 .pf-body { padding: 10px 12px 6px; flex: 1; }
@@ -3962,11 +3942,22 @@ body.mode-enthusiast .biz-only { display: none !important; }
 .shop-name { flex: 1; }
 .shop-amt { color: var(--text-dim); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .shop-arrow { color: var(--text-muted); margin: 0 2px; }
-.pf-actions { display: flex; gap: 6px; padding: 8px 12px 12px; flex-wrap: wrap; }
-.pf-actions .btn { flex: 0 0 auto; }
+
 /* Bed Ready bespoke inline icons (replace emoji markers) — align with adjacent text */
-.pf-ico, .br-ico { display: inline-flex; align-items: center; margin-right: 5px; vertical-align: -2px; }
-.pf-ico:last-child, .br-ico:last-child, .br-ico:only-child { margin-right: 0; }
+/* margin-INLINE-end, not margin-right: Khayt ships Arabic, and a right margin
+   puts the gap on the wrong side of the glyph in an RTL layout — the icon ends
+   up touching the word it belongs to and spaced away from the next one. */
+.pf-ico, .br-ico { display: inline-flex; align-items: center; margin-inline-end: 6px; vertical-align: -2px; }
+/* NO SIBLING SELECTOR CAN SAY THIS, which is why the old one was wrong.
+   `.pf-ico:last-child` was meant to drop the trailing gap on an icon with
+   nothing after it — but a text node is not an element, so it matched every
+   icon followed only by WORDS, which is most of them, and removed the gap that
+   separates a glyph from the text it labels. `:only-child` has the same blind
+   spot; both were measured against the rendered page rather than guessed at.
+   So the margin is dropped where an icon is ACTUALLY alone: a control that is
+   nothing but an icon says so with .icon, and can be asked directly. */
+.btn.icon .pf-ico, .btn.icon .br-ico,
+summary.icon .pf-ico, summary.icon .br-ico { margin-inline-end: 0; }
 .pf-ico svg, .br-ico svg { display: block; }
 .pf-thumb-icon .pf-ico { margin: 0; }
 [data-app="bedready"] .pf-thumb-icon { color: var(--text-muted); }
@@ -5459,3 +5450,85 @@ body.khayt-workbench .wb-glist li.is-openable { cursor: pointer; }
 }
 .khayt-tip.is-on { opacity: 1; visibility: visible; }
 @media (prefers-reduced-motion: reduce) { .khayt-tip { transition: none; } }
+
+
+/* ═══ Action rows and overflow menus ═══════════════════════════════════════
+   One shape for a row of controls, used by cards and toolbars alike.
+
+   The print-file card had TEN buttons in a wrapping row. Wrapping is what made
+   it look broken rather than merely busy: two cards side by side hold different
+   numbers of actions, so they wrapped at different points and nothing lined up
+   across the grid — one card ended with a lone bin icon on a row of its own.
+
+   So the row does not wrap. What is visible is fixed: the primary action, the
+   one or two things done repeatedly, and an overflow. What a particular record
+   can do changes the MENU, never the row.
+   ══════════════════════════════════════════════════════════════════════════ */
+.act { display: flex; align-items: center; gap: 6px; flex-wrap: nowrap; padding: 10px 12px 12px; }
+/* Pushes what follows to the far end — the overflow sits away from the primary
+   so the two are never mis-hit for each other. */
+.act > .act-end { margin-inline-start: auto; }
+
+/* An icon-only control is square, so it reads as a target rather than as a word
+   that lost its label. Every one of them still needs a name: see
+   test/button-accessible-name.js — an unlabelled icon button is a blank button
+   to anyone not looking at it. */
+.btn.icon { width: 30px; height: 30px; padding: 0; display: inline-flex;
+  align-items: center; justify-content: center; flex: 0 0 auto; }
+
+/* ── The overflow ─────────────────────────────────────────────────────────
+   <details> rather than a custom popover: it closes on Escape and on an
+   outside click, and it is reachable by keyboard, without a handler per
+   surface. The queue toolbar already used this shape; this promotes it out of
+   that one place so everything else can stop inventing its own. */
+.ovf { position: relative; display: inline-block; flex: 0 0 auto; }
+.ovf > summary { list-style: none; cursor: pointer; user-select: none; }
+.ovf > summary::-webkit-details-marker { display: none; }
+.ovf[open] > summary { background: var(--surface-2); color: var(--text); }
+.ovf-menu {
+  position: absolute; inset-inline-end: 0; top: calc(100% + 6px); z-index: 40;
+  display: flex; flex-direction: column; align-items: stretch; gap: 2px;
+  min-width: 196px; padding: 6px;
+  background: var(--bg-card, var(--surface-1));
+  border: 1px solid var(--border); border-radius: 10px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, .42);
+}
+.ovf-menu button, .ovf-menu label {
+  display: flex; align-items: center; gap: 9px; width: 100%;
+  justify-content: flex-start; text-align: start;
+  padding: 7px 9px; border: 0; border-radius: 7px;
+  background: transparent; color: var(--text);
+  font-size: 13px; line-height: 1.2; cursor: pointer;
+}
+.ovf-menu button:hover, .ovf-menu label:hover { background: var(--surface-2); }
+.ovf-menu .khayt-ico { color: var(--text-muted); flex: 0 0 auto; }
+.ovf-menu button:hover .khayt-ico { color: var(--text); }
+/* Destructive sits under a rule, never next to the primary action. */
+.ovf-sep { height: 1px; margin: 5px 3px; background: var(--border); }
+.ovf-menu button.danger { color: #f87171; }
+.ovf-menu button.danger:hover { background: rgba(220, 38, 38, .14); }
+.ovf-menu button.danger .khayt-ico { color: #f87171; }
+
+/* ── Segmented control ────────────────────────────────────────────────────
+   Two ways of looking at one thing, said as one control. Two loose buttons
+   say "here are two unrelated commands" instead.
+
+   The track is RECESSED and the selected thumb RAISED. Drawn the other way
+   round — track on --surface-2, thumb on the darker --surface — the unselected
+   half reads as the selected one; that was measured off the rendered page, not
+   guessed, and it is the reason the tokens are named explicitly here. */
+.seg { display: inline-flex; padding: 2px; gap: 2px; background: var(--bg);
+  border: 1px solid var(--border); border-radius: 9px; flex: 0 0 auto; }
+.seg > button { padding: 5px 11px; border: 0; border-radius: 7px; background: transparent;
+  color: var(--text-muted); font-size: 13px; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px; }
+.seg > button:hover { color: var(--text); }
+.seg > button[aria-pressed="true"] { background: var(--surface-2); color: var(--text);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .3); }
+
+/* Loud only when the state is abnormal. A button that is red at rest is a red
+   button nobody reads; this one means something when it is on.
+   Production paused is a GREEN button, because the action it now offers is
+   resume — the colour belongs to what pressing it does, not to the alarm. */
+.btn.state-on { background: rgba(34, 197, 94, .16); color: #4ade80; border-color: rgba(34, 197, 94, .34); }
+.btn#btnPauseProduction:hover:not(.state-on) { color: #f87171; border-color: rgba(220, 38, 38, .34); }

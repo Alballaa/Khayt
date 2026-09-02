@@ -31,7 +31,29 @@ async function seedPrintFile(window) {
     if (!machines.some((m) => m.id === 'E2E-M1')) machines.push({ id: 'E2E-M1', name: 'E2E Printer' });
     renderPrintFiles();
   }, FILE_ID);
-  await window.waitForSelector(`[data-act="pf-setups"][data-id="${FILE_ID}"]`);
+  // Present, not visible: Setups lives in the card's overflow menu now, which
+  // is a closed <details>. Waiting for it to be VISIBLE would wait for ever.
+  await window.waitForSelector(`[data-act="pf-setups"][data-id="${FILE_ID}"]`, { state: 'attached' });
+}
+
+/**
+ * Open a card's overflow, the way a shop does.
+ *
+ * Most of what a print file can do moved behind one "More actions" control, so
+ * a script that clicks straight through to the button is no longer driving the
+ * screen — it is reaching past it. Playwright says so plainly: the locator
+ * resolves to a HIDDEN element and the wait times out, which is what caught
+ * this change rather than any assertion here.
+ */
+async function openCardMenu(window, id) {
+  const opened = await window.evaluate((fileId) => {
+    const btn = document.querySelector(`[data-act="pf-setups"][data-id="${fileId}"]`);
+    const menu = btn && btn.closest('details.ovf');
+    if (!menu) return false;        // an older layout with the actions in the row
+    menu.setAttribute('open', '');
+    return true;
+  }, id);
+  if (opened) await window.waitForSelector(`[data-act="pf-setups"][data-id="${id}"]`, { state: 'visible' });
 }
 
 // closest() takes the NEAREST matching ancestor, so a selector list containing
@@ -44,6 +66,7 @@ const cardText = (window) => window.evaluate((id) => {
 
 /** Add a setup through the real dialogs, as a shop would. */
 async function addSetup(window, { name, layer, nozzle, material }) {
+  await openCardMenu(window, FILE_ID);
   await window.click(`[data-act="pf-setups"][data-id="${FILE_ID}"]`);
   await window.waitForSelector('[data-sact="add"]');
   await window.click('[data-sact="add"]');
@@ -84,6 +107,7 @@ async function testUntriedSetupIsNotSoldAsProven(window) {
 }
 
 async function testLoggingPrintsMakesItKnownGood(window) {
+  await openCardMenu(window, FILE_ID);
   await window.click(`[data-act="pf-setups"][data-id="${FILE_ID}"]`);
   await window.waitForSelector('[data-sact="ok"]');
   for (let i = 0; i < 3; i++) {
