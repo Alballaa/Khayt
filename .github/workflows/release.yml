@@ -91,10 +91,30 @@ jobs:
           if [ -z "$MATCHES" ]; then
             FLAGS=""
             if [ "$PRERELEASE" = "true" ]; then FLAGS="--prerelease"; fi
+            # THE NOTES ARE THE RELEASE'S OWN CHANGELOG ENTRY, not a link to one.
+            #
+            # Every release before this carried the same sentence — "See README
+            # for full release notes" — and that string is what electron-updater
+            # hands the app. Khayt's update dialog has a panel built for notes
+            # and has never had anything to put in it, so it says "Release notes
+            # were not included with this update" and asks you to install
+            # something it cannot describe. A shop also cannot AGREE to changes
+            # it is not shown, which is what lib/major-changes.js needs.
+            #
+            # Falls back to the old sentence rather than failing the release: a
+            # missing section is worth a warning, not a lost build. The guard
+            # that stops it getting this far is scripts/check-release-claims.js.
+            NOTES_FILE="$RUNNER_TEMP/release-notes.md"
+            if node scripts/changelog-section.js "${TAG#v}" > "$NOTES_FILE"; then
+              echo "release notes: $(wc -l < "$NOTES_FILE") lines from CHANGELOG.md"
+            else
+              echo "::warning::no CHANGELOG section for ${TAG#v} — publishing with the fallback note."
+              echo "See [README](https://github.com/${GITHUB_REPOSITORY}#readme) for full release notes." > "$NOTES_FILE"
+            fi
             gh release create "$TAG" \
               --repo "$GITHUB_REPOSITORY" \
               --title "Khayt $TAG" \
-              --notes "See [README](https://github.com/${GITHUB_REPOSITORY}#readme) for full release notes." \
+              --notes-file "$NOTES_FILE" \
               --draft \
               $FLAGS
           elif echo "$MATCHES" | grep -qx published; then

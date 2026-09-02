@@ -4,6 +4,18 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Added
+
+- **An update that changes how you work now asks before it happens.** Khayt's
+  update prompt could not tell you what was in a release — every release ever
+  published carried the same one-line note, "See README for full release
+  notes", so the dialog said "Release notes were not included with this update"
+  and asked you to install something it could not describe. It shows the
+  release's own notes now. And when a release moves something you use every
+  day, it says so at the top in plain words and **the download stays locked
+  until you tick that you have read it** — you can always choose Later. An
+  ordinary release is unchanged and still installs on one press.
+
 ## [3.7.0-beta.23] - 2026-09-02
 
 ### Changed
