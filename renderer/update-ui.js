@@ -106,19 +106,58 @@
     updateOverlay?.querySelector('[data-upd="close"]')?.addEventListener('click', closeUpdateModal);
   }
 
+  /**
+   * The changes this release says you have to agree to, or nothing.
+   *
+   * Deliberately loud and ABOVE the notes: an update that moves the controls
+   * somebody uses fifty times a day is not a detail to be found by scrolling.
+   * Deliberately a list of sentences rather than a version number and a link —
+   * "3.8.0" tells a shop nothing about what its morning is going to be like.
+   */
+  function consentPanelHtml(items) {
+    return `
+      <div class="update-consent" role="group" aria-labelledby="updConsentHead">
+        <h4 class="update-consent-head" id="updConsentHead">${escapeHtml(tr('upd.consent_head', 'This update changes how you work'))}</h4>
+        <ul class="update-consent-list">
+          ${items.map((x) => `<li>${escapeHtml(x)}</li>`).join('')}
+        </ul>
+        <label class="update-consent-accept">
+          <input type="checkbox" id="updAccept">
+          <span>${escapeHtml(tr('upd.consent_accept', 'I have read these changes and want to update'))}</span>
+        </label>
+      </div>`;
+  }
+
   function renderReviewState(notesHtml) {
     const version = escapeHtml(activeUpdateInfo.version);
     const current = escapeHtml(activeUpdateInfo.currentVersion || '');
+    const major = activeUpdateInfo.majorChanges;
+    const gated = !!(major && major.needsConsent && Array.isArray(major.items) && major.items.length);
+
     setModalBody(`
-      <p class="update-notes-intro">${escapeHtml(tr('upd.intro', 'Review what is new before installing.'))}</p>
+      ${gated ? consentPanelHtml(major.items) : ''}
+      <p class="update-notes-intro">${escapeHtml(gated
+        ? tr('upd.intro_consent', 'Everything else in this update:')
+        : tr('upd.intro', 'Review what is new before installing.'))}</p>
       ${current ? `<p class="update-notes-meta">${escapeHtml(tr('upd.from_version', 'Current version'))}: <strong>${current}</strong> → <strong>${version}</strong></p>` : ''}
       <div class="update-notes-panel">${notesHtml}</div>
     `);
     setModalFooter(`
       <button class="btn ghost" data-upd="later">${escapeHtml(tr('upd.later', 'Later'))}</button>
-      <button class="btn primary" data-upd="download">${escapeHtml(tr('upd.download', 'Download update'))}</button>
+      <button class="btn primary" data-upd="download"${gated ? ' disabled' : ''}>${escapeHtml(tr('upd.download', 'Download update'))}</button>
     `);
     wireFooterActions();
+
+    /* THE GATE IS ON THE DOWNLOAD, NOT THE INSTALL, and that is not a detail:
+     * `autoInstallOnAppQuit` is true in lib/updater.js, so a downloaded update
+     * installs on the next quit whether or not anybody presses anything. Gating
+     * the install button would be no gate at all. The download is the last
+     * moment at which "no" still means no. */
+    if (gated) {
+      const accept = updateOverlay?.querySelector('#updAccept');
+      const download = updateOverlay?.querySelector('[data-upd="download"]');
+      accept?.addEventListener('change', () => { if (download) download.disabled = !accept.checked; });
+    }
   }
 
   /** Bytes → "12.4 MB". Update payloads are always MB-to-GB, never smaller. */
@@ -268,6 +307,10 @@
       releaseDate: info.releaseDate || null,
       releaseNotes: info.releaseNotes || '',
       currentVersion: currentVersion || info.currentVersion || '',
+      /* Parsed in main and carried here, so the gate arrives WITH the offer.
+         A renderer that had to go and ask would have to render the download
+         button before it knew whether to disable it. */
+      majorChanges: info.majorChanges || null,
     };
 
     closeUpdateModal();

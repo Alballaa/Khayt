@@ -5532,3 +5532,39 @@ body.khayt-workbench .wb-glist li.is-openable { cursor: pointer; }
    resume — the colour belongs to what pressing it does, not to the alarm. */
 .btn.state-on { background: rgba(34, 197, 94, .16); color: #4ade80; border-color: rgba(34, 197, 94, .34); }
 .btn#btnPauseProduction:hover:not(.state-on) { color: #f87171; border-color: rgba(220, 38, 38, .34); }
+
+
+/* ═══ Update consent ═══════════════════════════════════════════════════════
+   A release may declare changes a shop has to agree to before the update is
+   allowed to happen (lib/major-changes.js). This is the one place in the app
+   where a warning colour is correct at rest: it is not reporting a fault, it is
+   asking for a decision that has not been made yet, and it must not be possible
+   to scroll past it to the button.
+   ══════════════════════════════════════════════════════════════════════════ */
+.update-consent {
+  border: 1px solid rgba(245, 158, 11, .45);
+  background: rgba(245, 158, 11, .10);
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-bottom: 14px;
+}
+.update-consent-head {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #fbbf24;
+}
+.update-consent-list { margin: 0 0 12px; padding-inline-start: 20px; }
+.update-consent-list li { margin: 5px 0; font-size: 13.5px; line-height: 1.5; }
+/* The whole row is the target: a 13px checkbox is a poor one, and this is the
+   control that decides whether the update happens at all. */
+.update-consent-accept {
+  display: flex; align-items: flex-start; gap: 9px;
+  cursor: pointer; font-size: 13.5px; line-height: 1.45;
+  padding: 8px 10px; border-radius: 8px;
+  background: var(--bg, rgba(0, 0, 0, .18));
+}
+.update-consent-accept:hover { background: var(--surface-2); }
+.update-consent-accept input { width: auto; margin: 2px 0 0; flex: 0 0 auto; }
+/* A disabled primary has to LOOK unavailable, or the gate reads as a bug. */
+.update-modal .btn.primary[disabled] { opacity: .45; cursor: not-allowed; }
