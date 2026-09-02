@@ -1781,6 +1781,20 @@ function wireEvents() {
     if (quote) quoteFromProduct(quote.dataset.id);
     if (edit)  openProductEditor(edit.dataset.id);
     if (del)   deleteProduct(del.dataset.id);
+    // The chips ON a card filter, exactly as they do in the print-file library:
+    // the fastest way to "show me the rest of the Saudi Kings" is the chip on
+    // the king already in front of you.
+    const grp = e.target.closest('[data-act="cat-filter-group"]');
+    const cat = e.target.closest('[data-act="cat-filter-category"]');
+    if (grp || cat) filterCatalogBy(grp ? 'group' : 'category', (grp || cat).dataset.val || '');
+  });
+
+  // The chip BARS live above the grid, in their own element, so they need their
+  // own listener — a click on them never reaches #catalogGrid.
+  $('#catalogFilters')?.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-act="cat-filter-group"], [data-act="cat-filter-category"]');
+    if (!btn) return;
+    filterCatalogBy(btn.dataset.act === 'cat-filter-category' ? 'category' : 'group', btn.dataset.val || '');
   });
 
   // Dashboard click delegation (recurring order start, order edit, payment reminder)

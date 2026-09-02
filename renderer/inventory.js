@@ -2852,9 +2852,21 @@ function renderCatalog() {
     filtered = products.filter(p =>
       (p.nameEn || '').toLowerCase().includes(term) ||
       (p.nameAr || '').toLowerCase().includes(term) ||
-      (p.description || '').toLowerCase().includes(term)
+      (p.description || '').toLowerCase().includes(term) ||
+      // The group and the category are how a catalogue of hundreds is searched.
+      // Leaving them out meant typing "Saudi Kings" into the box found nothing,
+      // while the chip beside it found all seven.
+      productGroupOf(p).toLowerCase().includes(term) ||
+      productCategoryOf(p).toLowerCase().includes(term)
     );
   }
+  /* Both axes narrow at once: "the busts in the Saudi Kings" is a real question
+   * and each on its own is not an answer to it. */
+  renderCatalogFilters();
+  if (catalogGroupFilter === CAT_UNFILED) filtered = filtered.filter((p) => !productGroupOf(p));
+  else if (catalogGroupFilter) filtered = filtered.filter((p) => productGroupOf(p).toLowerCase() === catalogGroupFilter.toLowerCase());
+  if (catalogCatFilter === CAT_UNFILED) filtered = filtered.filter((p) => !productCategoryOf(p));
+  else if (catalogCatFilter) filtered = filtered.filter((p) => productCategoryOf(p).toLowerCase() === catalogCatFilter.toLowerCase());
 
   if (products.length === 0) {
     grid.innerHTML = `<div class="empty-state" style="grid-column: 1 / -1;">${escapeHtml(t('cat.empty'))}</div>`;
@@ -2922,6 +2934,22 @@ function renderCatalog() {
             ${lastLabel ? `<span class="sep">·</span><span>${escapeHtml(lastLabel)}</span>` : ''}
           </div>
           ${stats.revenue > 0 ? `<div class="product-meta"><span style="color: var(--success);">${fmtPrice(stats.revenue)} ${escapeHtml(t('cat.revenue'))}</span></div>` : ''}
+          ${(() => {
+            /* Where it is filed and what it is — as buttons that FILTER, the
+               same as on a print file's card. */
+            const g = productGroupOf(p), c = productCategoryOf(p);
+            if (!g && !c) return '';
+            // The same icons the print-file library uses for the same two
+            // ideas — a shop should not have to learn the vocabulary twice.
+            const chip = (act, val, icon, title, on) =>
+              `<button type="button" class="pf-folder ${on ? 'on' : ''}" data-act="${act}" data-val="${escapeHtml(val)}" title="${escapeHtml(title)}">${icon}${escapeHtml(val)}</button>`;
+            return '<div class="pf-tags">'
+              + (g ? chip('cat-filter-group', g, _iIco('folder'), t('plib.group') || 'Group',
+                          catalogGroupFilter && catalogGroupFilter.toLowerCase() === g.toLowerCase()) : '')
+              + (c ? chip('cat-filter-category', c, _iIco('board'), t('plib.category') || 'Category',
+                          catalogCatFilter && catalogCatFilter.toLowerCase() === c.toLowerCase()) : '')
+              + '</div>';
+          })()}
         </div>
         <!-- Quoting is what a catalogue product is for. Delete was two along
              from it and permanently red; it is under the rule in the menu. -->
@@ -3091,6 +3119,104 @@ function productDefaultPricing(d) {
   return { cost: +cost.toFixed(2), basePrice, price: fp.final, priceSource: fp.source };
 }
 
+/* ── GROUPS AND CATEGORIES, shared with the print-file library ──────────────
+ * lib/organise.js holds the rules; these are the catalogue's way in. An
+ * accessor rather than a bare global: the Bed Ready flavour drops this screen
+ * and reading the name directly is a ReferenceError waiting for whoever opens
+ * it there. */
+function _org() { return (typeof window !== 'undefined' && window.KhaytOrganise) || null; }
+
+/** Every group or category in use across the catalogue AND the library — one
+ *  shop, one set of names. Offering only this screen's is how the same
+ *  collection gets typed twice and drifts into two. */
+function organiseKnown(field) {
+  const o = _org();
+  const pool = (typeof products !== 'undefined' && Array.isArray(products) ? products : [])
+    .concat(typeof printFiles !== 'undefined' && Array.isArray(printFiles) ? printFiles : []);
+  if (o) return o.known(pool, field);
+  const read = (r) => String((field === 'category' ? r.category : (r.group || r.folder)) || '').trim();
+  return [...new Set(pool.map(read).filter(Boolean))].sort();
+}
+
+function organiseOptions(field) {
+  return organiseKnown(field).map((n) => `<option value="${escapeHtml(n)}"></option>`).join('');
+}
+
+/** The fields to merge onto a product to file it. */
+function organiseAssign(rec, patch) {
+  const o = _org();
+  if (!o) {
+    const out = {};
+    if (patch && 'group' in patch) { out.group = String(patch.group || '').trim(); out.folder = out.group; }
+    if (patch && 'category' in patch) out.category = String(patch.category || '').trim();
+    return out;
+  }
+  return o.assign(rec, patch, { group: organiseKnown('group'), category: organiseKnown('category') });
+}
+
+const productGroupOf = (p) => (_org() ? _org().groupOf(p) : String((p && (p.group || p.folder)) || '').trim());
+const productCategoryOf = (p) => (_org() ? _org().categoryOf(p) : String((p && p.category) || '').trim());
+
+const CAT_UNFILED = '\u0000unfiled';   // sentinel: products in neither
+let catalogGroupFilter = '';
+let catalogCatFilter = '';
+
+/** Counts for one axis, folded by spelling, most-used first. */
+function catalogFiledUnder(field) {
+  const o = _org();
+  const read = field === 'category' ? productCategoryOf : productGroupOf;
+  const list = (typeof products !== 'undefined' && Array.isArray(products)) ? products : [];
+  const names = o ? o.counts(list, field) : (() => {
+    const m = new Map();
+    for (const p of list) { const v = read(p); if (v) m.set(v, (m.get(v) || 0) + 1); }
+    return [...m.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  })();
+  let unfiled = 0;
+  for (const p of list) if (!read(p)) unfiled++;
+  return { names, unfiled };
+}
+
+/**
+ * Draw the group and category chip bars above the grid.
+ *
+ * A filter that no longer matches anything is DROPPED rather than left on: a
+ * shop that re-files the last product out of a group would otherwise be stuck
+ * looking at an empty grid with no obvious way back.
+ */
+function renderCatalogFilters() {
+  const host = $('#catalogFilters');
+  if (!host) return;
+  const list = (typeof products !== 'undefined' && Array.isArray(products)) ? products : [];
+  if (catalogGroupFilter === CAT_UNFILED) { if (!list.some((p) => !productGroupOf(p))) catalogGroupFilter = ''; }
+  else if (catalogGroupFilter && !list.some((p) => productGroupOf(p).toLowerCase() === catalogGroupFilter.toLowerCase())) catalogGroupFilter = '';
+  if (catalogCatFilter === CAT_UNFILED) { if (!list.some((p) => !productCategoryOf(p))) catalogCatFilter = ''; }
+  else if (catalogCatFilter && !list.some((p) => productCategoryOf(p).toLowerCase() === catalogCatFilter.toLowerCase())) catalogCatFilter = '';
+
+  const bar = (field) => {
+    const { names, unfiled } = catalogFiledUnder(field);
+    if (!names.length) return '';
+    const isCat = field === 'category';
+    const active = isCat ? catalogCatFilter : catalogGroupFilter;
+    const act = isCat ? 'cat-filter-category' : 'cat-filter-group';
+    const chip = (val, label, n, on) =>
+      `<button type="button" class="pf-folderchip ${on ? 'on' : ''}" data-act="${act}" data-val="${escapeHtml(val)}">${escapeHtml(label)}${n != null ? ` <span class="pf-tagchip-n">${n}</span>` : ''}</button>`;
+    let html = chip('', t(isCat ? 'plib.all_cats' : 'cat.all_products') || 'All', list.length, !active);
+    html += names.map(([f, n]) => chip(f, f, n, active && active.toLowerCase() === f.toLowerCase())).join('');
+    if (unfiled) html += chip(CAT_UNFILED, t(isCat ? 'plib.uncategorised' : 'plib.unfiled') || 'Unfiled', unfiled, active === CAT_UNFILED);
+    const label = t(isCat ? 'plib.filter_cats' : 'plib.filter_folders') || 'Filter';
+    return `<div class="pf-folderbar" role="group" aria-label="${escapeHtml(label)}">${html}</div>`;
+  };
+  host.innerHTML = bar('group') + bar('category');
+}
+
+/** Toggle one axis of the catalogue filter. Pressing the chip that is already
+ *  on clears it, so a filter is never a state you cannot get out of. */
+function filterCatalogBy(field, value) {
+  if (field === 'category') catalogCatFilter = (catalogCatFilter === value) ? '' : value;
+  else catalogGroupFilter = (catalogGroupFilter === value) ? '' : value;
+  renderCatalog();
+}
+
 function openProductEditor(productId = null) {
   const existing = productId ? products.find(p => p.id === productId) : null;
   const editing = !!existing;
@@ -3128,6 +3254,11 @@ function openProductEditor(productId = null) {
    * behind an empty new field.
    */
   KhaytContentLanguages.migratePlain(draft, 'description', typeof settings !== 'undefined' ? settings : null);
+  /* Same reason, for the same guard: a product saved before groups existed has
+   * neither key, so [data-f] would reject both and the shop would type a
+   * category, save, and find it gone — exactly the bug described above. */
+  if (draft.group == null) draft.group = '';
+  if (draft.category == null) draft.category = '';
   for (const lang of KhaytContentLanguages.contentLangs(typeof settings !== 'undefined' ? settings : null)) {
     for (const base of ['name', 'description']) {
       const key = KhaytContentLanguages.fieldKey(base, lang);
@@ -3317,6 +3448,29 @@ function openProductEditor(productId = null) {
                placeholder="${escapeHtml(t('pe.name_ph') || '')}"
                value="${escapeHtml(draft[KhaytContentLanguages.fieldKey('name', lang)] || '')}">
       </div>`).join('')}
+    </div>
+
+    <!-- HOW A CATALOGUE OF HUNDREDS IS FOUND IN.
+         A GROUP is a set that belongs together — the seven Saudi Kings. A
+         CATEGORY is what the thing IS. Both are shared with the print-file
+         library through lib/organise.js, so a shop that has typed "Saudi Kings"
+         on either screen is offered it on the other rather than typing a second
+         spelling of one collection. -->
+    <div class="inline-pair" style="margin-top: 12px;">
+      <div>
+        <label>${escapeHtml(t('plib.group') || 'Group')}</label>
+        <input type="text" data-f="group" list="prodGroupList" maxlength="60"
+               placeholder="${escapeHtml(t('plib.group_ph') || 'e.g. Saudi Kings')}"
+               value="${escapeHtml(draft.group || '')}">
+        <datalist id="prodGroupList">${organiseOptions('group')}</datalist>
+      </div>
+      <div>
+        <label>${escapeHtml(t('plib.category') || 'Category')}</label>
+        <input type="text" data-f="category" list="prodCatList" maxlength="60"
+               placeholder="${escapeHtml(t('plib.category_ph') || 'e.g. Busts')}"
+               value="${escapeHtml(draft.category || '')}">
+        <datalist id="prodCatList">${organiseOptions('category')}</datalist>
+      </div>
     </div>
 
     ${CONTENT_LANGS.map((lang) => `
@@ -3784,6 +3938,12 @@ function openProductEditor(productId = null) {
       draft.price = pricing.price;
 
       // Persist
+      /* Through lib/organise.js, so a name matching one already in use adopts
+       * its spelling — across BOTH screens. Typed straight onto the record,
+       * "saudi kings" on the catalogue and "Saudi Kings" in the library are two
+       * collections, and the shop has to know which half is where. */
+      Object.assign(draft, organiseAssign(draft, { group: draft.group, category: draft.category }));
+
       const idx = products.findIndex(p => p.id === draft.id);
       if (idx >= 0) products[idx] = draft;
       else products.push(draft);
@@ -4619,6 +4779,17 @@ async function printSpoolLabel(itemId) {
     exportInventoryCsv,
     openShoppingList,
     recordSupplierInvoice,
+    // Groups and categories. Everything here is called from ANOTHER file —
+    // wire-events.js dispatches the chips, settings.js builds the storefront
+    // payload — and this file is an IIFE, so an unexported one is a control that
+    // renders and throws. test/cross-file-calls.test.js is what says so.
+    organiseKnown,
+    organiseOptions,
+    organiseAssign,
+    productGroupOf,
+    productCategoryOf,
+    renderCatalogFilters,
+    filterCatalogBy,
   };
   Object.assign(global, api);
   global.KhaytInventory = api;
