@@ -2753,6 +2753,36 @@ ipcMain.handle('hub:printlib-pick-folder', async (event) => {
   return { ok: true, path: dir };
 });
 
+/**
+ * A name for a file inside a print record's vault folder.
+ *
+ * This was `model-<base36 timestamp>.<ext>`, which is unique only if two copies
+ * never land in the same MILLISECOND. That held while every import made its own
+ * record and therefore its own folder — but a print made of several files puts
+ * them all in ONE folder, which is exactly the case that collides, and a
+ * collision here is `copyFile` silently overwriting a part with another part.
+ *
+ * Derived from the file's own name instead, so it is unique BY CONSTRUCTION
+ * rather than by timing, and so the vault is readable when somebody opens it:
+ * `head.stl` beside `left-arm.stl` rather than two base36 stamps.
+ *
+ * Existing records keep whatever name they were stored under — this changes the
+ * scheme for new files only, and nothing reads the shape of the old one.
+ */
+function vaultFilename(dir, originalName, ext) {
+  const stem = String(originalName || '')
+    .replace(/\.[^.]*$/, '')
+    .replace(/[^\w\u0600-\u06FF .-]+/g, '')   // keep Arabic; drop separators and control chars
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 60)
+    .replace(/^[.\s]+|[.\s]+$/g, '');
+  const base = stem || 'model';
+  let name = `${base}.${ext}`;
+  for (let n = 2; fs.existsSync(path.join(dir, name)); n++) name = `${base}-${n}.${ext}`;
+  return name;
+}
+
 ipcMain.handle('hub:printlib-pick-and-copy', async (event, id) => {
   const win = BrowserWindow.fromWebContents(event.sender);
   const result = await dialog.showOpenDialog(win, {
@@ -2772,7 +2802,7 @@ ipcMain.handle('hub:printlib-pick-and-copy', async (event, id) => {
   requirePrintLib();                       // refuses, by name, before anything is copied
   const dir = printLibItemDir(id);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  const filename = `model-${Date.now().toString(36)}.${ext}`;
+  const filename = vaultFilename(dir, originalName, ext);
   const destPath = path.join(dir, filename);
   await fs.promises.copyFile(src, destPath);
   const stat = await fs.promises.stat(destPath);
@@ -2813,7 +2843,7 @@ ipcMain.handle('hub:printlib-copy-path', async (_e, { id, srcPath } = {}) => {
     requirePrintLib();
     const dir = printLibItemDir(id);
     fs.mkdirSync(dir, { recursive: true });
-    const filename = `model-${Date.now().toString(36)}.${ext}`;
+    const filename = vaultFilename(dir, originalName, ext);
     const destPath = path.join(dir, filename);
     await fs.promises.copyFile(src, destPath);
     const stat = await fs.promises.stat(destPath);

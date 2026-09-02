@@ -244,6 +244,7 @@
   "plib.material": "Material",
   "plib.slicer_profile": "Slicer-Profil",
   "plib.tags_reuse": "Tags, die du schon verwendest",
+  "plib.n_files": "{n} Dateien",
   "plib.tags": "Tags (durch Komma getrennt)",
   "plib.tested_notes": "Getestete Einstellungen / Notizen",
   "plib.photo": "Foto (optional)",
