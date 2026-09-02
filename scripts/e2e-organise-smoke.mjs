@@ -34,6 +34,9 @@ async function seed(window) {
     printFiles.push({ ...base, id: 'E2E-K1', name: 'King Abdulaziz', sourceFile: f('k1.stl'), folder: 'Saudi Kings', category: 'Busts' });
     printFiles.push({ ...base, id: 'E2E-K2', name: 'King Saud', sourceFile: f('k2.stl'), folder: 'Saudi Kings', category: 'Busts' });
     printFiles.push({ ...base, id: 'E2E-B1', name: 'Cable clip', sourceFile: f('b1.stl'), folder: '', category: 'Functional' });
+    // A king that is NOT a bust. Without one, "Saudi Kings" and "Busts" pick out
+    // the same two records and combining them cannot be told from ignoring one.
+    printFiles.push({ ...base, id: 'E2E-K3', name: 'King stand', sourceFile: f('k3.stl'), folder: 'Saudi Kings', category: 'Stands' });
     printFiles.push({ ...base, id: 'E2E-U1', name: 'Unfiled thing', sourceFile: f('u1.stl') });
     if (!Array.isArray(window.products)) products = [];
     products.length = 0;
@@ -57,32 +60,55 @@ async function testAnOldLibraryIsAlreadyGrouped(window) {
   const bars = await chips(window, '.pf-folderbar [data-folder]');
   const kings = bars.find((c) => c.label.startsWith('Saudi Kings'));
   if (!kings) throw new Error(`no group chip for a folder-filed library: ${JSON.stringify(bars)}`);
-  if (!/Saudi Kings 2/.test(kings.label)) throw new Error(`the group count is wrong: ${kings.label}`);
+  if (!/Saudi Kings 3/.test(kings.label)) throw new Error(`the group count is wrong: ${kings.label}`);
   const cats = await chips(window, '.pf-folderbar [data-cat]');
   if (!cats.some((c) => /Busts 2/.test(c.label))) throw new Error(`no category chip: ${JSON.stringify(cats)}`);
   if (!cats.some((c) => /Functional 1/.test(c.label))) throw new Error('the second category is missing');
 }
 
 async function testTheTwoAxesNarrowTogether(window) {
-  await window.click('.pf-folderbar [data-cat="Busts"]');
+  // Three kings, two of them busts.
+  await window.click('.pf-folderbar [data-folder="Saudi Kings"]');
   await window.waitForTimeout(60);
   let ids = await shownIds(window);
-  if (ids.sort().join() !== 'E2E-K1,E2E-K2') throw new Error(`category filter showed ${ids}`);
-  // Adding the group must not widen it back out.
-  await window.click('.pf-folderbar [data-folder="Saudi Kings"]');
+  if (ids.sort().join() !== 'E2E-K1,E2E-K2,E2E-K3') throw new Error(`the group alone showed ${ids}`);
+  // Adding the category must REDUCE it — a combination that merely replaced one
+  // filter with the other would give the same three.
+  await window.click('.pf-folderbar [data-cat="Busts"]');
   await window.waitForTimeout(60);
   ids = await shownIds(window);
   if (ids.sort().join() !== 'E2E-K1,E2E-K2') throw new Error(`both filters together showed ${ids}`);
-  // A group with nothing in that category shows nothing, rather than ignoring one.
-  await window.click('.pf-folderbar [data-cat="Functional"]');
-  await window.waitForTimeout(60);
-  ids = await shownIds(window);
-  if (ids.length) throw new Error(`the two filters stopped narrowing together: ${ids}`);
   // Clear both.
-  await window.click('.pf-folderbar [data-cat="Functional"]');
+  await window.click('.pf-folderbar [data-cat="Busts"]');
   await window.click('.pf-folderbar [data-folder="Saudi Kings"]');
   await window.waitForTimeout(60);
-  if ((await shownIds(window)).length !== 4) throw new Error('the filters did not clear');
+  if ((await shownIds(window)).length !== 5) throw new Error('the filters did not clear');
+}
+
+async function testACombinationThatWouldShowNothingIsNotOffered(window) {
+  /* The chips count against the OTHER axes, so with a group on, the category
+   * bar offers only categories that group actually has. Pressing something that
+   * would give an empty grid is not a thing a shop should be able to do — and
+   * the number on a chip is a promise about what pressing it gives you.
+   *
+   * This replaces an assertion that used to press Functional while Saudi Kings
+   * was on and expect nothing: that combination cannot be reached now, which is
+   * the improvement rather than a gap. */
+  await window.click('.pf-folderbar [data-folder="Saudi Kings"]');
+  await window.waitForTimeout(80);
+  const offered = await window.evaluate(() =>
+    [...document.querySelectorAll('.pf-folderbar [data-cat]')].map((b) => b.dataset.cat));
+  if (offered.includes('Functional')) {
+    throw new Error('a category with nothing in this group is still offered — pressing it shows an empty grid');
+  }
+  if (!offered.includes('Busts') || !offered.includes('Stands')) {
+    throw new Error(`the group's own categories are missing: ${offered}`);
+  }
+  await window.click('.pf-folderbar [data-folder="Saudi Kings"]');
+  await window.waitForTimeout(60);
+  const back = await window.evaluate(() =>
+    [...document.querySelectorAll('.pf-folderbar [data-cat]')].map((b) => b.dataset.cat));
+  if (!back.includes('Functional')) throw new Error('clearing the group did not bring the other categories back');
 }
 
 async function testFilingWritesBothFields(window) {
@@ -102,8 +128,8 @@ async function testFilingWritesBothFields(window) {
   // older build. Writing only `group` files a record half the app cannot see.
   if (r.folder !== 'Saudi Kings') throw new Error(`the old field was left behind: ${r.folder}`);
   const bars = await chips(window, '.pf-folderbar [data-folder]');
-  if (!bars.some((c) => /Saudi Kings 3/.test(c.label))) {
-    throw new Error(`the collection did not grow to 3: ${JSON.stringify(bars)}`);
+  if (!bars.some((c) => /Saudi Kings 4/.test(c.label))) {
+    throw new Error(`the collection did not grow to 4: ${JSON.stringify(bars)}`);
   }
 }
 
@@ -154,6 +180,7 @@ try {
 
   await testAnOldLibraryIsAlreadyGrouped(window);
   await testTheTwoAxesNarrowTogether(window);
+  await testACombinationThatWouldShowNothingIsNotOffered(window);
   await testFilingWritesBothFields(window);
   await testTheCatalogueSharesTheNames(window);
   await testTheStorefrontPublishesTheProductsOwnCategory(window);

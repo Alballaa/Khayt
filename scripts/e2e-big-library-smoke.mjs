@@ -31,7 +31,11 @@ async function seed(window, n) {
         createdAt: Date.now(), updatedAt: Date.now() - i,
         sourceFile: { filename: 'm' + i + '.stl', originalName: 'm' + i + '.stl', size: 4200000, ext: 'stl', kind: 'model' },
         parsed: {}, colors: [], tags: i % 5 === 0 ? ['resin'] : [],
-        group: i % 100 === 0 ? 'Saudi Kings' : '', category: i % 2 === 0 ? 'Busts' : 'Minis',
+        // Kings every 100, categories every 3 — so the two axes CROSS: 4 of the
+        // 12 kings are Busts. With `i % 2` every king was a Bust and a count
+        // that ignored the other axis was indistinguishable from one that did
+        // not, which is how the first version of this test passed on a bug.
+        group: i % 100 === 0 ? 'Saudi Kings' : '', category: i % 3 === 0 ? 'Busts' : 'Minis',
         thumb: null, thumbFile: null, material: 'PLA', favorite: false,
       });
     }
@@ -208,6 +212,45 @@ async function testTheBarsCountFollowsTheFilter(window) {
   await window.waitForTimeout(100);
 }
 
+async function testAChipsNumberIsAPromise(window) {
+  /* These counted the whole library while the grid narrows on four axes, so
+   * with a category on, the group bar still offered its library-wide total and
+   * pressing it showed fewer. A number on a button is a promise about what
+   * pressing it gives you. */
+  const count = (sel) => window.evaluate((s) => {
+    const el = document.querySelector(s);
+    return el ? Number((el.textContent.match(/(\d+)\s*$/) || [0, 0])[1]) : -1;
+  }, sel);
+  const kingsChip = '.pf-folderbar [data-folder="Saudi Kings"]';
+  const before = await count(kingsChip);
+  if (before !== 12) throw new Error(`the group chip should count 12 kings, said ${before}`);
+
+  // Half the library is Busts; 6 of the 12 kings are.
+  await window.click('.pf-folderbar [data-cat="Busts"]');
+  await window.waitForTimeout(150);
+  const after = await count(kingsChip);
+  if (after === before) throw new Error(`the group chip still counts the whole library (${after}) with a category on`);
+  const shown = await window.evaluate(async () => {
+    const el = document.querySelector('.pf-folderbar [data-folder="Saudi Kings"]');
+    // Null when a facet has excluded ITSELF from its own count: every chip but
+    // the active one reads 0 and drops out of the bar. Reported rather than
+    // thrown from inside evaluate, where it hangs the run instead of failing.
+    if (!el) return -1;
+    el.click();
+    await new Promise((r) => setTimeout(r, 150));
+    return document.querySelectorAll('#printfiles-tab .pf-card').length;
+  });
+  if (shown === -1) throw new Error('the group chip vanished — a facet is counting against its own filter');
+  if (shown !== after) throw new Error(`the chip promised ${after} and showed ${shown}`);
+  // …and its own axis is NOT excluded from its own count, or every other chip
+  // would read 0 the moment one was pressed and the bar would collapse.
+  const stillCounts = await count(kingsChip);
+  if (stillCounts !== after) throw new Error(`pressing a chip changed its own count to ${stillCounts}`);
+  await window.click(kingsChip);
+  await window.click('.pf-folderbar [data-cat="Busts"]');
+  await window.waitForTimeout(150);
+}
+
 async function testPaintingAPageIsFast(window) {
   // The number this exists for. Generous against CI, and still ~20x under what
   // painting every card cost.
@@ -237,6 +280,7 @@ try {
   await testSelectAllShownMeansEveryMatchNotThePage(window);
   await testTheUnfiledChipActuallyFilters(window);
   await testTheBarsCountFollowsTheFilter(window);
+  await testAChipsNumberIsAPromise(window);
   await testTheGalleryIsPagedToo(window);
   await testPaintingAPageIsFast(window);
 
