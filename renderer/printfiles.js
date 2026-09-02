@@ -902,11 +902,6 @@
             // Not only the size ceiling: this handler also refuses a path
             // outside the directories it will read. That refusal was silent too.
             else problem = problem || p.error || '';
-          } else if (p && p.warnings && p.warnings.includes('mesh-too-large')) {
-            // Read fine, too many surfaces to measure. The file is not at fault
-            // and re-exporting it smaller — or slicing it — is the actual fix,
-            // so it gets its own sentence rather than "too large to read".
-            problem = problem || (t('intake.mesh_too_large') || '');
           }
           if (p && p.ok !== false) rec.parsed = Object.assign({}, rec.parsed, { printTimeMins: p.printTimeMins, filamentGrams: p.filamentGrams, filamentType: p.filamentType, slicer: p.slicer });
           // A g-code file has no mesh, so it used to get no geometryKey at all —

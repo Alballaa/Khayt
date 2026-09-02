@@ -3936,7 +3936,6 @@
   "intake.estimate_advice": "Başlangıç noktası olarak al. Kesin fiyat için dosyayı dilimle ve sonucu buraya bırak.",
   "intake.estimate_toast": "Modelin geometrisinden tahmin edildi — dilimleme rakamı değil.",
   "intake.too_large": "Bu dosya Khayt’ın okuyabileceğinden büyük. Kitaplığında duruyor ama baskı süresi ve ağırlığı elle girmen gerekiyor.",
-  "intake.mesh_too_large": "Bu modelin yüzey sayısı Khayt'ın ölçebileceğinden fazla. Kitaplığında ve normal basılıyor — baskı süresi ile ağırlığı elle gir ya da dilimleyip dilimlenmiş dosyayı ekle.",
   "intake.no_summary": "Bu G-code’da süre veya filament özeti yok — dilimleyicinden yeniden dışa aktar.",
   "intake.unsupported": "Khayt STL, OBJ, 3MF ve G-code dosyalarını okuyabilir.",
   "intake.your_slicer": "dilimleyicin",

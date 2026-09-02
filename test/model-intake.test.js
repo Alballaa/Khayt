@@ -234,50 +234,76 @@ test('exact is never true without both numbers present', () => {
   }
 });
 
-/* A 3MF'S MESH IS PRICED PER FACET, AND THE PRICE IS ASKED BEFORE IT IS PAID.
+/* A 3MF IS MEASURED WITHOUT BEING BUILT.
  *
- * Reading one is the most expensive thing in this module and its cost is not in
- * the file's size: a 3MF is compressed XML, so bytes are a poor proxy. Measured
- * on real files, a geometry-only 3MF costs about 68x its own size in heap once
- * the nested arrays exist — 27.8 MB in, 1,886 MB out, 8.2 seconds — because
- * _extractCore holds the resolved objects AND a second transformed copy of
- * every triangle.
+ * Reading one used to go through extractTriangles, which materialises twice —
+ * resolve() memoises each object's geometry and emit() builds a second
+ * transformed copy — so a real 229 MB poster of 13.2M facets wanted about
+ * 10 GB. A shop's files are exactly that shape and none of them are sliced, so
+ * the mesh is the only place their volume and size can come from.
  *
- * countTriangles is a byte scan: 2.33M facets counted in 366 ms and 5 MB against
- * 8.2 s and 1,886 MB to build them, so the decision can be made before the
- * memory is spent. Over the budget the file keeps everything the slicer
- * metadata gave it and loses only the geometric fallback.
+ * mf-convert measureMesh folds each facet into a running total instead, holding
+ * vertices in a Float64Array and indices in a Uint32Array; its numbers are
+ * asserted equal to the building path in test/mf-measure-mesh.test.js. What is
+ * pinned HERE is that the intake actually uses it, and that the one caller who
+ * still needs the triangles — the overhang report — is the only one who pays.
  */
-test('a 3MF with more facets than the budget is not built, and says so', () => {
+test('measuring a 3MF does not build its triangles', () => {
   const zip = require('../lib/zip-write.js');
   const bytes = zip.writeZip([
-    { name: '3D/3dmodel.model', data: Buffer.from('<model><build><item objectid="1"/></build></model>') },
+    { name: '3D/3dmodel.model', data: Buffer.from(
+      '<model unit="millimeter"><resources><object id="1" type="model"><mesh>'
+      + '<vertices><vertex x="0" y="0" z="0"/><vertex x="10" y="0" z="0"/><vertex x="0" y="10" z="0"/><vertex x="0" y="0" z="10"/></vertices>'
+      + '<triangles><triangle v1="0" v2="1" v3="2"/><triangle v1="0" v2="1" v3="3"/>'
+      + '<triangle v1="0" v2="2" v3="3"/><triangle v1="1" v2="2" v3="3"/></triangles>'
+      + '</mesh></object></resources><build><item objectid="1"/></build></model>') },
   ]);
 
-  // No escape hatch: a fixture that failed to build would otherwise let this
-  // test pass by doing nothing, which is the shape of guard that cannot catch
-  // what it was written for.
   const mf = require('../lib/mf-convert.js');
-  assert.ok(bytes && bytes.length, 'the fixture zip was not written');
-  assert.deepEqual(mf.readMembers(bytes).map((m) => m.name), ['3D/3dmodel.model'],
-    'the fixture is not a readable 3MF, so the guard would not be reached');
-  assert.deepEqual(intake({ filename: 'ok.3mf', bytes }, { risk: false }).warnings, ['no-geometry'],
-    'under the budget this file takes the ordinary path — so a pass below means the GUARD fired');
-
-  const realCount = mf.countTriangles;
   const realExtract = mf.extractTriangles;
   let built = 0;
-  mf.countTriangles = () => 9000000;
   mf.extractTriangles = (...a) => { built++; return realExtract(...a); };
   try {
-    const r = intake({ filename: 'huge.3mf', bytes }, { risk: false });
-    assert.ok(r.warnings.includes('mesh-too-large'), 'the shop must be told which kind of nothing this is');
-    assert.equal(r.geometry, null, 'no geometry was invented');
-    assert.equal(built, 0, 'the mesh was built anyway — the count exists to avoid exactly that');
+    const r = intake({ filename: 'tetra.3mf', bytes }, { risk: false });
+    assert.equal(r.source, 'geometry');
+    assert.equal(r.geometry.triangleCount, 4, 'it was measured');
+    assert.ok(r.geometry.volumeMm3 > 0, 'and the volume is real');
+    assert.equal(built, 0, 'the triangles were built anyway — that is the whole cost this avoids');
   } finally {
-    mf.countTriangles = realCount;
     mf.extractTriangles = realExtract;
   }
+});
+
+test('the overhang report is the only reader that still pays for triangles', () => {
+  const zip = require('../lib/zip-write.js');
+  const bytes = zip.writeZip([
+    { name: '3D/3dmodel.model', data: Buffer.from(
+      '<model unit="millimeter"><resources><object id="1" type="model"><mesh>'
+      + '<vertices><vertex x="0" y="0" z="0"/><vertex x="10" y="0" z="0"/><vertex x="0" y="10" z="0"/><vertex x="0" y="0" z="10"/></vertices>'
+      + '<triangles><triangle v1="0" v2="1" v3="2"/><triangle v1="0" v2="1" v3="3"/>'
+      + '<triangle v1="0" v2="2" v3="3"/><triangle v1="1" v2="2" v3="3"/></triangles>'
+      + '</mesh></object></resources><build><item objectid="1"/></build></model>') },
+  ]);
+  const withRisk = intake({ filename: 'tetra.3mf', bytes }, { risk: true, nozzleDiameter: 0.4 });
+  assert.ok(withRisk.risk, 'asking for the report must still get one');
+  assert.equal(withRisk.geometry.triangleCount, 4, 'and the measurement is unchanged by asking');
+});
+
+test('a 3MF can defer its mesh so the caller can measure it elsewhere', () => {
+  // Folding 13M facets is small in memory and not small in time, and this runs
+  // in the main process. `deferMesh` is how main hands it to the 3MF worker.
+  const zip = require('../lib/zip-write.js');
+  const bytes = zip.writeZip([
+    { name: '3D/3dmodel.model', data: Buffer.from(
+      '<model unit="millimeter"><resources><object id="1" type="model"><mesh>'
+      + '<vertices><vertex x="0" y="0" z="0"/><vertex x="1" y="0" z="0"/><vertex x="0" y="1" z="0"/></vertices>'
+      + '<triangles><triangle v1="0" v2="1" v3="2"/></triangles>'
+      + '</mesh></object></resources><build><item objectid="1"/></build></model>') },
+  ]);
+  const r = intake({ filename: 'x.3mf', bytes }, { risk: false, deferMesh: true });
+  assert.ok(r.warnings.includes('mesh-deferred'), 'the caller has to know there is work left to do');
+  assert.equal(r.geometry, null, 'and must not be handed a half-measurement');
+  assert.equal(r.source, 'geometry', 'the KIND of answer is already known — only the numbers are pending');
 });
 
 test('counting a 3MF\'s facets does not build them', () => {

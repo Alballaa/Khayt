@@ -3822,11 +3822,25 @@ ipcMain.handle('hub:parse-print-file', async (_e, arg) => {
       // Same mesh analysis the drop-a-file path asks for. Browse… and drag-drop
       // read the identical file through the identical intake, and a shop should
       // not get a different answer for having used a different button.
+      // Requested and affordable are different things. Past the mesh budget the
+      // file is still measured — it simply comes back without the overhang
+      // report, rather than not coming back.
+      const doRisk = wantRisk && mfStat.size <= MESH_ANALYSIS_MAX_BYTES;
       const r = intakeModel({ filename: path.basename(filePath), bytes: fs.readFileSync(resolvedParse) }, {
-        // Requested and affordable are different things. Past the mesh budget the
-        // file is still measured — it simply comes back without the overhang
-        // report, rather than not coming back.
-        risk: wantRisk && mfStat.size <= MESH_ANALYSIS_MAX_BYTES,
+        risk: doRisk,
+        /* NINE SECONDS IN HERE IS NINE SECONDS OF FROZEN APP, in every window.
+         *
+         * Folding a real poster's thirteen million facets is small in memory now
+         * but not small in time, and this handler runs in the main process. A
+         * 3MF that has to be measured is therefore handed to the converter's
+         * utilityProcess below — which is what that process exists for — and the
+         * geometry merged back.
+         *
+         * Gated on the EFFECTIVE risk decision, not the request: when the
+         * overhang report is actually being computed the triangles are built
+         * here anyway, so deferring would walk the same file twice. STL and OBJ
+         * never defer — their read is one pass over a buffer. */
+        deferMesh: ext === '.3mf' && !doRisk,
         nozzleDiameter: Number(payload && payload.nozzleDiameter) || undefined,
         supportThresholdDeg: Number(payload && payload.supportThresholdDeg) || undefined,
         layerHeight: Number(payload && payload.layerHeight) || undefined,
@@ -3844,6 +3858,28 @@ ipcMain.handle('hub:parse-print-file', async (_e, arg) => {
         : null;
       result.risk = r.risk;
       result.warnings = r.warnings;
+
+      /* The deferred half. `mesh-deferred` means the file carried no slicer
+       * summary, so its numbers can only come from the mesh — the case where a
+       * shop gets nothing at all if this does not happen. A worker that cannot
+       * answer leaves the record exactly as a 3MF with no geometry already is,
+       * rather than failing the whole read. */
+      if (Array.isArray(r.warnings) && r.warnings.includes('mesh-deferred')) {
+        result.warnings = r.warnings.filter((w) => w !== 'mesh-deferred');
+        let m = null;
+        try { m = await mfRun('measure', { src: resolvedParse, maxBytes: PRINT_FILE_MAX_BYTES }); } catch (_) { m = null; }
+        if (m && m.ok && m.geometry) {
+          result.geometry = {
+            volumeMm3: m.geometry.volumeMm3,
+            bbox: m.geometry.bbox,
+            triangleCount: m.geometry.triangleCount,
+          };
+          result.source = 'geometry';
+        } else {
+          result.source = null;
+          result.warnings = result.warnings.concat(['no-geometry']);
+        }
+      }
     }
   } catch(e) { /* silent fail */ }
   return result;
