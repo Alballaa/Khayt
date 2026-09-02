@@ -162,7 +162,10 @@ test('an archive is asked about, and closing the question imports nothing', () =
 test('an archive imported as one print is named after the archive', () => {
   // Not after whichever of its twelve files happened to be extracted first.
   assert.match(pf, /replace\(\/\\\.zip\$\/i, ''\)/, 'the pack name is not derived from the archive');
-  assert.match(pf, /ingestPicked\(zid, copied\[0\], \{ name: packName, parts:/,
+  // Not keyed on the function's NAME — that broke when the call was wrapped to
+  // stop one bad file aborting a whole drop. What matters is the shape passed:
+  // the archive's name, and every other member as a part of the same record.
+  assert.match(pf, /ingest\w*\(zid, copied\[0\], \{ name: packName, parts: copied\.slice\(1\)/,
     'the record is built from the first file alone — the rest are not parts of it');
 });
 

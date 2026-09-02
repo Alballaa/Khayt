@@ -75,6 +75,14 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   print whose main file was a colourful sliced 3MF kept showing that file's
   colours, swap count, print time and weight after you promoted a plain model
   inside it — the previous file's numbers under the new file's name.
+- **A filter chip's number now tells you what pressing it gives you.** They
+  counted your whole library while the grid narrows on four things at once, so
+  with a category on, a group chip could say 7 and then show 2. Each bar counts
+  against the others now, and a combination that would show you an empty grid is
+  no longer offered.
+- **A file that fails to import no longer abandons the rest of the drop.** One
+  bad file in a folder or archive stopped everything after it, left the files
+  already copied with no entry, and never cleaned up.
 - **The selection bar now counts what the filter is showing.** Turn on Select,
   then narrow to a group, and it still said how many the *previous* filter had.
 - **Buttons that cannot be pressed now look like it.** Only one in the whole app

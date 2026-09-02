@@ -13,6 +13,9 @@
 (function (global) {
   const api = () => (typeof window !== 'undefined' && window.hubAPI) || null;
   const EXT_ICON = { stl: '🧊', obj: '🧊', '3mf': '🎨', gcode: '📄', gco: '📄' };
+  /** What is worth handing to a slicer. The vault folder also holds thumb.jpg
+   *  and sidecars, so "the first file in the directory" is not an answer. */
+  const MODEL_EXT = /\.(stl|3mf|obj|gcode|gco)$/i;
   const EXT_ICON_NAME = { stl: 'cube', obj: 'cube', '3mf': 'colour', gcode: 'doc', gco: 'doc' };
   /* Bed Ready swaps in its bespoke drafting glyphs; KHAYT USED TO KEEP THE EMOJI,
    * and that is what a row of 🖨 🛠 🔎 🧊 🎨 🔄 🗑 was. renderer/icons.js has
@@ -96,19 +99,53 @@
    * Sorted most-used first rather than alphabetically: with fifty groups the
    * ones a shop actually works in should not be below the fold.
    */
+  /**
+   * The chips for one axis, counted against everything EXCEPT that axis.
+   *
+   * These counted the whole library while the grid narrows on four axes at
+   * once, so with Busts on, the group bar still offered "Saudi Kings 7" and
+   * pressing it showed 2. A number on a button is a promise about what pressing
+   * it gives you.
+   *
+   * Its OWN filter is excluded, or every chip but the active one would read 0
+   * and the bar would collapse to a single choice the moment you used it. This
+   * is what faceted search does everywhere: each facet counts against the
+   * others.
+   */
   function filedUnder(field) {
     const shared = _O();
     const read = field === 'category' ? categoryOf : groupOf;
+    const pool = rowsExcept(field);
     const names = shared
-      ? shared.counts(printFiles || [], field)
+      ? shared.counts(pool, field)
       : (() => {
           const m = new Map();
-          for (const r of (printFiles || [])) { const v = read(r); if (v) m.set(v, (m.get(v) || 0) + 1); }
+          for (const r of pool) { const v = read(r); if (v) m.set(v, (m.get(v) || 0) + 1); }
           return [...m.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
         })();
     let unfiled = 0;
-    for (const r of (printFiles || [])) if (!read(r)) unfiled++;
-    return { names, unfiled };
+    for (const r of pool) if (!read(r)) unfiled++;
+    return { names, unfiled, total: pool.length };
+  }
+
+  /** Everything the OTHER filters leave standing — the search box and the tag
+   *  bar included, since both narrow the grid too. */
+  function rowsExcept(field) {
+    const list = Array.isArray(printFiles) ? printFiles : [];
+    const q = (_query || '').trim().toLowerCase();
+    return list.filter((r) => {
+      if (q && !(r.name + ' ' + (r.originalName || '') + ' ' + (r.tags || []).join(' ') + ' ' + (r.material || '')).toLowerCase().includes(q)) return false;
+      if (_tagFilter && !(r.tags || []).some((tg) => tg.toLowerCase() === _tagFilter.toLowerCase())) return false;
+      if (field !== 'group') {
+        if (_folderFilter === UNFILED) { if (groupOf(r)) return false; }
+        else if (_folderFilter && groupOf(r).toLowerCase() !== _folderFilter.toLowerCase()) return false;
+      }
+      if (field !== 'category') {
+        if (_catFilter === UNFILED) { if (categoryOf(r)) return false; }
+        else if (_catFilter && categoryOf(r).toLowerCase() !== _catFilter.toLowerCase()) return false;
+      }
+      return true;
+    });
   }
 
   /** Every tag the shop already uses, most-used first. The dialog offers these
@@ -143,13 +180,12 @@
    * because an empty filter bar is a control that teaches the shop nothing.
    */
   function fileBarHtml(field) {
-    const { names, unfiled } = filedUnder(field);
+    const { names, unfiled, total } = filedUnder(field);
     if (!names.length) return '';
     const isCat = field === 'category';
     const act = isCat ? 'pf-cat' : 'pf-folder';
     const attr = isCat ? 'data-cat' : 'data-folder';
     const active = isCat ? _catFilter : _folderFilter;
-    const total = (printFiles || []).length;
     const chip = (val, label, n, on) =>
       `<button type="button" class="pf-folderchip ${on ? 'on' : ''}" data-act="${act}"`
       + (val === UNFILED ? ' data-unfiled="1"' : ` ${attr}="${escapeHtml(val)}"`)
@@ -275,6 +311,11 @@
   async function warmThumbs(rows) {
     const hub = api();
     if (!hub || !hub.printLibLoadThumbs) return;
+    /* The gallery draws <figure class="pf-shot"> from `userPhoto`, not cards
+     * from `thumbFile`. Warming there read up to a page of previews off disk,
+     * found no `.pf-card` to patch, threw them away — and evicted the library's
+     * cache entries on the way out. */
+    if (_view === 'gallery') return;
     const wanted = (rows || [])
       .filter((r) => r && r.thumbFile && !r.thumb && !_thumbCache.has(r.id))
       .map((r) => ({ id: r.id, file: r.thumbFile }));
@@ -1275,6 +1316,23 @@
     renderPrintFiles();
   }
 
+  /**
+   * ingestPicked, but it cannot take the rest of the drop down with it.
+   *
+   * It is the one un-guarded call in addDroppedFiles' loop, and it does real
+   * work — saveAll(), a re-render, and warnIfAlreadyHave() which OPENS A MODAL.
+   * A throw from any of those aborted the whole drop: the files already copied
+   * kept no records, the archive's temp folder was never cleaned up, and the
+   * rejection was unhandled because the drop listener has no .catch.
+   *
+   * Every other per-item call in that loop is guarded. This one now is too:
+   * one file failing costs that file.
+   */
+  function ingestSafely(id, picked, opts) {
+    try { return ingestPicked(id, picked, opts); }
+    catch (e) { console.error('ingest failed for', picked && picked.originalName, e); return null; }
+  }
+
   // Build + persist a record from a copied-in file (shape from printLibPick / printLibCopyPath).
   //
   // `opts.name` overrides the name taken from the file — an archive imported as
@@ -1652,8 +1710,8 @@
           if (copied.length) {
             // Named after the archive: "spider-man-pack", not "left-arm".
             const packName = String(p).split(/[\\/]/).pop().replace(/\.zip$/i, '');
-            ingestPicked(zid, copied[0], { name: packName, parts: copied.slice(1).map(fileDescriptor) });
-            added++;
+            if (ingestSafely(zid, copied[0], { name: packName, parts: copied.slice(1).map(fileDescriptor) })) added++;
+            else bad++;
           }
         } else {
           for (const f of z.files) {
@@ -1661,8 +1719,7 @@
             let zr;
             try { zr = await hub.printLibCopyPath(zid, f.path); } catch (_) { zr = null; }
             if (!zr || !zr.ok) { skipped++; continue; }
-            ingestPicked(zid, zr);
-            added++;
+            if (ingestSafely(zid, zr)) added++; else bad++;
           }
         }
         skipped += (z.skipped || []).length + (z.failed || []).length;
@@ -1674,8 +1731,7 @@
       let r;
       try { r = await hub.printLibCopyPath(id, p); } catch (_) { bad++; continue; }
       if (!r || !r.ok) { bad++; continue; }
-      ingestPicked(id, r);
-      added++;
+      if (ingestSafely(id, r)) added++; else bad++;
     }
     if (added) toast(added === 1 ? (t('plib.added') || 'File added') : `${added} ${t('plib.files_added') || 'files added'}`, 'success');
     else if (bad) toast(t('plib.drop_bad') || 'Drop STL, 3MF, OBJ or G-code files.', 'error');
@@ -1950,7 +2006,10 @@
     const hub = api(); if (!hub || !hub.printLibList) return null;
     const files = await hub.printLibList(rec.id);
     if (!Array.isArray(files) || !files.length) return null;
-    return (files.find((f) => f.filename === rec.sourceFile.filename) || files[0]).fullPath;
+    // Same hazard as resolvePartPaths: the vault folder holds thumb.jpg too.
+    const named = files.find((f) => f.filename === rec.sourceFile.filename);
+    const openable = named || files.find((f) => MODEL_EXT.test(String(f.filename || '')));
+    return openable ? openable.fullPath : null;
   }
 
   async function view3d(id) {
@@ -1980,9 +2039,16 @@
     if (!Array.isArray(files) || !files.length) return [];
     const byName = new Map(files.map((f) => [String(f.filename), f.fullPath]));
     const paths = partsOf(rec).map((p) => byName.get(String(p.filename))).filter(Boolean);
-    // A record whose parts name nothing on disk still opens what IS there —
-    // this is the pre-`files[]` shape, and the old code took files[0].
-    return paths.length ? paths : [files[0].fullPath];
+    if (paths.length) return paths;
+    /* A record whose parts name nothing on disk still opens what IS there —
+     * the pre-`files[]` shape, where the old code took files[0].
+     *
+     * But hub:printlib-list returns EVERY file in the vault folder, and that
+     * folder also holds the record's thumb.jpg and any converted 3MF. Taking
+     * files[0] blind meant the fallback could hand the slicer a JPEG. Only a
+     * model or a G-code is a thing to open. */
+    const openable = files.find((f) => MODEL_EXT.test(String(f.filename || '')));
+    return openable ? [openable.fullPath] : [];
   }
 
   /**
