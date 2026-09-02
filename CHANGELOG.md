@@ -4,6 +4,8 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.7.0-beta.23] - 2026-09-02
+
 ### Changed
 
 - **The buttons on a print file are one tidy row instead of a block of ten.**
@@ -44,7 +46,6 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 - **An icon no longer sits flush against the words next to it** — the print
   history line read "printed3x printed". In Arabic the gap was on the wrong side
   of the glyph entirely.
-
 - **A big print file can be added again, and it is measured.** Adding a file
   larger than about 50 MB left it in your library with no print time, no weight,
   no material and no picture — and said nothing, so the import looked like it
