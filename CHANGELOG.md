@@ -62,6 +62,12 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **Buttons that cannot be pressed now look like it.** Only one in the whole app
+  did: the Download button on the update screen, which stays off until you have
+  read what is changing. Everywhere else a disabled button was the same colour
+  as a working one and the cursor still promised it would do something — so
+  *Add file* with no library folder set, or a bulk action with nothing selected,
+  read as broken rather than unavailable.
 - **The Print Files screen no longer freezes on a big library.** Every card in
   the library was drawn every time — on every filter you pressed, every file you
   starred, and every round of the preview move below. At three and a half
