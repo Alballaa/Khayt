@@ -704,12 +704,36 @@
   // Finished-prints gallery: a photo-forward showcase of every print file you've
   // added a photo to, with its material, tested settings and print tally. A local
   // personal portfolio — nothing to sell, just what you've made and how.
+  /**
+   * What the list is showing right now, whichever view is on.
+   *
+   * ONE definition. The gallery filtered `printFiles` for a photo while
+   * showMore asked `filtered(_query)` how much there was, so the two could
+   * disagree about what "the rest" even is — and a paged list where the page and
+   * the count are computed in different places is a bug waiting for whoever
+   * adds the third view.
+   */
+  function visibleRows() {
+    return _view === 'gallery'
+      ? (printFiles || []).filter((r) => r.userPhoto)
+      : filtered(_query);
+  }
+
   function galleryHtml() {
-    const shots = (printFiles || []).filter((r) => r.userPhoto);
+    const shots = visibleRows();
     if (!shots.length) {
       return `<div class="pf-empty">${escapeHtml(t('plib.gallery_empty') || 'No print photos yet — add a photo to a print file to start your gallery.')}</div>`;
     }
-    return `<div class="pf-gallery">${shots.map((r) => `
+    /* Paged like the library, and for a sharper reason: every figure here holds
+     * a FULL PHOTO, not a 320px preview. Drawing a thousand of them at once is
+     * a thousand images decoded before anything appears. */
+    const painted = shots.slice(0, _page);
+    const more = shots.length - painted.length;
+    const tail = more > 0 ? `<div class="pf-more" id="pfMore">
+        <button class="btn ghost small" data-act="pf-more">${escapeHtml(t('plib.show_more', { n: String(Math.min(more, PAGE)) }))}</button>
+        <span class="pf-more-n">${escapeHtml(t('plib.n_of_m', { n: String(painted.length), m: String(shots.length) }))}</span>
+      </div>` : '';
+    return `<div class="pf-gallery">${painted.map((r) => `
       <figure class="pf-shot" data-act="pf-edit" data-id="${escapeHtml(r.id)}" title="${escapeHtml(t('common.edit') || 'Edit')}">
         <img src="${safeImageSrc(r.userPhoto)}" alt="${escapeHtml(r.name || '')}" loading="lazy">
         <figcaption>
@@ -720,7 +744,7 @@
           </div>
           ${r.testedNotes ? `<div class="pf-shot-notes">${escapeHtml(r.testedNotes)}</div>` : ''}
         </figcaption>
-      </figure>`).join('')}</div>`;
+      </figure>`).join('')}</div>${tail}`;
   }
 
   // Inner HTML of the results area only (grid / gallery / empty state). Kept separate from the
@@ -741,7 +765,7 @@
     normalizeFilters();
     const hasHub = !!(api() && api().printLibPick);
     const isGallery = _view === 'gallery';
-    const rows = filtered(_query);
+    const rows = visibleRows();
     const total = (printFiles || []).length;
     if (!hasHub) return `<div class="pf-empty">${escapeHtml(t('plib.desktop_only') || 'The print-file library is available in the desktop app.')}</div>`;
     if (isGallery) return galleryHtml();
@@ -762,7 +786,7 @@
     if (list) list.innerHTML = listInnerHtml();
     // The pictures for WHAT WAS JUST DRAWN. This asked for every match — 3,415
     // thumbnails off disk to fill in 120 cards, on every keystroke.
-    warmThumbs(filtered(_query).slice(0, _page));
+    warmThumbs(visibleRows().slice(0, _page));
     watchForMore();
   }
 
@@ -781,8 +805,7 @@
   }
 
   function showMore() {
-    const total = filtered(_query).length;
-    if (_page >= total) return;
+    if (_page >= visibleRows().length) return;
     _page += PAGE;
     renderList();
   }
@@ -849,7 +872,7 @@
      *
      * Found by looking at a screenshot — the E2E pressed the button, which
      * works, and never scrolled. */
-    warmThumbs(filtered(_query).slice(0, _page));
+    warmThumbs(visibleRows().slice(0, _page));
     watchForMore();
   }
 
@@ -891,8 +914,8 @@
       case 'pf-bulk-cat': bulkFile('category'); break;
       case 'pf-bulk-tag': bulkTag(); break;
       case 'pf-bulk-del': bulkDelete(); break;
-      case 'pf-view-library': if (_view !== 'library') { _view = 'library'; renderPrintFiles(); } break;
-      case 'pf-view-gallery': if (_view !== 'gallery') { _view = 'gallery'; renderPrintFiles(); } break;
+      case 'pf-view-library': if (_view !== 'library') { _view = 'library'; resetPage(); renderPrintFiles(); } break;
+      case 'pf-view-gallery': if (_view !== 'gallery') { _view = 'gallery'; resetPage(); renderPrintFiles(); } break;
       case 'pf-more': showMore(); break;
       /* Every narrowing starts at the top again: a shop that has scrolled deep
        * into one group and then picks another is asking a new question. */

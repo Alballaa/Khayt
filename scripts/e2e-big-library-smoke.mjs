@@ -137,6 +137,32 @@ async function testSelectAllShownMeansEveryMatchNotThePage(window) {
   await window.click('[data-act="pf-select-off"]');
 }
 
+async function testTheGalleryIsPagedToo(window) {
+  // Every figure there holds a FULL photo, not a 320px preview, so drawing a
+  // thousand at once is a thousand images decoded before anything appears.
+  await window.evaluate(() => {
+    const png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+    for (const r of printFiles) r.userPhoto = png;
+    renderPrintFiles();
+  });
+  await window.click('[data-act="pf-view-gallery"]');
+  await window.waitForSelector('.pf-shot');
+  const shots = await window.evaluate(() => document.querySelectorAll('.pf-shot').length);
+  if (shots >= N) throw new Error(`the gallery painted all ${shots} photos`);
+  const label = await moreLabel(window);
+  if (!label.includes(String(N))) throw new Error(`the gallery count does not speak for all of it: "${label}"`);
+  await window.click('[data-act="pf-more"]');
+  await window.waitForTimeout(150);
+  const after = await window.evaluate(() => document.querySelectorAll('.pf-shot').length);
+  if (after <= shots) throw new Error(`the gallery did not grow: ${after} was ${shots}`);
+  await window.click('[data-act="pf-view-library"]');
+  await window.waitForSelector('.pf-card');
+  // …and coming back starts at the top rather than inheriting the gallery's page.
+  const back = await painted(window);
+  if (back > 200) throw new Error(`returning to the library painted ${back} cards`);
+  await window.evaluate(() => { for (const r of printFiles) r.userPhoto = null; renderPrintFiles(); });
+}
+
 async function testPaintingAPageIsFast(window) {
   // The number this exists for. Generous against CI, and still ~20x under what
   // painting every card cost.
@@ -164,6 +190,7 @@ try {
   await testANewQuestionStartsAtTheTop(window);
   await testSearchFindsWhatWasNeverPainted(window);
   await testSelectAllShownMeansEveryMatchNotThePage(window);
+  await testTheGalleryIsPagedToo(window);
   await testPaintingAPageIsFast(window);
 
   console.log('e2e-big-library: ok (a page is painted, the rest on demand, filters and search see all of it, select-all means every match)');

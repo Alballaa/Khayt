@@ -69,7 +69,9 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   every time**. A screenful is drawn now and the rest arrives as you scroll:
   the same work takes **28 ms**. Nothing is hidden — search and the filters
   still look through the whole library, and *Select all shown* still means every
-  file that matches, not the ones on screen.
+  file that matches, not the ones on screen. The photo gallery is the same — and
+  it matters more there, because each of those is a full photo rather than a
+  small preview.
 - **Moving your previews out of the data file now finishes on the first
   launch.** It did forty at a time, because drawing the screen after each round
   was so expensive — so a library of three and a half thousand needed **eighty-six
