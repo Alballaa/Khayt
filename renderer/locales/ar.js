@@ -245,6 +245,8 @@
   "plib.slicer_profile": "ملف إعدادات المُقطّع",
   "plib.tags_reuse": "وسوم تستخدمها بالفعل",
   "plib.n_files": "{n} ملفات",
+  "plib.versions": "الإصدارات",
+  "plib.version_n": "إصدار {n}",
   "plib.tags": "الوسوم (مفصولة بفواصل)",
   "plib.tested_notes": "إعدادات مجرّبة / ملاحظات",
   "plib.photo": "صورة (اختياري)",

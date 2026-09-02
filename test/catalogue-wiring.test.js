@@ -18,10 +18,30 @@ test('enriching a print file survives a record with no file on disk', () => {
   // there is nothing to parse. Reading .ext off null threw from OUTSIDE the try,
   // so enrichment died before the work that needs no file either.
   const src = read('renderer/printfiles.js');
-  const fn = src.slice(src.indexOf('async function enrichPrintFile'), src.indexOf('async function enrichPrintFile') + 900);
+  /* Brace-matched, not a fixed 900-character window from the function start.
+   *
+   * The window version failed the moment an unrelated comment was added between
+   * the guard and the dereference: the dereference slid past 900, `indexOf`
+   * returned -1, and `guard < deref` compared a real offset against a miss. The
+   * production code was correct throughout — only the slice had moved.
+   *
+   * Third source-text extractor in this repo to break by measuring rather than
+   * matching. Take the function, not a guess at how long it is. */
+  const start = src.indexOf('async function enrichPrintFile');
+  assert.ok(start > -1, 'enrichPrintFile is gone');
+  const open = src.indexOf('{', start);
+  let depth = 0, end = -1;
+  for (let i = open; i < src.length; i++) {
+    if (src[i] === '{') depth++;
+    else if (src[i] === '}' && --depth === 0) { end = i + 1; break; }
+  }
+  assert.ok(end > -1, 'could not find the end of enrichPrintFile');
+  const fn = src.slice(start, end);
+
   const guard = fn.indexOf('!rec.sourceFile');
   const deref = fn.indexOf('rec.sourceFile.ext');
   assert.ok(guard !== -1, 'enrichPrintFile must guard a missing sourceFile');
+  assert.ok(deref !== -1, 'the dereference this guards is gone — has the guard stopped guarding anything?');
   assert.ok(guard < deref, 'and the guard has to come BEFORE the dereference');
 });
 

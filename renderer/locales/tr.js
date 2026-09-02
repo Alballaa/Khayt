@@ -245,6 +245,8 @@
   "plib.slicer_profile": "Dilimleyici profili",
   "plib.tags_reuse": "Zaten kullandığın etiketler",
   "plib.n_files": "{n} dosya",
+  "plib.versions": "Sürümler",
+  "plib.version_n": "Sürüm {n}",
   "plib.tags": "Etiketler (virgülle ayrılmış)",
   "plib.tested_notes": "Test edilmiş ayarlar / notlar",
   "plib.photo": "Fotoğraf (isteğe bağlı)",

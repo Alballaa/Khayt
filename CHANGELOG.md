@@ -45,6 +45,13 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   until you tick that you have read it** — you can always choose Later. An
   ordinary release is unchanged and still installs on one press.
 
+- **A print can have versions — big and small, coloured and plain.** These are
+  the ones you print *instead of* each other, and each keeps its own print time
+  and weight, so a small version is quoted as a small version. Pick one on the
+  card and everything follows it. Files you have already converted for another
+  printer become versions named after that printer, so nothing has to be filed
+  again.
+
 ## [3.7.0-beta.23] - 2026-09-02
 
 ### Changed
