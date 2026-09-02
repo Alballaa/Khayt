@@ -1829,7 +1829,8 @@ ipcMain.handle('hub:delete-vault-file', async (_e, fullPath) => {
 });
 
 /**
- * ONE ceiling for reading a print file, because there used to be FOUR.
+ * How big a print file may be to be READ AT ALL, where there used to be four
+ * different answers.
  *
  *   hub:intake-model-bytes   150 MB   dropping a file on the calculator
  *   hub:parse-print-file      50 MB   Browse…, and every library import
@@ -1854,9 +1855,37 @@ ipcMain.handle('hub:delete-vault-file', async (_e, fullPath) => {
  * `empty` is what a 3MF with no thumbnail returns — and every caller read them
  * as answers, so a big file joined the library looking imported and holding
  * nothing. Whatever this number is, a refusal has to be able to SAY it is one.
+ *
+ * This is 1 GB and not 150 MB because reading stopped being expensive: see
+ * MESH_ANALYSIS_MAX_BYTES below for the one operation that still is, and why it
+ * is a SECOND number rather than this one lowered back down.
  */
-const PRINT_FILE_MAX_BYTES = 150 * 1024 * 1024;
-const PRINT_FILE_MAX_LABEL = '150 MB';
+const PRINT_FILE_MAX_BYTES = 1024 * 1024 * 1024;
+const PRINT_FILE_MAX_LABEL = '1 GB';
+
+/**
+ * KEEPING every triangle is a different question from MEASURING the mesh, and
+ * only one of them is expensive.
+ *
+ * Measuring is a running total: volume, area, bounding box and a count, folded
+ * in one triangle at a time — see lib/stl-parse.js, where that loop stopped
+ * materialising a list nobody had asked for. It costs the file buffer and
+ * nothing else, which is why the ceiling above is now a generous bound on a
+ * read rather than a limit on what can be understood.
+ *
+ * The overhang report and the rendered thumbnail are the two things that need
+ * the triangles themselves, and a list of them costs roughly six times the
+ * file's own size in heap. 150 MB is the number the drop-a-file path has been
+ * running with in production all along, so it is the one with evidence behind
+ * it.
+ *
+ * PAST THIS LINE THE FILE IS STILL READ. It gets its print time, weight,
+ * material, volume, bounding box and identity key; what it does not get is the
+ * picture and the overhang lines. Refusing the whole file because one optional
+ * report is expensive is how a 200 MB model ended up unaddable — and this is a
+ * separate number from the one above precisely so it cannot do that again.
+ */
+const MESH_ANALYSIS_MAX_BYTES = 150 * 1024 * 1024;
 
 // --- 3.1: Print-file library (standalone, order-independent) ---
 // A per-record subfolder under userData/print-files-vault/<id>/ holds the model
@@ -2997,7 +3026,9 @@ ipcMain.handle('hub:printlib-read-bytes', async (_e, fullPath) => {
   if (!back.ok) return { ok: false, reason: 'unavailable' };
   try {
     const stat = await fs.promises.stat(safe);
-    if (stat.size > PRINT_FILE_MAX_BYTES) return { ok: false, reason: 'too-large' };
+    // The mesh budget, not the read budget: these bytes cross IPC as base64 and
+    // become a triangle list in the renderer, purely to draw a picture.
+    if (stat.size > MESH_ANALYSIS_MAX_BYTES) return { ok: false, reason: 'too-large' };
     const buf = await fs.promises.readFile(safe);
     return { ok: true, b64: buf.toString('base64') };
   } catch (_) { return { ok: false, reason: 'unavailable' }; }
@@ -3426,8 +3457,9 @@ ipcMain.handle('hub:extract-thumbnail', async (_e, filePath) => {
       // The fourth number that governed reading one print file. `empty` is a
       // legitimate answer here — plenty of 3MFs carry no thumbnail — so past
       // this line a big one was indistinguishable from a plain one, and the
-      // caller had nothing to report. Same ceiling as everything else now.
-      if (stat.size > PRINT_FILE_MAX_BYTES) return Object.assign({}, empty, { tooLarge: true });
+      // caller had nothing to report. The mesh budget, because a picture is
+      // exactly what this is: the file is read for its numbers either way.
+      if (stat.size > MESH_ANALYSIS_MAX_BYTES) return Object.assign({}, empty, { tooLarge: true });
       return extractPrintThumb({ ext, buf: fs.readFileSync(safe) });
     }
   } catch (_) { /* silent */ }
@@ -3626,14 +3658,20 @@ ipcMain.handle('hub:open-external', async (_e, url) => {
 // hub:parse-print-file restricts which directories it will read so a renderer
 // cannot name an arbitrary file, and a dropped path arrives from that same
 // untrusted renderer. Bytes the OS already gave the page grant nothing new.
-const INTAKE_MAX_BYTES = PRINT_FILE_MAX_BYTES;
+/* The drop-a-file path is the mesh budget, not the read budget, and for two
+ * reasons at once: the page has already materialised the whole file as an
+ * ArrayBuffer before it gets here, and this is the quote screen, which is the
+ * one caller that actually wants the overhang report. Adding a large model to
+ * the LIBRARY goes through hub:parse-print-file, which reads it off disk and
+ * asks for neither. */
+const INTAKE_MAX_BYTES = MESH_ANALYSIS_MAX_BYTES;
 ipcMain.handle('hub:intake-model-bytes', async (_e, payload) => {
   const filename = String((payload && payload.filename) || '');
   const raw = payload && payload.bytes;
   if (!raw) return { ok: false, error: 'No file data' };
   const buf = Buffer.isBuffer(raw) ? raw : Buffer.from(raw);
   if (!buf.length) return { ok: false, error: 'Empty file' };
-  if (buf.length > INTAKE_MAX_BYTES) return { ok: false, error: `File too large (max ${PRINT_FILE_MAX_LABEL})`, warnings: ['too-large'] };
+  if (buf.length > INTAKE_MAX_BYTES) return { ok: false, error: 'File too large (max 150 MB)', warnings: ['too-large'] };
   try {
     // The mesh analysis is asked for here rather than always, because it needs
     // the triangle list. The nozzle and support angle come from the renderer,
@@ -3698,6 +3736,20 @@ ipcMain.handle('hub:parse-print-file', async (_e, arg) => {
   // caller: the path is the only part this function needs to do its old job.
   const payload = (arg && typeof arg === 'object') ? arg : null;
   const filePath = payload ? payload.filePath : arg;
+  /* THE RISK REPORT IS THE EXPENSIVE PART, and it was being computed for a
+   * caller that throws it away.
+   *
+   * It is the only thing here that needs the TRIANGLE LIST — everything else is
+   * a running total — and a materialised list of a big mesh is the single
+   * heaviest thing this app does. The library import calls this with a bare
+   * path, reads printTimeMins / filamentGrams / filamentType / slicer /
+   * silhouette / geometry, and never looks at `risk`; only the quote screen
+   * asks, and it asks with an object because it has to name the machine.
+   *
+   * So the object IS the request. A bare path now means "measure it", which is
+   * what that caller always wanted, and a 250 MB model costs the buffer instead
+   * of the buffer plus 1.5 GB of nested arrays. */
+  const wantRisk = !!payload && payload.risk !== false;
   const resolvedParse = path.resolve(String(filePath || ''));
   const allowedParseDirs = [
     app.getPath('userData'),
@@ -3771,7 +3823,10 @@ ipcMain.handle('hub:parse-print-file', async (_e, arg) => {
       // read the identical file through the identical intake, and a shop should
       // not get a different answer for having used a different button.
       const r = intakeModel({ filename: path.basename(filePath), bytes: fs.readFileSync(resolvedParse) }, {
-        risk: true,
+        // Requested and affordable are different things. Past the mesh budget the
+        // file is still measured — it simply comes back without the overhang
+        // report, rather than not coming back.
+        risk: wantRisk && mfStat.size <= MESH_ANALYSIS_MAX_BYTES,
         nozzleDiameter: Number(payload && payload.nozzleDiameter) || undefined,
         supportThresholdDeg: Number(payload && payload.supportThresholdDeg) || undefined,
         layerHeight: Number(payload && payload.layerHeight) || undefined,
