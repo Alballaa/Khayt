@@ -4,6 +4,22 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.7.0-beta.24] - 2026-09-02
+
+### Before you update
+
+- **Khayt will move your model previews out of its data file** and into the
+  folders beside the models themselves. It happens a little at a time while you
+  use the Print Files tab, and no preview is removed until its new copy has been
+  written and read back. This is what lets a library grow past a few thousand
+  files.
+- **A file you converted for another printer now shows as a version of the
+  print** rather than a separate row underneath it. Nothing is refiled and
+  nothing is lost — the original stays the one on show.
+- **The tags box now offers the tags you already use.** Typing a tag that
+  exists in another spelling files it under the one you have, so "Resin" joins
+  "resin" instead of starting a second tag.
+
 ### Changed
 
 - **Your library can now hold thousands of files.** Previews were kept inside

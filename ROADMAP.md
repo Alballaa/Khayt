@@ -2,12 +2,29 @@
 
 Living priorities for maintainers. Not a public commitment calendar — reorder as the product needs.
 
-## Now (post-3.6.0, 3.7.0-beta.23 published — on `main`)
+## Now (post-3.6.0, 3.7.0-beta.24 being cut — on `main`)
 
 **Stable is v3.6.0** (2026-08-21) — the 3.6.0 line, promoted from
 `v3.6.0-rc.4` unchanged after a seven-day soak. rc.4 was the first candidate on
 this line that `main` did not overtake, so for once replace-vs-promote resolved
 to *promote*; rc.1, rc.2 and rc.3 were each replaced instead.
+
+**`v3.7.0-beta.24` is BEING CUT** (2026-09-02). It is the cut that lets a
+library grow: model previews leave the store for the folders beside the models.
+A record is 914 bytes; the same record carrying its preview is 14,900, so the
+picture was 94% of it and five thousand files came to 71 MB against a 50 MB
+ceiling — past which every save is refused and a shop loses its day at the next
+launch. On disk, ten thousand files is 8.9 MB. **No database was needed; the
+store was never big, its images were.**
+
+It is also the FIRST release to carry a `### Before you update` section, which
+is the consent gate from `beta.23`'s own work being used for the first time: it
+moves data, so it asks first and will not download until the shop accepts.
+
+Also carries print versions (big and small, coloured and plain — each with its
+own time and weight, folded out of `converted[]` rather than added beside it),
+tags that stay one tag, and a search that no longer redraws the whole library on
+every keystroke.
 
 **`v3.7.0-beta.23` is PUBLISHED** (2026-09-02) — all three platforms, from
 `7f0699c`, with every asset its three manifests name verified to serve 200. It exists because a shop
