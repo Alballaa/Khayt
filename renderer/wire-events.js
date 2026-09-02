@@ -575,7 +575,16 @@ function wireEvents() {
         bytes = new Uint8Array(await file.arrayBuffer());
       }
       const res = await window.hubAPI.intakeModelBytes(name, bytes, riskOptsForQuote());
-      if (!res || !res.ok) { toast((res && res.error) || t('calc.parse_failed'), 'warning'); return; }
+      if (!res || !res.ok) {
+        // `res.error` is English wherever it is shown, in an app that is
+        // translated into nine languages. The one refusal a shop actually meets
+        // — a file past the size ceiling — has a translated sentence now, and it
+        // is the same sentence the picker and the library show.
+        const big = Array.isArray(res && res.warnings) && res.warnings.includes('too-large');
+        if (big) toast(t('intake.too_large'), 'warning', 6000);
+        else toast((res && res.error) || t('calc.parse_failed'), 'warning');
+        return;
+      }
       applyIntake(res, name);
       // After the quote is on screen, not before: identifying a large g-code
       // file means reading its whole toolpath, and the shop should not wait for

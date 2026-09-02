@@ -4,6 +4,19 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Fixed
+
+- **A big print file can be added again, and one that genuinely is too big says
+  so.** Four different size limits governed reading the same file — 150 MB when
+  you dropped it on the calculator, 50 MB when you picked it with Browse…, 60 MB
+  for an STL's shape and thumbnail, 50 MB for a 3MF's picture — so the same
+  60 MB model was read one way and refused another. Past a limit, nothing said
+  anything: the file joined your library looking imported and holding no print
+  time, no weight, no material and no picture. **One limit now, 150 MB**, and a
+  file over it is still added to your library — you are told the numbers need
+  typing in rather than left to find the blanks yourself. The message is in your
+  own language, not English.
+
 ## [3.7.0-beta.22] - 2026-09-01
 
 ### Fixed

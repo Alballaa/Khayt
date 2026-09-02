@@ -1828,6 +1828,36 @@ ipcMain.handle('hub:delete-vault-file', async (_e, fullPath) => {
   return true;
 });
 
+/**
+ * ONE ceiling for reading a print file, because there used to be FOUR.
+ *
+ *   hub:intake-model-bytes   150 MB   dropping a file on the calculator
+ *   hub:parse-print-file      50 MB   Browse…, and every library import
+ *   hub:printlib-read-bytes   60 MB   an STL's mesh, identity key, thumbnail
+ *   hub:extract-thumbnail     50 MB   a 3MF's embedded picture
+ *
+ * Four numbers written at four different times for the same act of reading the
+ * same file, so the same 60 MB STL was read when dropped and refused when
+ * picked — while `hub:parse-print-file`, the one refusing it, carries a comment
+ * saying Browse… and drag-drop "read the identical file through the identical
+ * intake, and a shop should not get a different answer for having used a
+ * different button".
+ *
+ * 150 MB is the number that was already in production on the busiest of the
+ * four. Measured rather than assumed: lib/model-intake.js reads a 60 MB binary
+ * STL (1.2M triangles) in 394 ms, and base64 for the IPC hop costs 8 ms to
+ * encode and 14 ms to decode at that size. The low three were arbitrary, not
+ * protective.
+ *
+ * The limit was never the whole bug. Every refusal here is shaped like an
+ * answer — `{ok:false,…}` is truthy, `null` is what a missing file returns,
+ * `empty` is what a 3MF with no thumbnail returns — and every caller read them
+ * as answers, so a big file joined the library looking imported and holding
+ * nothing. Whatever this number is, a refusal has to be able to SAY it is one.
+ */
+const PRINT_FILE_MAX_BYTES = 150 * 1024 * 1024;
+const PRINT_FILE_MAX_LABEL = '150 MB';
+
 // --- 3.1: Print-file library (standalone, order-independent) ---
 // A per-record subfolder under userData/print-files-vault/<id>/ holds the model
 // file plus its generated thumbnail/photo. All handlers are path-confined to that
@@ -2944,19 +2974,33 @@ ipcMain.handle('hub:printlib-open-in-slicer', async (_e, { filePath, slicerPath 
 
 // Read a library model file's raw bytes (base64) so the renderer can parse/render an
 // STL preview. Confined to the library vault; capped so a giant file can't blow up IPC.
+/**
+ * Returns {ok:true, b64} or {ok:false, reason}, and used to return a bare string
+ * or `null`.
+ *
+ * `null` meant four different things — not in the library, gone from the tier it
+ * was moved to, unreadable, or simply bigger than the old 60 MB ceiling — and
+ * the one caller wrote `if (b64)`, so all four skipped the mesh, the geometry
+ * key and the thumbnail with nothing said. A big STL joined the library as an
+ * icon with no numbers and no reason given, which is indistinguishable from an
+ * import that quietly did not work.
+ *
+ * Only one caller (renderer/printfiles.js enrichPrintFile), so the shape is
+ * changed rather than a second signal bolted on.
+ */
 ipcMain.handle('hub:printlib-read-bytes', async (_e, fullPath) => {
   const safe = path.resolve(String(fullPath || ''));
-  if (!printLibContains(safe)) return null;
+  if (!printLibContains(safe)) return { ok: false, reason: 'unavailable' };
   // Tiered? Fetch it back first. This returns immediately for the overwhelming
   // majority of calls, where the file is simply present.
   const back = await printLibRehydrate(safe);
-  if (!back.ok) return null;
+  if (!back.ok) return { ok: false, reason: 'unavailable' };
   try {
     const stat = await fs.promises.stat(safe);
-    if (stat.size > 60_000_000) return null; // too big to render a thumbnail for
+    if (stat.size > PRINT_FILE_MAX_BYTES) return { ok: false, reason: 'too-large' };
     const buf = await fs.promises.readFile(safe);
-    return buf.toString('base64');
-  } catch (_) { return null; }
+    return { ok: true, b64: buf.toString('base64') };
+  } catch (_) { return { ok: false, reason: 'unavailable' }; }
 });
 
 // The expensive 3MF/STL work now lives in lib/mf-jobs.js and normally runs in a
@@ -3379,7 +3423,11 @@ ipcMain.handle('hub:extract-thumbnail', async (_e, filePath) => {
     }
     if (ext === '3mf') {
       const stat = fs.statSync(safe);
-      if (stat.size > 50_000_000) return empty;
+      // The fourth number that governed reading one print file. `empty` is a
+      // legitimate answer here — plenty of 3MFs carry no thumbnail — so past
+      // this line a big one was indistinguishable from a plain one, and the
+      // caller had nothing to report. Same ceiling as everything else now.
+      if (stat.size > PRINT_FILE_MAX_BYTES) return Object.assign({}, empty, { tooLarge: true });
       return extractPrintThumb({ ext, buf: fs.readFileSync(safe) });
     }
   } catch (_) { /* silent */ }
@@ -3578,14 +3626,14 @@ ipcMain.handle('hub:open-external', async (_e, url) => {
 // hub:parse-print-file restricts which directories it will read so a renderer
 // cannot name an arbitrary file, and a dropped path arrives from that same
 // untrusted renderer. Bytes the OS already gave the page grant nothing new.
-const INTAKE_MAX_BYTES = 150 * 1024 * 1024;
+const INTAKE_MAX_BYTES = PRINT_FILE_MAX_BYTES;
 ipcMain.handle('hub:intake-model-bytes', async (_e, payload) => {
   const filename = String((payload && payload.filename) || '');
   const raw = payload && payload.bytes;
   if (!raw) return { ok: false, error: 'No file data' };
   const buf = Buffer.isBuffer(raw) ? raw : Buffer.from(raw);
   if (!buf.length) return { ok: false, error: 'Empty file' };
-  if (buf.length > INTAKE_MAX_BYTES) return { ok: false, error: 'File too large (max 150 MB)' };
+  if (buf.length > INTAKE_MAX_BYTES) return { ok: false, error: `File too large (max ${PRINT_FILE_MAX_LABEL})`, warnings: ['too-large'] };
   try {
     // The mesh analysis is asked for here rather than always, because it needs
     // the triangle list. The nozzle and support angle come from the renderer,
@@ -3707,7 +3755,18 @@ ipcMain.handle('hub:parse-print-file', async (_e, arg) => {
       // carry no slicer data at all and yield a geometric ESTIMATE, which the
       // caller must label as one; `exact` says which kind of answer this is.
       const mfStat = fs.statSync(resolvedParse);
-      if (mfStat.size > 50_000_000) return { ok: false, error: 'File too large (max 50 MB)' };
+      // `warnings` so the answer is presentable: lib/intake-view.js says WHICH
+      // kind of nothing it got, and "too large" is the one kind of nothing with
+      // an action attached. Without it both callers reported a generic failure
+      // — or, in the library, nothing at all.
+      if (mfStat.size > PRINT_FILE_MAX_BYTES) {
+        return {
+          ok: false,
+          error: `File too large (max ${PRINT_FILE_MAX_LABEL})`,
+          warnings: ['too-large'],
+          filename: path.basename(filePath),
+        };
+      }
       // Same mesh analysis the drop-a-file path asks for. Browse… and drag-drop
       // read the identical file through the identical intake, and a shop should
       // not get a different answer for having used a different button.

@@ -3934,6 +3934,7 @@
   "intake.estimate_unreliable": "Esta forma es difícil de estimar — las piezas finas o muy detalladas pueden desviarse mucho. Lamínala antes de cotizar.",
   "intake.estimate_advice": "Tómalo como punto de partida. Para un presupuesto en firme, lamina el archivo y suelta el resultado aquí.",
   "intake.estimate_toast": "Estimado a partir de la geometría del modelo, no de un laminado.",
+  "intake.too_large": "Ese archivo es demasiado grande para que Khayt lo lea (más de 150 MB). Sigue en tu biblioteca, pero el tiempo de impresión y el peso hay que escribirlos.",
   "intake.no_summary": "Ese G-code no trae resumen de tiempo ni de filamento: vuelve a exportarlo desde tu laminador.",
   "intake.unsupported": "Khayt puede leer archivos STL, OBJ, 3MF y G-code.",
   "intake.your_slicer": "tu laminador",

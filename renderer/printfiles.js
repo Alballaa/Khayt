@@ -884,17 +884,31 @@
     // does not need a file either.
     if (!rec || !rec.sourceFile) return;
     const ext = rec.sourceFile.ext;
+    let tooBig = false, problem = '';
     try {
       if (ext === 'gcode' || ext === 'gco' || ext === '3mf') {
         if (hub.parsePrintFile) {
           const p = await hub.parsePrintFile(fullPath);
-          if (p) rec.parsed = Object.assign({}, rec.parsed, { printTimeMins: p.printTimeMins, filamentGrams: p.filamentGrams, filamentType: p.filamentType, slicer: p.slicer });
+          /* A REFUSAL IS TRUTHY, and this treated it as an answer.
+           *
+           * Past the size ceiling the handler returns {ok:false, error, …} with
+           * no numbers on it, so `if (p)` passed and every field was overwritten
+           * with `undefined`: the file joined the library with no print time, no
+           * weight, no material and no slicer, and nothing anywhere said why.
+           * That is what "a big file can't be read" looks like from the shop's
+           * side — the import LOOKS like it worked. */
+          if (p && p.ok === false) {
+            if (p.warnings && p.warnings.includes('too-large')) tooBig = true;
+            // Not only the size ceiling: this handler also refuses a path
+            // outside the directories it will read. That refusal was silent too.
+            else problem = problem || p.error || '';
+          } else if (p) rec.parsed = Object.assign({}, rec.parsed, { printTimeMins: p.printTimeMins, filamentGrams: p.filamentGrams, filamentType: p.filamentType, slicer: p.slicer });
           // A g-code file has no mesh, so it used to get no geometryKey at all —
           // and its contentHash changes on every re-slice, so the same model came
           // back a stranger and per-file calibration never reached MIN_JOBS. The
           // printed envelope survives re-slicing; see lib/gcode-geometry.js.
           const mi = MI();
-          if (mi && p) {
+          if (mi && p && p.ok !== false) {
             try {
               if (p.silhouette && mi.gcodeGeometryKey) {
                 rec.geometryKey = mi.gcodeGeometryKey(p.silhouette);
@@ -911,6 +925,10 @@
         }
         if (hub.extractThumbnail) {
           const th = await hub.extractThumbnail(fullPath);
+          // An empty answer is ordinary — plenty of 3MFs carry no thumbnail —
+          // so the refusal has to say it is one, or a big file looks like a
+          // plain one.
+          if (th && th.tooLarge) tooBig = true;
           if (th) {
             if (Array.isArray(th.colors) && th.colors.length) rec.colors = th.colors;
             if (th.swapCount) rec.swapCount = th.swapCount;
@@ -936,7 +954,13 @@
       // What identity actually needs is the PARSER. What the picture needs is the
       // renderer, and a slot to put it in.
       if (ext === 'stl' && hub.printLibReadBytes && KhaytStl) {
-        const b64 = await hub.printLibReadBytes(fullPath);
+        // {ok, b64|reason}. This used to be a bare string or null, and `if (b64)`
+        // skipped the mesh, the geometry key AND the thumbnail for all four
+        // reasons null could mean — including a file that was merely big. Same
+        // silence as the branch above, reached by a different route.
+        const rb = await hub.printLibReadBytes(fullPath);
+        const b64 = rb && rb.ok ? rb.b64 : '';
+        if (rb && rb.ok === false && rb.reason === 'too-large') tooBig = true;
         if (b64) {
           try {
             const g = KhaytStl.parseStl(base64ToArrayBuffer(b64), { keepTriangles: true });
@@ -959,6 +983,12 @@
         }
       }
     } catch (_) { /* keep whatever we got */ }
+    /* Said out loud. The record is deliberately KEPT — the file is in the vault,
+     * it opens in a slicer, it can be printed — so this is not a failed import
+     * and must not read as one. What is missing is the numbers, and the shop can
+     * type those in once it knows nothing is coming. */
+    if (tooBig) toast(t('intake.too_large') || 'That file is too large for Khayt to read.', 'warning', 6000);
+    else if (problem) toast(problem, 'warning', 6000);
     rec.updatedAt = Date.now();
     saveAll();
     renderPrintFiles();
