@@ -4,6 +4,30 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Added
+
+- **A print can now be several files.** Spiderman is a head, two arms and a
+  torso, and he is one thing you print — not four. Until now the library could
+  only hold one file per entry, so a kit downloaded as twelve STLs became twelve
+  rows with nothing tying them together. A print's files are now listed on its
+  card, and **Open in slicer** opens all of them at once, in one slicer window,
+  instead of whichever one happened to be first.
+- **Add files to this print**, in a card's ⋯ menu. Files or a whole archive go
+  into the print you are looking at, rather than making new entries beside it.
+- **Which file a print is named for is yours to choose.** The first file added
+  is the main one — the one whose picture, size and file type the card shows,
+  and what *Convert* and *View in 3D* open. Any part can be made the main one,
+  and the print is re-read so its time and weight describe the file it now says
+  it is.
+
+### Changed
+
+- **Dropping in a zip now asks what it is.** An archive of twelve models is
+  either twelve prints or one print in twelve pieces, and nothing inside it says
+  which. It used to always make twelve entries; it now asks once — and asks once
+  per drop, not once per archive.
+
+
 ## [3.7.0-beta.24] - 2026-09-02
 
 ### Before you update

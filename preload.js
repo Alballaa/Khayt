@@ -141,6 +141,9 @@ contextBridge.exposeInMainWorld('hubAPI', {
   printLibSaveThumb:  (id, dataUrl)       => ipcRenderer.invoke('hub:printlib-save-thumb', { id, dataUrl }),
   printLibLoadThumbs: (wanted)            => ipcRenderer.invoke('hub:printlib-load-thumbs', wanted),
   printLibOpenSlicer: (filePath, slicerPath) => ipcRenderer.invoke('hub:printlib-open-in-slicer', { filePath, slicerPath }),
+  // A print made of several files opens as one command with several arguments,
+  // so the slicer holds the whole model rather than one window per limb.
+  printLibOpenSlicerAll: (filePaths, slicerPath) => ipcRenderer.invoke('hub:printlib-open-in-slicer', { filePaths, slicerPath }),
   printLibReadBytes:  (fullPath)          => ipcRenderer.invoke('hub:printlib-read-bytes', fullPath),
   printLibMesh:       (fullPath)          => ipcRenderer.invoke('hub:printlib-mesh', fullPath),
   convertMesh:        (opts)              => ipcRenderer.invoke('hub:convert-mesh', opts),
