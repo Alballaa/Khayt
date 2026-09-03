@@ -70,6 +70,14 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   **Last backup** as though nothing had happened. All four now accept whatever
   the app is willing to save, and a backup that fails says so on the screen
   instead of leaving yesterday's date sitting there.
+- **Recovering after a crash could hand you back a two-month-old shop, and call it
+  a success.** If a save was ever interrupted, Khayt left a half-finished file
+  behind and never cleaned it up — and when it later had to recover, it preferred
+  that stale leftover over the good copy from your last save. It now takes
+  whichever copy is genuinely newest. And when recovery does cost you your last
+  save, it says so plainly instead of showing a green tick that read "Recovered
+  your data", so you know to check your most recent work.
+
 - **A downloaded print file can no longer put fake controls on its own card.** A
   G-code file carrying a specially made preview image could add a hidden button
   to the card Khayt drew for it, so an ordinary click on the picture ran

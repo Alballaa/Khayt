@@ -1369,7 +1369,12 @@ ipcMain.handle('hub:load-store', async (event) => {
     if (warnings.length) console.warn('hub:load-store:', warnings.join('; '));
     // Mask secrets — renderer must not receive plaintext credentials
     const masked = maskStoreSecretsForRenderer(normalized);
-    if (rec.source && rec.source !== 'primary') masked.__recovered = rec.source;
+    if (rec.source && rec.source !== 'primary') {
+      masked.__recovered = rec.source;
+      // Recovering from .prev means the LAST save is gone. Sending the age lets the
+      // app say so instead of showing a green tick over real loss.
+      masked.__recoveredAt = rec.writtenAt || null;
+    }
     return masked;
   } catch (e) {
     console.error('hub:load-store error:', e);

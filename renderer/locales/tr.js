@@ -82,6 +82,7 @@
   "conv.preset_name": "Ön ayar adı",
   "conv.preset_apply": "Bir ön ayar uygula…",
   "store.recovered": "✓ Kesintiye uğrayan bir kayıttan sonra verileriniz bir yedekten kurtarıldı.",
+  "store.recovered_prev": "⚠ Son kaydınız kayboldu. Khayt önceki kopyaya döndü — en son çalışmanızı kontrol edin.",
   "slicer.detect": "Yüklü dilimleyicileri algıla",
   "slicer.detecting": "Dilimleyiciler aranıyor…",
   "slicer.detected_n": "{n} dilimleyici eklendi",

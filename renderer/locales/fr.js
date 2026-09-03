@@ -82,6 +82,7 @@
   "conv.preset_name": "Nom du préréglage",
   "conv.preset_apply": "Appliquer un préréglage…",
   "store.recovered": "✓ Vos données ont été récupérées depuis une sauvegarde après un enregistrement interrompu.",
+  "store.recovered_prev": "⚠ Votre dernier enregistrement a été perdu. Khayt a repris la copie précédente — vérifiez vos travaux les plus récents.",
   "slicer.detect": "Détecter les trancheurs installés",
   "slicer.detecting": "Recherche de trancheurs…",
   "slicer.detected_n": "{n} trancheur(s) ajouté(s)",

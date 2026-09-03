@@ -82,6 +82,7 @@
   "conv.preset_name": "Nombre del preajuste",
   "conv.preset_apply": "Aplicar un preajuste…",
   "store.recovered": "✓ Se recuperaron tus datos de una copia de seguridad tras un guardado interrumpido.",
+  "store.recovered_prev": "⚠ Se perdió tu último guardado. Khayt usó la copia anterior — revisa tu trabajo más reciente.",
   "slicer.detect": "Detectar laminadores instalados",
   "slicer.detecting": "Buscando laminadores…",
   "slicer.detected_n": "Se añadieron {n} laminador(es)",

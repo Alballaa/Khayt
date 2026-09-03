@@ -82,6 +82,7 @@
   "conv.preset_name": "プリセット名",
   "conv.preset_apply": "プリセットを適用…",
   "store.recovered": "✓ 保存が中断された後、バックアップからデータを復元しました。",
+  "store.recovered_prev": "⚠ 最後の保存が失われました。1つ前のコピーに戻しました — 直近の作業をご確認ください。",
   "slicer.detect": "インストール済みスライサーを検出",
   "slicer.detecting": "スライサーを検索中…",
   "slicer.detected_n": "{n} 個のスライサーを追加しました",
