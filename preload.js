@@ -221,6 +221,8 @@ contextBridge.exposeInMainWorld('hubAPI', {
   cloudMemberRemove: (opts) => ipcRenderer.invoke('hub:cloud-member-remove', opts),
   cloudCatalogPublish: (opts) => ipcRenderer.invoke('hub:cloud-catalog-publish', opts),
   cloudReviewSummary: (opts) => ipcRenderer.invoke('hub:cloud-review-summary', opts),
+  cloudListReviews:   (opts) => ipcRenderer.invoke('hub:cloud-list-reviews', opts),
+  cloudDeleteReview:  (opts) => ipcRenderer.invoke('hub:cloud-delete-review', opts),
   cloudRequestReset: (opts) => ipcRenderer.invoke('hub:cloud-request-reset', opts),
   cloudResetPassword: (opts) => ipcRenderer.invoke('hub:cloud-reset-password', opts),
   cloudRequestVerify: (opts) => ipcRenderer.invoke('hub:cloud-request-verify', opts),

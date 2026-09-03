@@ -1482,7 +1482,8 @@ async function openStorefrontModal() {
       <label style="margin-top:0;">${escapeHtml(t('store.reviews') || 'Customer reviews')} <span id="storeRating" style="color:var(--accent);font-weight:600;"></span></label>
       <p style="font-size:11.5px;color:var(--text-muted);margin:2px 0 6px;">${escapeHtml(t('store.reviews_hint') || 'Share this link after an order to collect a rating; the average shows on your storefront.')}</p>
       <button id="storeReviewCopy" class="btn ghost small" type="button">${escapeHtml(t('store.review_link') || 'Copy review link')}</button>
-      <div style="margin-top:6px;font-size:11.5px;color:var(--text-muted);word-break:break-all;">${escapeHtml(reviewLink)}</div>`,
+      <div style="margin-top:6px;font-size:11.5px;color:var(--text-muted);word-break:break-all;">${escapeHtml(reviewLink)}</div>
+      <div id="storeReviewList" style="margin-top:10px;font-size:12px;"></div>`,
     onMount(modal) {
       const res = modal.querySelector('#storeResult');
       const setRes = (m, ok) => { res.textContent = m; res.style.color = ok ? 'var(--success)' : 'var(--danger)'; };
@@ -1700,6 +1701,51 @@ async function openStorefrontModal() {
         const s = r && r.ok && r.summary;
         if (s && s.count > 0) { const el = modal.querySelector('#storeRating'); if (el) el.textContent = `★ ${s.avg} (${s.count})`; }
       }).catch(() => {});
+
+      /* THE REVIEWS THEMSELVES, AND A WAY TO REMOVE ONE.
+       *
+       * Anyone who can reach the public endpoint can leave a review, and every
+       * one of them counts toward the star rating the storefront prints. Until
+       * now this panel showed only that average: a shop could watch its rating
+       * fall with no way to see what was dragging it down, and no way to remove
+       * anything. The list is owner-only on the server. */
+      const revEl = modal.querySelector('#storeReviewList');
+      const renderReviews = async () => {
+        if (!revEl || !window.hubAPI.cloudListReviews) return;
+        revEl.textContent = t('common.loading') || '…';
+        let r;
+        try { r = await window.hubAPI.cloudListReviews({ url: c.url, shopId: c.shopId, token: c.token }); }
+        catch (e) { r = { ok: false, error: String(e && e.message || e) }; }
+        if (!r || !r.ok) {
+          // Say why. A blank space here reads as "no reviews", which is the one
+          // thing it must not be mistaken for.
+          revEl.textContent = (t('store.reviews_load_failed') || 'Could not load your reviews') + (r && r.error ? ` — ${r.error}` : '');
+          revEl.style.color = 'var(--text-muted)';
+          return;
+        }
+        const list = r.reviews || [];
+        if (!list.length) { revEl.textContent = t('store.reviews_none') || 'No reviews yet.'; return; }
+        revEl.innerHTML = list.map((rv) => `
+          <div style="display:flex;gap:8px;align-items:flex-start;padding:6px 0;border-bottom:1px solid var(--border-soft);">
+            <span style="color:var(--accent);white-space:nowrap;">${'★'.repeat(Math.max(0, Math.min(5, +rv.rating || 0)))}</span>
+            <div style="flex:1;min-width:0;">
+              <div style="word-break:break-word;">${escapeHtml(rv.comment || '')}</div>
+              <div style="font-size:11px;color:var(--text-muted);">${escapeHtml(rv.name || t('store.review_anon') || 'Anonymous')}
+                · ${escapeHtml(String(rv.createdAt || '').slice(0, 10))}
+                · ${rv.verified ? escapeHtml(t('store.review_verified') || 'verified customer') : escapeHtml(t('store.review_unverified') || 'unverified')}</div>
+            </div>
+            <button class="btn ghost small rev-del" data-rid="${escapeHtml(String(rv.id))}" type="button">${escapeHtml(t('common.delete') || 'Delete')}</button>
+          </div>`).join('');
+        revEl.querySelectorAll('.rev-del').forEach((btn) => {
+          btn.addEventListener('click', async () => {
+            if (!(await confirmModal(t('store.review_delete_q') || 'Remove this review from your storefront? This cannot be undone.', { danger: true }))) return;
+            const d = await window.hubAPI.cloudDeleteReview({ url: c.url, shopId: c.shopId, token: c.token, reviewId: btn.dataset.rid });
+            if (!d || !d.ok) { setRes('✗ ' + ((d && d.error) || 'failed'), false); return; }
+            renderReviews();
+          });
+        });
+      };
+      renderReviews();
       // Storefront insights: views → carts → orders funnel + top products (best-effort).
       const insEl = modal.querySelector('#storeInsights');
       window.hubAPI.cloudStorefrontStats?.({ url: c.url, shopId: c.shopId, token: c.token }).then((r) => {

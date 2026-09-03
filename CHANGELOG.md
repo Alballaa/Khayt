@@ -62,6 +62,13 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **You can now see and remove the reviews on your storefront.** Anyone could
+  leave one, every one counted toward the star rating shown to your customers,
+  and Khayt showed you only the average — so a rating could fall with no way to
+  see what was dragging it down and no way to remove anything. Settings →
+  Storefront now lists your reviews, marks which came from a signed-in customer,
+  and lets you delete one.
+
 - **A shop with several printers could lose a finished job's real figures.** If
   enough machines were slow to answer — printers switched off overnight, say —
   one round of status checks took longer than the gap before the next one

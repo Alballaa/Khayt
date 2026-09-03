@@ -5209,6 +5209,21 @@ ipcMain.handle('hub:cloud-review-summary', async (_e, { url, shopId } = {}) => {
   catch (e) { return { ok: false, error: String(e && e.message || e) }; }
 });
 
+ipcMain.handle('hub:cloud-list-reviews', async (_e, { url, shopId, token, limit } = {}) => {
+  try {
+    token = resolveStoreSecret(token, d => d?.settings?.cloud?.token);
+    return { ok: true, reviews: await cloudClient.listReviews(url, shopId, token, limit) };
+  } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+});
+
+ipcMain.handle('hub:cloud-delete-review', async (_e, { url, shopId, token, reviewId } = {}) => {
+  try {
+    token = resolveStoreSecret(token, d => d?.settings?.cloud?.token);
+    await cloudClient.deleteReview(url, shopId, token, reviewId);
+    return { ok: true };
+  } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+});
+
 ipcMain.handle('hub:cloud-request-reset', async (_e, { url, email } = {}) => {
   try { return { ok: true, ...(await cloudClient.requestReset(url, { email })) }; }
   catch (e) { return { ok: false, error: String(e && e.message || e) }; }
