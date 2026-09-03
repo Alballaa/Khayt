@@ -19,42 +19,27 @@ const root = path.join(__dirname, '..');
 const read = (p) => fs.readFileSync(path.join(root, p), 'utf8');
 const mainJs = read('main.js');
 const storeIo = read('lib/store-io.js');
+const { assertProtected } = require('./helpers/store-io-harness.js');
 const settingsJs = read('renderer/settings.js');
 const wire = read('renderer/wire-events.js');
 const preload = read('preload.js');
 const html = read('renderer/index.html');
 
-test('the secret is encrypted on disk, and decrypted coming back', () => {
-  assert.match(storeIo, /d\.settings\.printLibrary\.s3\.secretAccessKey = encryptStoreField\(/,
-    'the bucket secret is written to the store in plaintext');
-  assert.match(storeIo, /data\.settings\.printLibrary\.s3\.secretAccessKey = decryptStoreField\(/,
-    'encrypted on the way in but never decrypted — the credential would be unusable');
+test('the bucket secret gets every protection a secret gets', () => {
+  // Was four regexes over lib/store-io.js source, one of them scoped to
+  // mergeStoreSecretsFromDisk to stop it matching the wrong function. All of it
+  // pinned the spelling of the code rather than the behaviour: rearranging the
+  // secret lists broke this while changing nothing, and a list that dropped the
+  // bucket key would have kept it green. It performs each protection now:
+  // encrypt on save, decrypt on load, mask for the renderer, restore on merge,
+  // and count toward the keychain explanation.
+  assertProtected(assert, 'settings.printLibrary.s3.secretAccessKey', 'the bucket secret');
 });
 
-test('the renderer is handed a mask, never the secret', () => {
-  assert.match(storeIo, /mask\(data\.settings\?\.printLibrary\?\.s3, 'secretAccessKey'\)/,
-    'the real bucket key is sent to the renderer');
+test('the renderer never renders the secret back into the DOM', () => {
   assert.match(settingsJs, /sec\.value = ''/, 'settings.js renders the secret back into the DOM');
-});
-
-test('saving any other setting cannot wipe the credential', () => {
-  // The renderer holds a mask. Without the merge-back, saving the settings page
-  // writes that mask over the real key on disk, and the next upload fails with
-  // a credential nobody knowingly changed.
-  // Scoped to mergeStoreSecretsFromDisk: the same path expression appears in
-  // encryptForDisk, so a whole-file match cannot tell the merge-back is gone.
-  const at = storeIo.indexOf('function mergeStoreSecretsFromDisk(');
-  assert.ok(at > -1, 'mergeStoreSecretsFromDisk went missing');
-  const merge = storeIo.slice(at, storeIo.indexOf('\n  function ', at + 10));
-  assert.match(merge, /printLibrary\?\.s3\?\.secretAccessKey/,
-    'mergeStoreSecretsFromDisk does not restore the bucket secret — saving the page would write the mask over it');
   assert.match(settingsJs, /secretAccessKey: secretInputSave\(cur\.secretAccessKey/,
     'an empty secret field clears the stored key instead of keeping it');
-});
-
-test('a plaintext secret still counts as one worth warning about', () => {
-  assert.match(storeIo, /needs\(s\.printLibrary\?\.s3\?\.secretAccessKey\)/,
-    'the keychain explanation would not mention a bucket key sitting in the clear');
 });
 
 test('no read path reaches into the bucket on its own', () => {
