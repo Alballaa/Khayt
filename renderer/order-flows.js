@@ -2932,12 +2932,26 @@ async function splitOrderAcrossMachines(orderId) {
     machineGroups[mid].push(i);
   }
 
-  const totalCost = order.parts.reduce((s, p) => s + (+p.baseCost || 0), 0) || 1;
+  // Money already taken has to travel with the price it was taken against.
+  // Every sub-order was created `paidAmount: 0, paymentStatus: 'unpaid'`, so a
+  // job with a deposit on it came out the other side owing its FULL value again
+  // and the customer was invoiced for money they had already paid. The parent
+  // kept the record, but a superseded parent is excluded from what is owed —
+  // correctly, since its children carry the debt — so the deposit was simply
+  // gone. lib/split-order.js divides price, deposit and credit notes together,
+  // giving the last group every remainder so the shares add back up exactly.
+  const groupEntries = Object.entries(machineGroups);
+  const shares = KhaytSplitOrder.splitMoney({
+    price: +order.price || 0,
+    paid: +order.paidAmount || 0,
+    credited: (order.creditNotes || []).reduce((s, cn) => s + (+cn.amount || 0), 0),
+    costs: groupEntries.map(([, idxs]) => idxs.reduce((s, i) => s + (+order.parts[i].baseCost || 0), 0)),
+  });
   const subOrderIds = [];
-  for (const [mid, partIndices] of Object.entries(machineGroups)) {
+  for (let gi = 0; gi < groupEntries.length; gi++) {
+    const [mid, partIndices] = groupEntries[gi];
     const parts = partIndices.map(i => ({ ...order.parts[i] }));
-    const partCost = parts.reduce((s, p) => s + (+p.baseCost || 0), 0);
-    const proportional = totalCost > 0 ? (+order.price * partCost / totalCost) : 0;
+    const { price: subPrice, paidAmount: subPaid, credited: subCredit } = shares[gi];
     const subId = uid('SUB');
     const subInvoiceNum = nextInvoiceNumber();
     const subOrder = {
@@ -2951,9 +2965,12 @@ async function splitOrderAcrossMachines(orderId) {
       material: order.material || '',
       date: order.date || localDateStr(),
       status: 'pending',
-      price: +proportional.toFixed(2),
-      paymentStatus: 'unpaid',
-      paidAmount: 0,
+      price: subPrice,
+      paidAmount: subPaid,
+      paymentStatus: KhaytSplitOrder.paymentStatusFor(subPrice, subPaid),
+      creditNotes: subCredit > 0
+        ? [{ id: uid('CN'), amount: subCredit, at: new Date().toISOString(), reason: `Carried from ${order.id}` }]
+        : [],
       materialDeducted: false,
       statusHistory: [{ status: 'pending', at: new Date().toISOString() }],
       invoiceNum: subInvoiceNum,

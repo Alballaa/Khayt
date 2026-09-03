@@ -122,12 +122,17 @@
      * lib/business-scope.js says why the flag stops at money and trade counts:
      * the print still wears the nozzle and still occupies the machine. */
     if (typeof KhaytBusinessScope !== 'undefined' && !KhaytBusinessScope.countsForBusiness(o)) return 0;
+    // A parent that was split into sub-orders has been replaced by them, and they
+    // carry its price between them. Counting it too reports the job twice.
+    if (typeof KhaytBusinessScope !== 'undefined' && KhaytBusinessScope.isSuperseded(o)) return 0;
     return Math.max(0, orderRevenueBase(o) - orderCreditedBase(o));
   }
 
   function orderOwedBase(o) {
     // Nothing is owed on a print that was never sold.
     if (typeof KhaytBusinessScope !== 'undefined' && !KhaytBusinessScope.countsForBusiness(o)) return 0;
+    // Nor on a parent whose sub-orders now carry the debt between them.
+    if (typeof KhaytBusinessScope !== 'undefined' && KhaytBusinessScope.isSuperseded(o)) return 0;
     const cur = orderCurrency(o);
     // Credit notes reduce what's owed (refund / cancelled charge).
     return Math.max(

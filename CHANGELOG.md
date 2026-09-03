@@ -62,6 +62,14 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **Splitting a job across machines billed it twice and lost the deposit.** The
+  original job stayed on the books at its full price alongside the new
+  sub-orders, so a SAR 3,000 job split in two showed SAR 5,000 owed when SAR
+  2,000 was. Any deposit already taken stayed behind on the original, so each
+  new sub-order started as though nothing had been paid and the customer was
+  invoiced for the full amount again. The deposit and any credit notes now
+  travel with the work, split the same way the price is.
+
 - **What actually came off the printer was thrown away every time you saved.**
   Khayt records the real filament weight and print time of each finished job
   from the printer itself, and then deleted that record on the very next edit
