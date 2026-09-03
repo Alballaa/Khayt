@@ -439,6 +439,28 @@ function exportGaztVatReturn(period) {
   const ratePct = taxProfile.rates.reduce((sum, r) => sum + r.percent, 0);
   const vatRegistered = ratePct > 0;
 
+  /* THE FIGURES TRAVEL; THE BOX NUMBERS DO NOT.
+   *
+   * lib/tax.js carries thirty country presets — VAT, GST, Sales Tax — in both
+   * inclusive and exclusive mode, and the arithmetic above is right for all of
+   * them: computeTax splits a price the way that country prices. What was NOT
+   * right for any of them but one is the paperwork around it. This document
+   * called itself a "GAZT VAT Return" and numbered its rows Box 1, 2, 3, 6, 7,
+   * which is the Saudi form. A UK shop files a VAT100 whose nine boxes mean
+   * different things; a US shop has no VAT return at all and pays sales tax to a
+   * state. Handing either of them a Saudi form with their numbers in it is worse
+   * than handing them a plain list, because the numbers look authoritative.
+   *
+   * So: the shop's own tax NAME, box numbers only where they are the shop's own
+   * (the Saudi preset), and no claim anywhere that this IS a return. It is a
+   * summary to transcribe onto whatever form the shop actually files. */
+  const taxName = String(taxProfile.name || 'Tax');
+  // A shop that predates the country presets has no settings.tax at all, and
+  // every one of those was Saudi — including one that has VAT switched off, which
+  // is a registration state, not a country.
+  const isSaudiForm = settings.tax ? (settings.tax.country || '') === 'SA' : true;
+  const boxNo = (n) => (isSaudiForm ? `Box ${n}` : '');
+
   let box1 = 0;   // standard-rated sales, NET of VAT
   let box2 = 0;   // zero-rated sales
   let box3 = 0;   // VAT due on those sales
@@ -454,7 +476,9 @@ function exportGaztVatReturn(period) {
       box3 += t.taxTotal;
     } else {
       // Khayt models ONE shop-level rate, so there is no per-order zero-rating:
-      // either the shop charges VAT on everything or on nothing.
+      // either the shop charges tax on everything or on nothing. That is a real
+      // limitation in jurisdictions with mixed rating, and it is why this is
+      // presented as a summary to transcribe rather than as a filing.
       box2 += gross;
     }
   }
@@ -470,7 +494,7 @@ function exportGaztVatReturn(period) {
   const netVat = box3 - box7;
 
   const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
-    <title>GAZT VAT Return — ${escapeHtml(period)} ${now.getFullYear()}</title>
+    <title>${escapeHtml(taxName)} summary — ${escapeHtml(period)} ${now.getFullYear()}</title>
     <style>body{font-family:sans-serif;max-width:700px;margin:auto;padding:24px;}
       h1{font-size:18px;} table{width:100%;border-collapse:collapse;margin-top:16px;}
       th{background:#f3f4f6;text-align:left;padding:8px;border:1px solid #ddd;font-size:13px;}
@@ -478,27 +502,32 @@ function exportGaztVatReturn(period) {
       .net{font-weight:700;background:#fef3c7;}
       .warn{margin-top:16px;padding:10px 12px;border:1px solid #f59e0b;background:#fffbeb;font-size:12px;}</style></head>
     <body>
-      <h1>GAZT VAT Return — ${escapeHtml(shopName() || '')} (${escapeHtml(period.toUpperCase())} ${now.getFullYear()})</h1>
+      <h1>${escapeHtml(taxName)} summary — ${escapeHtml(shopName() || '')} (${escapeHtml(period.toUpperCase())} ${now.getFullYear()})</h1>
       <p style="font-size:12px;color:#666;">Period: ${escapeHtml(fromDate)} to ${escapeHtml(toDate)}</p>
       <table>
         <thead><tr><th>Box</th><th>Description</th><th>Amount (${escapeHtml(currencySymbol())})</th></tr></thead>
         <tbody>
-          <tr><td>Box 1</td><td>Total Sales (Standard-rated)</td><td>${fmtMoney(box1)}</td></tr>
-          <tr><td>Box 2</td><td>Zero-rated Sales</td><td>${fmtMoney(box2)}</td></tr>
-          <tr><td>Box 3</td><td>VAT Collected on Sales</td><td>${fmtMoney(box3)}</td></tr>
-          <tr><td>Box 6</td><td>Total Purchases</td><td>${fmtMoney(box6)}</td></tr>
-          <tr><td>Box 7</td><td>Input VAT (Recoverable)</td><td>${box7Known ? fmtMoney(box7) : '&mdash;'}</td></tr>
-          <tr class="net"><td colspan="2">Net VAT Payable (Box 3 &minus; Box 7)</td><td>${fmtMoney(netVat)}</td></tr>
+          <tr><td>${boxNo(1)}</td><td>Sales at the standard rate (net of ${escapeHtml(taxName)})</td><td>${fmtMoney(box1)}</td></tr>
+          <tr><td>${boxNo(2)}</td><td>Sales at zero rate</td><td>${fmtMoney(box2)}</td></tr>
+          <tr><td>${boxNo(3)}</td><td>${escapeHtml(taxName)} collected on sales</td><td>${fmtMoney(box3)}</td></tr>
+          <tr><td>${boxNo(6)}</td><td>Total purchases</td><td>${fmtMoney(box6)}</td></tr>
+          <tr><td>${boxNo(7)}</td><td>${escapeHtml(taxName)} paid on purchases (recoverable)</td><td>${box7Known ? fmtMoney(box7) : '&mdash;'}</td></tr>
+          <tr class="net"><td colspan="2">Net ${escapeHtml(taxName)} payable</td><td>${fmtMoney(netVat)}</td></tr>
         </tbody>
       </table>
-      ${box7Known ? '' : `<p class="warn">Khayt does not record VAT on expenses, so Box 7 is blank
-        and the net figure assumes nothing is reclaimable. Add your input VAT before filing.</p>`}
-      <p style="font-size:12px;color:#666;margin-top:16px;">Sales are shown net of VAT.
-        Prices in Khayt include VAT at ${escapeHtml(String(ratePct))}%, and Box 1 has it removed.</p>
+      ${box7Known ? '' : `<p class="warn">Khayt does not record ${escapeHtml(taxName)} on expenses, so the
+        recoverable line is blank and the net figure assumes nothing is reclaimable. Add your own
+        figure before filing.</p>`}
+      <p class="warn">This is a summary to transcribe onto the return you file &mdash; not the return
+        itself. Khayt applies one rate to every sale, so a shop with mixed or exempt rating must
+        split these figures itself.${isSaudiForm ? '' : ' The box numbers on your form will differ.'}</p>
+      <p style="font-size:12px;color:#666;margin-top:16px;">${taxProfile.mode === 'inclusive'
+        ? `Prices in Khayt include ${escapeHtml(taxName)} at ${escapeHtml(String(ratePct))}%, and sales are shown with it removed.`
+        : `Prices in Khayt exclude ${escapeHtml(taxName)}; it is added at ${escapeHtml(String(ratePct))}% and shown separately.`}</p>
     </body></html>`;
 
   if (window.hubAPI?.exportPDF) {
-    window.hubAPI.exportPDF({ html, filename: `vat-return-${period}-${now.getFullYear()}.pdf` })
+    window.hubAPI.exportPDF({ html, filename: `tax-summary-${period}-${now.getFullYear()}.pdf` })
       .then(() => toast('VAT return exported!', 'success'))
       .catch(() => _fallbackVatDownload(html, period, now.getFullYear()));
   } else {
@@ -508,7 +537,7 @@ function exportGaztVatReturn(period) {
 
 function _fallbackVatDownload(html, period, year) {
   const blob = new Blob([html], { type: 'text/html' });
-  downloadBlob(blob, `vat-return-${period}-${year}.html`);
+  downloadBlob(blob, `tax-summary-${period}-${year}.html`);
   toast('VAT return downloaded as HTML', 'info');
 }
 
