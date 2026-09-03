@@ -62,6 +62,12 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **What actually came off the printer was thrown away every time you saved.**
+  Khayt records the real filament weight and print time of each finished job
+  from the printer itself, and then deleted that record on the very next edit
+  you made — so the figures were never there the next morning, and a job's
+  actuals fell back to an estimate. The history is kept now.
+
 - **Two people using the shop at once could lose one of their entries.** If an
   order was logged on one phone while an expense, a spool update or a survey was
   being saved from another — or from the app itself — the second one could put

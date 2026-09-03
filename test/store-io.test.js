@@ -691,3 +691,76 @@ test('updateStoreOnDisk: the mutator sees decrypted secrets, not ciphertext', as
     assert.equal(io.readStoreDecryptedFromDisk().settings.lanApi.pin, '4321', 'the pin was double-encrypted');
   } finally { fs.rmSync(tmp2, { recursive: true, force: true }); }
 });
+
+/* ------------------------------------------------------------------
+ * Keys the main process owns must survive a renderer save.
+ *
+ * normalizeStoreSnapshot is an allowlist of ARRAY_COLLECTIONS (+ settings,
+ * version, exportedAt). `printerCompletions` is written by the printer poll
+ * timer in the main process and is NOT in it, so:
+ *
+ *   1. the poll timer writes the completion history to disk;
+ *   2. the renderer never receives it, because load normalises it away;
+ *   3. hub:save-store normalises the renderer's snapshot and writes THAT,
+ *      deleting the key from disk.
+ *
+ * Every renderer save is every edit, so the history never survived a session.
+ * rehydrateCompletions found nothing at the next launch, and a finished job's
+ * real filament weight and duration were gone.
+ *
+ * printer-poll-cache.test.js round-tripped completionsToPersist →
+ * restoreCompletions perfectly the whole time. The module was right; nothing
+ * kept its output. Same shape as #578.
+ * ------------------------------------------------------------------ */
+
+/** The save path as hub:save-store runs it: normalise, merge from disk, write. */
+async function rendererSave(io, snapshot) {
+  const { normalizeStoreSnapshot } = require('../renderer/store-validate.js');
+  const { normalized } = normalizeStoreSnapshot(snapshot);
+  await io.writeStoreToDisk(io.mergeStoreSecretsFromDisk(normalized));
+}
+
+test('a renderer save does not delete the printer completion history', async () => {
+  const io = makeStoreIo();
+  await io.writeStoreToDisk({
+    printLog: [], settings: {},
+    printerCompletions: { 'PRN-1': { completions: [{ at: 1, filename: 'bracket.gcode', actuals: { filamentGrams: 222 } }] } },
+  });
+  // The renderer's snapshot has never contained this key — it cannot send it back.
+  await rendererSave(io, { printLog: [], settings: {}, version: 10 });
+
+  const disk = io.recoverStoreRaw().data;
+  assert.ok(disk.printerCompletions, 'the completion history was deleted by an ordinary save');
+  assert.equal(disk.printerCompletions['PRN-1'].completions[0].actuals.filamentGrams, 222);
+});
+
+test('the renderer still wins when it does send one of those keys', async () => {
+  const io = makeStoreIo();
+  await io.writeStoreToDisk({ printLog: [], settings: {}, printerCompletions: { old: 1 } });
+  await io.writeStoreToDisk(io.mergeStoreSecretsFromDisk({ printLog: [], settings: {}, printerCompletions: { fresh: 1 } }));
+  assert.deepEqual(io.recoverStoreRaw().data.printerCompletions, { fresh: 1 },
+    'a value the caller supplied was overwritten by the one on disk');
+});
+
+test('every main-owned key is one normalize would otherwise drop', () => {
+  // If a key ever joins ARRAY_COLLECTIONS, it stops needing this rescue, and
+  // leaving it here would pin a stale disk copy over the renderer's.
+  const { MAIN_OWNED_KEYS } = require('../lib/store-io.js');
+  const { ARRAY_COLLECTIONS } = require('../renderer/store-validate.js');
+  assert.ok(MAIN_OWNED_KEYS.length > 0);
+  for (const k of MAIN_OWNED_KEYS) {
+    assert.ok(!ARRAY_COLLECTIONS.includes(k), `${k} is a normal collection now — take it off MAIN_OWNED_KEYS`);
+    assert.ok(!['settings', 'version', 'exportedAt'].includes(k), `${k} already survives normalize`);
+  }
+});
+
+test('the key main.js writes is the key that is rescued', () => {
+  // The bug is re-introduced by adding a second store key in main.js and not
+  // listing it. Read the constant out of the source and require it to be listed.
+  const src = fs.readFileSync(path.join(__dirname, '..', 'main.js'), 'utf8');
+  const { MAIN_OWNED_KEYS } = require('../lib/store-io.js');
+  const m = src.match(/const COMPLETIONS_KEY = '([^']+)'/);
+  assert.ok(m, 'COMPLETIONS_KEY is gone from main.js');
+  assert.ok(MAIN_OWNED_KEYS.includes(m[1]),
+    `main.js persists "${m[1]}" but MAIN_OWNED_KEYS does not rescue it — every save will delete it`);
+});
