@@ -753,8 +753,20 @@ async function renderInvoiceForOrder(order) {
   const itemsSubtotalIncl = price - _shipIncl - _rushIncl;          // parts + extras, post-discount
   const subtotalShown = fmtMoney(order.discountPct > 0 ? itemsSubtotalIncl + _discAmt : itemsSubtotalIncl);
   let qrSvg = '';
+  // Why there is no QR, when there is none. An empty box on a tax invoice needs
+  // to say what is missing, and the shop needs telling before it hands the
+  // document over — not by noticing grey text on a PDF.
+  let qrProblem = null;
   if (settings.enableZatca && window.hubAPI?.generateQR) {
+    // A QR missing a required tag SCANS and is invalid, which is worse than an
+    // empty box: a code that reads invites no question. Refuse to draw one.
+    const ready = zatcaQrReadiness(settings);
+    if (!ready.ok) {
+      qrProblem = ready.missing.map((k) => t(k)).join(' · ');
+      if (typeof toast === 'function') toast(t('inv.qr_not_compliant') + ' — ' + qrProblem, 'error', 12000);
+    }
     try {
+      if (!ready.ok) throw new Error('zatca-qr-not-ready');
       const z2 = settings.zatcaPhase2;
       let tlvB64;
       if (z2?.enabled && (z2.csid || z2.pcsid)) {
@@ -802,7 +814,15 @@ async function renderInvoiceForOrder(order) {
         tlvB64 = buildZatcaTLV({ sellerName: shopName() || '', vatNumber: settings.vat || '', timestamp: ts, total, vatAmount });
       }
       qrSvg = await window.hubAPI.generateQR(tlvB64, { width: 140, margin: 1 });
-    } catch (e) { console.error('ZATCA QR error:', e); }
+    } catch (e) {
+      // Keep a readiness reason: it is specific, and "could not be generated"
+      // would send the shop looking in the wrong place.
+      if (!qrProblem) {
+        console.error('ZATCA QR error:', e);
+        qrProblem = t('inv.qr_failed');
+        if (typeof toast === 'function') toast(t('inv.qr_not_compliant') + ' — ' + qrProblem, 'error', 12000);
+      }
+    }
   }
 
   // Payment QR — EMVCo-inspired format for GCC banking apps (SARIE/Mada compatible)
@@ -818,7 +838,7 @@ async function renderInvoiceForOrder(order) {
     catch (e) { console.warn('Payment QR failed', e); }
   }
 
-  renderInvoice(order, { qrSvg, payQrSvg, total, vatAmount, subtotal, subtotalShown, vatRate: rate, shipping });
+  renderInvoice(order, { qrSvg, qrProblem, payQrSvg, total, vatAmount, subtotal, subtotalShown, vatRate: rate, shipping });
   maybeAutoSubmitZatca(order);
 }
 
@@ -862,6 +882,41 @@ async function generateProformaInvoice(orderId) {
 }
 
 /* --- extracted 18039-18214 --- */
+/**
+ * Can this shop produce a ZATCA QR that is actually valid?
+ *
+ * The QR encodes five TLV tags and ZATCA requires all five to be present and
+ * non-empty. buildZatcaTLV coerced every field with `|| ''`, so a shop that had
+ * switched ZATCA on but not entered its VAT number produced this:
+ *
+ *     tag 1 len 15 value: "Khayt Test Shop"
+ *     tag 2 len  0 value: ""            ← the VAT number
+ *     tag 3 len 20 value: "2026-09-03T10:00:00Z"
+ *     tag 4 len  6 value: "450.00"
+ *     tag 5 len  5 value: "58.70"
+ *
+ * That QR SCANS. It is also invalid, which makes it worse than no QR at all:
+ * an empty box invites a question, and a code that scans does not. The shop
+ * hands a customer an invoice that looks compliant and is not, and nothing
+ * anywhere says so.
+ *
+ * Only the two fields a shop configures are checked. The timestamp and the two
+ * money figures are computed per invoice and cannot be blank without a bigger
+ * problem than this.
+ *
+ * @returns {{ok: boolean, missing: string[]}} missing holds i18n keys
+ */
+function zatcaQrReadiness(s) {
+  const cfg = s || {};
+  const missing = [];
+  if (!String((cfg.bizName || cfg.shopName || '')).trim()
+      && !(typeof shopName === 'function' && String(shopName() || '').trim())) {
+    missing.push('inv.qr_missing_seller');
+  }
+  if (!String(cfg.vat || '').trim()) missing.push('inv.qr_missing_vat');
+  return { ok: missing.length === 0, missing };
+}
+
 function buildZatcaTLV({ sellerName, vatNumber, timestamp, total, vatAmount }) {
   const enc = new TextEncoder();
   function tlv(tag, value) {
@@ -1374,7 +1429,7 @@ async function generateMilestoneInvoice(orderId, milestone) {
 }
 
 /* --- extracted 18874-19253 --- */
-function renderInvoice(order, { qrSvg, payQrSvg = '', total, vatAmount, subtotal, subtotalShown, vatRate, shipping = 0 }) {
+function renderInvoice(order, { qrSvg, qrProblem = null, payQrSvg = '', total, vatAmount, subtotal, subtotalShown, vatRate, shipping = 0 }) {
   const area = $('#invoice-print-area');
   const issuedDate = formatPrintDate(order.date);
   const issuedTime = order.timestamp ? new Date(order.timestamp).toTimeString().slice(0, 5) : '';
@@ -1690,7 +1745,8 @@ function renderInvoice(order, { qrSvg, payQrSvg = '', total, vatAmount, subtotal
       <div class="totals">
         ${settings.enableZatca ? `
         <div class="qr-box">
-          <div class="qr-svg">${qrSvg || '<div style="font-size:11px;color:#888;padding:24px;">QR unavailable</div>'}</div>
+          <div class="qr-svg">${qrSvg || `<div style="font-size:11px;color:#b91c1c;padding:18px 8px;line-height:1.5;">
+            <strong>${escapeHtml(t('inv.qr_not_compliant'))}</strong><br>${escapeHtml(qrProblem || t('inv.qr_failed'))}</div>`}</div>
           <div class="qr-label">
             <span>${escapeHtml(L.qrLabel[0])}</span>
             ${sub(L.qrLabel[1])}
@@ -1863,6 +1919,7 @@ const BRAND_MARK_SVG = `
 
   global.BRAND_MARK_SVG = BRAND_MARK_SVG;
   Object.assign(global, api);
+  api.zatcaQrReadiness = zatcaQrReadiness;
   global.KhaytInvoicing = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof globalThis !== 'undefined' ? globalThis : window);
