@@ -3796,6 +3796,8 @@
   "sync.resurrected_many": "{n} registros que você excluiu voltaram. Um erro de sincronização antigo podia readicionar registros excluídos; exclua-os novamente se eles devem sumir.",
   "sync.discarded_one": "Uma edição foi descartada — “{name}” foi excluído em outro dispositivo.",
   "sync.discarded_many": "{n} edições foram descartadas — esses registros foram excluídos em outro dispositivo.",
+  "sync.overwritten_one": "Uma alteração que você fez em “{name}” foi substituída por uma versão mais recente de outro dispositivo — vale conferir.",
+  "sync.overwritten_many": "{n} das suas alterações foram substituídas por versões mais recentes de outro dispositivo — vale conferir.",
   "set.ai_master": "Assistência de IA",
   "set.ai_sends": "Envia à Anthropic:",
   "set.ai_pii_badge": "Dados de clientes",

@@ -3795,6 +3795,8 @@
   "sync.resurrected_many": "您删除的 {n} 条记录又出现了。旧版同步缺陷可能会重新添加已删除的记录；如果它们应该消失，请再次删除。",
   "sync.discarded_one": "一处编辑被丢弃 — “{name}”已在另一台设备上删除。",
   "sync.discarded_many": "{n} 处编辑被丢弃 — 这些记录已在另一台设备上删除。",
+  "sync.overwritten_one": "您对“{name}”所做的修改已被另一台设备上更新的版本覆盖 — 建议查看。",
+  "sync.overwritten_many": "您的 {n} 处修改已被另一台设备上更新的版本覆盖 — 建议查看。",
   "set.ai_master": "AI 辅助",
   "set.ai_sends": "发送至 Anthropic：",
   "set.ai_pii_badge": "客户数据",

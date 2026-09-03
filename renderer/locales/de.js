@@ -3795,6 +3795,8 @@
   "sync.resurrected_many": "{n} von Ihnen gelöschte Datensätze sind zurück. Ein älterer Sync-Fehler konnte gelöschte Datensätze erneut hinzufügen; löschen Sie sie erneut, wenn sie weg sein sollen.",
   "sync.discarded_one": "Eine Änderung wurde verworfen — „{name}“ wurde auf einem anderen Gerät gelöscht.",
   "sync.discarded_many": "{n} Änderungen wurden verworfen — diese Datensätze wurden auf einem anderen Gerät gelöscht.",
+  "sync.overwritten_one": "Ihre Änderung an „{name}“ wurde durch eine neuere Version von einem anderen Gerät ersetzt — sehen Sie sie sich an.",
+  "sync.overwritten_many": "{n} Ihrer Änderungen wurden durch neuere Versionen von einem anderen Gerät ersetzt — sehen Sie sie sich an.",
   "set.ai_master": "KI-Assistenz",
   "set.ai_sends": "Sendet an Anthropic:",
   "set.ai_pii_badge": "Kundendaten",

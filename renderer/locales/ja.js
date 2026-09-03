@@ -3795,6 +3795,8 @@
   "sync.resurrected_many": "削除した {n} 件のレコードが復活しました。以前の同期の不具合により削除済みレコードが再追加されることがありました。不要な場合は削除し直してください。",
   "sync.discarded_one": "編集が破棄されました —「{name}」は別のデバイスで削除されました。",
   "sync.discarded_many": "{n} 件の編集が破棄されました — これらのレコードは別のデバイスで削除されました。",
+  "sync.overwritten_one": "「{name}」への変更が、別の端末の新しいバージョンで置き換えられました — ご確認ください。",
+  "sync.overwritten_many": "{n} 件の変更が、別の端末の新しいバージョンで置き換えられました — ご確認ください。",
   "set.ai_master": "AI アシスト",
   "set.ai_sends": "Anthropic に送信:",
   "set.ai_pii_badge": "顧客データ",
