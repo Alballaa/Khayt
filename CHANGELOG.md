@@ -62,6 +62,13 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **A shop with several printers could lose a finished job's real figures.** If
+  enough machines were slow to answer — printers switched off overnight, say —
+  one round of status checks took longer than the gap before the next one
+  started, and the two overlapped. When that happened the moment a job finished
+  could be missed, and with it the only record of what the print actually used.
+  Only one round now runs at a time.
+
 - **An order paid off through a payment plan now actually shows as settled.**
   With plans corrected to bill only what is outstanding, a job with a deposit
   would have gone on showing the deposit as still owed even after the customer

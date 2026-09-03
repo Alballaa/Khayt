@@ -4131,7 +4131,39 @@ ipcMain.handle('hub:start-printer-polling', async (_e, machines) => {
   // Anything captured before the app was last closed, back in the cache before
   // the first poll overwrites the entry it belongs to.
   rehydrateCompletions();
+  /* ONE POLL AT A TIME.
+   *
+   * setInterval does not wait for an async callback, and a poll is SEQUENTIAL:
+   * one fetchPrinterStatus per machine, each with a 5-second timeout. Seven
+   * machines that do not answer — a shop whose printers are off overnight — take
+   * 35 seconds, so the next tick fires 5 seconds before the previous poll has
+   * finished, and from then on they stack.
+   *
+   * Two polls in flight both read `before` from printerStatusCache and both
+   * write it back. The one that read the STALE value does not see the edge out
+   * of printing, and whichever writes last wins:
+   *
+   *     completion seen by the poll that read the fresh state : true
+   *     completion seen by the poll that read a STALE state   : false
+   *
+   * That edge is the only moment a job's measured filament and duration are
+   * true — captureCompletion exists because the printer's counters reset when
+   * the next job starts. Losing the race loses the measurement, silently.
+   *
+   * Skipping a tick rather than queueing it: the next one is thirty seconds
+   * away and the data it wants is "what is the printer doing now", so a queued
+   * poll would only ask a stale question late. */
+  let pollInFlight = false;
   const poll = async () => {
+    if (pollInFlight) return;
+    pollInFlight = true;
+    try {
+      await pollOnce();
+    } finally {
+      pollInFlight = false;
+    }
+  };
+  const pollOnce = async () => {
     let captured = false;
     for (const machine of machineList) {
       if (!machine.printerApi?.type || machine.printerApi.type === 'none') continue;
