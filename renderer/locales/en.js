@@ -2290,6 +2290,7 @@
   "inst.add": "+ Add instalment",
   "inst.generate": "Generate plan",
   "inst.need_price": "Set an order price first",
+  "inst.nothing_owed": "This order is already paid in full",
   "inst.replace_q": "Replace the current installments?",
   "inst.generated": "Generated a 3-payment plan — edit amounts/dates as needed",
   "inst.amount": "Amount",

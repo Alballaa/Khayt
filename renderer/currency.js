@@ -128,6 +128,27 @@
     return Math.max(0, orderRevenueBase(o) - orderCreditedBase(o));
   }
 
+  /**
+   * What is still outstanding, in the ORDER'S OWN currency.
+   *
+   * Same rules as orderOwedBase — credit notes, gift-card redemption and cash
+   * all pay an order down — but without converting to base, because the caller
+   * is writing amounts BACK onto the order. An instalment plan denominated in
+   * the shop's base currency on an order priced in another is a second bug.
+   *
+   * The instalment generator passed the gross price, so a job with a deposit
+   * already taken produced a schedule that billed the deposit a second time:
+   * SAR 3,000 across three payments on a job with SAR 2,000 left to pay.
+   */
+  function orderOwedRaw(o) {
+    if (typeof KhaytBusinessScope !== 'undefined' && !KhaytBusinessScope.countsForBusiness(o)) return 0;
+    if (typeof KhaytBusinessScope !== 'undefined' && KhaytBusinessScope.isSuperseded(o)) return 0;
+    return Math.max(
+      0,
+      (+o.price || 0) - (+o.paidAmount || 0) - (+o.giftCardDiscount || 0) - orderCreditedRaw(o),
+    );
+  }
+
   function orderOwedBase(o) {
     // Nothing is owed on a print that was never sold.
     if (typeof KhaytBusinessScope !== 'undefined' && !KhaytBusinessScope.countsForBusiness(o)) return 0;
@@ -164,6 +185,7 @@
     orderCreditedBase,
     orderNetRevenueBase,
     orderOwedBase,
+    orderOwedRaw,
     refreshCurrencyLabels,
   };
 

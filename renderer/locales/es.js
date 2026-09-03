@@ -2289,6 +2289,7 @@
   "inst.add": "+ Añadir cuota",
   "inst.generate": "Generar plan",
   "inst.need_price": "Define primero un precio de pedido",
+  "inst.nothing_owed": "Este pedido ya está pagado por completo",
   "inst.replace_q": "¿Reemplazar las cuotas actuales?",
   "inst.generated": "Se generó un plan de 3 pagos — edita los importes/fechas según necesites",
   "inst.amount": "Importe",

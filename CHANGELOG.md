@@ -62,6 +62,13 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **A payment plan asked for the deposit all over again.** Generating
+  instalments split the order's full price, ignoring anything already paid — so
+  a SAR 3,000 job with a SAR 1,000 deposit became three payments of SAR 1,000,
+  billing the customer SAR 3,000 for SAR 2,000 of work. Plans are now built from
+  what is actually outstanding, and an order that is already settled says so
+  instead of offering to bill it again.
+
 - Internal: one guard now names every new seam in this release and fails if
   nothing calls it, so a finished feature cannot ship switched off.
 

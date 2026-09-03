@@ -2289,6 +2289,7 @@
   "inst.add": "+ Rate hinzufügen",
   "inst.generate": "Plan erstellen",
   "inst.need_price": "Zuerst einen Auftragspreis festlegen",
+  "inst.nothing_owed": "Diese Bestellung ist bereits vollständig bezahlt",
   "inst.replace_q": "Aktuelle Raten ersetzen?",
   "inst.generated": "3-Raten-Plan erstellt — Beträge/Daten bei Bedarf anpassen",
   "inst.amount": "Betrag",
