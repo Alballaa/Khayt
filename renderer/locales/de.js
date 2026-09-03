@@ -3046,6 +3046,8 @@
   "cloud.need_password": "Kontopasswort muss mind. 8 Zeichen haben",
   "cloud.account_created": "Konto erstellt — Khayt Cloud verbunden",
   "cloud.logged_in": "Angemeldet — über „Aus Cloud wiederherstellen“ Ihre Daten abrufen",
+  "cloud.keyset_put_failed": "Ihr Sync-Schlüssel konnte nicht auf dem Server gespeichert werden — andere Geräte können diesen Shop nicht öffnen. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
+  "cloud.keyset_retry": "Die Synchronisierung ist nicht abgeschlossen: Ihr Schlüssel liegt noch nicht auf dem Server. Melden Sie sich erneut an, sobald Sie wieder online sind, bevor Sie sich darauf verlassen, dass dieser Shop wiederherstellbar ist.",
   "cloud.restore_q": "Alle lokalen Daten durch die Cloud-Kopie ersetzen? Dies kann nicht rückgängig gemacht werden.",
   "cloud.restored": "Aus Cloud wiederhergestellt",
   "cloud.snapshots": "Snapshot-Verlauf",

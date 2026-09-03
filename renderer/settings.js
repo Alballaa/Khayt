@@ -987,7 +987,7 @@ async function openOrgModal() {
         const stripped = await window.hubAPI.orgRemoveShop({ keyset: settings.cloud.keyset });
         if (stripped.ok) {
           settings.cloud.keyset = stripped.keyset;
-          await window.hubAPI.cloudPutKeyset({ url: c.url, shopId: c.shopId, token: c.token, keyset: stripped.keyset });
+          await putCloudKeyset({ url: c.url, shopId: c.shopId, token: c.token, keyset: stripped.keyset }, 'org leave');
           saveAll();
         }
         toast(t('org.left') || 'This branch is no longer in the organisation', 'success');
@@ -1240,7 +1240,7 @@ function createOrganisation(c) {
       if (!put.ok) { err.textContent = put.error || 'failed'; return false; }
 
       settings.cloud.keyset = enrol.keyset;
-      await window.hubAPI.cloudPutKeyset({ url: c.url, shopId: c.shopId, token: c.token, keyset: enrol.keyset });
+      await putCloudKeyset({ url: c.url, shopId: c.shopId, token: c.token, keyset: enrol.keyset }, 'org enrol');
       saveAll();
       renderCloudSettings();
       // openFormModal shares one #modalMount and its close() empties it, so a
@@ -1286,7 +1286,7 @@ function joinOrganisation(c) {
       if (!enrol.ok) { err.textContent = t('cloud.wrong_pass') || 'Wrong sync passphrase for this branch'; return false; }
 
       settings.cloud.keyset = enrol.keyset;
-      await window.hubAPI.cloudPutKeyset({ url: c.url, shopId: c.shopId, token: c.token, keyset: enrol.keyset });
+      await putCloudKeyset({ url: c.url, shopId: c.shopId, token: c.token, keyset: enrol.keyset }, 'org enrol');
       saveAll();
       toast(t('org.joined') || 'This branch joined the organisation', 'success');
       renderCloudSettings();
@@ -1979,6 +1979,39 @@ function reportResurrectedRecords() {
 async function forgetCloudServerView() {
   try { await window.hubAPI?.cloudForgetView?.(); }
   catch (e) { console.error('cloudForgetView:', e); }
+}
+
+/**
+ * Write the shop's keyset to the server, and TELL SOMEONE IF IT FAILS.
+ *
+ * The keyset is what makes the encrypted store readable: without it on the
+ * server, a second device logs in, gets no keyset, and cannot open a store that
+ * is sitting right there. Four call sites awaited hub:cloud-put-keyset and threw
+ * the `{ok:false,error}` away — each of them having carefully checked every
+ * other call in the same handler, and then ignoring the one that persists the
+ * result.
+ *
+ * The worst was the login path: an account with no keyset had one created from
+ * the passphrase, and the recovery key was shown as though it were saved. If the
+ * upload failed, that shop's store existed only on that one machine, behind a
+ * recovery key the owner had been told to write down.
+ *
+ * Returns true when the server has it.
+ */
+async function putCloudKeyset({ url, shopId, token, keyset }, whatFailed) {
+  let r;
+  try {
+    r = await window.hubAPI.cloudPutKeyset({ url, shopId, token, keyset });
+  } catch (e) {
+    r = { ok: false, error: String((e && e.message) || e) };
+  }
+  if (r && r.ok) return true;
+  const why = (r && r.error) ? `: ${r.error}` : '';
+  console.error('cloudPutKeyset failed', whatFailed || '', why);
+  toast((t('cloud.keyset_put_failed')
+    || 'Your sync key could not be saved to the server — other devices will not be able to open this shop. Check your connection and try again.') + why,
+  'error', 12000);
+  return false;
 }
 
 function cloudSyncDeps() {
@@ -2981,8 +3014,13 @@ function renderCloudSettings() {
     const un = await window.hubAPI.cloudUnlock({ url: f.url, shopId: lr.shopId, token: lr.token, keyset, passphrase: f.pass });
     if (!un.ok) { result('✗ ' + (t('cloud.wrong_pass') || 'Wrong sync passphrase for this account'), 'var(--danger)'); renderCloudSettings(); return; }
     if (recoveryKey) {
-      await window.hubAPI.cloudPutKeyset({ url: f.url, shopId: lr.shopId, token: lr.token, keyset });
-      showRecoveryKeyModal(recoveryKey);
+      // The keyset was created HERE and exists nowhere else yet. Showing a
+      // recovery key before the server has it tells the owner their shop is
+      // recoverable when it is not — it would live on this machine alone.
+      const saved = await putCloudKeyset({ url: f.url, shopId: lr.shopId, token: lr.token, keyset }, 'first keyset');
+      if (saved) showRecoveryKeyModal(recoveryKey);
+      else toast(t('cloud.keyset_retry')
+        || 'Sync is not finished: your key is not on the server yet. Log in again once you are back online, before relying on this shop being recoverable.', 'error', 15000);
     }
     // Configure auto-sync but DON'T auto-pull on a new device — let the user
     // click "Restore from cloud" (full replace) to populate, then it stays synced.

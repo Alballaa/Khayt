@@ -3047,6 +3047,8 @@
   "cloud.need_password": "A senha da conta deve ter 8+ caracteres",
   "cloud.account_created": "Conta criada — Khayt Cloud conectado",
   "cloud.logged_in": "Login efetuado — use “Restaurar da nuvem” para trazer seus dados",
+  "cloud.keyset_put_failed": "Sua chave de sincronização não pôde ser salva no servidor — outros dispositivos não conseguirão abrir esta loja. Verifique sua conexão e tente novamente.",
+  "cloud.keyset_retry": "A sincronização não terminou: sua chave ainda não está no servidor. Faça login novamente quando estiver online, antes de contar com a recuperação desta loja.",
   "cloud.restore_q": "Substituir todos os dados locais pela cópia da nuvem? Isso não pode ser desfeito.",
   "cloud.restored": "Restaurado da nuvem",
   "cloud.snapshots": "Histórico de versões",

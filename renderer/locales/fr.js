@@ -3046,6 +3046,8 @@
   "cloud.need_password": "Le mot de passe du compte doit comporter au moins 8 caractères",
   "cloud.account_created": "Compte créé — Khayt Cloud connecté",
   "cloud.logged_in": "Connecté — utilisez « Restaurer depuis le cloud » pour récupérer vos données",
+  "cloud.keyset_put_failed": "Votre clé de synchronisation n'a pas pu être enregistrée sur le serveur — les autres appareils ne pourront pas ouvrir cet atelier. Vérifiez votre connexion et réessayez.",
+  "cloud.keyset_retry": "La synchronisation n'est pas terminée : votre clé n'est pas encore sur le serveur. Reconnectez-vous une fois en ligne, avant de compter sur la récupération de cet atelier.",
   "cloud.restore_q": "Remplacer toutes les données locales par la copie cloud ? Cette action est irréversible.",
   "cloud.restored": "Restauré depuis le cloud",
   "cloud.snapshots": "Historique des instantanés",

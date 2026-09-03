@@ -3046,6 +3046,8 @@
   "cloud.need_password": "Hesap parolası en az 8 karakter olmalı",
   "cloud.account_created": "Hesap oluşturuldu — Khayt Cloud bağlandı",
   "cloud.logged_in": "Giriş yapıldı — verilerinizi çekmek için “Buluttan geri yükle”yi kullanın",
+  "cloud.keyset_put_failed": "Eşitleme anahtarınız sunucuya kaydedilemedi — diğer cihazlar bu dükkânı açamayacak. Bağlantınızı kontrol edip tekrar deneyin.",
+  "cloud.keyset_retry": "Eşitleme tamamlanmadı: anahtarınız henüz sunucuda değil. Bu dükkânın kurtarılabilir olduğuna güvenmeden önce, çevrimiçi olduğunuzda tekrar giriş yapın.",
   "cloud.restore_q": "Tüm yerel veriler bulut kopyasıyla değiştirilsin mi? Bu işlem geri alınamaz.",
   "cloud.restored": "Buluttan geri yüklendi",
   "cloud.snapshots": "Anlık görüntü geçmişi",
