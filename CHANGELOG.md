@@ -4,6 +4,8 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.7.0-beta.25] - 2026-09-03
+
 ### Before you update
 
 - **The box on a print file that said "Folder" now says "Group", and it means
