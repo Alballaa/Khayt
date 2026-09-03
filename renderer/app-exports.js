@@ -204,7 +204,7 @@ async function exportQuoteApprovalPage(orderId) {
         <h2>✅ ${escapeHtml(t('ord.quote_approval_page'))}</h2>
         <p>${escapeHtml(howToApprove)}</p>
         ${approveQrHtml}
-        ${!approveUrl && contactEmail ? `<p style="margin-top:8px;">📧 <a href="mailto:${escapeHtml(contactEmail)}?subject=I approve quote ${escapeHtml(order.id)}">${escapeHtml(contactEmail)}</a></p>` : ''}
+        ${!approveUrl && contactEmail ? `<p style="margin-top:8px;">📧 <a href="mailto:${encodeURIComponent(contactEmail)}?subject=${encodeURIComponent('I approve quote ' + order.id)}">${escapeHtml(contactEmail)}</a></p>` : ''}
         ${!approveUrl && contactPhone ? `<p style="margin-top:4px;">📱 <a href="https://wa.me/${contactPhone.replace(/\D/g,'')}?text=${encodeURIComponent('I approve quote ' + order.id)}">${escapeHtml(contactPhone)} (WhatsApp)</a></p>` : ''}
       </div>
     </div>
