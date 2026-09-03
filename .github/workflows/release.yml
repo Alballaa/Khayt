@@ -674,6 +674,14 @@ jobs:
       # github.ref_name, which is now a branch.
       tag: ${{ steps.v.outputs.tag }}
     steps:
+      # The notes come from CHANGELOG.md, so the job needs the repo they are in.
+      # The Khayt lane shipped a release without this and nobody noticed, because
+      # the missing file falls through to a fallback and the build stays green.
+      - name: Check out the tagged commit (for the release notes)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
       - name: Require a cross-repo token
         env:
           TOKEN: ${{ secrets.BEDREADY_RELEASE_TOKEN }}
@@ -733,10 +741,26 @@ jobs:
           if [ -z "$MATCHES" ]; then
             FLAGS=""
             if [ "$PRERELEASE" = "true" ]; then FLAGS="--prerelease"; fi
+            # THE SAME NOTES AS KHAYT, FOR THE SAME REASON.
+            #
+            # This passed one fixed sentence — "See the Khayt CHANGELOG for what
+            # changed" — so a Bed Ready release carried no `Before you update`
+            # section, EVER. lib/major-changes.js reads the release body, finds
+            # no heading, and returns needsConsent:false. Bed Ready runs the
+            # identical renderer and updater, so its shops were the ones being
+            # asked to install a change nobody had shown them: the one thing the
+            # gate exists to prevent, unconditionally, for a whole flavour.
+            NOTES_FILE="$RUNNER_TEMP/bedready-notes.md"
+            if node scripts/changelog-section.js "${TAG#v}" > "$NOTES_FILE"; then
+              echo "release notes: $(wc -l < "$NOTES_FILE") lines from CHANGELOG.md"
+            else
+              echo "::warning::no CHANGELOG section for ${TAG#v} — publishing with the fallback note."
+              echo "Built from KhaytApp/Khayt@${GITHUB_SHA}. See the Khayt CHANGELOG for what changed." > "$NOTES_FILE"
+            fi
             gh release create "$TAG" \
               --repo KhaytApp/bedready \
               --title "Bed Ready $VERSION" \
-              --notes "Built from KhaytApp/Khayt@${GITHUB_SHA}. See the Khayt CHANGELOG for what changed." \
+              --notes-file "$NOTES_FILE" \
               --draft \
               $FLAGS
           elif echo "$MATCHES" | grep -qx published; then
