@@ -38,9 +38,12 @@ customer progress tracker — through both engines and compares the values.
 
 ```
 mac/
-  KhaytCore/           Swift package: the JS bridge + typed money API
-    Sources/…/JS/      copies of lib/*.js  ← never edit; run mac/sync-js.sh
-  sync-js.sh           re-copy from lib/
+  KhaytCore/                     Swift package
+    Sources/KhaytCore/           the JS bridge + typed money API
+    Sources/KhaytCore/JS/        copies of lib/*.js  ← never edit; run mac/sync-js.sh
+    Sources/KhaytApp/            the interface (SwiftUI) — reads, never writes
+  sync-js.sh                     re-copy from lib/
+  verify-safestorage.sh          confirm the Keychain link against a live store
 ```
 
 ## The copies are guarded twice
@@ -94,11 +97,70 @@ Two traps it will show you:
   Expected, once per binary — but it means an unsigned debug build and the
   shipped app are two separate grants.
 
+## The interface
+
+```bash
+cd mac/KhaytCore && swift run Khayt
+```
+
+The shop's book: a source list of the pipeline, a real `Table` of jobs, and an
+inspector for the selected one. It opens a store **read-only**, and there is no
+code in `KhaytApp` that writes — that is the constraint at the foot of this file
+honoured rather than worked around.
+
+A reader can still be wrong in the way that matters: showing a figure the app
+the shop actually bills from disagrees with. So the money on screen is not
+arithmetic written in Swift. The tax split in the inspector comes from
+`lib/tax.js` through `KhaytEngine`, and the sidebar's stage order comes from
+`lib/order-progress.js`. What the app works out for itself is what any table
+works out — sort keys, filters, and `price - paid`.
+
+Three books, and which one is open is stated in the toolbar and again at the
+foot of the sidebar. Mistaking the sample for the shop's real position is the
+one error this app must not allow.
+
+| Source | Where |
+|---|---|
+| Sample shop | 42 jobs bundled in the app; subtitled *sample data — not a real shop* |
+| This Mac — development | `~/Library/Application Support/khayt/khayt-store.json` |
+| This Mac — Khayt | `~/Library/Application Support/Khayt/khayt-store.json` |
+
+A store that is not on this Mac is not offered: a menu item that leads nowhere
+is a dead end dressed up as a choice.
+
+### Photographing it
+
+Judging a design by reading its source is guessing.
+
+```bash
+KHAYT_SNAPSHOT_DIR=/tmp/shots swift run Khayt     # writes 01-shop.png, then quits
+```
+
+It photographs the window's *theme frame* rather than its content view, because
+a unified toolbar lives in the title bar — a sibling of the content, not a child
+of it — and a picture without the toolbar is missing most of the chrome.
+
+Two things the picture cannot show. Both are artefacts of drawing a window into
+an offline bitmap, not faults to go and fix:
+
+* **The sidebar comes out black and empty.** `NSVisualEffectView` draws nothing
+  into a cached bitmap, and `.listStyle(.sidebar)` is one. To see those rows,
+  run once with `.listStyle(.plain)`, which has no material.
+* `ImageRenderer` is not the way round it. It returns a "cannot render"
+  placeholder for `NavigationSplitView`, `Table` and the toolbar alike — which
+  is to say for everything that makes this a Mac window rather than a page.
+
+The window frame is restored from the `Khayt` defaults domain, so `.defaultSize`
+applies on a first run and never again. `defaults delete Khayt` to see what a
+new shop sees. (That domain belongs to this binary; the Electron app's is
+`app.khayt.hub`, and deleting one does not touch the other.)
+
 ## Not yet built
 
-The store, the platform layer, and every screen. `KhaytCore` is the foundation
-they all sit on, and it is first because the alternative — screens against a
-half-trusted engine — is how the two apps come to disagree about a shop's money.
+Writing, the platform layer — store-io, the printer protocols, the LAN server —
+and every screen except the book. `KhaytCore` came first because the
+alternative, screens against a half-trusted engine, is how the two apps come to
+disagree about a shop's money.
 
 ## The one hard constraint
 

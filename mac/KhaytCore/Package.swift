@@ -20,9 +20,16 @@ let package = Package(
     platforms: [.macOS(.v14)],
     products: [
         .library(name: "KhaytCore", targets: ["KhaytCore"]),
+        .executable(name: "Khayt", targets: ["KhaytApp"]),
     ],
     targets: [
         .target(name: "KhaytCore", resources: [.copy("JS")]),
+        // The interface. Read-only for now — it can open a shop's store and
+        // compute from it, and it has no code that writes. That is deliberate:
+        // the design direction gets settled while nothing can be lost.
+        .executableTarget(name: "KhaytApp", dependencies: ["KhaytCore"],
+                          resources: [.process("Resources")]),
         .testTarget(name: "KhaytCoreTests", dependencies: ["KhaytCore"]),
+        .testTarget(name: "KhaytAppTests", dependencies: ["KhaytApp", "KhaytCore"]),
     ]
 )

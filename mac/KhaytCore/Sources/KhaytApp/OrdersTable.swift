@@ -1,0 +1,160 @@
+import SwiftUI
+
+/// The book. A real `Table`, which means AppKit's column resizing, column
+/// reordering, click-to-sort, type-select, and rows that stay put under the
+/// keyboard — none of which the web version manages convincingly.
+struct OrdersTable: View {
+    @Bindable var shop: Shop
+    @State private var order: [KeyPathComparator<Order>] = [
+        .init(\.date, order: .reverse)
+    ]
+
+    private var rows: [Order] { shop.shown.sorted(using: order) }
+
+    var body: some View {
+        Table(rows, selection: $shop.selection, sortOrder: $order) {
+            TableColumn("Job", value: \.project) { job in
+                HStack(spacing: 6) {
+                    if job.priority {
+                        Image(systemName: "flag.fill")
+                            .foregroundStyle(.orange)
+                            .help("Marked urgent")
+                    }
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(job.project).lineLimit(1)
+                        Text(job.id)
+                            .font(.caption2)
+                            .monospacedDigit()
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+            }
+            .width(min: 170, ideal: 240)
+
+            TableColumn("Customer", value: \.client) { job in
+                Text(job.client.isEmpty ? "—" : job.client)
+                    .foregroundStyle(job.client.isEmpty ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.primary))
+                    .lineLimit(1)
+            }
+            .width(min: 120, ideal: 180)
+
+            TableColumn("Stage", value: \.status) { job in
+                if let s = Stage.of(job) {
+                    Label(s.title, systemImage: s.symbol)
+                        .labelStyle(.titleAndIcon)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text(job.status).foregroundStyle(.tertiary)
+                }
+            }
+            .width(min: 100, ideal: 130)
+
+            TableColumn("Due") { job in
+                DueDate(job: job)
+            }
+            .width(min: 78, ideal: 96)
+
+            TableColumn("Total", value: \.price) { job in
+                Text(Money.figure(job.price)).moneyStyle()
+            }
+            .width(min: 80, ideal: 100)
+            .alignment(.trailing)
+
+            TableColumn("Owed", value: \.owed) { job in
+                Owed(job: job)
+            }
+            .width(min: 96, ideal: 120)
+            .alignment(.trailing)
+        }
+        .tableStyle(.inset(alternatesRowBackgrounds: true))
+        .overlay {
+            if rows.isEmpty { EmptyBook(shop: shop) }
+        }
+    }
+}
+
+/// A due date, or nothing.
+///
+/// Late is stated in words rather than by colour alone — a colour-only signal is
+/// unreadable to a good number of people, and this is the cell that decides
+/// whether someone gets a phone call today.
+private struct DueDate: View {
+    let job: Order
+
+    var body: some View {
+        if let due = Order.day(job.dueDate) {
+            let late = job.isOverdue()
+            Text(due, format: .dateTime.day().month(.abbreviated))
+                .monospacedDigit()
+                .foregroundStyle(late ? AnyShapeStyle(.orange) : AnyShapeStyle(.secondary))
+                .help(late ? "Overdue and unpaid" : "Due \(due.formatted(date: .abbreviated, time: .omitted))")
+        } else {
+            Text("—").foregroundStyle(.quaternary)
+        }
+    }
+}
+
+/// What is still owed on this job, and how far through paying the customer is.
+///
+/// The one piece of decoration in the table, and it is carrying information: the
+/// bar is the fraction already paid. A shop scanning this column can see at a
+/// glance the difference between a job with a deposit down and one that has not
+/// paid a riyal — which the number alone does not tell you without the total
+/// next to it.
+private struct Owed: View {
+    let job: Order
+
+    private var paidFraction: Double {
+        guard job.price > 0 else { return 0 }
+        return min(1, max(0, job.paidAmount / job.price))
+    }
+
+    var body: some View {
+        if job.isSettled {
+            Text("settled")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+        } else {
+            VStack(alignment: .trailing, spacing: 3) {
+                Text(Money.figure(job.owed))
+                    .monospacedDigit()
+                Capsule()
+                    .fill(.quaternary)
+                    .frame(height: 2)
+                    .overlay(alignment: .leading) {
+                        GeometryReader { geo in
+                            Capsule()
+                                .fill(job.isOverdue() ? AnyShapeStyle(.orange) : AnyShapeStyle(.tint))
+                                .frame(width: geo.size.width * paidFraction)
+                        }
+                    }
+                    .help(paidFraction > 0
+                          ? "\(Int(paidFraction * 100))% paid"
+                          : "Nothing paid yet")
+            }
+            .frame(maxWidth: .infinity, alignment: .trailing)
+        }
+    }
+}
+
+private struct EmptyBook: View {
+    let shop: Shop
+
+    var body: some View {
+        if let problem = shop.problem {
+            ContentUnavailableView {
+                Label("This book will not open", systemImage: "exclamationmark.octagon")
+            } description: {
+                Text(problem)
+            }
+        } else if !shop.search.isEmpty {
+            ContentUnavailableView.search(text: shop.search)
+        } else if shop.stage != nil {
+            ContentUnavailableView("Nothing at this stage", systemImage: "tray",
+                                   description: Text("Jobs will appear here as they reach it."))
+        } else {
+            ContentUnavailableView("No jobs yet", systemImage: "tray")
+        }
+    }
+}
