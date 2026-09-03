@@ -2710,6 +2710,7 @@
   "ord.split": "Repartido entre máquinas",
   "ord.split_confirm": "¿Dividir el pedido en {n} subtrabajos?",
   "ord.split_done": "Pedido dividido en {n} subtrabajos.",
+  "ord.split_deposit_moved": "Los anticipos de {n} trabajo(s) divididos anteriormente se acreditaron a sus subpedidos",
   "ord.split_badge": "Dividido en {n}",
   "ord.sub_order": "Part of",
   "ord.split_assign": "Asignar piezas a máquinas",

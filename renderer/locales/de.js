@@ -2710,6 +2710,7 @@
   "ord.split": "Auf mehrere Maschinen aufgeteilt",
   "ord.split_confirm": "Auftrag in {n} Teilaufträge aufteilen?",
   "ord.split_done": "Auftrag in {n} Teilaufträge aufgeteilt.",
+  "ord.split_deposit_moved": "Anzahlungen von {n} zuvor aufgeteilten Aufträgen wurden ihren Teilaufträgen gutgeschrieben",
   "ord.split_badge": "In {n} aufgeteilt",
   "ord.sub_order": "Part of",
   "ord.split_assign": "Teile Maschinen zuweisen",

@@ -2710,6 +2710,7 @@
   "ord.split": "Makineler arasında böl",
   "ord.split_confirm": "Sipariş {n} alt işe bölünsün mü?",
   "ord.split_done": "Sipariş {n} alt işe bölündü.",
+  "ord.split_deposit_moved": "Daha önce bölünmüş {n} işin ön ödemeleri alt siparişlerine aktarıldı",
   "ord.split_badge": "{n} parçaya bölündü",
   "ord.sub_order": "Şunun parçası",
   "ord.split_assign": "Parçaları makinelere ata",

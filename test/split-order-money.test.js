@@ -142,3 +142,93 @@ test('the split module is actually loaded by both entry documents', () => {
       `${html} loads split-order.js after the code that calls it`);
   }
 });
+
+/* ------------------------------------------------------------------
+ * Deposits stranded on jobs split BEFORE the fix.
+ *
+ * Excluding a superseded parent from what is owed is correct — its children
+ * carry the debt — but a job split before that change left every sub-order at
+ * `paidAmount: 0` with the deposit recorded on the parent. So excluding it
+ * credited the money to nothing:
+ *
+ *     beta.24 receivables : 5000.00   (parent counted twice)
+ *     after the fix alone : 3000.00   (deposit credited to nothing)
+ *     actually owed       : 2000.00
+ *
+ * Better than it was, and still a customer chased for money they had paid. This
+ * is a gap the fix itself opened, found by asking what happens to data a shop
+ * ALREADY has rather than to data the new code creates.
+ * ------------------------------------------------------------------ */
+
+const splitParent = (over = {}) => ({ id: 'O-1', price: 3000, paidAmount: 1000, status: 'split', splitInto: ['a', 'b'], ...over });
+const kids = () => [{ id: 'a', price: 1800, paidAmount: 0 }, { id: 'b', price: 1200, paidAmount: 0 }];
+
+test('a stranded deposit is moved onto the sub-orders', () => {
+  const log = [splitParent(), ...kids()];
+  const r = S.migrateSplitDeposits(log);
+  assert.deepEqual(r, { migrated: 1, moved: 1000 });
+  assert.deepEqual(log.slice(1).map((o) => o.paidAmount), [600, 400]);
+  assert.deepEqual(log.slice(1).map((o) => o.paymentStatus), ['partial', 'partial']);
+});
+
+test('the totals now reconcile on data that already existed', () => {
+  const owed = (o) => (B.isSuperseded(o) ? 0
+    : Math.max(0, (+o.price || 0) - (+o.paidAmount || 0)
+      - ((o.creditNotes || []).reduce((s, c) => s + (+c.amount || 0), 0))));
+  const log = [splitParent(), ...kids()];
+  assert.equal(log.reduce((s, o) => s + owed(o), 0), 3000, 'setup: the deposit is stranded');
+  S.migrateSplitDeposits(log);
+  assert.equal(log.reduce((s, o) => s + owed(o), 0), 2000, 'the deposit is still credited to nothing');
+});
+
+test('running it twice does not credit the deposit twice', () => {
+  const log = [splitParent(), ...kids()];
+  S.migrateSplitDeposits(log);
+  const after = log.slice(1).map((o) => o.paidAmount);
+  assert.deepEqual(S.migrateSplitDeposits(log), { migrated: 0, moved: 0 });
+  assert.deepEqual(log.slice(1).map((o) => o.paidAmount), after);
+  assert.ok(log[0].depositSplitAt, 'the parent is not marked, so a third run would double-credit');
+});
+
+test('it refuses every uncertain case rather than guessing', () => {
+  // An unmigrated deposit is a figure someone can still find. A wrongly split
+  // one is not, so all of these are left exactly as they are.
+  const cases = {
+    'a child is missing': [splitParent({ splitInto: ['a', 'gone'] }), kids()[0]],
+    'no children at all': [splitParent({ splitInto: [] })],
+    'the children have no price': [splitParent(), { id: 'a', price: 0 }, { id: 'b', price: 0 }],
+    'nothing was paid': [splitParent({ paidAmount: 0 }), ...kids()],
+    'the parent is not split': [splitParent({ status: 'completed' }), ...kids()],
+  };
+  for (const [what, log] of Object.entries(cases)) {
+    const before = JSON.stringify(log);
+    assert.deepEqual(S.migrateSplitDeposits(log), { migrated: 0, moved: 0 }, what);
+    assert.equal(JSON.stringify(log), before, `${what}: the log was changed anyway`);
+  }
+});
+
+test('a credit note on the parent is carried too', () => {
+  const log = [splitParent({ paidAmount: 0, creditNotes: [{ amount: 300 }] }), ...kids()];
+  assert.deepEqual(S.migrateSplitDeposits(log), { migrated: 1, moved: 300 });
+  const carried = log.slice(1).map((o) => (o.creditNotes || []).reduce((s, c) => s + c.amount, 0));
+  assert.equal(carried.reduce((s, x) => s + x, 0), 300);
+});
+
+test('a sub-order paid by hand since the split still migrates, and does not lose that payment', () => {
+  // The reason the marker is explicit rather than "no child has been paid":
+  // that heuristic would skip this parent forever.
+  const log = [splitParent(), { id: 'a', price: 1800, paidAmount: 500 }, { id: 'b', price: 1200, paidAmount: 0 }];
+  S.migrateSplitDeposits(log);
+  assert.equal(log[1].paidAmount, 1100, 'the hand payment was overwritten instead of added to');
+  assert.equal(log[2].paidAmount, 400);
+});
+
+test('the migration runs on load, before the sync backfill', () => {
+  // A pure module nobody calls fixes nothing; and running it after the backfill
+  // would leave the changed records unstamped, so they would never be pushed.
+  const src = code('renderer/app-state.js');
+  const at = src.indexOf('KhaytSplitOrder.migrateSplitDeposits(');
+  assert.ok(at > 0, 'nothing calls migrateSplitDeposits — stranded deposits stay stranded');
+  const backfill = src.indexOf('KhaytSync.backfill(');
+  assert.ok(backfill > at, 'the migration runs after the sync backfill, so its edits are never stamped or pushed');
+});

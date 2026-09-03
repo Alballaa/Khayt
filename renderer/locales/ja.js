@@ -2710,6 +2710,7 @@
   "ord.split": "マシンに分割",
   "ord.split_confirm": "注文を{n}件のサブジョブに分割しますか？",
   "ord.split_done": "注文を{n}件のサブジョブに分割しました。",
+  "ord.split_deposit_moved": "以前に分割された {n} 件のジョブの前受金を、その子注文に振り替えました",
   "ord.split_badge": "{n}件に分割",
   "ord.sub_order": "一部",
   "ord.split_assign": "マシンにパーツを割り当て",
