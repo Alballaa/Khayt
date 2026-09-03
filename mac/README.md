@@ -84,7 +84,16 @@ you run, not a test that runs itself:
 ```bash
 ./mac/verify-safestorage.sh          # dev store
 ./mac/verify-safestorage.sh Khayt    # packaged app
+KEYCHAIN_WAIT=120 ./mac/verify-safestorage.sh    # slow to answer the prompt
 ```
+
+It waits a minute for the Keychain and then gives up saying so. `security` blocks
+on that permission prompt with no limit of its own, and the prompt can open
+behind another window — or never, in a shell with no window server session (ssh,
+CI, a git hook). If the password does not arrive, the script checks nothing and
+says nothing about your store: an unanswered prompt used to be reported as every
+secret failing to decrypt, which is a permission problem wearing the costume of a
+corrupt store.
 
 Two traps it will show you:
 
