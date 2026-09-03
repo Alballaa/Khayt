@@ -62,6 +62,12 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **A customer who already had their print saw a tracker saying nothing had
+  started.** The public order-status page did not know about the "final checks"
+  or "delivered" stages, so an order in either showed none of its five steps as
+  reached — including one that had already been handed over. Both stages are now
+  shown, and named properly instead of appearing as raw labels like "qc".
+
 - **An invoice could carry a ZATCA QR code that scans and is not valid.** If you
   had turned on e-invoicing but not yet entered your VAT number or business
   name, Khayt still printed a QR — one with an empty field inside it. It reads
