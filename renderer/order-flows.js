@@ -291,6 +291,15 @@ function logPrint(asQuote = false) {
   $('#discountPct').value = '0';
   if ($('#shippingCost')) $('#shippingCost').value = '0';
   if ($('#depositAmount')) $('#depositAmount').value = '0';
+  /* THE RUSH FEE IS PART OF ONE JOB, NOT A SETTING.
+   *
+   * Every other money field on this screen is cleared here and this one was
+   * not — nothing in the app ever unchecked it. So logging a single rush job
+   * left +25% on the calculator for ever: the next quote, and the one after
+   * that, until somebody happened to look at the checkbox. On a 1,000 subtotal
+   * that is 250 over-charged, per quote, silently. */
+  const rush = $('#calcRushFee');
+  if (rush) rush.checked = false;
   const tierStrip = $('#priceTiersStrip');
   if (tierStrip) tierStrip.style.display = 'none';
 
