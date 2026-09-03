@@ -69,6 +69,11 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   no key and been unable to open your shop at all. Khayt now checks that the key
   arrived, shows the recovery key only once it has, and tells you plainly if it
   has not. The same check was added to joining and leaving an organisation.
+- **The save Khayt makes just before installing an update is now as safe as
+  every other save.** It was written by a separate, weaker route that skipped
+  the step forcing data onto the disk and kept no rollback copy — so a power cut
+  during an install could have left the store empty or half-written, at the one
+  moment the app cannot try again.
 
 - **A payment plan asked for the deposit all over again.** Generating
   instalments split the order's full price, ignoring anything already paid — so

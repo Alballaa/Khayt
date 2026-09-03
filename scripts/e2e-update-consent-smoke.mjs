@@ -63,6 +63,21 @@ function asRendered(md) {
 const major = parseMajorChanges(notes);
 const asShipped = parseMajorChanges(asRendered(notes));
 
+/* THE SECTION THE NEXT CUT WILL SHIP IS THE ONE NOBODY CHECKS.
+ *
+ * `notes` is the section matching package.json's version — the last RELEASED
+ * one. That is right for a regression guard and blind to the release about to
+ * happen: a malformed "Before you update" in [Unreleased] is found the day
+ * after the cut, by the shop, on the update it was written to warn them about.
+ *
+ * So the markdown/rendered agreement is checked on [Unreleased] too, whenever
+ * it exists and is not simply the same section. Nothing else about it is
+ * asserted — how many items it has is the author's business; whether the app
+ * would read the same number as the file is not. */
+const pending = source === 'Unreleased' ? null : sectionFor(changelog, 'Unreleased');
+const pendingMd = pending ? parseMajorChanges(pending) : null;
+const pendingHtml = pending ? parseMajorChanges(asRendered(pending)) : null;
+
 const userData = makeUserDataDir();
 let app;
 let failed = 0;
@@ -119,6 +134,15 @@ try {
     + `${asShipped.needsConsent} — production reads the rendered one`);
   ok(asShipped.items.length === major.items.length,
     `markdown yields ${major.items.length} item(s), the rendered page ${asShipped.items.length}`);
+
+  if (pending) {
+    ok(pendingMd.needsConsent === pendingHtml.needsConsent,
+      `[Unreleased] (the next cut): markdown says needsConsent=${pendingMd.needsConsent}, `
+      + `the rendered page ${pendingHtml.needsConsent}`);
+    ok(pendingMd.items.length === pendingHtml.items.length,
+      `[Unreleased] (the next cut): markdown yields ${pendingMd.items.length} item(s), `
+      + `the rendered page ${pendingHtml.items.length}`);
+  }
 
   if (!major.needsConsent) {
     ok(!state.gateShown, 'no gate for a release with nothing to accept');
