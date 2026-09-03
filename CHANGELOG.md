@@ -62,6 +62,12 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **Two machines stay in step while only one of them has updated.** If you run
+  Khayt on a laptop and a workshop PC and update one first, renaming a group on
+  the older one no longer goes unseen by the newer one, and using *Identify*
+  there no longer drops the other files of a multi-part print. Sync replaces a
+  whole record at a time, so the older build carries fields it does not
+  understand — and it was winning arguments it should have lost.
 - **The "Unfiled" chip in Print Files has never worked, and now does.** Pressing
   it looked like it showed everything, because the filter it set could never
   match — so there was no way to find the files you had not filed anywhere. The

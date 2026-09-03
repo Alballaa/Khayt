@@ -14,11 +14,16 @@ test('a record filed before groups existed is already in one', () => {
   // `folder` is where groups used to live. Nothing is migrated; it is read.
   assert.equal(O.groupOf({ folder: 'Saudi Kings' }), 'Saudi Kings');
   assert.equal(O.groupOf({ group: 'Saudi Kings' }), 'Saudi Kings');
-  // group wins where both exist and disagree — it is the field being written now.
-  assert.equal(O.groupOf({ group: 'Kings', folder: 'stale' }), 'Kings');
-  // An empty `group` is not an answer; fall through to folder rather than
-  // reading a half-written record as unfiled.
-  assert.equal(O.groupOf({ group: '', folder: 'Saudi Kings' }), 'Saudi Kings');
+  /* FOLDER wins where both exist and disagree, and that is a sync decision
+   * rather than a preference. This asserted the opposite — that `group` wins,
+   * "it is the field being written now" — which was true of this app and false
+   * of the older build a shop may still be running on a second machine. That
+   * build writes `folder` alone, so `group` winning meant a rename made there
+   * never reached here. See the cross-version test below. */
+  assert.equal(O.groupOf({ group: 'stale', folder: 'Kings' }), 'Kings');
+  // The key's PRESENCE decides, not its truthiness: clearing the box on the old
+  // build leaves folder:'' and that empty string is the instruction.
+  assert.equal(O.groupOf({ group: 'Saudi Kings', folder: '' }), '');
   assert.equal(O.groupOf({}), '');
   assert.equal(O.groupOf(null), '');
 });
@@ -132,4 +137,38 @@ test('an empty or missing set holds nothing rather than everything', () => {
   // A group nobody is in is empty — NOT "every product with no group".
   assert.deepEqual(O.setMembers({ group: 'Nobody' }, products), []);
   assert.deepEqual(O.setMembers({ group: '' }, products), []);
+});
+
+test('a rename on an older build is not silently ignored', () => {
+  /* Sync merges whole records, last-writer-wins, so a record edited on a
+   * machine still running v3.7.0-beta.24 arrives carrying `group` — a field
+   * that build does not understand and never updates — while its edit dialog
+   * has written `rec.folder`. Reading `group` first meant the rename never
+   * reached the updated machine.
+   *
+   * Reproduced before it was changed: "Saudi Monarchs" on disk, "Saudi Kings"
+   * on screen, for ever. */
+  const rec = {};
+  Object.assign(rec, O.assign(rec, { group: 'Saudi Kings' }));
+  assert.equal(rec.folder, 'Saudi Kings');
+  rec.folder = 'Saudi Monarchs';                       // the old build renames
+  assert.equal(O.groupOf(rec), 'Saudi Monarchs', 'the older build is the authority');
+  rec.folder = '';                                     // the old build clears it
+  assert.equal(O.groupOf(rec), '', 'an empty folder is an instruction, not an absence');
+});
+
+test('a product has no folder of its own and falls through', () => {
+  // Nothing before this ever filed a product, so there is no older writer to
+  // defer to and no divergence to guard against.
+  assert.equal(O.groupOf({ id: 'P1', group: 'Saudi Kings' }), 'Saudi Kings');
+  assert.equal(O.groupOf({ id: 'P2' }), '');
+});
+
+test('assign never writes one of the pair without the other', () => {
+  // `folder` is authoritative, which is only safe while nothing writes `group`
+  // alone. If a later change does, this is where it is caught.
+  const patch = O.assign({}, { group: 'Saudi Kings' });
+  assert.equal(patch.group, patch.folder, 'the two fields disagree the moment they are written');
+  const cleared = O.assign({ folder: 'x', group: 'x' }, { group: '' });
+  assert.equal(cleared.group, cleared.folder);
 });
