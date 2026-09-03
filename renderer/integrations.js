@@ -1104,7 +1104,7 @@ async function aiDraftReply(orderId) {
     toast(t('ai.reply_need_key') || 'Enable AI assist (with your API key) in Settings first', 'error');
     return;
   }
-  if (typeof KhaytAiReply === 'undefined') { toast('AI reply module not loaded', 'error'); return; }
+  if (typeof KhaytAiReply === 'undefined') { toast(t('common.feature_missing'), 'error'); return; }
   const client = order.clientId ? clients.find(c => c.id === order.clientId) : null;
   const cur = (typeof currencySymbol === 'function') ? currencySymbol() : '';
   const intents = KhaytAiReply.REPLY_INTENTS;
@@ -1790,7 +1790,7 @@ function renderReferralAnalytics() {
 
 /* ── Feature 15: Shipping Carrier Integration ───────────────── */
 function trackShipment(trackingNumber, carrier) {
-  if (!trackingNumber) { toast('No tracking number', 'error'); return; }
+  if (!trackingNumber) { toast(t('ship.no_tracking'), 'error'); return; }
   let url = '';
   const tn = encodeURIComponent(trackingNumber.trim());
   const c  = (carrier || '').toLowerCase();
@@ -1803,7 +1803,7 @@ function trackShipment(trackingNumber, carrier) {
   } else if (c === 'fedex') {
     url = `https://www.fedex.com/fedextrack/?trknbr=${tn}`;
   } else {
-    toast('Copy tracking number and check carrier website: ' + trackingNumber, 'info', 6000);
+    toast(t('ship.copy_and_check') + ': ' + trackingNumber, 'info', 6000);
     return;
   }
   window.hubAPI?.openExternal?.(url) || window.open(url, '_blank');

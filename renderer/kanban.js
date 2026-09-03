@@ -357,7 +357,7 @@ function applyAutoSchedule() {
 
 /** One-click auto-assign (the 🪄 button): propose + apply immediately, then toast. */
 function runAutoSchedule() {
-  if (typeof KhaytScheduling === 'undefined') { toast('Scheduling unavailable', 'error'); return; }
+  if (typeof KhaytScheduling === 'undefined') { toast(t('common.feature_missing'), 'error'); return; }
   const schedulable = printLog.filter(o => o && (o.status === 'pending' || o.status === 'queued') && !o.machineId);
   if (!schedulable.length) { toast(t('sched.none_to_assign') || 'No unassigned orders', 'info'); return; }
   const { assignments, unassignable } = KhaytScheduling.proposeSchedule(machines, schedulable, { now: Date.now() });
@@ -920,7 +920,7 @@ function renderMachineQueues() {
    * apply only on the operator's confirmation (no auto-moves).
    */
   function openScheduleSuggestions() {
-    if (typeof KhaytScheduling === 'undefined') { toast('Scheduling unavailable', 'error'); return; }
+    if (typeof KhaytScheduling === 'undefined') { toast(t('common.feature_missing'), 'error'); return; }
     const schedulable = printLog.filter(o => o && (o.status === 'pending' || o.status === 'queued') && !o.machineId);
     if (!schedulable.length) { toast(t('sched.none_to_assign') || 'No unassigned orders', 'info'); return; }
     const { assignments, unassignable } = KhaytScheduling.proposeSchedule(machines, schedulable, { now: Date.now() });

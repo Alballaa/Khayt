@@ -775,7 +775,7 @@ async function loadAll() {
 
   if (store && store.__corrupt) {
     console.error('Store corruption detected:', store.error);
-    setTimeout(() => toast('⚠ Data file could not be read — starting fresh. Your old file was kept aside; check backups!', 'error', 10000), 1500);
+    setTimeout(() => toast(t('store.unreadable'), 'error', 10000), 1500);
     store = null;
   } else if (store && store.__recovered) {
     // The main process recovered from a completed temp write or the previous

@@ -301,7 +301,7 @@ function openReminderModal(itemId) {
     document.querySelector('#btnSendWhatsApp')?.addEventListener('click', () => {
       const phone = document.querySelector('#reminderPhone')?.value.trim() || '';
       const msg   = document.querySelector('#reminderMsg')?.value.trim() || defaultMsg;
-      if (!phone) { toast('Phone number required for WhatsApp', 'error'); return; }
+      if (!phone) { toast(t('wa.phone_required'), 'error'); return; }
       window.hubAPI?.shareWhatsApp?.({ phone, message: msg });
       item.status = 'reminded';
       item.reminderSentAt = new Date().toISOString();
@@ -314,7 +314,7 @@ function openReminderModal(itemId) {
     document.querySelector('#btnSendReminderEmail')?.addEventListener('click', async () => {
       const email = document.querySelector('#reminderEmail')?.value.trim() || '';
       const msg   = document.querySelector('#reminderMsg')?.value.trim() || defaultMsg;
-      if (!email) { toast('Email address required', 'error'); return; }
+      if (!email) { toast(t('mail.address_required'), 'error'); return; }
       const cfg = settings.emailConfig;
       const body = `<p>${escapeHtml(msg).replace(/\n/g, '<br>')}</p>`;
       const subject = `Reminder: ${(item.project || 'Your project').replace(/[\r\n]/g, ' ')} at ${(shopName() || 'Khayt').replace(/[\r\n]/g, ' ')}`;
@@ -327,7 +327,7 @@ function openReminderModal(itemId) {
         updateWaitingBadge();
         toast(t('waiting.reminded_ok') || 'Reminder sent via email', 'success');
       } else {
-        toast('Email send failed: ' + (result?.error || ''), 'error');
+        toast(t('mail.send_failed') + ': ' + (result?.error || ''), 'error');
       }
     });
   }, 80);

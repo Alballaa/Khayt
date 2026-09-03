@@ -43,7 +43,7 @@ function openShiftChecklistModal() {
         totalChecks: checks.length,
       });
       saveAll();
-      toast('Shift started!', 'success');
+      toast(t('shift.started'), 'success');
     },
   });
 }
@@ -112,10 +112,10 @@ function openEndOfDayReport() {
     onSave() {
       if (window.hubAPI?.exportPDF) {
         window.hubAPI.exportPDF({ html: eodHtmlForExport, filename: `eod-report-${today}.pdf` })
-          .then(() => toast('Report exported!', 'success'))
-          .catch(() => toast('PDF export not available', 'error'));
+          .then(() => toast(t('common.export_done'), 'success'))
+          .catch(() => toast(t('common.pdf_unavailable'), 'error'));
       } else {
-        toast('PDF export not available in this build', 'info');
+        toast(t('common.pdf_unavailable'), 'info');
       }
       return false; // keep modal open after export
     },
@@ -528,7 +528,7 @@ function exportGaztVatReturn(period) {
 
   if (window.hubAPI?.exportPDF) {
     window.hubAPI.exportPDF({ html, filename: `tax-summary-${period}-${now.getFullYear()}.pdf` })
-      .then(() => toast('VAT return exported!', 'success'))
+      .then(() => toast(t('ops.tax_exported'), 'success'))
       .catch(() => _fallbackVatDownload(html, period, now.getFullYear()));
   } else {
     _fallbackVatDownload(html, period, now.getFullYear());
@@ -538,7 +538,7 @@ function exportGaztVatReturn(period) {
 function _fallbackVatDownload(html, period, year) {
   const blob = new Blob([html], { type: 'text/html' });
   downloadBlob(blob, `tax-summary-${period}-${year}.html`);
-  toast('VAT return downloaded as HTML', 'info');
+  toast(t('ops.tax_downloaded'), 'info');
 }
 
 /* ── Feature 8: Slicer Profile Library ─────────────────────── */
@@ -613,7 +613,7 @@ function openSlicerProfileModal(profileId) {
       <textarea id="spNotes" rows="2">${escapeHtml(existing?.notes || '')}</textarea>`,
     onSave(modal) {
       const name = modal.querySelector('#spName').value.trim();
-      if (!name) { toast('Enter a profile name', 'error'); return false; }
+      if (!name) { toast(t('slp.name_required'), 'error'); return false; }
       const profile = {
         id: existing ? existing.id : uid('SP'),
         name,
@@ -643,7 +643,7 @@ function deleteSlicerProfile(profileId) {
   slicerProfiles = (slicerProfiles || []).filter(p => p.id !== profileId);
   saveAll();
   renderSlicerProfiles();
-  toast('Profile deleted', 'success');
+  toast(t('slp.deleted'), 'success');
 }
 
 /* ── Feature 9: Environmental Condition Logging ─────────────── */
@@ -722,14 +722,14 @@ function openLogEnvModal() {
     onSave(modal) {
       const temp     = modal.querySelector('#envTemp').value;
       const humidity = modal.querySelector('#envHumidity').value;
-      if (temp === '' && humidity === '') { toast('Enter at least temperature or humidity', 'error'); return false; }
+      if (temp === '' && humidity === '') { toast(t('env.need_value'), 'error'); return false; }
       if (temp !== '') {
         const t = num(temp, null);
-        if (t === null || t < -50 || t > 100) { toast('Temperature must be between -50°C and 100°C', 'error'); return false; }
+        if (t === null || t < -50 || t > 100) { toast(t('env.temp_range'), 'error'); return false; }
       }
       if (humidity !== '') {
         const h = num(humidity, null);
-        if (h === null || h < 0 || h > 100) { toast('Humidity must be between 0% and 100%', 'error'); return false; }
+        if (h === null || h < 0 || h > 100) { toast(t('env.humidity_range'), 'error'); return false; }
       }
       if (!envLogs) envLogs = [];
       envLogs.push({
@@ -742,7 +742,7 @@ function openLogEnvModal() {
       });
       saveAll();
       renderEnvLogs();
-      toast('Environment logged', 'success');
+      toast(t('env.logged'), 'success');
     },
   });
 }

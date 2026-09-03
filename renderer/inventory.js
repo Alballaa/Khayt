@@ -1323,7 +1323,7 @@ function maybeAutoDraftPurchaseOrders() {
 }
 
 function openReorderSuggestions() {
-  if (typeof KhaytReorder === 'undefined') { toast('Reorder module not loaded', 'error'); return; }
+  if (typeof KhaytReorder === 'undefined') { toast(t('common.feature_missing'), 'error'); return; }
   const items = (typeof filterInventoryByLocation === 'function')
     ? filterInventoryByLocation(inventory, settings.activeLocationId) : inventory;
   const sug = KhaytReorder.reorderSuggestions(items, printLog, {
@@ -3926,7 +3926,7 @@ function openProductEditor(productId = null) {
               kind: KhaytProductImages.DEFAULT_KIND,
               caption: '',
             });
-          } catch (err) { console.error(err); toast('Image error', 'error'); }
+          } catch (err) { console.error(err); toast(t('inv.image_error'), 'error'); }
         }
         redrawImages();
       };

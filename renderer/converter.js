@@ -1258,7 +1258,7 @@
           if (!(hub() && hub().saveTextFile)) return;
           const base = String(name || 'model').replace(/\.[^.]+$/, '').replace(/[^a-z0-9._-]+/gi, '_') || 'model';
           const rr = await hub().saveTextFile({ content: a.customGcodeXml, defaultName: base + '-swap-pauses.xml', filters: [{ name: 'Orca custom G-code', extensions: ['xml'] }] });
-          if (rr && rr.ok !== false) toast('Saved swap pauses ✓', 'success');
+          if (rr && rr.ok !== false) toast(t('conv.swaps_saved'), 'success');
         };
         const copyBtn = modal.querySelector('#swapCopy');
         if (copyBtn) copyBtn.onclick = () => { copyAndToast(swapPlanText(a, name)); };

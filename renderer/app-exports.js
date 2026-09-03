@@ -217,7 +217,7 @@ async function exportQuoteApprovalPage(orderId) {
     if (saved) toast(t('ord.quote_approval_saved'), 'success');
   } catch (e) {
     console.error('exportQuoteApprovalPage error', e);
-    toast('Could not save approval page.', 'error');
+    toast(t('ord.approval_save_failed'), 'error');
   }
 }
 
