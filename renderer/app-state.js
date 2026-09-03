@@ -540,6 +540,17 @@ function replaceStoreFromSnapshot(store) {
     console.error('replaceStoreFromSnapshot: refusing an empty or corrupt snapshot');
     return false;
   }
+  /* AND IT MUST BE A KHAYT STORE, not merely valid JSON.
+   *
+   * normalizeStoreSnapshot SALVAGES: it keeps what it recognises and skips the
+   * rest. Handed a file that is not ours it recognises NOTHING and returns a
+   * truthy empty object — so this check passed, all 31 collections were zeroed,
+   * applyStoreFromSnapshot applied nothing, and the caller toasted success.
+   * Picking the wrong .json was enough. */
+  if (!KhaytStoreValidate.looksLikeStore(store)) {
+    console.error('replaceStoreFromSnapshot: that file is not a Khayt export — nothing replaced');
+    return false;
+  }
   const { normalized } = KhaytStoreValidate.normalizeStoreSnapshot(store);
   if (!normalized) {
     console.error('replaceStoreFromSnapshot: snapshot could not be normalized — nothing replaced');
@@ -578,6 +589,26 @@ function replaceStoreFromSnapshot(store) {
   filamentDryLog = [];
   settings = defaultSettings();
   applyStoreFromSnapshot(store);
+  /* RESEED THE CHANGE INDEX, or the restore deletes the difference everywhere.
+   *
+   * `_doSave` runs `KhaytSync.stampChanges` on every save, and that treats
+   * "in the index, absent from the snapshot in front of me" as a DELETE — it
+   * writes a tombstone. The index is seeded at load, on a shop switch and after
+   * a cloud merge; a restore reseeded nothing.
+   *
+   * So restoring a three-week-old backup on the office machine wrote a tombstone
+   * for every order, client and invoice created since. Those sync out,
+   * applyDeltas deletes unconditionally, and because the tombstone carries the
+   * very rev the peer still holds, the delete-over-edit conflict check does not
+   * fire either. Three weeks of work vanished from the shop-floor machine with
+   * nothing said on either side.
+   *
+   * After a restore the records that are gone are gone because the SHOP CHOSE an
+   * older state — not because anyone deleted them — so the index has to start
+   * again from what is now in front of it. */
+  try {
+    if (window.KhaytSync && KhaytSync.seedIndex) KhaytSync.seedIndex(collectStoreCollections());
+  } catch (e) { console.error('reseed after restore failed:', e); }
   return true;
 }
 

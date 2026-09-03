@@ -62,6 +62,20 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **Importing the wrong file no longer erases everything you have.** Choosing any
+  `.json` that was not a Khayt export — a slicer profile, a settings file,
+  anything — emptied every order, client, invoice, spool and print file, applied
+  nothing in their place, and told you it had imported successfully. It now
+  refuses a file that is not ours and leaves your data untouched.
+- **Restoring a backup no longer deletes newer work on your other machine.** If
+  you restore an older backup on one computer, the records created since were
+  treated as deletions and removed everywhere else the next time it synced —
+  silently, on both machines. A restore is now understood as choosing an older
+  state, not as deleting the difference.
+- **Settings said your data file had no size limit. It has one.** It reported
+  "No size limit ✓" in green while the app refuses to save past 50 MB — the
+  exact wall a shop with thousands of files was heading for. It now shows how
+  full the file is and warns before saving stops, not after.
 - **Bed Ready updates could never show the warning either.** Its releases were
   published with one fixed sentence instead of the notes, so a Bed Ready shop
   was asked to install a change nobody had shown it — for every release there
