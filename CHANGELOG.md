@@ -70,6 +70,13 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   **Last backup** as though nothing had happened. All four now accept whatever
   the app is willing to save, and a backup that fails says so on the screen
   instead of leaving yesterday's date sitting there.
+- **Cloud sync no longer overwrites your edit without telling you.** If another
+  machine had changed the same client, order or spool more times than yours had,
+  its version won and yours simply vanished — no message, nothing in the record.
+  The version that wins is unchanged, because one of the two edits has to go, but
+  Khayt now tells you which of your edits were replaced and by which record, so
+  you can look again at anything you had just typed.
+
 - **A downloaded print file can no longer put fake controls on its own card.** A
   G-code file carrying a specially made preview image could add a hidden button
   to the card Khayt drew for it, so an ordinary click on the picture ran

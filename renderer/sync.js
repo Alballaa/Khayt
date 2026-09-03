@@ -145,18 +145,74 @@
    * Call after load so the next save doesn't see every record as "new".
    */
   function seedIndex(snapshot, scope) {
+    const prior = indexFor(scope);
     const idx = new Map();
     for (const coll of arrayCollections(snapshot)) {
       for (const rec of snapshot[coll]) {
         if (!rec || typeof rec !== 'object') continue;
         ensureId(rec, coll);
+        const key = coll + ':' + rec.id;
         // {fp, rev}: the rev is needed later to stamp a tombstone with the
         // version being deleted, so a stale delete can't outrank a newer edit.
-        idx.set(coll + ':' + rec.id, { fp: fingerprint(rec), rev: revOf(rec) });
+        // syncedRev is carried across a reseed — pullMerge reseeds right after
+        // every merge, and wiping it there would throw away the one fact the
+        // merge had just established about each record.
+        const was = prior && prior.get(key);
+        const e = { fp: fingerprint(rec), rev: revOf(rec) };
+        if (was && typeof was.syncedRev === 'number') e.syncedRev = was.syncedRev;
+        idx.set(key, e);
       }
     }
     setIndexFor(scope, idx);
     return idx.size;
+  }
+
+  /**
+   * The rev at which this device last agreed with the server about a record, or
+   * null when that is not known.
+   *
+   * Deliberately NOT a field on the record. syncedRev is per-DEVICE state — what
+   * *this* machine has exchanged — so storing it on a record that then syncs
+   * makes two devices holding the identical record disagree byte for byte. The
+   * multishop convergence test catches exactly that, and caught it here.
+   *
+   * null is the backward-compatible default and means "say nothing": a device
+   * that has not pushed or merged since launch has no baseline, and treating
+   * unknown as 0 would call every record an unpushed local edit and report a
+   * conflict for the whole store. A missed report is acceptable; a false one
+   * teaches the shop to ignore the message.
+   */
+  function syncedRevOf(coll, id, scope) {
+    const idx = indexFor(scope);
+    const e = idx && idx.get(coll + ':' + id);
+    return (e && typeof e.syncedRev === 'number') ? e.syncedRev : null;
+  }
+
+  /** Note that the server now holds this device's current version of everything. */
+  function markSynced(snapshot, scope) {
+    const idx = indexFor(scope);
+    if (!idx) return 0;
+    let n = 0;
+    for (const coll of arrayCollections(snapshot)) {
+      for (const rec of snapshot[coll]) {
+        if (!rec || typeof rec !== 'object' || typeof rec.id !== 'string') continue;
+        const key = coll + ':' + rec.id;
+        const e = idx.get(key) || { fp: fingerprint(rec), rev: revOf(rec) };
+        if (e.syncedRev !== revOf(rec)) { e.syncedRev = revOf(rec); n++; }
+        idx.set(key, e);
+      }
+    }
+    return n;
+  }
+
+  /** Record that a version accepted from the server is now the shared baseline. */
+  function noteSynced(coll, rec, scope) {
+    const idx = indexFor(scope);
+    if (!idx || !rec || typeof rec.id !== 'string') return;
+    const key = coll + ':' + rec.id;
+    const e = idx.get(key) || { fp: fingerprint(rec), rev: revOf(rec) };
+    e.syncedRev = revOf(rec);
+    idx.set(key, e);
   }
 
   /**
@@ -206,7 +262,12 @@
           rec.updatedAt = now;
           summary.changed.push({ collection: coll, id: rec.id });
         }
-        next.set(key, { fp, rev: revOf(rec) }); // fp excludes reserved fields — stable post-stamp
+        // Carry the synced baseline across the rebuild. stampChanges runs on EVERY
+        // save, so dropping it here would erase the baseline the moment the shop
+        // made the very local edit we want to be able to report as lost.
+        const e = { fp, rev: revOf(rec) }; // fp excludes reserved fields — stable post-stamp
+        if (prev && typeof prev.syncedRev === 'number') e.syncedRev = prev.syncedRev;
+        next.set(key, e);
       }
     }
 
@@ -290,6 +351,7 @@
   function applyDeltas(snapshot, payload, opts) {
     opts = opts || {};
     const appendOnly = new Set(opts.appendOnly || []);
+    const scope = opts.scope;
     const result = { applied: 0, skipped: 0, removed: 0, conflicts: [] };
 
     // Deletes this side already knows about. The tombstone rule below ("a delete
@@ -328,12 +390,36 @@
           result.skipped++;
           continue;
         }
-        arr.push(incoming); result.applied++; continue;
+        arr.push(incoming); result.applied++; noteSynced(coll, incoming, scope); continue;
       }
       if (appendOnly.has(coll)) { result.skipped++; continue; }
       const curRev = revOf(arr[i]);
       const inRev = revOf(incoming);
-      if (inRev > curRev) { arr[i] = incoming; result.applied++; }
+      if (inRev > curRev) {
+        // A higher rev wins — that has always been the rule and it does not change
+        // here. What changes is that we notice when winning costs something.
+        //
+        // `rev` is a per-record counter, not a causal clock, so "higher" does not
+        // mean "descended from". A peer that edited the same record twice arrives
+        // at rev 7 while this device sits at its own rev 6 from a single edit, and
+        // that edit was overwritten with nothing said anywhere. The shop's
+        // corrected phone number simply stopped existing, on one machine.
+        //
+        // syncedRev is the version the server last had from us. If the local rev
+        // has moved past it, this record holds work the incoming version cannot
+        // contain. Same outcome, but the discarded copy is handed to the host so
+        // someone can be told. An unknown baseline says nothing: see syncedRevOf.
+        const base = syncedRevOf(coll, incoming.id, scope);
+        if (base !== null && curRev > base && fingerprint(incoming) !== fingerprint(arr[i])) {
+          result.conflicts.push({
+            collection: coll, id: incoming.id, kind: 'remote_over_local_edit',
+            localRev: curRev, incomingRev: inRev, syncedRev: base,
+            discarded: arr[i], tookIncoming: true,
+          });
+        }
+        arr[i] = incoming; result.applied++;
+        noteSynced(coll, incoming, scope);
+      }
       else if (inRev < curRev) { result.skipped++; }
       else {
         // Same rev, different content: two devices edited independently from the
@@ -352,7 +438,7 @@
           const takeIncoming = inT !== curT
             ? inT > curT
             : fingerprint(incoming) > fingerprint(arr[i]);
-          if (takeIncoming) { arr[i] = incoming; result.applied++; }
+          if (takeIncoming) { arr[i] = incoming; result.applied++; noteSynced(coll, incoming, scope); }
           else { result.skipped++; }
           result.conflicts.push({ collection: coll, id: incoming.id, rev: inRev, tookIncoming: takeIncoming });
         } else {
@@ -458,6 +544,24 @@
   }
 
   /**
+   * Local edits that a newer version from another device wrote over.
+   *
+   * Kept separate from summarizeDiscardedEdits because the cause and the advice
+   * differ: a delete_over_edit record is gone everywhere and there is nothing to
+   * look at; this one still exists, showing the other machine's version, so the
+   * useful advice is "look at it again". Same shape so the host can treat them
+   * alike.
+   * @returns {{count:number, firstName:string}} count 0 means nothing to show.
+   */
+  function summarizeOverwrittenEdits(conflicts) {
+    const lost = (conflicts || []).filter((c) => c && c.kind === 'remote_over_local_edit');
+    if (!lost.length) return { count: 0, firstName: '' };
+    const r = lost[0].discarded || {};
+    const firstName = String(r.project || r.name || r.title || lost[0].id || '').slice(0, 40);
+    return { count: lost.length, firstName };
+  }
+
+  /**
    * Find records that are present despite having been deleted.
    *
    * Until the tombstone fix, `applyDeltas` honoured "a delete must not be undone
@@ -518,6 +622,9 @@
     stampChanges,
     extractDeltas,
     applyDeltas,
+    markSynced,
+    summarizeOverwrittenEdits,
+    syncedRevOf,
     summarizeDiscardedEdits,
     maxCursor,
     setBackend,
