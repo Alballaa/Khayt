@@ -271,10 +271,25 @@ test('every VAT figure is derived from the netted revenue', () => {
   for (const [rel, re] of checks) {
     assert.match(read(rel), re, `${rel}: VAT collected must follow revenue, not the gross price`);
   }
-  // The ZATCA/GAZT return's standard-rated sales box must net credits too.
-  assert.match(read('renderer/operations-extras.js'),
-    /const box1 = periodOrders\.reduce\(\(s, o\) => s \+ orderNetRevenueBase\(o\), 0\);/,
-    'box1 (standard-rated sales) must be net of credit notes');
+  // The ZATCA/GAZT return's sales boxes must net credits too — and, since a
+  // Saudi shop's prices INCLUDE the VAT, must have the VAT taken back out. This
+  // pinned the exact old expression, which is the mistake the comment at the top
+  // of this test warns against: it would have failed a change that preserved the
+  // property. Assert the property. (The old expression was also wrong in the
+  // other direction — it reported the gross as sales. See test/vat-return.test.js.)
+  const vatReturn = (() => {
+    const src = read('renderer/operations-extras.js')
+      .replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1');
+    const at = src.indexOf('function exportGaztVatReturn');
+    assert.ok(at > 0, 'the VAT return is gone');
+    return src.slice(at, at + 3000);
+  })();
+  assert.match(vatReturn, /const gross = orderNetRevenueBase\(o\);/,
+    'the VAT return must take its sales from the netted revenue, not the gross price');
+  assert.match(vatReturn, /KhaytTax\.computeTax\(gross, taxProfile\)/,
+    'the VAT return must split net from VAT with the same module the invoices use');
+  assert.ok(!/box1 \+= gross/.test(vatReturn),
+    'box1 (standard-rated sales) must be NET of VAT — prices in Khayt include it');
 });
 
 test('margin figures net credit notes in the order\'s own currency', () => {

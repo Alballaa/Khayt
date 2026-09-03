@@ -421,12 +421,52 @@ function exportGaztVatReturn(period) {
   const periodOrders = printLog.filter(o =>
     o.status === 'completed' && o.date >= fromDate && o.date <= toDate
   );
-  const box1 = periodOrders.reduce((s, o) => s + orderNetRevenueBase(o), 0);
-  const box2 = periodOrders.filter(o => +o.vatRate === 0).reduce((s, o) => s + orderNetRevenueBase(o), 0);
-  const box3 = periodOrders.reduce((s, o) => s + (convertToBase(+o.vatAmount || 0, orderCurrency(o))), 0);
+  // Boxes 1-3 used to read `o.vatAmount` and `o.vatRate`. NEITHER FIELD IS EVER
+  // WRITTEN — not by the order form, not by the invoice, not by any importer.
+  // `+undefined || 0` is 0 and `NaN === 0` is false, so Box 3 (VAT due) was
+  // always zero and Box 2 always zero, while Box 1 reported the price INCLUDING
+  // the VAT. On SAR 400,000 of sales at 15% the form declared:
+  //
+  //     Box 1  400,000.00      (overstated by the VAT itself)
+  //     Box 3        0.00      (SAR 52,173.92 was owed)
+  //     NET          0.00
+  //
+  // The tax arithmetic already exists and every invoice uses it: lib/tax.js,
+  // whose profile treats a price as tax-INCLUSIVE, which is what a Saudi shop's
+  // prices are. Use the same module, so the return and the invoices can never
+  // disagree about one order.
+  const taxProfile = KhaytTax.profileFromSettings(settings);
+  const ratePct = taxProfile.rates.reduce((sum, r) => sum + r.percent, 0);
+  const vatRegistered = ratePct > 0;
+
+  let box1 = 0;   // standard-rated sales, NET of VAT
+  let box2 = 0;   // zero-rated sales
+  let box3 = 0;   // VAT due on those sales
+  for (const o of periodOrders) {
+    // orderNetRevenueBase is the shop's one revenue chokepoint: base currency,
+    // credit notes already deducted, personal prints excluded. A credit note
+    // reverses a sale and its VAT together, which is what a return wants.
+    const gross = orderNetRevenueBase(o);
+    if (!gross) continue;
+    if (vatRegistered) {
+      const t = KhaytTax.computeTax(gross, taxProfile);
+      box1 += t.subtotal;
+      box3 += t.taxTotal;
+    } else {
+      // Khayt models ONE shop-level rate, so there is no per-order zero-rating:
+      // either the shop charges VAT on everything or on nothing.
+      box2 += gross;
+    }
+  }
+
   const periodExp = (expenses || []).filter(e => e.date >= fromDate && e.date <= toDate);
   const box6 = periodExp.reduce((s, e) => s + (+e.amount || 0), 0);
-  const box7 = periodExp.filter(e => e.vatAmount > 0).reduce((s, e) => s + (+e.vatAmount || 0), 0);
+  // No expense record carries a VAT figure — the form has never had the field —
+  // so there is nothing here to total. Printing a confident 0 invited a shop to
+  // file "nothing reclaimable" as though Khayt had checked. It is marked as
+  // needing their own figure instead.
+  const box7 = periodExp.reduce((s, e) => s + (+e.vatAmount || 0), 0);
+  const box7Known = periodExp.some(e => +e.vatAmount > 0);
   const netVat = box3 - box7;
 
   const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
@@ -435,7 +475,8 @@ function exportGaztVatReturn(period) {
       h1{font-size:18px;} table{width:100%;border-collapse:collapse;margin-top:16px;}
       th{background:#f3f4f6;text-align:left;padding:8px;border:1px solid #ddd;font-size:13px;}
       td{padding:8px;border:1px solid #ddd;font-size:13px;}
-      .net{font-weight:700;background:#fef3c7;}</style></head>
+      .net{font-weight:700;background:#fef3c7;}
+      .warn{margin-top:16px;padding:10px 12px;border:1px solid #f59e0b;background:#fffbeb;font-size:12px;}</style></head>
     <body>
       <h1>GAZT VAT Return — ${escapeHtml(shopName() || '')} (${escapeHtml(period.toUpperCase())} ${now.getFullYear()})</h1>
       <p style="font-size:12px;color:#666;">Period: ${escapeHtml(fromDate)} to ${escapeHtml(toDate)}</p>
@@ -446,10 +487,14 @@ function exportGaztVatReturn(period) {
           <tr><td>Box 2</td><td>Zero-rated Sales</td><td>${fmtMoney(box2)}</td></tr>
           <tr><td>Box 3</td><td>VAT Collected on Sales</td><td>${fmtMoney(box3)}</td></tr>
           <tr><td>Box 6</td><td>Total Purchases</td><td>${fmtMoney(box6)}</td></tr>
-          <tr><td>Box 7</td><td>Input VAT (Recoverable)</td><td>${fmtMoney(box7)}</td></tr>
-          <tr class="net"><td colspan="2">Net VAT Payable (Box 3 − Box 7)</td><td>${fmtMoney(netVat)}</td></tr>
+          <tr><td>Box 7</td><td>Input VAT (Recoverable)</td><td>${box7Known ? fmtMoney(box7) : '&mdash;'}</td></tr>
+          <tr class="net"><td colspan="2">Net VAT Payable (Box 3 &minus; Box 7)</td><td>${fmtMoney(netVat)}</td></tr>
         </tbody>
       </table>
+      ${box7Known ? '' : `<p class="warn">Khayt does not record VAT on expenses, so Box 7 is blank
+        and the net figure assumes nothing is reclaimable. Add your input VAT before filing.</p>`}
+      <p style="font-size:12px;color:#666;margin-top:16px;">Sales are shown net of VAT.
+        Prices in Khayt include VAT at ${escapeHtml(String(ratePct))}%, and Box 1 has it removed.</p>
     </body></html>`;
 
   if (window.hubAPI?.exportPDF) {
