@@ -62,6 +62,14 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **Your daily backup was switching itself off, silently, once your shop got
+  big.** Khayt saves a store up to 50 MB, but the backup refused anything over
+  20 MB — and so did the iCloud copy, the restore points, and the snapshot taken
+  before an update. Every safety net went off at the same moment, at exactly the
+  size where there is most to lose, and Settings went on showing a date under
+  **Last backup** as though nothing had happened. All four now accept whatever
+  the app is willing to save, and a backup that fails says so on the screen
+  instead of leaving yesterday's date sitting there.
 - **A downloaded print file can no longer put fake controls on its own card.** A
   G-code file carrying a specially made preview image could add a hidden button
   to the card Khayt drew for it, so an ordinary click on the picture ran

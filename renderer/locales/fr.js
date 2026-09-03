@@ -698,6 +698,7 @@
   "set.auto_backup": "Sauvegarde automatique quotidienne",
   "set.last_backup": "Dernière sauvegarde",
   "set.backup_never": "jamais",
+  "set.backup_failed": "Échec de la sauvegarde — vos données n'ont PAS été sauvegardées",
   "set.reveal_backups": "Afficher le dossier de sauvegardes",
   "set.bank_section": "Banque et méthodes de paiement",
   "set.bank_name": "Nom de la banque",

@@ -698,6 +698,7 @@
   "set.auto_backup": "1日1回自動バックアップ",
   "set.last_backup": "最終バックアップ",
   "set.backup_never": "なし",
+  "set.backup_failed": "バックアップに失敗しました — データは保存されていません",
   "set.reveal_backups": "バックアップフォルダを表示",
   "set.bank_section": "銀行・支払方法",
   "set.bank_name": "銀行名",

@@ -39,10 +39,15 @@ function usageBlock() {
 }
 
 test('the app still enforces a store ceiling on both sides', () => {
-  // If either of these goes, the screen's numbers become the fiction instead.
-  assert.match(mainJs, /if \(serialized\.length > 50_000_000\)/,
+  // The number is one shared constant now (store-io owns it) so the daily
+  // backup cannot refuse a store that saving accepts. Check the constant's
+  // value and that both sides still gate on it — if either goes, the screen's
+  // numbers become the fiction instead.
+  const { MAX_STORE_BYTES } = require('../lib/store-io.js');
+  assert.equal(MAX_STORE_BYTES, 50 * 1000 * 1000, 'the enforced ceiling moved');
+  assert.match(mainJs, /if \(serialized\.length > MAX_STORE_BYTES\)/,
     'the write-side ceiling is gone — the screen now overstates the limit');
-  assert.match(mainJs, /recoverStoreRaw\(50_000_000\)/,
+  assert.match(mainJs, /recoverStoreRaw\(MAX_STORE_BYTES\)/,
     'the read-side ceiling is gone');
 });
 
@@ -66,7 +71,7 @@ test('the limit the screen shows is the limit main.js enforces', () => {
   assert.ok(m, 'the panel no longer states a limit at all');
   // eslint-disable-next-line no-eval
   const shown = eval(m[1].replace(/_/g, ''));
-  assert.equal(shown, 50 * 1000 * 1000,
+  assert.equal(shown, require('../lib/store-io.js').MAX_STORE_BYTES,
     'the number on screen disagrees with the one main.js refuses at');
 });
 

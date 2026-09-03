@@ -822,6 +822,7 @@
   "set.auto_backup": "نسخة احتياطية تلقائية يومياً",
   "set.last_backup": "آخر نسخة",
   "set.backup_never": "لا يوجد",
+  "set.backup_failed": "تعذّرت النسخة الاحتياطية — لم يتم حفظ نسخة من بياناتك",
   "set.reveal_backups": "فتح مجلد النسخ",
   "set.bank_section": "الحساب البنكي وطرق الدفع",
   "set.bank_name": "اسم البنك",

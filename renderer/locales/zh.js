@@ -698,6 +698,7 @@
   "set.auto_backup": "每日自动备份",
   "set.last_backup": "上次备份",
   "set.backup_never": "从未",
+  "set.backup_failed": "备份失败 — 您的数据未被备份",
   "set.reveal_backups": "打开备份文件夹",
   "set.bank_section": "银行与付款方式",
   "set.bank_name": "银行名称",

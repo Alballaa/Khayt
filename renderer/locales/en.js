@@ -698,6 +698,7 @@
   "set.auto_backup": "Auto-backup once a day",
   "set.last_backup": "Last backup",
   "set.backup_never": "never",
+  "set.backup_failed": "Backup failed — your data was NOT backed up",
   "set.reveal_backups": "Reveal backups folder",
   "set.bank_section": "Bank & Payment Methods",
   "set.bank_name": "Bank name",
