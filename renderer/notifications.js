@@ -230,7 +230,7 @@ function buildNotifications() {
       type: 'recurring',
       icon: '🔄',
       title: escapeHtml(t('notif.group_recurring') || 'Recurring Orders'),
-      body: escapeHtml(t('notif.recurring_due', { name: localName(c), days: daysSince })),
+      body: escapeHtml(t('notif.recurring_due_body', { name: localName(c), days: daysSince })),
       dismissKey: key,
       clientId: c.id,
       action() { logClientFilter = c.id; switchTab('queue-tab'); logPrint && logPrint(); }

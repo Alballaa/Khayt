@@ -62,6 +62,16 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **The catalogue's "Ungrouped" and "Uncategorised" chips do nothing no longer.**
+  Same fault as the one in Print Files below: pressing them looked like showing
+  everything, so there was no way to find the products you had not filed.
+- **Catalogue filter chips now count what pressing them gives you**, instead of
+  counting the whole catalogue while the grid narrows on three things at once.
+  And pressing a lit chip clears the filter even when that product's own
+  spelling of the name differs from the one on the bar.
+- **A recurring-order reminder no longer shows `{name}` and `{days}` as text.**
+  The heading and the sentence underneath were stored under the same name, so
+  one quietly replaced the other — in every language.
 - **Two machines stay in step while only one of them has updated.** If you run
   Khayt on a laptop and a workshop PC and update one first, renaming a group on
   the older one no longer goes unseen by the newer one, and using *Identify*

@@ -909,6 +909,19 @@
     wirePfDrop();
     const hasHub = !!(api() && api().printLibPick);
     const isGallery = _view === 'gallery';
+    /* THE LIST IS BUILT FIRST, AND SITS SECOND.
+     *
+     * listInnerHtml() runs normalizeFilters(), which drops a filter that no
+     * longer matches anything. Inlined in the template below, the bar was built
+     * in source order — against the filter that was about to be dropped. Clear
+     * the group of every selected file and it read "Select all 0 shown" over a
+     * grid of the whole library, and the first press of that button did nothing,
+     * because pickAllShown re-read the same stale filter. The second press
+     * worked.
+     *
+     * The bar still renders above the grid; only the ORDER OF EVALUATION moved. */
+    const listHtml = listInnerHtml();
+    const bulkBar = bulkBarHtml();
     el.innerHTML = `
       <div class="pf-wrap">
         <div class="pf-head">
@@ -928,8 +941,8 @@
             <button class="btn primary" data-act="pf-add" ${hasHub ? '' : 'disabled'} title="${escapeHtml(t('plib.add_multi_hint') || 'Add one or more files — select several at once')}">＋ ${escapeHtml(t('plib.add') || 'Add file')}</button>
           </div>
         </div>
-        <div id="pfBulk">${bulkBarHtml()}</div>
-        <div id="pfList">${listInnerHtml()}</div>
+        <div id="pfBulk">${bulkBar}</div>
+        <div id="pfList">${listHtml}</div>
       </div>`;
 
     el.onclick = onClick;
@@ -2006,8 +2019,11 @@
     const hub = api(); if (!hub || !hub.printLibList) return null;
     const files = await hub.printLibList(rec.id);
     if (!Array.isArray(files) || !files.length) return null;
-    // Same hazard as resolvePartPaths: the vault folder holds thumb.jpg too.
-    const named = files.find((f) => f.filename === rec.sourceFile.filename);
+    /* `rec.sourceFile` can be NULL — removePart() sets it so when the last part
+     * goes, and thumb.jpg keeps the vault folder non-empty, so the guard above
+     * does not catch it. Pressing Identify on such a record threw a TypeError
+     * out of an async handler: no dialog, no toast, nothing happened. */
+    const named = rec.sourceFile && files.find((f) => f.filename === rec.sourceFile.filename);
     const openable = named || files.find((f) => MODEL_EXT.test(String(f.filename || '')));
     return openable ? openable.fullPath : null;
   }
