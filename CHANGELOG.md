@@ -4,6 +4,19 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Changed
+
+- **Which settings count as secrets is now decided in one place.** Every
+  credential Khayt stores — the cloud token, the AI key, the bucket and Drive
+  keys, printer API keys, ZATCA IDs, BNPL and webhook secrets, the LAN PINs —
+  is encrypted on disk, hidden behind dots on screen, and put back untouched
+  when you save an unrelated setting. Those four things used to be four
+  separate lists in the code, and a secret could be on three of them: the one
+  that was missed either sat in the file in plain text, or got overwritten the
+  next time you pressed Save. Nothing about how you use Khayt changes; there is
+  simply no longer a way for a new setting to be protected in three ways out of
+  four.
+
 ## [3.7.0-beta.25] - 2026-09-03
 
 ### Before you update
