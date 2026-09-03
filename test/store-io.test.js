@@ -569,3 +569,125 @@ test('hasPlaintextSecrets stays in lockstep with encryptForDisk', () => {
   const empty = { settings: { shopName: 'X' }, machines: [{ id: 'M1' }] };
   assert.equal(io.hasPlaintextSecrets(empty), changed(empty), 'empty store: predicate must match encryptForDisk');
 });
+
+/* ------------------------------------------------------------------
+ * Two writers, one store.
+ *
+ * Every caller that changes one key read the in-memory store, changed it, and
+ * wrote the whole thing back. The read and the enqueue sit in one synchronous
+ * block, so nothing can interleave THERE — but `onStoreUpdated` only refreshes
+ * the in-memory copy after the awaited write LANDS. A second caller arriving
+ * while the first write is still in flight reads the store as it was before the
+ * first change, and its write, queued behind, puts that state back.
+ *
+ * Two tablets on the shop floor inside one write cycle: the order tablet A had
+ * just logged was gone from disk, after the server had answered 201.
+ * ------------------------------------------------------------------ */
+
+test('two writes in flight: the old read-modify-write loses one', async () => {
+  // The bug, driven against the primitive it replaced, so the fix is measured
+  // against something real rather than asserted.
+  const io = makeStoreIo();
+  let mem = { printLog: [], expenses: [] };
+  await io.persistLanStoreUpdate(mem);
+  mem = io.recoverStoreRaw().data;
+
+  const a = { ...mem, printLog: [{ id: 'O-A' }, ...mem.printLog] };
+  const pa = io.persistLanStoreUpdate(a);
+  await new Promise((r) => setImmediate(r));      // B arrives while A is in flight
+  const b = { ...mem, expenses: [{ id: 'E-B' }, ...mem.expenses] };
+  await Promise.all([pa, io.persistLanStoreUpdate(b)]);
+
+  const onDisk = io.recoverStoreRaw().data;
+  assert.equal(onDisk.printLog.length, 0, 'setup: the old path is expected to lose A');
+  assert.equal(onDisk.expenses.length, 1);
+});
+
+test('updateStoreOnDisk: two writes in flight both survive', async () => {
+  const tmp2 = fs.mkdtempSync(path.join(os.tmpdir(), 'khayt-store-io-race-'));
+  let mem = {};
+  const io = createStoreIo({
+    app: { getPath: () => tmp2 },
+    fs,
+    safeStorage: { isEncryptionAvailable: () => false },
+    safeJsonParse,
+    crypto,
+    onStoreUpdated: (d) => { mem = d; },
+    getStore: () => mem,
+  });
+  try {
+    mem = { printLog: [], expenses: [] };
+    await io.persistLanStoreUpdate(mem);
+
+    const pa = io.updateStoreOnDisk((cur) => ({ ...cur, printLog: [{ id: 'O-A' }, ...(cur.printLog || [])] }));
+    await new Promise((r) => setImmediate(r));
+    const pb = io.updateStoreOnDisk((cur) => ({ ...cur, expenses: [{ id: 'E-B' }, ...(cur.expenses || [])] }));
+    await Promise.all([pa, pb]);
+
+    const onDisk = io.recoverStoreRaw().data;
+    assert.deepEqual(onDisk.printLog, [{ id: 'O-A' }], 'the order was lost — the read is not inside the chain');
+    assert.deepEqual(onDisk.expenses, [{ id: 'E-B' }]);
+  } finally { fs.rmSync(tmp2, { recursive: true, force: true }); }
+});
+
+test('updateStoreOnDisk: many concurrent appends all land', async () => {
+  const tmp2 = fs.mkdtempSync(path.join(os.tmpdir(), 'khayt-store-io-many-'));
+  let mem = { printLog: [] };
+  const io = createStoreIo({
+    app: { getPath: () => tmp2 }, fs,
+    safeStorage: { isEncryptionAvailable: () => false },
+    safeJsonParse, crypto,
+    onStoreUpdated: (d) => { mem = d; },
+    getStore: () => mem,
+  });
+  try {
+    await io.persistLanStoreUpdate(mem);
+    await Promise.all(Array.from({ length: 25 }, (_, i) =>
+      io.updateStoreOnDisk((cur) => ({ ...cur, printLog: [...(cur.printLog || []), { id: `O-${i}` }] }))));
+    const ids = io.recoverStoreRaw().data.printLog.map((o) => o.id).sort();
+    assert.equal(ids.length, 25, `${25 - ids.length} of 25 orders were lost`);
+  } finally { fs.rmSync(tmp2, { recursive: true, force: true }); }
+});
+
+test('updateStoreOnDisk: a failing mutator does not poison the chain', async () => {
+  const tmp2 = fs.mkdtempSync(path.join(os.tmpdir(), 'khayt-store-io-poison-'));
+  let mem = { printLog: [] };
+  const io = createStoreIo({
+    app: { getPath: () => tmp2 }, fs,
+    safeStorage: { isEncryptionAvailable: () => false },
+    safeJsonParse, crypto,
+    onStoreUpdated: (d) => { mem = d; },
+    getStore: () => mem,
+  });
+  try {
+    await io.persistLanStoreUpdate(mem);
+    await assert.rejects(() => io.updateStoreOnDisk(() => { throw new Error('boom'); }));
+    await io.updateStoreOnDisk((cur) => ({ ...cur, printLog: [{ id: 'after' }] }));
+    assert.deepEqual(io.recoverStoreRaw().data.printLog, [{ id: 'after' }],
+      'one bad write stopped every write after it');
+  } finally { fs.rmSync(tmp2, { recursive: true, force: true }); }
+});
+
+test('updateStoreOnDisk: the mutator sees decrypted secrets, not ciphertext', async () => {
+  // readStoreRawFromDisk returns the ENCRYPTED form. Falling back to it would
+  // hand the mutator ciphertext and then re-encrypt it, double-wrapping every
+  // secret in the store.
+  const tmp2 = fs.mkdtempSync(path.join(os.tmpdir(), 'khayt-store-io-sec-'));
+  const io = createStoreIo({
+    app: { getPath: () => tmp2 }, fs,
+    safeStorage: {
+      isEncryptionAvailable: () => true,
+      encryptString: (plain) => Buffer.from(`test:${plain}`, 'utf8'),
+      decryptString: (buf) => { const v = buf.toString('utf8'); return v.startsWith('test:') ? v.slice(5) : ''; },
+    },
+    safeJsonParse, crypto,
+    // No getStore: force the disk-read path, which is where the trap is.
+  });
+  try {
+    await io.writeStoreToDisk({ settings: { lanApi: { pin: '4321' } }, printLog: [] });
+    let sawPin = null;
+    await io.updateStoreOnDisk((cur) => { sawPin = cur.settings.lanApi.pin; return { ...cur, printLog: [{ id: 'x' }] }; });
+    assert.equal(sawPin, '4321', 'the mutator was handed ciphertext');
+    assert.equal(io.readStoreDecryptedFromDisk().settings.lanApi.pin, '4321', 'the pin was double-encrypted');
+  } finally { fs.rmSync(tmp2, { recursive: true, force: true }); }
+});

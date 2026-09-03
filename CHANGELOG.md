@@ -62,6 +62,14 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **Two people using the shop at once could lose one of their entries.** If an
+  order was logged on one phone while an expense, a spool update or a survey was
+  being saved from another — or from the app itself — the second one could put
+  the store back the way it was before the first, so a record that had just been
+  confirmed simply was not there. Everything that writes over the LAN now takes
+  its turn properly, so nothing arrives on top of work it never saw. This also
+  stops a repeated Salla or Zid delivery creating the same order twice.
+
 - **Your daily backup was switching itself off, silently, once your shop got
   big.** Khayt saves a store up to 50 MB, but the backup refused anything over
   20 MB — and so did the iCloud copy, the restore points, and the snapshot taken
