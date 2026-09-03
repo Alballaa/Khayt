@@ -62,6 +62,14 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **Setting up cloud sync could leave your shop openable on one computer only.**
+  If saving your sync key to the server failed — a dropped connection at the
+  wrong moment — Khayt carried on and showed you a recovery key to write down,
+  as though everything had worked. Another computer logging in would have found
+  no key and been unable to open your shop at all. Khayt now checks that the key
+  arrived, shows the recovery key only once it has, and tells you plainly if it
+  has not. The same check was added to joining and leaving an organisation.
+
 - **A payment plan asked for the deposit all over again.** Generating
   instalments split the order's full price, ignoring anything already paid — so
   a SAR 3,000 job with a SAR 1,000 deposit became three payments of SAR 1,000,

@@ -3046,6 +3046,8 @@
   "cloud.need_password": "账户密码必须为 8 位以上",
   "cloud.account_created": "账户已创建 — 已连接 Khayt Cloud",
   "cloud.logged_in": "已登录 — 使用“从云端恢复”拉取您的数据",
+  "cloud.keyset_put_failed": "同步密钥未能保存到服务器 — 其他设备将无法打开此店铺。请检查网络后重试。",
+  "cloud.keyset_retry": "同步尚未完成：您的密钥还未上传到服务器。恢复联网后请重新登录，之后再依赖此店铺可被恢复。",
   "cloud.restore_q": "是否用云端副本替换所有本地数据？此操作无法撤销。",
   "cloud.restored": "已从云端恢复",
   "cloud.snapshots": "快照历史",

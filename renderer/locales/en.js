@@ -3047,6 +3047,8 @@
   "cloud.need_password": "Account password must be 8+ chars",
   "cloud.account_created": "Account created \u2014 Khayt Cloud connected",
   "cloud.logged_in": "Logged in \u2014 use \u201cRestore from cloud\u201d to pull your data",
+  "cloud.keyset_put_failed": "Your sync key could not be saved to the server — other devices will not be able to open this shop. Check your connection and try again.",
+  "cloud.keyset_retry": "Sync is not finished: your key is not on the server yet. Log in again once you are back online, before relying on this shop being recoverable.",
   "cloud.restore_q": "Replace all local data with the cloud copy? This cannot be undone.",
   "cloud.restored": "Restored from cloud",
   "cloud.snapshots": "Snapshot history",
