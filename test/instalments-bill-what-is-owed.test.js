@@ -103,3 +103,67 @@ test('the new string exists in every locale', () => {
     assert.ok(read(path.join('renderer', 'locales', f)).includes('"inst.nothing_owed"'), `${f} is missing it`);
   }
 });
+
+/* ------------------------------------------------------------------
+ * The other half: a plan that covers the BALANCE must still settle the order.
+ *
+ * The save path recorded `paidAmount = Math.max(paidAmount, instPaid)`. That was
+ * right ONLY BECAUSE the generator used to span the gross price: a SAR 3,000 job
+ * with a SAR 1,000 deposit got a SAR 3,000 plan, so max(1000, 3000) = 3000 and
+ * the order settled. It also billed the customer SAR 4,000 for a SAR 3,000 job,
+ * which is what the generator fix above stopped.
+ *
+ * Fixing one without the other leaves the worse of both:
+ *
+ *   BEFORE  plan 3000  customer paid 4000  recorded 3000  still owes    0.00
+ *   AFTER   plan 2000  customer paid 3000  recorded 2000  still owes 1000.00
+ *
+ * The customer has paid in full and is chased forever. That is a regression the
+ * generator fix introduced, found by asking what the REST of the app does with
+ * the value it now produces.
+ * ------------------------------------------------------------------ */
+
+/** The save path's rule, read out of the shipped source. */
+function paidAmountRule(order, draft, instPaid) {
+  const src = read('renderer/order-flows.js');
+  const at = src.indexOf('const instBase = draft.instalmentBase;');
+  assert.ok(at > 0, 'the paidAmount rule is gone');
+  const body = src.slice(at, src.indexOf(';\n', src.indexOf('order.paidAmount =', at)) + 1);
+  const fn = new Function('order', 'draft', 'instPaid', `${body}; return order.paidAmount;`);
+  return fn({ ...order }, draft, instPaid);
+}
+
+test('a plan covering the balance settles the order', () => {
+  // deposit 1000 already in paidAmount; plan of 2000 fully paid → 3000.
+  const got = paidAmountRule({ paidAmount: 1000 }, { instalmentBase: 1000 }, 2000);
+  assert.equal(got, 3000, `the order records ${got}, so it shows ${3000 - got} owed on a job paid in full`);
+});
+
+test('a legacy plan keeps the old rule, which was right for it', () => {
+  // No instalmentBase: the schedule spans the gross price, so taking the larger
+  // is correct and adding would double the deposit.
+  const got = paidAmountRule({ paidAmount: 1000 }, {}, 3000);
+  assert.equal(got, 3000, 'a plan written before the fix was double-counted');
+});
+
+test('a part-paid plan adds only what has been paid', () => {
+  assert.equal(paidAmountRule({ paidAmount: 1000 }, { instalmentBase: 1000 }, 666.67), 1666.67);
+});
+
+test('an order with no deposit behaves the same either way', () => {
+  assert.equal(paidAmountRule({ paidAmount: 0 }, { instalmentBase: 0 }, 2000), 2000);
+  assert.equal(paidAmountRule({ paidAmount: 0 }, {}, 2000), 2000);
+});
+
+test('the base is recorded when a plan is generated, and travels with it', () => {
+  // Written by the generator, carried onto the draft when the editor opens, and
+  // written back on save. Missing any one of the three and the additive rule
+  // silently never applies — the failure this whole section is about.
+  const src = code('renderer/order-flows.js');
+  assert.match(src, /draft\.instalmentBase = \+order\.paidAmount \|\| 0;/,
+    'the generator no longer records the cash the order already held');
+  assert.match(src, /^\s*instalmentBase: order\.instalmentBase,$/m,
+    'the editor draft does not carry it, so save writes undefined back');
+  assert.match(src, /order\.instalmentBase = draft\.instalments\.length > 0 \? draft\.instalmentBase : undefined;/,
+    'it is not written back to the order, or not cleared with the schedule');
+});

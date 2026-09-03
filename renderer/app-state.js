@@ -900,6 +900,26 @@ async function loadAll() {
   // than leaving the shop to find out. Report-only — see findResurrected().
   if (typeof reportResurrectedRecords === 'function') reportResurrectedRecords();
 
+  /* Two things a shop upgrading from an earlier build meets in its OWN data.
+   *
+   * Both are consequences of money fixes in this release, and both are
+   * REPORT-ONLY, for different reasons:
+   *
+   *  - An instalment plan written before the deposit fix split the gross price,
+   *    so it asks for more than the order still owes. A schedule is an agreement
+   *    the shop may have put in writing; rewriting the amounts silently would be
+   *    worse than saying so.
+   *  - Points used to be earned on cancelled, personal and fully refunded jobs.
+   *    Correcting that lowers what a client has EARNED, and the balance clamps at
+   *    zero — so a customer who was told they had points now has none, quietly.
+   *    Re-inflating it would perpetuate a liability the shop does not owe.
+   *
+   * Announced when the set CHANGES, not on every launch: nagging each start
+   * trains the owner to dismiss it, and announcing once ever is missed by anyone
+   * who was not looking that day. Same rule as reportResurrectedRecords. */
+  try { if (typeof reportLegacyMoneyState === 'function') reportLegacyMoneyState(); }
+  catch (e) { console.error('legacy money report failed:', e); }
+
   // Feature 4 (batch-2): Process any due recurring orders on load.
   // Guarded: the Bed Ready flavor ships no operations-extras module.
   if (typeof processRecurringOrders === 'function') processRecurringOrders();
