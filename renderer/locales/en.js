@@ -3795,6 +3795,8 @@
   "sync.resurrected_many": "{n} records you deleted came back. An older sync bug could re-add deleted records; delete them again if they should be gone.",
   "sync.discarded_one": "An edit was discarded — “{name}” was deleted on another device.",
   "sync.discarded_many": "{n} edits were discarded — those records were deleted on another device.",
+  "sync.overwritten_one": "An edit you made to “{name}” was replaced by a newer version from another device — worth a look.",
+  "sync.overwritten_many": "{n} of your edits were replaced by newer versions from another device — worth a look.",
   "set.ai_master": "AI assist",
   "set.ai_sends": "Sends to Anthropic:",
   "set.ai_pii_badge": "Customer data",

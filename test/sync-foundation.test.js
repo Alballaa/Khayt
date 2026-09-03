@@ -152,3 +152,109 @@ test('tombstones are capped so they cannot grow without bound', () => {
   assert.ok(s.tombstones.some(t => t.id === 'D5099'), 'newest tombstone kept');
   assert.ok(!s.tombstones.some(t => t.id === 'D0'), 'oldest tombstone dropped');
 });
+
+/* ------------------------------------------------------------------
+ * A merge that overwrites a local edit must say so.
+ *
+ * `rev` is a per-record counter, not a causal clock. A peer that edited the
+ * same record TWICE arrives at rev 7 while this device sits at its own rev 6
+ * from a single edit — so "higher rev wins" discarded the local edit and
+ * reported nothing. The only conflict a shop was ever told about was
+ * delete-over-edit.
+ *
+ * The baseline that makes this detectable is per-DEVICE (what this machine has
+ * exchanged with the server), so it lives in the change index, never on the
+ * record. Putting it on the record makes two devices holding the identical
+ * record disagree byte for byte — org-multishop-sync.test.js catches that, and
+ * caught the first attempt at this.
+ * ------------------------------------------------------------------ */
+
+/** Two devices in sync at rev 5, this one having pushed. */
+function syncedAt5(extra = {}) {
+  const s = snap({ clients: [{ id: 'c1', name: 'Acme', phone: '0500000000', rev: 5, ...extra }] });
+  sync.seedIndex(s);
+  sync.markSynced(s);
+  return s;
+}
+
+test('overwrite: a local edit lost to a higher-rev peer is reported', () => {
+  const s = syncedAt5();
+  s.clients[0].phone = '0555555555';           // the shop fixes the phone number
+  sync.stampChanges(s);                        // → rev 6, never pushed
+  const r = sync.applyDeltas(s, { deltas: [{ collection: 'clients',
+    record: { id: 'c1', name: 'Acme Ltd', phone: '0500000000', rev: 7 } }] });
+
+  assert.equal(s.clients[0].phone, '0500000000', 'the higher rev still wins — outcome unchanged');
+  assert.equal(r.conflicts.length, 1, 'the discarded edit went unreported');
+  const c = r.conflicts[0];
+  assert.equal(c.kind, 'remote_over_local_edit');
+  assert.equal(c.localRev, 6);
+  assert.equal(c.incomingRev, 7);
+  assert.equal(c.syncedRev, 5);
+  assert.equal(c.discarded.phone, '0555555555', 'the lost copy is handed back');
+});
+
+test('overwrite: no local edit means no conflict', () => {
+  const s = syncedAt5();
+  const r = sync.applyDeltas(s, { deltas: [{ collection: 'clients',
+    record: { id: 'c1', name: 'Acme Ltd', phone: '0500000000', rev: 7 } }] });
+  assert.equal(r.applied, 1);
+  assert.equal(r.conflicts.length, 0, 'an ordinary update must not be called a conflict');
+});
+
+test('overwrite: an unknown baseline says nothing', () => {
+  // A store that has not pushed or merged since launch has no baseline. Treating
+  // unknown as 0 would report a conflict for the whole store on the first merge.
+  const s = snap({ clients: [{ id: 'c1', name: 'Acme', rev: 5 }] });
+  sync.seedIndex(s);                           // note: no markSynced
+  s.clients[0].name = 'Acme Co';
+  sync.stampChanges(s);
+  const r = sync.applyDeltas(s, { deltas: [{ collection: 'clients',
+    record: { id: 'c1', name: 'Acme Ltd', rev: 7 } }] });
+  assert.equal(r.conflicts.length, 0, 'a false conflict teaches the shop to ignore the message');
+});
+
+test('overwrite: identical content is not a conflict', () => {
+  const s = syncedAt5();
+  s.clients[0].phone = '0555555555';
+  sync.stampChanges(s);
+  const r = sync.applyDeltas(s, { deltas: [{ collection: 'clients',
+    record: { id: 'c1', name: 'Acme', phone: '0555555555', rev: 7 } }] });
+  assert.equal(r.conflicts.length, 0, 'the peer arrived at the same answer — nothing was lost');
+});
+
+test('overwrite: the baseline survives a save and a reseed', () => {
+  // pullMerge reseeds after every merge and stampChanges runs on every save.
+  // Either dropping the baseline silently disables the whole report.
+  const s = syncedAt5();
+  sync.seedIndex(s);                           // as pullMerge does
+  s.clients[0].phone = '0555555555';
+  sync.stampChanges(s);                        // as every save does
+  const r = sync.applyDeltas(s, { deltas: [{ collection: 'clients',
+    record: { id: 'c1', name: 'Acme Ltd', phone: '0500000000', rev: 7 } }] });
+  assert.equal(r.conflicts.length, 1, 'the baseline was thrown away by a reseed or a save');
+});
+
+test('overwrite: accepting a record from the server sets the baseline', () => {
+  // Otherwise the very next local edit would look unpushed and report falsely.
+  const s = syncedAt5();
+  sync.applyDeltas(s, { deltas: [{ collection: 'clients',
+    record: { id: 'c1', name: 'Acme Ltd', phone: '0500000000', rev: 7 } }] });
+  assert.equal(sync.syncedRevOf('clients', 'c1'), 7);
+  s.clients[0].phone = '0566666666';
+  sync.stampChanges(s);
+  const r = sync.applyDeltas(s, { deltas: [{ collection: 'clients',
+    record: { id: 'c1', name: 'Acme Ltd', phone: '0500000000', rev: 9 } }] });
+  assert.equal(r.conflicts.length, 1);
+  assert.equal(r.conflicts[0].syncedRev, 7, 'the baseline did not move with the merge');
+});
+
+test('summarizeOverwrittenEdits names the first record and counts the rest', () => {
+  const none = sync.summarizeOverwrittenEdits([{ kind: 'delete_over_edit', discarded: { name: 'X' } }]);
+  assert.equal(none.count, 0, 'the delete case has its own message');
+  const some = sync.summarizeOverwrittenEdits([
+    { kind: 'remote_over_local_edit', id: 'c1', discarded: { name: 'Acme' } },
+    { kind: 'remote_over_local_edit', id: 'c2', discarded: { name: 'Beta' } },
+  ]);
+  assert.deepEqual(some, { count: 2, firstName: 'Acme' });
+});
