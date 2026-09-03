@@ -33,6 +33,41 @@ test('the release carries its own notes, not a link to them', () => {
     'the release is being created with the boilerplate note again');
 });
 
+/** A release-creating job, sliced structurally: it ends at the next job, found
+ *  by indentation. Slicing to the next `gh release create` ended it early,
+ *  because that phrase appears in a comment above the command it names. */
+function releaseJob(wf, stepName) {
+  const at = wf.indexOf(stepName);
+  assert.ok(at > -1, `the step "${stepName}" is gone`);
+  const rest = wf.slice(at);
+  const nextJob = rest.slice(1).search(/\n {2}[a-z][\w-]*:\n/);
+  return nextJob === -1 ? rest : rest.slice(0, nextJob + 1);
+}
+
+test('BOTH lanes build their notes from the CHANGELOG', () => {
+  /* Bed Ready passed one fixed sentence — "See the Khayt CHANGELOG for what
+   * changed" — so its releases carried no `Before you update` section, EVER.
+   * parseMajorChanges finds no heading and returns needsConsent:false, and Bed
+   * Ready runs the identical renderer and updater. Its shops were the ones being
+   * asked to install a change nobody had shown them: unconditionally, for a
+   * whole flavour, while the Khayt lane's gate was being carefully repaired.
+   *
+   * And its job had no `actions/checkout` either — the same fault as
+   * v3.7.0-beta.24, sitting in the second lane the whole time. */
+  const wf = read('.github/workflows/release.yml');
+  for (const [lane, jobStart] of [['Khayt', '  create-release:'], ['Bed Ready', '  bedready-release:']]) {
+    const job = releaseJob(wf, jobStart);
+    assert.ok(job.includes('node scripts/changelog-section.js'),
+      `the ${lane} lane does not build its notes from the CHANGELOG — its releases can never be gated`);
+    assert.ok(job.includes('--notes-file'),
+      `the ${lane} lane passes a fixed --notes string rather than the file it just built`);
+    assert.ok(job.includes('actions/checkout'),
+      `the ${lane} lane has no checkout, so changelog-section.js will fail "file not found" and fall back silently`);
+    assert.ok(job.indexOf('actions/checkout') < job.indexOf('node scripts/changelog-section.js'),
+      `the ${lane} lane checks out AFTER it needs the repo`);
+  }
+});
+
 test('the job that builds the notes has the repo they come from', () => {
   /* v3.7.0-beta.24 published the boilerplate line despite all of this being in
    * place, because the "Create GitHub Release" job had never needed a checkout

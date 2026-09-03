@@ -62,6 +62,10 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **Bed Ready updates could never show the warning either.** Its releases were
+  published with one fixed sentence instead of the notes, so a Bed Ready shop
+  was asked to install a change nobody had shown it — for every release there
+  has ever been.
 - **The warning before a major update would not have appeared at all.** Khayt
   reads a release's notes from GitHub as a rendered page, not as the file we
   write, and the part that finds the changes you must accept could not read a

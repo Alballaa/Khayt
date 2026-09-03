@@ -29,8 +29,39 @@ const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const require_ = createRequire(import.meta.url);
 const { parseMajorChanges } = require_(path.join(ROOT, 'lib/major-changes.js'));
 
-const notes = sectionFor(fs.readFileSync(path.join(ROOT, 'CHANGELOG.md'), 'utf8'), 'Unreleased');
+/* WHICH SECTION, AND IN WHICH SHAPE — both were wrong.
+ *
+ * `Unreleased` is emptied by the cut: the procedure MOVES it under `## [X.Y.Z]`,
+ * so on the release commit — the only commit that is tagged and shipped — this
+ * read an empty section, took its "nothing to gate" branch, and passed
+ * trivially. It proved the gate for a version that is never released.
+ *
+ * The version in package.json is what a build ships, so that is read first and
+ * `Unreleased` is the fallback for ordinary development.
+ *
+ * And the app never sees markdown. electron-updater reads the GitHub release
+ * atom feed, which carries RENDERED HTML — the shape in which a multi-line item
+ * used to vanish entirely. Both are put through the modal, and both must agree,
+ * so a change that reads correctly here and not in production fails HERE. */
+const changelog = fs.readFileSync(path.join(ROOT, 'CHANGELOG.md'), 'utf8');
+const shipping = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version;
+const notes = sectionFor(changelog, shipping) || sectionFor(changelog, 'Unreleased');
+const source = sectionFor(changelog, shipping) ? shipping : 'Unreleased';
+
+/** Roughly what GitHub serves for a markdown section, which is what the app gets. */
+function asRendered(md) {
+  const out = [];
+  for (const line of String(md).split(/\r?\n/)) {
+    const bullet = line.match(/^- (.*)$/);
+    if (bullet) { out.push('<li>', bullet[1]); continue; }
+    if (/^#{1,6} /.test(line)) { out.push(line.replace(/^#{1,6} (.*)$/, '<h3>$1</h3>')); continue; }
+    out.push(line.replace(/^\s+/, ''));       // list indentation is consumed
+  }
+  return out.join('\n').replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+}
+
 const major = parseMajorChanges(notes);
+const asShipped = parseMajorChanges(asRendered(notes));
 
 const userData = makeUserDataDir();
 let app;
@@ -79,11 +110,20 @@ try {
   }, [notes, major]);
 
   ok(state.modalOpen, 'the update modal opens');
+  /* The one that would have caught the real bug: the markdown we write and the
+   * page GitHub serves have to yield the same gate. They did not — every
+   * multi-line item was dropped from the rendered form, and this release's items
+   * are all multi-line, so the gate simply would not have appeared. */
+  ok(asShipped.needsConsent === major.needsConsent,
+    `markdown says needsConsent=${major.needsConsent} and the rendered page says `
+    + `${asShipped.needsConsent} — production reads the rendered one`);
+  ok(asShipped.items.length === major.items.length,
+    `markdown yields ${major.items.length} item(s), the rendered page ${asShipped.items.length}`);
 
   if (!major.needsConsent) {
     ok(!state.gateShown, 'no gate for a release with nothing to accept');
     ok(state.btnFound && state.btnDisabled === false, 'and the download is available straight away');
-    say(`no "Before you update" section this release — nothing to gate`);
+    say(`no "Before you update" section in [${source}] — nothing to gate`);
   } else {
     ok(state.gateShown, 'the gate is shown');
     ok(state.items.length === major.items.length,
@@ -114,7 +154,7 @@ try {
     });
     ok(back === true, 'unticking holds it again — the gate is not a one-way latch');
 
-    say(`${major.items.length} item(s) gated, held until accepted`);
+    say(`${major.items.length} item(s) from [${source}] gated, held until accepted`);
   }
 } catch (e) {
   failed++;
