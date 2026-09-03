@@ -82,6 +82,7 @@
   "conv.preset_name": "预设名称",
   "conv.preset_apply": "应用预设…",
   "store.recovered": "✓ 已在保存中断后从备份恢复您的数据。",
+  "store.recovered_prev": "⚠ 上次保存已丢失。Khayt 已回退到上一份副本 — 请检查您最近的工作。",
   "slicer.detect": "检测已安装的切片软件",
   "slicer.detecting": "正在搜索切片软件…",
   "slicer.detected_n": "已添加 {n} 个切片软件",

@@ -82,6 +82,7 @@
   "conv.preset_name": "Name der Voreinstellung",
   "conv.preset_apply": "Voreinstellung anwenden…",
   "store.recovered": "✓ Deine Daten wurden nach einem unterbrochenen Speichern aus einer Sicherung wiederhergestellt.",
+  "store.recovered_prev": "⚠ Ihre letzte Speicherung ging verloren. Khayt hat die vorherige Kopie geladen — prüfen Sie Ihre neuesten Arbeiten.",
   "slicer.detect": "Installierte Slicer erkennen",
   "slicer.detecting": "Suche nach Slicern…",
   "slicer.detected_n": "{n} Slicer hinzugefügt",

@@ -223,6 +223,9 @@ jobs:
       - name: E2E smoke (a backup accepts any store that can be saved)
         run: xvfb-run -a npm run test:e2e:backupsize
 
+      - name: E2E smoke (recovery picks the newest copy and says which)
+        run: xvfb-run -a npm run test:e2e:recovery
+
       # Both are UI wiring, the class a unit test cannot vouch for: the fee
       # module can be perfect while the dropdown appends nothing, and the CSS
       # token can exist while no code ever sets it.

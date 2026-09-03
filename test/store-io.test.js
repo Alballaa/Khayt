@@ -311,6 +311,54 @@ test('the newest orphaned temp wins when several survive', () => {
   assert.equal(r.data.which, 'newer', 'the most recent interrupted write is closest to the owner\'s work');
 });
 
+test('a stale orphaned temp does not outrank a fresh .prev', () => {
+  // A write killed between writeFile and the swap orphans its temp file for good —
+  // nothing has ever cleaned one up, and every later save renames a DIFFERENT temp
+  // into place. Recovery preferred any temp over .prev, so an interrupted write from
+  // July outranked yesterday's save, and the shop was handed back a two-month-old
+  // store under the words "Recovered your data from a backup".
+  const io = makeStoreIo();
+  const fp = io.dataFilePath();
+  const july = new Date(Date.now() - 60 * 24 * 3600 * 1000);
+  fs.writeFileSync(`${fp}.tmp.999.1`, JSON.stringify({ gen: 'july-orphan', printLog: [] }));
+  fs.utimesSync(`${fp}.tmp.999.1`, july, july);
+  fs.writeFileSync(fp + '.prev', JSON.stringify({ gen: 'yesterday', printLog: [] }));
+  fs.writeFileSync(fp, '{ truncated');            // a bad shutdown corrupted the primary
+  const r = io.recoverStoreRaw();
+  assert.equal(r.data.gen, 'yesterday', 'two months of work was thrown away for a stale temp');
+  assert.equal(r.source, 'prev');
+});
+
+test('a genuine crash still prefers the temp that was trying to land', () => {
+  // The other direction, and the one that must not regress: in a real crash the temp
+  // holds the newest bytes and .prev inherits the mtime of the save before it.
+  const io = makeStoreIo();
+  const fp = io.dataFilePath();
+  const tenMinAgo = new Date(Date.now() - 600 * 1000);
+  fs.writeFileSync(fp + '.prev', JSON.stringify({ gen: 'previous', printLog: [] }));
+  fs.utimesSync(fp + '.prev', tenMinAgo, tenMinAgo);
+  fs.writeFileSync(`${fp}.tmp.123.1`, JSON.stringify({ gen: 'interrupted', printLog: [] }));
+  const r = io.recoverStoreRaw();
+  assert.equal(r.data.gen, 'interrupted');
+  assert.equal(r.source, 'tmp');
+});
+
+test('a stale orphan is skipped even when the fresher .prev is the only good copy', () => {
+  // Same ranking, but the newest candidate is unreadable: it must fall THROUGH to the
+  // next by age, not back to "any temp".
+  const io = makeStoreIo();
+  const fp = io.dataFilePath();
+  const july = new Date(Date.now() - 60 * 24 * 3600 * 1000);
+  fs.writeFileSync(`${fp}.tmp.999.1`, JSON.stringify({ gen: 'july-orphan', printLog: [] }));
+  fs.utimesSync(`${fp}.tmp.999.1`, july, july);
+  fs.writeFileSync(`${fp}.tmp.999.2`, '{"printLog":[{"id":"O-1","note":"xxx');  // newest, truncated
+  fs.writeFileSync(fp + '.prev', JSON.stringify({ gen: 'yesterday', printLog: [] }));
+  const yday = new Date(Date.now() - 24 * 3600 * 1000);
+  fs.utimesSync(fp + '.prev', yday, yday);
+  const r = io.recoverStoreRaw();
+  assert.equal(r.data.gen, 'yesterday', 'fell back to the oldest temp instead of the newer .prev');
+});
+
 test('a truncated temp is skipped in favour of a good .prev', () => {
   // A write killed mid-fwrite leaves unparseable JSON. Preferring it over an
   // intact backup would turn a recoverable crash into real data loss.

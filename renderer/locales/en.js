@@ -82,6 +82,7 @@
   "conv.preset_name": "Preset name",
   "conv.preset_apply": "Apply a preset…",
   "store.recovered": "✓ Recovered your data from a backup after an interrupted save.",
+  "store.recovered_prev": "⚠ Your last save was lost. Khayt fell back to the previous copy — check your most recent work.",
   "slicer.detect": "Detect installed slicers",
   "slicer.detecting": "Scanning for slicers…",
   "slicer.detected_n": "Added {n} slicer(s)",

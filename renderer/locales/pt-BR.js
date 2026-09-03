@@ -82,6 +82,7 @@
   "conv.preset_name": "Nome da predefinição",
   "conv.preset_apply": "Aplicar uma predefinição…",
   "store.recovered": "✓ Recuperamos seus dados de um backup após um salvamento interrompido.",
+  "store.recovered_prev": "⚠ Seu último salvamento foi perdido. O Khayt voltou para a cópia anterior — confira seu trabalho mais recente.",
   "slicer.detect": "Detectar fatiadores instalados",
   "slicer.detecting": "Procurando fatiadores…",
   "slicer.detected_n": "{n} fatiador(es) adicionado(s)",

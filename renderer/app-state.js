@@ -778,9 +778,22 @@ async function loadAll() {
     setTimeout(() => toast('⚠ Data file could not be read — starting fresh. Your old file was kept aside; check backups!', 'error', 10000), 1500);
     store = null;
   } else if (store && store.__recovered) {
-    // The main process recovered from a completed temp write or the previous generation
-    // after the primary file was unreadable — reassure the user their data is intact.
-    setTimeout(() => toast(t('store.recovered') || '✓ Recovered your data from a backup after an interrupted save.', 'success', 8000), 1500);
+    // The main process recovered from a completed temp write or the previous
+    // generation after the primary file was unreadable.
+    //
+    // This used to be a green tick reading "Recovered your data" no matter which
+    // copy was used. Recovering from `.prev` means the LAST SAVE IS GONE — that is
+    // real loss, and a tick is the wrong thing to show over it. Say which copy came
+    // back and when it was written, so the shop knows whether to check its work.
+    const at = Number(store.__recoveredAt) || 0;
+    const when = at ? new Date(at).toLocaleString() : '';
+    const msg = store.__recovered === 'prev'
+      ? (when
+          ? `${t('store.recovered_prev')} (${when})`
+          : t('store.recovered_prev'))
+      : t('store.recovered');
+    const tone = store.__recovered === 'prev' ? 'error' : 'success';
+    setTimeout(() => toast(msg, tone, 12000), 1500);
   }
 
   if (!store) {
