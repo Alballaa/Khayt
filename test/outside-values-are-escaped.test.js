@@ -104,3 +104,36 @@ test('the panel escapes these values even though the parser coerces them', () =>
     assert.ok(!raw.test(body), `nfcData.${field} is interpolated into innerHTML unescaped`);
   }
 });
+
+/* ── 3. the same thing refused at the IPC boundary ─────────────────────── */
+
+/** mailtoHasNoHiddenRecipients, loaded out of main.js rather than re-implemented. */
+function loadMailtoGuard() {
+  const src = read('main.js');
+  const a = src.indexOf('function mailtoHasNoHiddenRecipients');
+  const b = src.indexOf('function isAllowedExternalUrl');
+  assert.ok(a > 0 && b > a, 'the mailto guard is gone from main.js');
+  return new Function(`${src.slice(a, b)}; return mailtoHasNoHiddenRecipients;`)();
+}
+
+test('the main process refuses a mailto that names another recipient', () => {
+  // Defence in depth. Fixed where the URL is built; refused here too, because
+  // the main process should not open a recipient the shop cannot see.
+  const ok = loadMailtoGuard();
+  assert.equal(ok('mailto:a@b.com'), true, 'an address alone must still open');
+  assert.equal(ok('mailto:a%40b.com?subject=Hi&body=There'), true, 'ordinary mail must still open');
+  assert.equal(ok('mailto:a@b.com?bcc=evil@x.example'), false);
+  assert.equal(ok('mailto:a@b.com?cc=evil@x.example'), false, 'nothing in Khayt sends a cc');
+  assert.equal(ok('mailto:a@b.com?subject=Hi&to=evil@x.example'), false);
+  assert.equal(ok(`mailto:${HOSTILE_EMAIL}?subject=Quote`), false,
+    'the exact address an intake form would accept');
+});
+
+test('the allowlist consults that guard rather than waving mailto through', () => {
+  const src = code('main.js');
+  const at = src.indexOf('function isAllowedExternalUrl');
+  const body = src.slice(at, at + 400);
+  assert.ok(!/startsWith\('mailto:'\)\) return true;/.test(body),
+    'any mailto: is opened again, whatever headers it carries');
+  assert.match(body, /mailtoHasNoHiddenRecipients\(s\)/);
+});
