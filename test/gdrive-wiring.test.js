@@ -26,25 +26,18 @@ const wire = read('renderer/wire-events.js');
 const preload = read('preload.js');
 const html = read('renderer/index.html');
 const drive = read('lib/gdrive-client.js');
+const { assertProtected } = require('./helpers/store-io-harness.js');
 
-test('the refresh token is on all four of store-io\'s lists', () => {
-  // encryptForDisk / decrypt / mask-for-renderer / merge-from-disk. They are
-  // four separate lists and being on three of them is a distinct bug each time.
-  assert.match(storeIo, /d\.settings\.printLibrary\.gdrive\[k\] = encryptStoreField\(/,
-    'the Drive token is written to the store in plaintext');
-  assert.match(storeIo, /data\.settings\.printLibrary\.gdrive\[k\] = decryptStoreField\(/,
-    'the token is never decrypted, so the connection silently stops working');
-  assert.match(storeIo, /mask\(data\.settings\?\.printLibrary\?\.gdrive, 'refreshToken'\)/,
-    'the renderer is handed the real token');
-  assert.match(storeIo, /d\?\.settings\?\.printLibrary\?\.gdrive\?\.\[key\]/,
-    'saving an unrelated setting writes the mask over the token and disconnects Drive');
-  assert.match(storeIo, /needs\(s\.printLibrary\?\.gdrive\?\.\[k\]\)/,
-    'a plaintext Drive token is not counted as one worth warning about');
+test('the refresh token gets every protection a secret gets', () => {
+  // Was five regexes over lib/store-io.js source. That pinned one spelling of
+  // the code: consolidating the hand-written secret lists onto one table broke
+  // this guard without changing any behaviour, and — worse — a table that
+  // omitted the Drive token would have kept it passing. It checks by doing.
+  assertProtected(assert, 'settings.printLibrary.gdrive.refreshToken', 'the Drive refresh token');
 });
 
 test('the client secret is protected the same way', () => {
-  assert.match(storeIo, /\['refreshToken', 'clientSecret'\]/, 'the client secret is not on the lists');
-  assert.match(storeIo, /mask\(data\.settings\?\.printLibrary\?\.gdrive, 'clientSecret'\)/);
+  assertProtected(assert, 'settings.printLibrary.gdrive.clientSecret', 'the Drive client secret');
 });
 
 test('the scope stays drive.file', () => {

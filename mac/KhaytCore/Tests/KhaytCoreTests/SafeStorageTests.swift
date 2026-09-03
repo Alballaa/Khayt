@@ -131,3 +131,39 @@ private func jsString(_ s: String) -> String {
     String(decoding: try! JSONSerialization.data(withJSONObject: [s]), as: UTF8.self)
         .dropFirst().dropLast().description
 }
+
+/// Which fields hold credentials is not a Swift decision.
+@Suite struct SecretPathsTests {
+
+    @Test("the Mac app reads the same secret list the Electron app encrypts from")
+    func sameList() async throws {
+        let engine = try KhaytEngine()
+        let swift = try await engine.secretPaths()
+
+        let node = try SafeStorageTests.node("""
+          process.stdout.write(JSON.stringify(
+            require(process.cwd() + '/../../lib/store-secret-paths.js').SECRET_PATHS))
+        """)
+        let expected = try JSONDecoder().decode([String].self, from: Data(node.utf8))
+
+        #expect(swift == expected, "the two apps disagree about which fields are secret")
+        #expect(swift.count >= 30, "only \(swift.count) secret paths; some have gone missing")
+        // The array case has to survive the crossing intact, or the printer API
+        // keys are silently unprotected in the native app.
+        #expect(swift.contains("machines[].printerApi.apiKey"))
+        #expect(swift.contains("settings.cloud.token"), "the off-site backup token")
+    }
+
+    @Test("every listed path is one SafeStorage can actually seal")
+    func everyPathSealable() throws {
+        // A path is only protected if a value at it round-trips. This is the
+        // Swift-side half of the Node suite's every-secret-is-protected test.
+        let key = SafeStorage.key(fromPassword: SafeStorageTests.password)
+        for path in ["settings.cloud.token", "machines[].printerApi.apiKey", "settings.ai.apiKey"] {
+            let secret = "S3CR3T-" + path
+            let sealed = try SafeStorage.seal(secret, key: key)
+            #expect(sealed.hasPrefix(SafeStorage.marker))
+            #expect(try SafeStorage.open(sealed, key: key) == secret)
+        }
+    }
+}

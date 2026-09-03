@@ -22,6 +22,10 @@ public actor KhaytEngine {
         "business-scope",
         "order-progress",
         "loyalty",
+        // Not business logic — the one list of which store fields hold
+        // credentials. Bundling it is what stops the Mac app from becoming a
+        // sixth hand-maintained copy; SafeStorage encrypts exactly these.
+        "store-secret-paths",
     ]
 
     public init(bundle: Bundle? = nil) throws {
@@ -83,6 +87,16 @@ public actor KhaytEngine {
 
     /// Escape hatch for logic not yet given a typed method. Deliberately
     /// awkward to reach for: anything a screen needs twice belongs above.
+    /// Every store field that holds a credential, from the same list the
+    /// Electron app encrypts from. Not a Swift copy: a Swift copy is how the
+    /// two apps come to disagree about which secrets are protected, and being
+    /// on one list and not another has already leaked a webhook key here.
+    ///
+    /// `machines[].printerApi.apiKey` means "for every element of machines".
+    public func secretPaths() throws -> [String] {
+        try runtime.value("KhaytStoreSecretPaths", "SECRET_PATHS", as: [String].self)
+    }
+
     public func raw<T: Decodable>(_ script: String, as type: T.Type) throws -> T {
         let value = try runtime.evaluate("JSON.stringify(\(script))")
         guard let json = value.toString(), let data = json.data(using: .utf8) else {

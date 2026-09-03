@@ -102,6 +102,16 @@ public final class JSRuntime {
         }
         return try JSONDecoder().decode(T.self, from: data)
     }
+
+    /// Read `object.property` and decode it as `T`. Same JSON crossing as
+    /// `call`, for the modules that export data rather than functions.
+    public func value<T: Decodable>(_ object: String, _ property: String, as type: T.Type) throws -> T {
+        let js = try evaluate("JSON.stringify(\(object).\(property))")
+        guard let json = js.toString(), json != "undefined", let data = json.data(using: .utf8) else {
+            throw KhaytJSError.unexpectedResult("\(object).\(property) is undefined")
+        }
+        return try JSONDecoder().decode(T.self, from: data)
+    }
 }
 
 /// Type-erasing wrapper so heterogeneous arguments can be JSON-encoded.
