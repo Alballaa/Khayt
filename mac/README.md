@@ -191,11 +191,18 @@ an offline bitmap, not faults to go and fix:
 * **The sidebar comes out black and empty.** `NSVisualEffectView` draws nothing
   into a cached bitmap, and `.listStyle(.sidebar)` is one. To see those rows,
   run once with `.listStyle(.plain)`, which has no material.
-* **With two scroll views on screen, one comes back black.** The library grid
-  and its inspector are that pair. The run also writes `*-paneN.png`, each
-  scrolling pane photographed on its own, which shows what the window shot
-  lost — at the cost of the thumbnails, which a pane draws into its own layer.
-  Between the two everything is visible; in neither is it all visible at once.
+The run also writes `*-paneN.png`, each scrolling pane photographed on its own,
+for when the window shot leaves a doubt. It has the opposite blind spot — it
+loses what a pane draws into its own layer, so thumbnails go missing there.
+
+**A correction, since the wrong version stood here for a day.** The library
+inspector once photographed as a solid black column and this file blamed the
+capture, claiming that two `NSScrollView`s on screen meant one came back black.
+That was not it. The inspector was attached inside `detail`, the content was laid
+out against a width that never subtracted the sidebar, and the inspector had
+nowhere to draw. Moving `.inspector` onto the `NavigationSplitView` fixed the
+picture and the app at once. A capture limitation is a comfortable thing to
+blame — check the layout first.
 * `ImageRenderer` is not the way round it. It returns a "cannot render"
   placeholder for `NavigationSplitView`, `Table` and the toolbar alike — which
   is to say for everything that makes this a Mac window rather than a page.

@@ -82,13 +82,19 @@ final class Activator: NSObject, NSApplicationDelegate {
 /// * `NSVisualEffectView` draws nothing into an offline bitmap, so the sidebar
 ///   comes out black and empty. Confirm a sidebar you doubt by running once with
 ///   `.listStyle(.plain)`, which has no material, rather than by "fixing" it.
-/// * With two `NSScrollView`s on screen at once only one comes back; the other
-///   is black. The library grid and its inspector are exactly that pair, and the
-///   inspector looked broken for an afternoon on the strength of it. `capturePanes`
-///   photographs each one on its own and settles the question — though it loses
-///   what the pane draws into its own layer, so the thumbnails go missing there
-///   instead. Between the two pictures everything is visible; in neither is it
-///   all visible at once.
+/// `capturePanes` photographs each scrolling pane on its own, for when the window
+/// shot leaves a doubt. It has the opposite blind spot — it loses what a pane
+/// draws into its own layer, so thumbnails go missing there — which is why both
+/// exist.
+///
+/// A correction, since the wrong version was written down for a day: the library
+/// inspector once photographed as a solid black column, and this file blamed
+/// having two `NSScrollView`s on screen at once. It was not the capture. The
+/// inspector was attached inside `detail`, the detail content was laid out
+/// against a width that did not subtract the sidebar, and the inspector had
+/// nowhere to draw. Moving `.inspector` onto the `NavigationSplitView` fixed the
+/// picture and the app together. A capture limitation is a comfortable thing to
+/// blame; check the layout first.
 ///
 /// Only runs when KHAYT_SNAPSHOT_DIR is set, so it costs a normal launch
 /// nothing and cannot fire by accident.
