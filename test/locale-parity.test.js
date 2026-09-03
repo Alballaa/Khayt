@@ -19,7 +19,14 @@ const files = fs.readdirSync(dir).filter((f) => f.endsWith('.js')).sort();
 for (const f of files) require(path.join(dir, f));
 
 const L = global.KhaytLocales || {};
-const LOCALES = ['ar', 'de', 'es', 'fr', 'ja', 'tr', 'zh'];
+/* Read from the directory, not hand-kept. `pt-BR` was missing from this list —
+ * a complete, shipped locale that the parity gate simply did not check, saved
+ * only by i18n-locales.test.js happening to duplicate the coverage. A locale
+ * added later would have been in the same position with nothing to catch it. */
+const LOCALES = fs.readdirSync(dir)
+  .filter((f) => f.endsWith('.js') && f !== 'en.js')
+  .map((f) => f.replace(/\.js$/, ''))
+  .sort();
 
 test('all locale bundles load', () => {
   assert.ok(L.en, 'en bundle present');
@@ -66,4 +73,28 @@ test('every locale preserves every English {placeholder} (interpolation parity)'
     }
   }
   assert.deepEqual(bad, [], `${bad.length} key(s) drop/alter placeholders: ${bad.slice(0, 15).join('; ')}`);
+});
+
+test('no key is defined twice in the same bundle', () => {
+  /* JS keeps the LAST of two identical keys, silently, and `node --check` — the
+   * only thing that reads these files in `npm run lint` — is perfectly happy.
+   *
+   * `notif.recurring_due` was defined twice in en and ar, once as a title and
+   * once as a sentence with {name} and {days} in it. The title therefore
+   * rendered "Recurring order due: {name} ({days} days since last)" — braces and
+   * all — on the notification card, in every language. Nothing anywhere failed.
+   *
+   * Read from the SOURCE rather than the loaded object, because by the time it
+   * is an object one of the two is already gone. */
+  const offenders = [];
+  for (const f of files) {
+    const src = fs.readFileSync(path.join(dir, f), 'utf8');
+    const seen = new Set();
+    for (const m of src.matchAll(/^  "([a-zA-Z0-9_.]+)":/gm)) {
+      if (seen.has(m[1])) offenders.push(`${f}  ${m[1]}`);
+      seen.add(m[1]);
+    }
+  }
+  assert.deepEqual(offenders, [],
+    `these keys are defined twice; the second silently wins:\n    ${offenders.join('\n    ')}`);
 });

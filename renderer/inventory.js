@@ -3200,23 +3200,69 @@ function organiseAssign(rec, patch) {
 const productGroupOf = (p) => (_org() ? _org().groupOf(p) : String((p && (p.group || p.folder)) || '').trim());
 const productCategoryOf = (p) => (_org() ? _org().categoryOf(p) : String((p && p.category) || '').trim());
 
-const CAT_UNFILED = '\u0000unfiled';   // sentinel: products in neither
+/* Its own attribute, not a magic value — see renderer/printfiles.js.
+ *
+ * This was `'\u0000unfiled'` written into `data-val`, and the HTML tokenizer
+ * replaces U+0000 in an attribute value with U+FFFD, so what came back off
+ * `dataset` never equalled the sentinel. The Unfiled and Uncategorised chips
+ * set a filter matching nothing, renderCatalogFilters reset it, and the grid
+ * redrew identical to All.
+ *
+ * I fixed exactly this in the print-file library and wrote it fresh here the
+ * same night, on the screen next door. */
+const CAT_UNFILED = '\u2400unfiled';   // in code only; never written to markup
 let catalogGroupFilter = '';
 let catalogCatFilter = '';
 
-/** Counts for one axis, folded by spelling, most-used first. */
+/** Two filter values meaning the same thing. See sameFilter in printfiles.js:
+ *  a bar chip carries the spelling used MOST and a card chip carries that
+ *  record's own, so `===` meant pressing the lit chip on a "saudi kings" card
+ *  replaced a filter set from the "Saudi Kings" bar instead of clearing it. */
+const sameCatFilter = (a, b) => (a === CAT_UNFILED || b === CAT_UNFILED)
+  ? a === b
+  : String(a || '').toLowerCase() === String(b || '').toLowerCase();
+
+/** Everything the OTHER filters leave standing — the search box included. */
+function catalogRowsExcept(field) {
+  const list = (typeof products !== 'undefined' && Array.isArray(products)) ? products : [];
+  const term = (catalogSearchTerm || '').toLowerCase().trim();
+  return list.filter((p) => {
+    if (term && !((p.nameEn || '').toLowerCase().includes(term)
+      || (p.nameAr || '').toLowerCase().includes(term)
+      || (p.description || '').toLowerCase().includes(term)
+      || productGroupOf(p).toLowerCase().includes(term)
+      || productCategoryOf(p).toLowerCase().includes(term))) return false;
+    if (field !== 'group') {
+      if (catalogGroupFilter === CAT_UNFILED) { if (productGroupOf(p)) return false; }
+      else if (catalogGroupFilter && productGroupOf(p).toLowerCase() !== catalogGroupFilter.toLowerCase()) return false;
+    }
+    if (field !== 'category') {
+      if (catalogCatFilter === CAT_UNFILED) { if (productCategoryOf(p)) return false; }
+      else if (catalogCatFilter && productCategoryOf(p).toLowerCase() !== catalogCatFilter.toLowerCase()) return false;
+    }
+    return true;
+  });
+}
+
+/**
+ * Counts for one axis, against everything EXCEPT that axis.
+ *
+ * These counted the whole catalogue while the grid narrows on three things at
+ * once, so with a category on, a group chip said 7 and pressing it showed 2.
+ * The print-file library got this right the same night; the catalogue did not.
+ */
 function catalogFiledUnder(field) {
   const o = _org();
   const read = field === 'category' ? productCategoryOf : productGroupOf;
-  const list = (typeof products !== 'undefined' && Array.isArray(products)) ? products : [];
-  const names = o ? o.counts(list, field) : (() => {
+  const pool = catalogRowsExcept(field);
+  const names = o ? o.counts(pool, field) : (() => {
     const m = new Map();
-    for (const p of list) { const v = read(p); if (v) m.set(v, (m.get(v) || 0) + 1); }
+    for (const p of pool) { const v = read(p); if (v) m.set(v, (m.get(v) || 0) + 1); }
     return [...m.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
   })();
   let unfiled = 0;
-  for (const p of list) if (!read(p)) unfiled++;
-  return { names, unfiled };
+  for (const p of pool) if (!read(p)) unfiled++;
+  return { names, unfiled, total: pool.length };
 }
 
 /**
@@ -3236,14 +3282,16 @@ function renderCatalogFilters() {
   else if (catalogCatFilter && !list.some((p) => productCategoryOf(p).toLowerCase() === catalogCatFilter.toLowerCase())) catalogCatFilter = '';
 
   const bar = (field) => {
-    const { names, unfiled } = catalogFiledUnder(field);
+    const { names, unfiled, total } = catalogFiledUnder(field);
     if (!names.length) return '';
     const isCat = field === 'category';
     const active = isCat ? catalogCatFilter : catalogGroupFilter;
     const act = isCat ? 'cat-filter-category' : 'cat-filter-group';
     const chip = (val, label, n, on) =>
-      `<button type="button" class="pf-folderchip ${on ? 'on' : ''}" data-act="${act}" data-val="${escapeHtml(val)}">${escapeHtml(label)}${n != null ? ` <span class="pf-tagchip-n">${n}</span>` : ''}</button>`;
-    let html = chip('', t(isCat ? 'plib.all_cats' : 'cat.all_products') || 'All', list.length, !active);
+      `<button type="button" class="pf-folderchip ${on ? 'on' : ''}" data-act="${act}"`
+      + (val === CAT_UNFILED ? ' data-unfiled="1"' : ` data-val="${escapeHtml(val)}"`)
+      + `>${escapeHtml(label)}${n != null ? ` <span class="pf-tagchip-n">${n}</span>` : ''}</button>`;
+    let html = chip('', t(isCat ? 'plib.all_cats' : 'cat.all_products') || 'All', total, !active);
     html += names.map(([f, n]) => chip(f, f, n, active && active.toLowerCase() === f.toLowerCase())).join('');
     if (unfiled) html += chip(CAT_UNFILED, t(isCat ? 'plib.uncategorised' : 'plib.unfiled') || 'Unfiled', unfiled, active === CAT_UNFILED);
     const label = t(isCat ? 'plib.filter_cats' : 'plib.filter_folders') || 'Filter';
@@ -3254,9 +3302,15 @@ function renderCatalogFilters() {
 
 /** Toggle one axis of the catalogue filter. Pressing the chip that is already
  *  on clears it, so a filter is never a state you cannot get out of. */
+/** What a catalogue filter chip means — `data-unfiled` is its own attribute,
+ *  because a sentinel written into a value cannot survive the HTML parser. */
+function catFilterValue(btn) {
+  return btn && btn.dataset.unfiled ? CAT_UNFILED : ((btn && btn.dataset.val) || '');
+}
+
 function filterCatalogBy(field, value) {
-  if (field === 'category') catalogCatFilter = (catalogCatFilter === value) ? '' : value;
-  else catalogGroupFilter = (catalogGroupFilter === value) ? '' : value;
+  if (field === 'category') catalogCatFilter = sameCatFilter(catalogCatFilter, value) ? '' : value;
+  else catalogGroupFilter = sameCatFilter(catalogGroupFilter, value) ? '' : value;
   renderCatalog();
 }
 
@@ -4833,6 +4887,7 @@ async function printSpoolLabel(itemId) {
     productCategoryOf,
     renderCatalogFilters,
     filterCatalogBy,
+    catFilterValue,
     bundleMembers,
   };
   Object.assign(global, api);

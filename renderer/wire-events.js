@@ -1786,7 +1786,7 @@ function wireEvents() {
     // the king already in front of you.
     const grp = e.target.closest('[data-act="cat-filter-group"]');
     const cat = e.target.closest('[data-act="cat-filter-category"]');
-    if (grp || cat) filterCatalogBy(grp ? 'group' : 'category', (grp || cat).dataset.val || '');
+    if (grp || cat) filterCatalogBy(grp ? 'group' : 'category', catFilterValue(grp || cat));
   });
 
   // The chip BARS live above the grid, in their own element, so they need their
@@ -1794,7 +1794,7 @@ function wireEvents() {
   $('#catalogFilters')?.addEventListener('click', (e) => {
     const btn = e.target.closest('[data-act="cat-filter-group"], [data-act="cat-filter-category"]');
     if (!btn) return;
-    filterCatalogBy(btn.dataset.act === 'cat-filter-category' ? 'category' : 'group', btn.dataset.val || '');
+    filterCatalogBy(btn.dataset.act === 'cat-filter-category' ? 'category' : 'group', catFilterValue(btn));
   });
 
   // Dashboard click delegation (recurring order start, order edit, payment reminder)

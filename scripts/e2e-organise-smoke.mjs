@@ -159,11 +159,83 @@ async function testTheCatalogueSharesTheNames(window) {
   if (shown.join() !== 'E2E-P1') throw new Error(`the catalogue category filter showed ${shown}`);
 }
 
+async function testTheCatalogueChipsWorkLikeTheLibrarys(window) {
+  /* Everything the print-file library learned the same night and the catalogue
+   * did not: a sentinel that survives the HTML parser, counts that mean what
+   * pressing them gives you, and a toggle that folds case. */
+  await window.evaluate(() => {
+    products.length = 0;
+    const mk = (id, n, g, c) => ({ id, nameEn: n, nameAr: '', description: '', defaultMargin: 30,
+      priceTiers: [], parts: [], createdAt: '2026-09-03', group: g, category: c });
+    products.push(mk('C1', 'King Abdulaziz bust', 'Saudi Kings', 'Busts'));
+    products.push(mk('C2', 'King Saud bust', 'saudi kings', 'Busts'));   // the other spelling
+    products.push(mk('C3', 'King stand', 'Saudi Kings', 'Stands'));
+    products.push(mk('C4', 'Cable clip', '', 'Functional'));
+    products.push(mk('C5', 'Nameplate', '', ''));
+    // A bust that is NOT a king. Without one, clearing the group while Busts is
+    // still on changes nothing visible, and the assertion below cannot tell a
+    // cleared filter from a stuck one.
+    products.push(mk('C6', 'Generic bust', '', 'Busts'));
+    renderCatalog();
+  });
+  await window.waitForSelector('#catalogGrid .product-card');
+  const shown = () => window.evaluate(() =>
+    [...document.querySelectorAll('#catalogGrid .product-card')].map((c) => c.dataset.id).sort().join());
+  /* A filter left on by the previous test narrows the pool the chips count
+   * against — correctly, which is the point — so start from nothing.
+   *
+   * Through the exported filterCatalogBy, NOT by assigning the variables:
+   * inventory.js is an IIFE, so `catalogGroupFilter = ''` inside evaluate makes
+   * a stray global and leaves the real filter exactly where it was. That is what
+   * the first version of this did, and it spent a run looking like the fix had
+   * not worked. */
+  await window.evaluate(() => { filterCatalogBy('group', ''); filterCatalogBy('category', ''); });
+  await window.waitForTimeout(80);
+
+  // 1. The Unfiled chip filters, rather than looking like it shows everything.
+  const unfiled = '#catalogFilters [data-act="cat-filter-group"][data-unfiled]';
+  if (!(await window.evaluate((sel) => !!document.querySelector(sel), unfiled))) {
+    throw new Error('the catalogue has no Ungrouped chip to press');
+  }
+  await window.click(unfiled);
+  await window.waitForTimeout(120);
+  if (await shown() !== 'C4,C5,C6') throw new Error(`the Ungrouped chip showed ${await shown()}`);
+  await window.click(unfiled);
+  await window.waitForTimeout(120);
+
+  // 2. A chip's number is a promise. Three kings, two of them busts.
+  const kings = '#catalogFilters [data-act="cat-filter-group"][data-val="Saudi Kings"]';
+  const countOf = (sel) => window.evaluate((s) => {
+    const el = document.querySelector(s);
+    return el ? Number((el.textContent.match(/(\d+)\s*$/) || [0, 0])[1]) : -1;
+  }, sel);
+  if (await countOf(kings) !== 3) throw new Error(`the group chip should count 3, said ${await countOf(kings)}`);
+  await window.click('#catalogFilters [data-act="cat-filter-category"][data-val="Busts"]');
+  await window.waitForTimeout(120);
+  const promised = await countOf(kings);
+  if (promised !== 2) throw new Error(`with Busts on, the group chip should promise 2, said ${promised}`);
+  await window.click(kings);
+  await window.waitForTimeout(120);
+  if (await shown() !== 'C1,C2') throw new Error(`the chip promised ${promised} and showed ${await shown()}`);
+
+  // 3. Pressing the lit chip on a card whose own spelling differs still clears.
+  await window.click('.product-card[data-id="C2"] [data-act="cat-filter-group"]');
+  await window.waitForTimeout(120);
+  const after = await shown();
+  // Busts is still on, so clearing the GROUP should widen to every bust — the
+  // generic one included. Staying at the two kings means the press replaced the
+  // filter with the card's own spelling instead of clearing it.
+  if (after !== 'C1,C2,C6') throw new Error(`the lit chip did not clear the filter: showed ${after}`);
+  await window.click('#catalogFilters [data-act="cat-filter-category"][data-val="Busts"]');
+  await window.waitForTimeout(120);
+  if (await shown() !== 'C1,C2,C3,C4,C5,C6') throw new Error(`the filters did not clear: ${await shown()}`);
+}
+
 async function testTheStorefrontPublishesTheProductsOwnCategory(window) {
   // The bug the price already had: sf.categories was the ONLY source, so a shop
   // that had categorised its catalogue published a storefront with none.
   const cat = await window.evaluate(() => {
-    const p = products.find((x) => x.id === 'E2E-P1');
+    const p = products.find((x) => x.id === 'C1');
     return { fromRecord: productCategoryOf(p), group: productGroupOf(p) };
   });
   if (cat.fromRecord !== 'Busts') throw new Error(`the publisher cannot read the product's category: ${cat.fromRecord}`);
@@ -183,6 +255,7 @@ try {
   await testACombinationThatWouldShowNothingIsNotOffered(window);
   await testFilingWritesBothFields(window);
   await testTheCatalogueSharesTheNames(window);
+  await testTheCatalogueChipsWorkLikeTheLibrarys(window);
   await testTheStorefrontPublishesTheProductsOwnCategory(window);
 
   console.log('e2e-organise: ok (old folders read as groups, two axes narrow together, one spelling across both screens, catalogue filters, storefront reads the record)');
