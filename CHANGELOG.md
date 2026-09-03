@@ -62,6 +62,14 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **An invoice could carry a ZATCA QR code that scans and is not valid.** If you
+  had turned on e-invoicing but not yet entered your VAT number or business
+  name, Khayt still printed a QR — one with an empty field inside it. It reads
+  on a scanner, so nothing looked wrong, and the invoice was not compliant.
+  Khayt now refuses to print an incomplete code, tells you what is missing
+  before you hand the invoice over, and says so on the document itself in your
+  own language.
+
 - **Sixty-five messages appeared in English whatever language you use.** Saving
   a calibration model, starting a shift, a rejected temperature, a failed
   export — and, worst of all, the warning that your data file could not be read
