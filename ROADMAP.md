@@ -10,6 +10,31 @@ this line that `main` did not overtake, so for once replace-vs-promote resolved
 to *promote*; rc.1, rc.2 and rc.3 were each replaced instead.
 
 **`v3.7.0-beta.25` is PUBLISHED** (2026-09-03) — all three platforms, from
+`120e370`, with every asset its three manifests name verified to serve 200. It
+is the review cut: twenty-two passes over the app and the cloud, and the money
+and data-safety faults they turned up.
+
+The money a shop would have got wrong. A **VAT return that declared no VAT at
+all** — boxes 1 to 3 read fields nothing in the app ever writes, so a shop owing
+SAR 52,173.92 filed a nil return with its sales overstated by the same amount. A
+**payment plan that billed the deposit twice**, and — once that was fixed — an
+order paid in full that never showed as settled. A **split job counted twice**
+in receivables with its deposit stranded. **Loyalty points** awarded for
+cancelled, refunded and personal jobs. An **invoice QR that scanned and was
+invalid**, because an empty VAT tag looks exactly like a valid one.
+
+The data a shop would have lost. Every **backup, iCloud copy, restore point and
+pre-update snapshot silently off above 20 MB** while saving worked to 50. **Crash
+recovery preferring a two-month-old orphan** over yesterday's save, under a green
+tick. **Two shop-floor tablets overwriting each other** after the server had
+answered 201. The **printer's measured figures deleted on every save**.
+
+What a customer saw. A **delivered order showing no progress at all**. A
+**review nobody could see or remove** moving the shop's public rating. And
+**sixty-five messages only ever in English**, including the one that appears
+when a data file will not open.
+
+**`v3.7.0-beta.24` is PUBLISHED** (2026-09-02) — all three platforms, from
 `6de15f2`, with every asset its three manifests name verified to serve 200. It is the cut that lets a
 library grow: model previews leave the store for the folders beside the models.
 A record is 914 bytes; the same record carrying its preview is 14,900, so the
