@@ -1,0 +1,714 @@
+{
+  "builtTestProducts" : [
+    {
+      "binaryPath" : "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCorePackageTests.xctest/Contents/MacOS/KhaytCorePackageTests",
+      "packagePath" : "/Users/turkialballaa/Khayt/mac/KhaytCore",
+      "productName" : "KhaytCorePackageTests"
+    }
+  ],
+  "copyCommands" : {
+    "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCore_KhaytCore.bundle/JS" : {
+      "inputs" : [
+        {
+          "kind" : "directory",
+          "name" : "/Users/turkialballaa/Khayt/mac/KhaytCore/Sources/KhaytCore/JS"
+        }
+      ],
+      "outputs" : [
+        {
+          "kind" : "directory",
+          "name" : "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCore_KhaytCore.bundle/JS"
+        }
+      ]
+    }
+  },
+  "explicitTargetDependencyImportCheckingMode" : {
+    "none" : {
+
+    }
+  },
+  "generatedSourceTargetSet" : [
+
+  ],
+  "pluginDescriptions" : [
+
+  ],
+  "swiftCommands" : {
+    "C.KhaytCore-arm64-apple-macosx-debug.module" : {
+      "executable" : "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "fileList" : "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCore.build/sources",
+      "importPath" : "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/Modules",
+      "inputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/turkialballaa/Khayt/mac/KhaytCore/Sources/KhaytCore/JSONValue.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/turkialballaa/Khayt/mac/KhaytCore/Sources/KhaytCore/JSRuntime.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/turkialballaa/Khayt/mac/KhaytCore/Sources/KhaytCore/KhaytEngine.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/turkialballaa/Khayt/mac/KhaytCore/Sources/KhaytCore/Money.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCore.build/DerivedSources/resource_bundle_accessor.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+        },
+        {
+          "kind" : "virtual",
+          "name" : "<KhaytCore-arm64-apple-macosx-debug.module-resources>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCore.build/sources"
+        }
+      ],
+      "isLibrary" : true,
+      "moduleName" : "KhaytCore",
+      "moduleOutputPath" : "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/Modules/KhaytCore.swiftmodule",
+      "objects" : [
+        "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCore.build/JSONValue.swift.o",
+        "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCore.build/JSRuntime.swift.o",
+        "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCore.build/KhaytEngine.swift.o",
+        "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCore.build/Money.swift.o",
+        "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCore.build/resource_bundle_accessor.swift.o"
+      ],
+      "otherArguments" : [
+        "-target",
+        "arm64-apple-macosx14.0",
+        "-incremental",
+        "-enable-batch-mode",
+        "-serialize-diagnostics",
+        "-index-store-path",
+        "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/index/store",
+        "-Onone",
+        "-enable-testing",
+        "-j8",
+        "-DSWIFT_PACKAGE",
+        "-DDEBUG",
+        "-DSWIFT_MODULE_RESOURCE_BUNDLE_AVAILABLE",
+        "-module-cache-path",
+        "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/ModuleCache",
+        "-parseable-output",
+        "-parse-as-library",
+        "-emit-objc-header",
+        "-emit-objc-header-path",
+        "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCore.build/include/KhaytCore-Swift.h",
+        "-swift-version",
+        "6",
+        "-plugin-path",
+        "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+        "-sdk",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-I",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-L",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-g",
+        "-Xcc",
+        "-isysroot",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-Xcc",
+        "-fPIC",
+        "-Xcc",
+        "-g",
+        "-package-name",
+        "khaytcore"
+      ],
+      "outputFileMapPath" : "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCore.build/output-file-map.json",
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCore.build/JSONValue.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCore.build/JSRuntime.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCore.build/KhaytEngine.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCore.build/Money.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCore.build/resource_bundle_accessor.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/Modules/KhaytCore.swiftmodule"
+        }
+      ],
+      "prepareForIndexing" : false,
+      "sources" : [
+        "/Users/turkialballaa/Khayt/mac/KhaytCore/Sources/KhaytCore/JSONValue.swift",
+        "/Users/turkialballaa/Khayt/mac/KhaytCore/Sources/KhaytCore/JSRuntime.swift",
+        "/Users/turkialballaa/Khayt/mac/KhaytCore/Sources/KhaytCore/KhaytEngine.swift",
+        "/Users/turkialballaa/Khayt/mac/KhaytCore/Sources/KhaytCore/Money.swift",
+        "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCore.build/DerivedSources/resource_bundle_accessor.swift"
+      ],
+      "tempsPath" : "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCore.build",
+      "wholeModuleOptimization" : false
+    },
+    "C.KhaytCorePackageTests-arm64-apple-macosx-debug.module" : {
+      "executable" : "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "fileList" : "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCorePackageTests.build/sources",
+      "importPath" : "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/Modules",
+      "inputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCorePackageTests.derived/runner.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/Modules/KhaytCoreTests.swiftmodule"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCorePackageTests.build/sources"
+        }
+      ],
+      "isLibrary" : true,
+      "moduleName" : "KhaytCorePackageTests",
+      "moduleOutputPath" : "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/Modules/KhaytCorePackageTests.swiftmodule",
+      "objects" : [
+        "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCorePackageTests.build/runner.swift.o"
+      ],
+      "otherArguments" : [
+        "-target",
+        "arm64-apple-macosx14.0",
+        "-incremental",
+        "-enable-batch-mode",
+        "-serialize-diagnostics",
+        "-index-store-path",
+        "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/index/store",
+        "-Onone",
+        "-enable-testing",
+        "-Xfrontend",
+        "-enable-cross-import-overlays",
+        "-j8",
+        "-DSWIFT_PACKAGE",
+        "-DDEBUG",
+        "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+        "-module-cache-path",
+        "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/ModuleCache",
+        "-parseable-output",
+        "-parse-as-library",
+        "-emit-objc-header",
+        "-emit-objc-header-path",
+        "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCorePackageTests.build/include/KhaytCorePackageTests-Swift.h",
+        "-plugin-path",
+        "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+        "-sdk",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-I",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-L",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-g",
+        "-Xcc",
+        "-isysroot",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-Xcc",
+        "-fPIC",
+        "-Xcc",
+        "-g",
+        "-package-name",
+        "khaytcore"
+      ],
+      "outputFileMapPath" : "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCorePackageTests.build/output-file-map.json",
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCorePackageTests.build/runner.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/Modules/KhaytCorePackageTests.swiftmodule"
+        }
+      ],
+      "prepareForIndexing" : false,
+      "sources" : [
+        "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCorePackageTests.derived/runner.swift"
+      ],
+      "tempsPath" : "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCorePackageTests.build",
+      "wholeModuleOptimization" : false
+    },
+    "C.KhaytCoreTests-arm64-apple-macosx-debug.module" : {
+      "executable" : "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "fileList" : "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCoreTests.build/sources",
+      "importPath" : "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/Modules",
+      "inputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/turkialballaa/Khayt/mac/KhaytCore/Tests/KhaytCoreTests/BundledLogicIsNotAForkTests.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/turkialballaa/Khayt/mac/KhaytCore/Tests/KhaytCoreTests/MoneyParityTests.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/Modules/KhaytCore.swiftmodule"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCoreTests.build/sources"
+        }
+      ],
+      "isLibrary" : true,
+      "moduleName" : "KhaytCoreTests",
+      "moduleOutputPath" : "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/Modules/KhaytCoreTests.swiftmodule",
+      "objects" : [
+        "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCoreTests.build/BundledLogicIsNotAForkTests.swift.o",
+        "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCoreTests.build/MoneyParityTests.swift.o"
+      ],
+      "otherArguments" : [
+        "-target",
+        "arm64-apple-macosx14.0",
+        "-incremental",
+        "-enable-batch-mode",
+        "-serialize-diagnostics",
+        "-index-store-path",
+        "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/index/store",
+        "-Onone",
+        "-enable-testing",
+        "-Xfrontend",
+        "-enable-cross-import-overlays",
+        "-j8",
+        "-DSWIFT_PACKAGE",
+        "-DDEBUG",
+        "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+        "-module-cache-path",
+        "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/ModuleCache",
+        "-parseable-output",
+        "-parse-as-library",
+        "-swift-version",
+        "6",
+        "-plugin-path",
+        "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+        "-sdk",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-I",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-L",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-g",
+        "-Xcc",
+        "-isysroot",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-Xcc",
+        "-fPIC",
+        "-Xcc",
+        "-g",
+        "-package-name",
+        "khaytcore"
+      ],
+      "outputFileMapPath" : "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCoreTests.build/output-file-map.json",
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCoreTests.build/BundledLogicIsNotAForkTests.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCoreTests.build/MoneyParityTests.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/Modules/KhaytCoreTests.swiftmodule"
+        }
+      ],
+      "prepareForIndexing" : false,
+      "sources" : [
+        "/Users/turkialballaa/Khayt/mac/KhaytCore/Tests/KhaytCoreTests/BundledLogicIsNotAForkTests.swift",
+        "/Users/turkialballaa/Khayt/mac/KhaytCore/Tests/KhaytCoreTests/MoneyParityTests.swift"
+      ],
+      "tempsPath" : "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCoreTests.build",
+      "wholeModuleOptimization" : false
+    }
+  },
+  "swiftFrontendCommands" : {
+
+  },
+  "swiftTargetScanArgs" : {
+    "KhaytCore" : [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "-module-name",
+      "KhaytCore",
+      "-package-name",
+      "khaytcore",
+      "-c",
+      "/Users/turkialballaa/Khayt/mac/KhaytCore/Sources/KhaytCore/JSONValue.swift",
+      "/Users/turkialballaa/Khayt/mac/KhaytCore/Sources/KhaytCore/JSRuntime.swift",
+      "/Users/turkialballaa/Khayt/mac/KhaytCore/Sources/KhaytCore/KhaytEngine.swift",
+      "/Users/turkialballaa/Khayt/mac/KhaytCore/Sources/KhaytCore/Money.swift",
+      "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCore.build/DerivedSources/resource_bundle_accessor.swift",
+      "-I",
+      "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/Modules",
+      "-target",
+      "arm64-apple-macosx14.0",
+      "-incremental",
+      "-enable-batch-mode",
+      "-serialize-diagnostics",
+      "-index-store-path",
+      "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/index/store",
+      "-Onone",
+      "-enable-testing",
+      "-j8",
+      "-DSWIFT_PACKAGE",
+      "-DDEBUG",
+      "-DSWIFT_MODULE_RESOURCE_BUNDLE_AVAILABLE",
+      "-module-cache-path",
+      "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/ModuleCache",
+      "-parseable-output",
+      "-parse-as-library",
+      "-emit-objc-header",
+      "-emit-objc-header-path",
+      "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCore.build/include/KhaytCore-Swift.h",
+      "-swift-version",
+      "6",
+      "-plugin-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+      "-sdk",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-I",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-L",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-g",
+      "-Xcc",
+      "-isysroot",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-Xcc",
+      "-fPIC",
+      "-Xcc",
+      "-g",
+      "-package-name",
+      "khaytcore",
+      "-driver-use-frontend-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+    ],
+    "KhaytCorePackageTests" : [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "-module-name",
+      "KhaytCorePackageTests",
+      "-package-name",
+      "khaytcore",
+      "-c",
+      "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCorePackageTests.derived/runner.swift",
+      "-I",
+      "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/Modules",
+      "-target",
+      "arm64-apple-macosx14.0",
+      "-incremental",
+      "-enable-batch-mode",
+      "-serialize-diagnostics",
+      "-index-store-path",
+      "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/index/store",
+      "-Onone",
+      "-enable-testing",
+      "-Xfrontend",
+      "-enable-cross-import-overlays",
+      "-j8",
+      "-DSWIFT_PACKAGE",
+      "-DDEBUG",
+      "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+      "-module-cache-path",
+      "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/ModuleCache",
+      "-parseable-output",
+      "-parse-as-library",
+      "-emit-objc-header",
+      "-emit-objc-header-path",
+      "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCorePackageTests.build/include/KhaytCorePackageTests-Swift.h",
+      "-plugin-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+      "-sdk",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-I",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-L",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-g",
+      "-Xcc",
+      "-isysroot",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-Xcc",
+      "-fPIC",
+      "-Xcc",
+      "-g",
+      "-package-name",
+      "khaytcore",
+      "-driver-use-frontend-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+    ],
+    "KhaytCoreTests" : [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "-module-name",
+      "KhaytCoreTests",
+      "-package-name",
+      "khaytcore",
+      "-c",
+      "/Users/turkialballaa/Khayt/mac/KhaytCore/Tests/KhaytCoreTests/BundledLogicIsNotAForkTests.swift",
+      "/Users/turkialballaa/Khayt/mac/KhaytCore/Tests/KhaytCoreTests/MoneyParityTests.swift",
+      "-I",
+      "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/Modules",
+      "-target",
+      "arm64-apple-macosx14.0",
+      "-incremental",
+      "-enable-batch-mode",
+      "-serialize-diagnostics",
+      "-index-store-path",
+      "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/index/store",
+      "-Onone",
+      "-enable-testing",
+      "-Xfrontend",
+      "-enable-cross-import-overlays",
+      "-j8",
+      "-DSWIFT_PACKAGE",
+      "-DDEBUG",
+      "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+      "-module-cache-path",
+      "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/ModuleCache",
+      "-parseable-output",
+      "-parse-as-library",
+      "-swift-version",
+      "6",
+      "-plugin-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+      "-sdk",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-I",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-L",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-g",
+      "-Xcc",
+      "-isysroot",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-Xcc",
+      "-fPIC",
+      "-Xcc",
+      "-g",
+      "-package-name",
+      "khaytcore",
+      "-driver-use-frontend-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+    ]
+  },
+  "targetDependencyMap" : {
+    "KhaytCore" : [
+
+    ],
+    "KhaytCorePackageTests" : [
+      "KhaytCoreTests",
+      "KhaytCore"
+    ],
+    "KhaytCoreTests" : [
+      "KhaytCore"
+    ]
+  },
+  "testDiscoveryCommands" : {
+
+  },
+  "testEntryPointCommands" : {
+    "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCorePackageTests.derived/runner.swift" : {
+      "inputs" : [
+
+      ],
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCorePackageTests.derived/runner.swift"
+        }
+      ]
+    }
+  },
+  "traitConfiguration" : {
+    "default" : {
+
+    }
+  },
+  "writeCommands" : {
+    "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCore.build/sources" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<sources-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/turkialballaa/Khayt/mac/KhaytCore/Sources/KhaytCore/JSONValue.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/turkialballaa/Khayt/mac/KhaytCore/Sources/KhaytCore/JSRuntime.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/turkialballaa/Khayt/mac/KhaytCore/Sources/KhaytCore/KhaytEngine.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/turkialballaa/Khayt/mac/KhaytCore/Sources/KhaytCore/Money.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCore.build/DerivedSources/resource_bundle_accessor.swift"
+        }
+      ],
+      "outputFilePath" : "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCore.build/sources"
+    },
+    "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCorePackageTests.build/sources" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<sources-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCorePackageTests.derived/runner.swift"
+        }
+      ],
+      "outputFilePath" : "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCorePackageTests.build/sources"
+    },
+    "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCorePackageTests.product/Objects.LinkFileList" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<link-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCore.build/JSONValue.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCore.build/JSRuntime.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCore.build/KhaytEngine.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCore.build/Money.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCore.build/resource_bundle_accessor.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCorePackageTests.build/runner.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCoreTests.build/BundledLogicIsNotAForkTests.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCoreTests.build/MoneyParityTests.swift.o"
+        }
+      ],
+      "outputFilePath" : "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCorePackageTests.product/Objects.LinkFileList"
+    },
+    "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCoreTests.build/sources" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<sources-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/turkialballaa/Khayt/mac/KhaytCore/Tests/KhaytCoreTests/BundledLogicIsNotAForkTests.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/turkialballaa/Khayt/mac/KhaytCore/Tests/KhaytCoreTests/MoneyParityTests.swift"
+        }
+      ],
+      "outputFilePath" : "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCoreTests.build/sources"
+    },
+    "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt" : {
+      "alwaysOutOfDate" : true,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<swift-get-version>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+        }
+      ],
+      "outputFilePath" : "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+    }
+  }
+}
