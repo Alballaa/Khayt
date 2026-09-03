@@ -236,6 +236,11 @@ const { setupAutoUpdater } = registerUpdater({
   encryptForDisk,
   dataFilePath,
   backupsDir,
+  // The pre-install flush must go through the SAME writer as every other save.
+  // It used to hand-roll one, and the hand-rolled one had no fsync, no .prev
+  // generation, a temp name recovery treats as a candidate, and no place in the
+  // write chain — at the one moment the app is about to be replaced.
+  writeStoreToDisk,
 });
 
 /* ---------- Shared helpers ---------- */
