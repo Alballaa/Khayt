@@ -1207,6 +1207,37 @@ function clientLoyaltyRedeemed(clientId) {
     .reduce((s, e) => s + (+e.points || 0), 0);
 }
 
+/**
+ * Clients who have redeemed more points than they now appear to have earned.
+ *
+ * Points used to be awarded for cancelled orders, prints marked not-business and
+ * orders refunded in full. Correcting that lowers what a client has EARNED — and
+ * `clientLoyaltyAvailable` clamps at zero, so nothing breaks and nothing goes
+ * negative. What does happen is that a customer who was told they had a balance
+ * now has none, silently, and the shop finds out when they ask.
+ *
+ * `redeemed > earned` is exactly that situation and needs no stored history to
+ * detect: it can only arise from points that were awarded and spent against
+ * something that was not a sale.
+ *
+ * Report-only. The points were over-awarded, the shop has already honoured some
+ * of them, and re-inflating the balance would perpetuate a liability it does not
+ * owe. Naming the clients lets the shop decide what to tell them.
+ */
+function clientsOverRedeemed() {
+  if (!settings.loyaltyEnabled || typeof KhaytLoyalty === 'undefined') return [];
+  if (!Array.isArray(clients)) return [];
+  const out = [];
+  for (const c of clients) {
+    if (!c || typeof c.id !== 'string') continue;
+    const redeemed = clientLoyaltyRedeemed(c.id);
+    if (redeemed <= 0) continue;
+    const earned = clientLoyaltyPoints(c.id);
+    if (redeemed > earned) out.push({ id: c.id, name: c.name || c.id, earned, redeemed, over: redeemed - earned });
+  }
+  return out;
+}
+
 /** Spendable points = earned − already-redeemed (never negative). */
 function clientLoyaltyAvailable(clientId) {
   return Math.max(0, clientLoyaltyPoints(clientId) - clientLoyaltyRedeemed(clientId));
@@ -1642,6 +1673,7 @@ function openCampaignModal() {
     getClientTier,
     clientLoyaltyPoints,
     clientLoyaltyRedeemed,
+    clientsOverRedeemed,
     clientLoyaltyAvailable,
     redeemLoyaltyPoints,
     patchRecurringOrdersWithLeadDays,

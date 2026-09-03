@@ -1953,6 +1953,62 @@ function reportResurrectedRecords() {
 }
 
 /**
+ * Two things a shop upgrading from an earlier build meets in its own data.
+ *
+ * Both follow from money fixes in this release, and both are REPORT-ONLY:
+ *
+ *  - An instalment plan written before the deposit fix split the GROSS price, so
+ *    it asks for more than the order still owes. A schedule is an agreement the
+ *    shop may have put in writing to a customer; rewriting the amounts under it
+ *    would be worse than saying so.
+ *  - Points used to be earned on cancelled, personal and fully refunded jobs.
+ *    Correcting that lowers what a client has EARNED, and the balance clamps at
+ *    zero — so someone who was told they had points now has none, quietly.
+ *    Re-inflating it would perpetuate a liability the shop does not owe.
+ *
+ * Announced when the set CHANGES, on the same rule and for the same reason as
+ * reportResurrectedRecords: nagging every launch trains the owner to dismiss it,
+ * and announcing once ever is missed by whoever was not looking that day.
+ */
+function reportLegacyMoneyState() {
+  const plans = (typeof KhaytPaymentPlan !== 'undefined' && KhaytPaymentPlan.overBilledPlans)
+    ? KhaytPaymentPlan.overBilledPlans(typeof printLog !== 'undefined' ? printLog : [])
+    : [];
+  const over = (typeof clientsOverRedeemed === 'function') ? clientsOverRedeemed() : [];
+  if (!plans.length && !over.length) return;
+
+  // A durable trace whenever any exist, whether or not the toast is shown:
+  // support should not have to ask the owner to reproduce it.
+  try {
+    if (plans.length) console.warn('[money] instalment plans asking more than is owed:',
+      plans.map((p) => `${p.id} (+${p.over})`).join(', '));
+    if (over.length) console.warn('[money] clients who redeemed more than they earned:',
+      over.map((c) => `${c.id} (+${c.over})`).join(', '));
+  } catch (e) { /* noop */ }
+
+  const KEY = 'hub_legacy_money_seen_v1';
+  const signature = [...plans.map((p) => `p:${p.id}:${p.over}`), ...over.map((c) => `c:${c.id}:${c.over}`)].sort().join(',');
+  let lastSeen = '';
+  try { lastSeen = localStorage.getItem(KEY) || ''; } catch (e) { /* private mode */ }
+  try { localStorage.setItem(KEY, signature); } catch (e) { /* non-fatal */ }
+  if (signature === lastSeen) return;
+
+  if (plans.length && typeof toast === 'function') {
+    const first = plans[0];
+    const msg = plans.length === 1
+      ? t('money.plan_over_one').replace('{name}', first.project).replace('{amount}', fmtMoney(first.over))
+      : t('money.plan_over_many').replace('{n}', String(plans.length));
+    toast(msg, 'warning', 14000);
+  }
+  if (over.length && typeof toast === 'function') {
+    const msg = over.length === 1
+      ? t('money.points_over_one').replace('{name}', over[0].name)
+      : t('money.points_over_many').replace('{n}', String(over.length));
+    setTimeout(() => toast(msg, 'warning', 14000), 1200);
+  }
+}
+
+/**
  * A restore or import is about to replace local state — tell the cloud backend
  * to forget what it believes the server holds.
  *
@@ -6247,6 +6303,7 @@ function renderTelegramSettings() {
     // this line the typeof check there just sees undefined and the whole thing
     // silently never runs — which is the failure the four names above document.
     reportResurrectedRecords,
+    reportLegacyMoneyState,
     // The organisation overview's three line builders. Pure string in, string
     // out, and the only place money is put in front of a chain owner — so they
     // are exported to be asserted on rather than eyeballed inside a modal.

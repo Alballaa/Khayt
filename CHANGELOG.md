@@ -62,6 +62,18 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **An order paid off through a payment plan now actually shows as settled.**
+  With plans corrected to bill only what is outstanding, a job with a deposit
+  would have gone on showing the deposit as still owed even after the customer
+  had paid every instalment. Cash recorded outside the plan — a payment taken at
+  the counter — is never overwritten either.
+- **Khayt now tells you about two things in your existing data.** Payment plans
+  written before the deposit fix ask for more than the order still owes, and are
+  flagged rather than quietly rewritten, because the amounts may be something you
+  agreed with the customer. And where a client had already spent more loyalty
+  points than they had really earned, you are told, so you hear it before they
+  ask.
+
 - **Setting up cloud sync could leave your shop openable on one computer only.**
   If saving your sync key to the server failed — a dropped connection at the
   wrong moment — Khayt carried on and showed you a recovery key to write down,

@@ -1353,6 +1353,10 @@ function openOrderEditor(orderId) {
     trackingNumber: order.trackingNumber || '',
     deliveryAddress: order.deliveryAddress || '',
     instalments: (order.instalments || []).map(ins => ({ ...ins })),
+    // Carried both ways with the schedule it describes: without this the draft
+    // starts undefined and the save writes undefined back, so the additive
+    // paidAmount rule would silently never apply.
+    instalmentBase: order.instalmentBase,
     operatorId: order.operatorId || '',
   };
   const pendingFileDeletes = [];
@@ -1854,6 +1858,11 @@ function openOrderEditor(orderId) {
         const firstDue = localDateStr(new Date(_fdY, _fdM, Math.min(today.getDate(), _lastDay)));
         const schedule = KhaytPaymentPlan.buildSchedule({ total, depositAmount: 0, installments: 3, firstDueDate: firstDue, intervalDays: 30 });
         draft.instalments = schedule.map((s, i) => ({ id: uid('INS'), amount: s.amount, dueDate: s.dueDate, note: '', paid: false, paidAt: null }));
+        // The cash the order ALREADY held when this plan was built. The save path
+        // needs it to add instalment payments to the deposit rather than taking
+        // the larger of the two — see the paidAmount rule below. Recorded here
+        // because only here is it known that the schedule covers the BALANCE.
+        draft.instalmentBase = +order.paidAmount || 0;
         renderInstalments();
         toast(t('inst.generated') || 'Generated a 3-payment plan — edit amounts/dates as needed', 'success', 5000);
       });
@@ -2036,6 +2045,8 @@ function openOrderEditor(orderId) {
       order.trackingNumber = draft.trackingNumber || undefined;
       order.deliveryAddress = draft.deliveryAddress || undefined;
       order.instalments = draft.instalments.length > 0 ? draft.instalments.map(ins => ({ ...ins })) : undefined;
+      // Meaningless without a schedule, so it goes when the schedule does.
+      order.instalmentBase = draft.instalments.length > 0 ? draft.instalmentBase : undefined;
       // Feature 2: Persist actual timestamps
       const psaEl = document.getElementById('oePrintingStartedAt');
       const cmpEl = document.getElementById('oeCompletedAt');
@@ -2056,8 +2067,33 @@ function openOrderEditor(orderId) {
         // plan generator builds a schedule with depositAmount:0 spanning the
         // full price, so a freshly generated plan has instPaid = 0 and a 500
         // deposit vanished with no ledger entry the moment the order was saved.
-        // Instalment payments are additional cash, so take the larger.
-        order.paidAmount = Math.max(+order.paidAmount || 0, instPaid);
+        // Instalment payments are additional cash, so ADD them to what the order
+        // already held — but only when the schedule is known to cover the
+        // BALANCE rather than the gross price.
+        //
+        // Math.max was right only BECAUSE the generator used to span the full
+        // price: a 3,000 job with a 1,000 deposit got a 3,000 plan, so max(1000,
+        // 3000) = 3000 and the order settled. It also meant the customer was
+        // billed 4,000 for a 3,000 job, which is what the generator fix stopped.
+        // With a 2,000 plan, max(1000, 2000) = 2000 and the order shows 1,000
+        // owed FOREVER — the customer has paid in full and is still chased.
+        //
+        // instalmentBase is the cash that existed when the plan was generated,
+        // written only by that generator. Plans made before it — and hand-built
+        // ones, whose amounts mean whatever the shop decided — have none, and
+        // keep the old rule, which is the right one for a schedule that already
+        // spans the whole price.
+        //
+        // Still wrapped in Math.max, and that is not belt-and-braces. paidAmount
+        // can have grown since the plan was made — a payment taken at the counter
+        // and typed straight in — and `base + instPaid` would then be LOWER than
+        // what the order already holds, destroying that cash. Which is precisely
+        // the bug money-integrity.test.js exists to catch, and it caught this.
+        const instBase = draft.instalmentBase;
+        const fromPlan = (typeof instBase === 'number' && instBase >= 0)
+          ? Math.round((instBase + instPaid) * 100) / 100
+          : instPaid;
+        order.paidAmount = Math.max(+order.paidAmount || 0, fromPlan);
         // Settled against the ORDER PRICE, not the instalment total. Instalment
         // amounts are freely editable, so a partial plan (two 100 rows on a
         // 2,000 order) marked paid reported the whole order as settled — and
