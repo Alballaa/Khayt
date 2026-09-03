@@ -251,6 +251,47 @@ card. This pass covers that surface.
 | Duet | Cancel sends a bare `M0` into a running print | the vendor's own UI only offers M0 when PAUSED | 2 |
 | Repetier | No job control at all, on a blanket "cannot verify" | `stopJob` / `continueJob` are sourceable; only pause is not | 2 + 3 |
 
+### Duet — `fractionPrinted` has two documented meanings, and we picked one
+
+**2026-09-03.** The pre-RRF-3 path (`rr_status?type=3`, `ENDPOINTS.standalone.legacy`)
+read progress as:
+
+```js
+progress: normalizeProgress((data.fractionPrinted || 0) * 100)
+```
+
+The vendor's documentation **contradicts itself** about that field. From the
+Duet3D wiki's JSON-responses page:
+
+> `"fractionPrinted"`: Fraction of the file printed on a scale of 0.0 to 100.0.
+> This equals `filePosition / fileSize`
+
+"a scale of 0.0 to 100.0" and "equals `filePosition / fileSize`" cannot both be
+true — the second is a ratio between 0 and 1.
+
+| source | says | tier |
+|---|---|---|
+| [Duet3D wiki, JSON responses](https://raw.githubusercontent.com/wiki/Duet3D/RepRapFirmware/JSON-responses.md) | "scale of 0.0 to 100.0" **and** "equals filePosition / fileSize" | vendor, self-contradictory |
+| same page, adjacent comment | `// one decimal place` | leans 0-100: one decimal on a 0-1 fraction gives eleven usable values |
+| [reprap.org mirror](https://wiki.reprap.org/wiki/RepRap_Firmware_Status_responses) | 0-1 | reasons from the field NAME, which is a guess |
+
+`fileSize` is **not** in the type-3 response, so the ratio cannot be recomputed
+independently. The Duet3D forum thread on this is behind a 403.
+
+**If the 0-100 reading is right, the old code showed every print from 1% onward
+as COMPLETE** — `5 * 100 = 500`, clamped to 100. On the one Duet surface nobody
+here can test, which is how it could sit unreported.
+
+**Resolution: read it both ways.** `lib/duet.js` → `legacyProgressPercent`: at or
+below 1 it is a fraction, above 1 it is already a percentage. Correct under
+either reading except a genuine 0.5% under the 0-100 reading, which reports as
+50% — the mild error, and it errs towards showing progress rather than towards
+calling a running print finished.
+
+**Redo this row** if anyone gets a pre-RRF-3 Duet on the bench: one observed
+`rr_status` at a known percentage settles it, and the heuristic can become a
+straight read.
+
 ### Duet — the poller learned both surfaces and job control did not
 
 `lib/printer-commands.js` built `GET /rr_gcode?gcode=…` unconditionally. That is

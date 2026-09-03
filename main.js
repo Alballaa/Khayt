@@ -4639,7 +4639,7 @@ async function fetchPrinterStatus(machine) {
       const data = await get(KhaytDuet.ENDPOINTS.standalone.legacy);
       return {
         state: data.status || 'Unknown',
-        progress: normalizeProgress((data.fractionPrinted || 0) * 100),
+        progress: normalizeProgress(KhaytDuet.legacyProgressPercent(data.fractionPrinted)),
         filename: '',
         timeRemaining: null,
         tempNozzle: data.temps?.heads?.current?.[0] || null,

@@ -62,6 +62,11 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **An older Duet could show every print as finished.** On the pre-RRF-3
+  interface, a job that was 5% done reported as 100% complete, and stayed there
+  for the whole print. Progress is now read correctly whichever of the two forms
+  the printer sends.
+
 - **You can now see and remove the reviews on your storefront.** Anyone could
   leave one, every one counted toward the star rating shown to your customers,
   and Khayt showed you only the average — so a rating could fall with no way to
