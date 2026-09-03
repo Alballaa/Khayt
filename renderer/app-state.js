@@ -857,6 +857,31 @@ async function loadAll() {
 
   ensureOrderTrackingTokens();
 
+  /* Deposits stranded on jobs split before the money fix.
+   *
+   * A split parent is now excluded from what is owed — correct, its children
+   * carry the debt — but a job split BEFORE that change left every sub-order at
+   * paidAmount 0 with the deposit recorded on the parent, so excluding it
+   * credited the money to nothing. SAR 3,000 read as outstanding on a job with
+   * SAR 2,000 left to pay. Better than the SAR 5,000 it used to say, and still a
+   * customer chased for money they had paid.
+   *
+   * Idempotent by an explicit marker on the parent, and it refuses in every
+   * uncertain case — see migrateSplitDeposits. Runs BEFORE the sync backfill so
+   * the changed records are stamped and pushed like any other edit. */
+  try {
+    if (typeof KhaytSplitOrder !== 'undefined' && typeof printLog !== 'undefined') {
+      const r = KhaytSplitOrder.migrateSplitDeposits(printLog);
+      if (r.migrated) {
+        console.warn(`[split] moved ${r.moved} of deposits onto the sub-orders of ${r.migrated} split job(s)`);
+        if (typeof toast === 'function') {
+          setTimeout(() => toast(t('ord.split_deposit_moved', { n: r.migrated })
+            || `Deposits on ${r.migrated} previously split job(s) were credited to their sub-orders`, 'info', 9000), 2000);
+        }
+      }
+    }
+  } catch (e) { console.error('split deposit migration failed:', e); }
+
   // Phase 0 sync foundation: backfill change metadata (rev/updatedAt) for records
   // that predate it, then seed the in-memory index from the final loaded state so
   // the next save only stamps records that actually changed (no churn on restart).

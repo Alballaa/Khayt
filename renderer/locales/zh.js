@@ -2710,6 +2710,7 @@
   "ord.split": "分配到多台设备",
   "ord.split_confirm": "将订单拆分为 {n} 个子任务？",
   "ord.split_done": "订单已拆分为 {n} 个子任务。",
+  "ord.split_deposit_moved": "此前拆分的 {n} 个作业的订金已计入其子订单",
   "ord.split_badge": "拆分为 {n} 个",
   "ord.sub_order": "Part of",
   "ord.split_assign": "将零件分配至设备",

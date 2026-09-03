@@ -74,6 +74,11 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   the step forcing data onto the disk and kept no rollback copy — so a power cut
   during an install could have left the store empty or half-written, at the one
   moment the app cannot try again.
+- **A deposit taken before a job was split is credited back to the work.** Jobs
+  you split in an earlier version kept the deposit on the original entry, and
+  once that entry correctly stopped counting, the money was credited to nothing —
+  so Khayt would have shown the full amount as still owed. The deposit is moved
+  onto the sub-orders it belongs to, once, the first time you open this version.
 
 - **A payment plan asked for the deposit all over again.** Generating
   instalments split the order's full price, ignoring anything already paid — so

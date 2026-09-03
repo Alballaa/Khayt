@@ -2711,6 +2711,7 @@
   "ord.split": "Split across machines",
   "ord.split_confirm": "Split order into {n} sub-jobs?",
   "ord.split_done": "Order split into {n} sub-jobs.",
+  "ord.split_deposit_moved": "Deposits on {n} previously split job(s) were credited to their sub-orders",
   "ord.split_badge": "Split into {n}",
   "ord.sub_order": "Part of",
   "ord.split_assign": "Assign parts to machines",

@@ -2710,6 +2710,7 @@
   "ord.split": "Réparti sur plusieurs machines",
   "ord.split_confirm": "Diviser la commande en {n} sous-tâches ?",
   "ord.split_done": "Commande divisée en {n} sous-tâches.",
+  "ord.split_deposit_moved": "Les acomptes de {n} travaux précédemment divisés ont été portés au crédit de leurs sous-commandes",
   "ord.split_badge": "Divisé en {n}",
   "ord.sub_order": "Part of",
   "ord.split_assign": "Assigner les pièces aux machines",
