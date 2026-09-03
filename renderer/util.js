@@ -36,7 +36,29 @@
   /** Allow only safe image URLs in img src (blocks javascript: and markup injection). */
   function safeImageSrc(url) {
     const s = String(url || '').trim();
-    if (/^data:image\/(png|jpeg|jpg|gif|webp);base64,/i.test(s)) return s;
+    /* THE WHOLE STRING, NOT ITS FIRST TWENTY CHARACTERS.
+     *
+     * This was a PREFIX test — `/^data:image\/…;base64,/` — and then returned
+     * the value verbatim, unlike the two branches below it which escape. So a
+     * string that merely STARTED like a data URL was written straight into
+     * `src="…"`:
+     *
+     *   data:image/png;base64,iVBORw0KGgo="/data-act="pf-del"/data-id="X
+     *
+     * renders as `<img src="…" data-act="pf-del" data-id="X" alt="">`, and the
+     * print-file grid delegates on `closest('[data-act]')` — so an ordinary
+     * click on the biggest target on the card runs a real action.
+     *
+     * It is reachable: lib/thumbnail-extract.js pulls a preview out of a
+     * downloaded .gcode and strips only `;` and whitespace, `resizeDataUrl`
+     * resolves the ORIGINAL string when the payload will not decode, and the
+     * strict main-process writer rejecting it drives the fallback that stores it
+     * in the record. From there it is redrawn on every visit and synced to the
+     * shop's other machines.
+     *
+     * Anchored at both ends against the base64 alphabet, so a well-formed data
+     * URL has nothing left to escape and anything else is simply not one. */
+    if (/^data:image\/(png|jpeg|jpg|gif|webp);base64,[A-Za-z0-9+/]*={0,2}$/i.test(s)) return s;
     if (/^https?:\/\//i.test(s)) return escapeHtml(s);
     if (/^file:\/\//i.test(s)) return escapeHtml(s);
     return '';

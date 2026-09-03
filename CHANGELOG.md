@@ -62,6 +62,12 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **A downloaded print file can no longer put fake controls on its own card.** A
+  G-code file carrying a specially made preview image could add a hidden button
+  to the card Khayt drew for it, so an ordinary click on the picture ran
+  something else — and the picture was saved with the entry and synced to your
+  other machines. Previews are now checked properly instead of by their first
+  few characters.
 - **Quoting off a part-used spool no longer multiplies the material cost.** The
   calculator divided the spool's price by however many grams were LEFT on it
   instead of the spool's size, so the same 100 g part costed SAR 9 off a fresh
