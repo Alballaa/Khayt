@@ -64,12 +64,28 @@ function runReturn({ orders, expenses = [], settings = { enableVat: true, vatRat
   return captured;
 }
 
-/** Pull one box's amount out of the rendered table. */
+/**
+ * Pull one row's amount out of the rendered table.
+ *
+ * By POSITION, not by "Box N": the box numbers are the Saudi form's and are
+ * deliberately absent for every other country, so matching on them would make
+ * this helper work only where the bug already was.
+ */
+const ROW_ORDER = [1, 2, 3, 6, 7];
 function box(html, n) {
-  const re = new RegExp(`<td>Box ${n}</td><td>[^<]*</td><td>([^<]*)</td>`);
-  const m = html.match(re);
-  assert.ok(m, `Box ${n} is missing from the return`);
-  return m[1];
+  const body = html.slice(html.indexOf('<tbody>'), html.indexOf('</tbody>'));
+  const rows = [...body.matchAll(/<tr[^>]*>\s*<td>[^<]*<\/td><td>([^<]*)<\/td><td>([^<]*)<\/td>/g)];
+  const i = ROW_ORDER.indexOf(n);
+  assert.ok(i >= 0, `no such row: ${n}`);
+  assert.ok(rows[i], `row ${n} is missing from the summary (found ${rows.length} rows)`);
+  return rows[i][2];
+}
+
+/** The label of that row, for the tests that care what it is called. */
+function rowLabel(html, n) {
+  const body = html.slice(html.indexOf('<tbody>'), html.indexOf('</tbody>'));
+  const rows = [...body.matchAll(/<tr[^>]*>\s*<td>[^<]*<\/td><td>([^<]*)<\/td><td>([^<]*)<\/td>/g)];
+  return rows[ROW_ORDER.indexOf(n)][1];
 }
 
 const YEAR = new Date().getFullYear();
@@ -128,8 +144,8 @@ test('Box 7 is blank, and says why, rather than claiming nothing is reclaimable'
     orders: [sale(1000)],
     expenses: [{ id: 'E1', date: d('06'), amount: 500, category: 'filament' }],
   });
-  assert.match(html, /Box 7<\/td><td>Input VAT \(Recoverable\)<\/td><td>&mdash;<\/td>/,
-    'Box 7 prints a figure Khayt has no data for');
+  assert.equal(box(html, 7), '&mdash;', 'the recoverable row prints a figure Khayt has no data for');
+  assert.match(rowLabel(html, 7), /recoverable/i);
   assert.match(html, /does not record VAT on expenses/, 'the shop is not warned before filing');
 });
 
@@ -154,4 +170,75 @@ test('the return uses the same tax module as the invoices', () => {
   assert.match(body, /KhaytTax\.computeTax\(/, 'the return computes VAT by hand again');
   assert.ok(!/o\.vatAmount|o\.vatRate/.test(body),
     'the return still reads an order field that nothing writes');
+});
+
+
+/* ------------------------------------------------------------------
+ * The figures travel; the box numbers do not.
+ *
+ * lib/tax.js carries THIRTY country presets — VAT, GST, Sales Tax — in both
+ * inclusive and exclusive mode, and the arithmetic is right for all of them.
+ * The paperwork was not: the document called itself a "GAZT VAT Return" and
+ * numbered its rows Box 1/2/3/6/7, which is the Saudi form. A UK shop files a
+ * VAT100 whose nine boxes mean different things; a US shop has no VAT return at
+ * all. Handing either of them a Saudi form with their numbers in it is worse
+ * than a plain list, because the numbers look authoritative.
+ * ------------------------------------------------------------------ */
+
+const SA = { tax: { country: 'SA', name: 'VAT', mode: 'inclusive', rates: [{ id: 'v', label: 'VAT', percent: 15 }] }, currency: 'SAR' };
+const GB = { tax: { country: 'GB', name: 'VAT', mode: 'inclusive', rates: [{ id: 'v', label: 'VAT', percent: 20 }] }, currency: 'GBP' };
+const US = { tax: { country: 'US', name: 'Sales Tax', mode: 'exclusive', rates: [{ id: 's', label: 'Sales Tax', percent: 8.875 }] }, currency: 'USD' };
+
+test('an inclusive-priced shop has the tax taken OUT of the price', () => {
+  const html = runReturn({ orders: [sale(1000)], settings: GB });
+  // 1000 gross at 20% inclusive → 833.33 net + 166.67 tax.
+  assert.equal(box(html, 1), '833.33');
+  assert.equal(box(html, 3), '166.67');
+  assert.match(html, /Prices in Khayt include VAT at 20%/);
+});
+
+test('an exclusive-priced shop has the tax added ON TOP', () => {
+  // The price IS the net. Getting this backwards would understate the tax due
+  // on every US and Canadian shop.
+  const html = runReturn({ orders: [sale(1000)], settings: US });
+  assert.equal(box(html, 1), '1000.00', 'an exclusive price was treated as tax-inclusive');
+  assert.equal(box(html, 3), '88.75');
+  assert.match(html, /Prices in Khayt exclude Sales Tax/);
+});
+
+test('the shop\'s own tax name is used, not "VAT" everywhere', () => {
+  const html = runReturn({ orders: [sale(1000)], settings: US });
+  assert.match(html, /Sales Tax collected on sales/);
+  assert.match(html, /Net Sales Tax payable/);
+  assert.ok(!/VAT/.test(html), 'a US shop is shown VAT it does not pay');
+});
+
+test('Saudi keeps its box numbers; nobody else is given them', () => {
+  assert.match(runReturn({ orders: [sale(1000)], settings: SA }), /<td>Box 1<\/td>/);
+  for (const s2 of [GB, US]) {
+    const html = runReturn({ orders: [sale(1000)], settings: s2 });
+    assert.ok(!/Box \d/.test(html), 'a non-Saudi shop is given Saudi box numbers, which look authoritative and are wrong');
+  }
+});
+
+test('a shop from before the country presets is still treated as Saudi', () => {
+  // settings.enableVat with no settings.tax is the pre-presets shape, and every
+  // shop that had it was Saudi. Dropping their box numbers would be a regression.
+  const html = runReturn({ orders: [sale(1000)], settings: { enableVat: true, vatRate: 15, currency: 'SAR' } });
+  assert.match(html, /<td>Box 1<\/td>/);
+});
+
+test('it never calls itself a return, and says the box numbers differ', () => {
+  const html = runReturn({ orders: [sale(1000)], settings: GB });
+  assert.ok(!/GAZT/.test(html), 'a non-Saudi shop is handed a Saudi authority\'s form');
+  assert.match(html, /summary to transcribe onto the return you file/);
+  assert.match(html, /The box numbers on your form will differ/);
+  assert.match(html, /mixed or exempt rating must\s+split these figures itself/,
+    'the one-rate limitation is not stated, so a shop with exempt sales would file this as-is');
+});
+
+test('the Saudi form does not tell a Saudi shop its box numbers differ', () => {
+  const html = runReturn({ orders: [sale(1000)], settings: SA });
+  assert.ok(!/box numbers on your form will differ/.test(html));
+  assert.match(html, /summary to transcribe onto the return you file/, 'every shop needs that caveat');
 });

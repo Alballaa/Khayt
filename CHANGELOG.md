@@ -73,6 +73,13 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   agreed with the customer. And where a client had already spent more loyalty
   points than they had really earned, you are told, so you hear it before they
   ask.
+- **The tax summary now suits the country you are actually in.** It called
+  itself a GAZT VAT return and numbered its rows the way the Saudi form does,
+  which was wrong for every other country Khayt supports — a shop in the UK,
+  the US or Canada was handed someone else's form with their figures in it. It
+  now uses your own tax's name, shows box numbers only where they are yours, and
+  says plainly that it is a summary to copy onto whatever return you file. Shops
+  whose prices exclude tax rather than include it are handled correctly.
 
 - **Setting up cloud sync could leave your shop openable on one computer only.**
   If saving your sync key to the server failed — a dropped connection at the
