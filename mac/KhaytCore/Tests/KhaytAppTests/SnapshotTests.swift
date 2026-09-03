@@ -49,7 +49,13 @@ import AppKit
         shop.selection = shop.shown.first { !$0.isSettled }?.id
         try render(ShopWindow(shop: shop), "02-selected", size: CGSize(width: 1180, height: 720))
 
-        shop.stage = .printing
+        shop.shelf = .jobs(.printing)
         try render(ShopWindow(shop: shop), "03-stage", size: CGSize(width: 1180, height: 720))
+
+        #expect(!shop.files.isEmpty, "the sample shop has no models, so the library cannot be judged")
+        #expect(shop.groups.contains("Saudi Kings"), "the grouped-models case must be in the sample")
+        #expect(shop.ungroupedCount > 0, "so must the ungrouped one")
+        shop.shelf = .library(nil)
+        #expect(shop.shownFiles.count == shop.files.count)
     }
 }

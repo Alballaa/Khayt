@@ -9,13 +9,26 @@ struct ShopWindow: View {
             Sidebar(shop: shop)
                 .navigationSplitViewColumnWidth(min: 190, ideal: 215, max: 280)
         } detail: {
-            OrdersTable(shop: shop)
-                .inspector(isPresented: $showInspector) {
-                    OrderInspector(shop: shop)
-                        .inspectorColumnWidth(min: 260, ideal: 310, max: 420)
+            Group {
+                if shop.showingLibrary {
+                    LibraryGrid(shop: shop)
+                } else {
+                    OrdersTable(shop: shop)
                 }
+            }
+            .inspector(isPresented: $showInspector) {
+                Group {
+                    if shop.showingLibrary {
+                        LibraryInspector(shop: shop)
+                    } else {
+                        OrderInspector(shop: shop)
+                    }
+                }
+                .inspectorColumnWidth(min: 260, ideal: 310, max: 420)
+            }
         }
-        .searchable(text: $shop.search, placement: .toolbar, prompt: "Job, customer or number")
+        .searchable(text: $shop.search, placement: .toolbar,
+                    prompt: shop.showingLibrary ? "Model, material or tag" : "Job, customer or number")
         .toolbar {
             ToolbarItem(placement: .navigation) {
                 // Which book is open, always visible. Mistaking the sample for
@@ -44,7 +57,16 @@ struct ShopWindow: View {
             }
         }
         .navigationTitle(shop.shopName)
-        .navigationSubtitle(shop.source.isReal ? "read-only" : "sample data — not a real shop")
+        .navigationSubtitle(subtitle)
+    }
+
+    /// Says which book is open before it says anything else. The sample must
+    /// never be mistaken for the shop's real position.
+    private var subtitle: String {
+        let provenance = shop.source.isReal ? "read-only" : "sample data — not a real shop"
+        guard shop.showingLibrary else { return provenance }
+        let n = shop.shownFiles.count
+        return "\(n) model\(n == 1 ? "" : "s") · \(provenance)"
     }
 }
 

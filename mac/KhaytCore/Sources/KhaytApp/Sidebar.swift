@@ -9,22 +9,36 @@ struct Sidebar: View {
     @Bindable var shop: Shop
 
     var body: some View {
-        List(selection: $shop.stage) {
+        List(selection: $shop.shelf) {
             Section {
                 Row(title: "All jobs", symbol: "tray.full", count: shop.orders.count,
-                    selected: shop.stage == nil)
-                    .tag(Stage?.none)
+                    selected: shop.shelf == .jobs(nil))
+                    .tag(Shop.Shelf.jobs(nil))
             }
             Section("Pipeline") {
                 ForEach(Stage.allCases) { stage in
                     let n = shop.count(stage)
                     Row(title: stage.title, symbol: stage.symbol, count: n,
-                        selected: shop.stage == stage)
-                        .tag(Stage?.some(stage))
+                        selected: shop.shelf == .jobs(stage))
+                        .tag(Shop.Shelf.jobs(stage))
                         // An empty stage stays visible and dimmed rather than
                         // disappearing: a sidebar that changes shape as work
                         // moves through it is a sidebar you cannot learn.
                         .foregroundStyle(n == 0 ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.primary))
+                }
+            }
+            // The models, below the work. A group is a set that belongs
+            // together — the seven Saudi Kings, offered as one collection —
+            // so the groups a shop has actually made are named here rather
+            // than hidden behind a filter menu.
+            Section("Library") {
+                Row(title: "All models", symbol: "square.grid.2x2", count: shop.files.count,
+                    selected: shop.shelf == .library(nil))
+                    .tag(Shop.Shelf.library(nil))
+                ForEach(shop.groups, id: \.self) { group in
+                    Row(title: group, symbol: "square.stack", count: shop.count(group: group),
+                        selected: shop.shelf == .library(group))
+                        .tag(Shop.Shelf.library(group))
                 }
             }
         }
