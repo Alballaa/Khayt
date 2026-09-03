@@ -109,12 +109,41 @@ Two traps it will show you:
 ## The interface
 
 ```bash
-cd mac/KhaytCore && swift run Khayt
+./mac/make-app.sh --open      # build Khayt.app and launch it
+cd mac/KhaytCore && swift run Khayt    # or the bare binary, for working on it
 ```
 
+`make-app.sh` assembles a real, double-clickable application: the release binary,
+the SwiftPM resource bundles, the Khayt icon, an `Info.plist`, and an ad-hoc
+signature. `--install` puts a copy in `/Applications` as **Khayt Native.app**, so
+it sits beside the Electron app rather than on top of it.
+
+**It is not the shipping build.** Ad-hoc signing means this Mac will run it and no
+other will; a Developer ID, a hardened runtime and notarisation are what make it
+something a shop can download, and none of that exists yet.
+
+**⌘R reloads from disk.** The store is read once, at launch, so anything the
+Electron app writes after that is invisible here until asked for — and while this
+is a reader, the two are expected to be open at the same time.
+
+Two things the bundle changes:
+
+* Its identifier is `app.khayt.mac`, **not** `app.khayt.hub`. Two applications
+  sharing an identifier confuse Launch Services, the defaults domain, and the
+  Keychain's idea of who is asking. It also means the bundled app and `swift run`
+  remember their windows separately — `app.khayt.mac` against the bare `Khayt`
+  domain — and each needs its own Keychain grant, since they are two signatures.
+* `swift run` has to tell AppKit it is a windowed app, or the window opens behind
+  everything. A bundle says so itself, so the app now asks only when it has no
+  bundle identifier. An app that shoves itself in front of your work on every
+  launch is one people learn to resent.
+
 The shop's book: a source list of the pipeline, a real `Table` of jobs, and an
-inspector for the selected one. It opens a store **read-only**, and there is no
-code in `KhaytApp` that writes — that is the constraint at the foot of this file
+inspector for the selected one — and the print library as a grid of models, with
+the shop's groups in the sidebar. It opens on the shop's own book if there is
+one, falling back to the sample only when there is not.
+
+It opens a store **read-only**, and there is no code in `KhaytApp` that writes — that is the constraint at the foot of this file
 honoured rather than worked around.
 
 A reader can still be wrong in the way that matters: showing a figure the app

@@ -11,7 +11,11 @@ struct KhaytApp: App {
             ShopWindow(shop: shop)
                 .task {
                     Snapshot.subject = shop
-                    await shop.load(Shop.available.first ?? .sample)
+                    // The shop's own book if there is one, the sample only when
+                    // there is not. Reading is safe, the source is named in the
+                    // toolbar, and an app that opens on invented data when real
+                    // data exists is answering a question nobody asked.
+                    await shop.load(Shop.available.first(where: \.isReal) ?? .sample)
                 }
         }
         // Wide enough that all six columns are on screen with the inspector
@@ -26,6 +30,14 @@ struct KhaytApp: App {
         .commands {
             CommandGroup(replacing: .newItem) { }
             CommandGroup(after: .toolbar) {
+                // The store is read once, at launch. Anything the Electron app
+                // writes after that is invisible here until asked for, and the
+                // two are expected to be open together while this is a reader.
+                Button("Reload from disk") {
+                    Task { await shop.load(shop.source) }
+                }
+                .keyboardShortcut("r")
+                Divider()
                 Picker("Book", selection: Binding(
                     get: { shop.source },
                     set: { next in Task { await shop.load(next) } }
@@ -37,16 +49,20 @@ struct KhaytApp: App {
     }
 }
 
-/// SwiftPM builds a bare executable rather than an app bundle, so nothing has
-/// told AppKit this is a normal windowed application. Without it the window
-/// opens behind everything and never takes the menu bar.
+/// A bare SwiftPM executable has no bundle, so nothing has told AppKit this is a
+/// normal windowed application: the window opens behind everything and never
+/// takes the menu bar.
 ///
-/// This goes away when the app moves to an Xcode project with a real bundle,
-/// which is also when signing and notarisation start to matter.
+/// `mac/make-app.sh` assembles a real bundle, and inside one none of this is
+/// wanted — an app that shoulders its way in front of whatever you were doing,
+/// every launch, is an app people learn to resent. So it is asked for only when
+/// there is no bundle identifier, which is exactly the `swift run` case.
 final class Activator: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ note: Notification) {
-        NSApp.setActivationPolicy(.regular)
-        NSApp.activate(ignoringOtherApps: true)
+        if Bundle.main.bundleIdentifier == nil {
+            NSApp.setActivationPolicy(.regular)
+            NSApp.activate(ignoringOtherApps: true)
+        }
         if let dir = ProcessInfo.processInfo.environment["KHAYT_SNAPSHOT_DIR"] {
             Snapshot.run(into: URL(fileURLWithPath: dir))
         }
