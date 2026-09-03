@@ -62,6 +62,9 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- Internal: one guard now names every new seam in this release and fails if
+  nothing calls it, so a finished feature cannot ship switched off.
+
 - **Splitting a job across machines billed it twice and lost the deposit.** The
   original job stayed on the books at its full price alongside the new
   sub-orders, so a SAR 3,000 job split in two showed SAR 5,000 owed when SAR
