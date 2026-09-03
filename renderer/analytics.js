@@ -935,7 +935,10 @@ function renderProfitMarginChart() {
   const marginByMonth = {};
   months.forEach(m => { marginByMonth[m] = { revenue: 0, cost: 0, count: 0 }; });
   for (const o of printLog) {
-    if (o.status !== 'completed' || o.voidedAt || !o.costBasis || !+o.price) continue;
+    // _countsForBusiness for the same reason every other revenue figure has it:
+    // a print the shop marked as not business must not appear in a margin
+    // report. This was the one money loop over printLog without the gate.
+    if (o.status !== 'completed' || o.voidedAt || !_countsForBusiness(o) || !o.costBasis || !+o.price) continue;
     const m = (o.date || '').slice(0, 7);
     if (!marginByMonth[m]) continue;
     // Net of credit notes, in the ORDER's currency to stay paired with costBasis
