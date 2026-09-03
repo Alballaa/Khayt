@@ -116,3 +116,65 @@ test('the heading is exported, so the changelog and the parser cannot drift', ()
   // rather than each spelling the phrase out.
   assert.equal(HEADING, 'Before you update');
 });
+
+test('the notes arrive as RENDERED HTML, and a wrapped item survives it', () => {
+  /* THIS IS THE SHAPE PRODUCTION SENDS, and the one the parser could not read.
+   *
+   * electron-updater takes `releaseNotes` from the GitHub release atom feed,
+   * which carries the rendered HTML — not the markdown we wrote. So `stripTags`
+   * runs: `<li>` becomes a bare "- " with the text on the FOLLOWING line, at
+   * column zero, because the markdown parser consumed the list indentation.
+   *
+   * The old rule needed two leading spaces to treat a line as a continuation,
+   * and an empty bullet marker opened nothing. A multi-line item was therefore
+   * dropped ENTIRELY — and a section whose items are all multi-line, which is
+   * exactly what CHANGELOG.md holds, parsed to zero items and
+   * `needsConsent: false`.
+   *
+   * The gate would not have appeared on the next release at all. */
+  const rendered = [
+    '<h3>Before you update</h3>', '<ul>', '<li>',
+    '<strong>The box that said "Folder" now says "Group"</strong>, and it means',
+    'something on your catalogue too. Nothing is re-filed.',
+    '</li>',
+    '<li>A second change, on one line.</li>',
+    '</ul>',
+  ].join('\n');
+  const r = parseMajorChanges(rendered);
+  assert.equal(r.needsConsent, true, 'the gate vanished on the shape production actually sends');
+  assert.equal(r.items.length, 2);
+  assert.match(r.items[0], /Folder.*Group.*and it means something on your catalogue too\. Nothing is re-filed\./,
+    'the wrapped remainder of the item was lost');
+  assert.equal(r.items[1], 'A second change, on one line.');
+});
+
+test('markdown and its rendering give the same answer', () => {
+  // The two forms must not disagree: CI reads the CHANGELOG, the app reads the
+  // release page, and a gate that differs between them is a gate nobody can
+  // verify before shipping.
+  const md = [
+    '### Before you update', '',
+    '- **The box that said "Folder" now says "Group"**, and it means',
+    '  something on your catalogue too. Nothing is re-filed.',
+    '- A second change, on one line.',
+  ].join('\n');
+  const rendered = [
+    '<h3>Before you update</h3>', '<ul>', '<li>',
+    '<strong>The box that said "Folder" now says "Group"</strong>, and it means',
+    'something on your catalogue too. Nothing is re-filed.',
+    '</li>', '<li>A second change, on one line.</li>', '</ul>',
+  ].join('\n');
+  assert.deepEqual(parseMajorChanges(md), parseMajorChanges(rendered));
+});
+
+test('a stray marker with no text is not a change to accept', () => {
+  // The empty-bullet rule that makes the above work must not invent items.
+  const r = parseMajorChanges('### Before you update\n\n-\n-  \n');
+  assert.equal(r.needsConsent, false);
+  assert.deepEqual(r.items, []);
+});
+
+test('a blank line does not glue two items together', () => {
+  const r = parseMajorChanges('### Before you update\n\n- First change.\n\n- Second change.\n');
+  assert.deepEqual(r.items, ['First change.', 'Second change.']);
+});

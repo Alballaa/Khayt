@@ -62,6 +62,17 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **The warning before a major update would not have appeared at all.** Khayt
+  reads a release's notes from GitHub as a rendered page, not as the file we
+  write, and the part that finds the changes you must accept could not read a
+  point that ran over one line — so it found none, and the update would have
+  offered itself with one press. Every change in this release's warning runs
+  over one line. Also fixed: using **Check for updates** by hand skipped the
+  warning entirely, and a failed download replaced it with a live *Retry*.
+- **A downloaded model pack can no longer fill your disk.** An archive that
+  understates how big its contents are was allowed through a size check that it
+  cost nothing, then unpacked anyway — measured at 480 MB written from a 470 KB
+  file, and far more from a larger one.
 - **The catalogue's "Ungrouped" and "Uncategorised" chips do nothing no longer.**
   Same fault as the one in Print Files below: pressing them looked like showing
   everything, so there was no way to find the products you had not filed.
