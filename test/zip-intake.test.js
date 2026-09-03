@@ -167,3 +167,47 @@ test('junk in, no throw out', () => {
   }
   assert.deepEqual(summarize(null), { files: 0, bytes: 0, skipped: 0, overBudget: 0, truncated: false, empty: true });
 });
+
+test('a member that declares no size is charged what it may inflate to', () => {
+  /* THE BUDGET AND THE INFLATION CAP READ DIFFERENT NUMBERS.
+   *
+   * This charged the DECLARED uncompressed size and charged nothing at all when
+   * a member declared none — while lib/zip-read.js lets exactly those members
+   * inflate to its full per-member ceiling. So an archive whose members all
+   * declare `size: 0` passed the 2 GiB budget "costing 0 MB" and then wrote as
+   * much as it liked.
+   *
+   * Measured on a crafted archive before the fix: 0.47 MB on disk, 8 members
+   * taken, budget said 0.0 MB, actually inflated to 480 MB. At the 512-member
+   * cap that is roughly 200 GB written to a temp folder. A shop dropping a
+   * downloaded model pack is enough — no compromised renderer required.
+   */
+  const { MAX_INFLATED } = require('../lib/zip-read.js');
+  const undeclared = (name) => ({ name, size: 0, compSize: 1024 });
+  const many = Array.from({ length: 20 }, (_, i) => undeclared(`part${i}.stl`));
+  const p = plan(many);
+
+  const { MAX_TOTAL_BYTES } = require('../lib/zip-intake.js');
+  assert.ok(p.take.length < many.length,
+    'every undeclared member was taken — the budget charged them nothing');
+  // Five 400 MB members fit a 2 GiB budget; the sixth must not.
+  assert.equal(p.take.length, Math.floor(MAX_TOTAL_BYTES / MAX_INFLATED));
+  assert.equal(p.truncated, true, 'the refusal has to be reported, not silent');
+  assert.ok(p.skipped.some((x) => x.reason === 'over-budget'));
+
+  // A member that declares an honest size is still charged that, not the cap.
+  const honest = plan([{ name: 'a.stl', size: 1024, compSize: 300 }]);
+  assert.equal(honest.bytes, 1024);
+  assert.equal(honest.take.length, 1);
+});
+
+test('the budget and the inflation cap read the same number', () => {
+  // They disagreed, and that WAS the bug. lib/zip-intake.js imports the ceiling
+  // from the module that enforces it rather than repeating the literal.
+  const { MAX_INFLATED } = require('../lib/zip-read.js');
+  const src = require('fs').readFileSync(require('path').join(__dirname, '../lib/zip-intake.js'), 'utf8');
+  assert.match(src, /require\('\.\/zip-read\.js'\)\.MAX_INFLATED/,
+    'zip-intake repeats the ceiling instead of reading it — they will drift again');
+  assert.equal(typeof MAX_INFLATED, 'number');
+  assert.ok(MAX_INFLATED > 0);
+});

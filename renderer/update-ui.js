@@ -6,6 +6,12 @@
   let activeUpdateInfo = null;
   let promptedVersion = null;
   let openingModal = false; // synchronous latch: an open is in-flight across its await
+  /* Has the shop accepted the changes in the update currently on offer?
+   *
+   * Module state rather than a DOM read, because the checkbox does not survive
+   * a state change — and every state that can reach a download has to be able
+   * to ask. Reset whenever a different version is offered. */
+  let consentGiven = false;
 
   // Product name for update copy — Bed Ready runs the same renderer via its own
   // flavor marker on <html>, so never hard-code "Khayt" in user-facing strings.
@@ -156,7 +162,10 @@
     if (gated) {
       const accept = updateOverlay?.querySelector('#updAccept');
       const download = updateOverlay?.querySelector('[data-upd="download"]');
-      accept?.addEventListener('change', () => { if (download) download.disabled = !accept.checked; });
+      accept?.addEventListener('change', () => {
+        consentGiven = !!accept.checked;
+        if (download) download.disabled = !accept.checked;
+      });
     }
   }
 
@@ -272,20 +281,39 @@
     wireFooterActions();
   }
 
+  /** Does the update on offer still need consent that has not been given? */
+  function stillGated() {
+    const major = activeUpdateInfo && activeUpdateInfo.majorChanges;
+    if (!(major && major.needsConsent && Array.isArray(major.items) && major.items.length)) return false;
+    return !consentGiven;
+  }
+
   function renderErrorState(message) {
     setModalBody(`
       <p class="update-notes-intro">${escapeHtml(tr('upd.error_title', 'Update failed'))}</p>
       <p class="update-notes-error">${escapeHtml(message || tr('upd.error_generic', 'Unknown update error'))}</p>
     `);
+    /* RETRY IS A DOWNLOAD, SO IT IS GATED TOO.
+     *
+     * This rebuilt the footer with an ENABLED download and no consent panel, so
+     * any update-error arriving while the gated review modal was open replaced
+     * the gate with a live button. `gated` was computed once, in
+     * renderReviewState, and every other state discarded it — the gate was one
+     * error away from gone. Derived here instead. */
+    const gated = stillGated();
     setModalFooter(`
       <button class="btn ghost" data-upd="close">${escapeHtml(tr('common.close', 'Close'))}</button>
-      <button class="btn primary" data-upd="download">${escapeHtml(tr('upd.retry_download', 'Retry download'))}</button>
+      <button class="btn primary" data-upd="download"${gated ? ' disabled' : ''}>${escapeHtml(tr('upd.retry_download', 'Retry download'))}</button>
     `);
     wireFooterActions();
   }
 
   function startUpdateDownload() {
     if (!activeUpdateInfo) return;
+    // The last word. Every button that reaches here is meant to be disabled
+    // while consent is outstanding; this is so that being wrong about one of
+    // them costs nothing.
+    if (stillGated()) return;
     renderDownloadingState(0);
     // Arm the watch here, not on first progress: a download that never emits a
     // single event is exactly the case this needs to catch.
@@ -301,6 +329,8 @@
     if (promptedVersion === info.version && (updateOverlay || openingModal)) return;
     openingModal = true;
 
+    // A different version is a different set of changes to accept.
+    if (promptedVersion !== info.version) consentGiven = false;
     promptedVersion = info.version;
     activeUpdateInfo = {
       version: info.version,
