@@ -51,6 +51,7 @@ final class Shop {
 
     var selection: Order.ID?
     var fileSelection: LibraryFile.ID?
+    var customerSelection: Customer.ID?
     var shelf: Shelf = .jobs(nil)
     var search = ""
 
@@ -63,15 +64,24 @@ final class Shop {
         case jobs(Stage?)
         /// nil is every model; a string is one group.
         case library(String?)
+        case customers
     }
 
     var stage: Stage? { if case .jobs(let s) = shelf { s } else { nil } }
     var showingLibrary: Bool { if case .library = shelf { true } else { false } }
+    var showingCustomers: Bool { shelf == .customers }
 
     /// The sources that can actually be opened on this Mac. A menu offering a
     /// store that is not there is a dead end dressed up as a choice.
     static var available: [Source] {
-        [.sample] + StoreReader.Build.allCases.filter(\.exists).map(Source.store)
+        // Most recently written first. Guessing between "khayt" and "Khayt" by
+        // name means guessing whether this Mac belongs to a developer or a
+        // shop; the file dates already know.
+        let stores = StoreReader.Build.allCases
+            .filter(\.exists)
+            .sorted { ($0.lastWritten ?? .distantPast) > ($1.lastWritten ?? .distantPast) }
+            .map(Source.store)
+        return [.sample] + stores
     }
 
     /// The shared business logic, started once. Building a JSContext and
@@ -231,6 +241,20 @@ final class Shop {
 
     var selectedFile: LibraryFile? { files.first { $0.id == fileSelection } }
 
+    // MARK: - What the customers screen shows
+
+    var customers: [Customer] { Customer.from(orders) }
+
+    var shownCustomers: [Customer] {
+        let q = search.trimmingCharacters(in: .whitespaces).lowercased()
+        guard !q.isEmpty else { return customers }
+        return customers.filter {
+            $0.name.lowercased().contains(q) || $0.orders.contains { $0.project.lowercased().contains(q) }
+        }
+    }
+
+    var selectedCustomer: Customer? { customers.first { $0.id == customerSelection } }
+
     func count(group: String) -> Int { files.count { $0.group == group } }
 
     /// The record's folder on this Mac, if it is on this Mac at all.
@@ -240,6 +264,24 @@ final class Shop {
     }
 
     func fileIsPresent(_ file: LibraryFile) -> Bool { directory(for: file) != nil }
+
+    /// The model file itself, if it is on this Mac.
+    ///
+    /// The record names it (`sourceFile.filename`), but a folder that has one
+    /// model in it and a differently-named record is a state this app should
+    /// survive rather than shrug at, so a single model file in the folder is
+    /// taken as the model.
+    func modelFile(for file: LibraryFile) -> URL? {
+        guard let dir = directory(for: file) else { return nil }
+        if let named = file.sourceFile?.filename, !named.isEmpty {
+            let url = dir.appending(path: named)
+            if FileManager.default.fileExists(atPath: url.path) { return url }
+        }
+        let contents = (try? FileManager.default.contentsOfDirectory(at: dir,
+            includingPropertiesForKeys: nil)) ?? []
+        let models = contents.filter { !["jpg", "jpeg", "png"].contains($0.pathExtension.lowercased()) }
+        return models.count == 1 ? models[0] : nil
+    }
 
     /// A photograph the shop took beats a generated thumbnail: it is the print
     /// as it came off the bed, which is what someone is trying to recognise.

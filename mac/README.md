@@ -138,10 +138,17 @@ Two things the bundle changes:
   bundle identifier. An app that shoves itself in front of your work on every
   launch is one people learn to resent.
 
-The shop's book: a source list of the pipeline, a real `Table` of jobs, and an
-inspector for the selected one — and the print library as a grid of models, with
-the shop's groups in the sidebar. It opens on the shop's own book if there is
-one, falling back to the sample only when there is not.
+Three shelves off one sidebar: the pipeline as a real `Table` of jobs, the
+customers derived from those jobs, and the print library as a grid of models with
+the shop's groups beneath it. Each has an inspector. It opens on the shop's own
+book if there is one, falling back to the sample only when there is not.
+
+**Put `.inspector` on the `NavigationSplitView`, never inside `detail`.** Inside
+it, the detail content is laid out against the window *minus the inspector* with
+the sidebar's width never taken off — so a `Table` stretches its columns across
+200pt it does not have, and the right-hand ones are clipped away rather than
+compressed. The Owed column vanished twice that way before the cause was found,
+and column `max` widths do not save you: the stretch ignores them.
 
 It opens a store **read-only**, and there is no code in `KhaytApp` that writes — that is the constraint at the foot of this file
 honoured rather than worked around.

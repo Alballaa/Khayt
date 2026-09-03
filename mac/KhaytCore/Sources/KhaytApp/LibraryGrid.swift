@@ -19,6 +19,15 @@ struct LibraryGrid: View {
                          thumbnail: shop.thumbnail(for: file),
                          selected: shop.fileSelection == file.id)
                         .onTapGesture { shop.fileSelection = file.id }
+                        .contextMenu {
+                            ModelActions(file: file, shop: shop)
+                        } preview: {
+                            // Right-click gives the picture at a size worth
+                            // looking at. It is the fastest way to tell two
+                            // versions of the same model apart.
+                            Thumbnail(source: shop.thumbnail(for: file))
+                                .frame(width: 320, height: 320)
+                        }
                 }
             }
             .padding(16)

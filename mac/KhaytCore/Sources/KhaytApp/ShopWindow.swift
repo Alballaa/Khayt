@@ -9,26 +9,33 @@ struct ShopWindow: View {
             Sidebar(shop: shop)
                 .navigationSplitViewColumnWidth(min: 190, ideal: 215, max: 280)
         } detail: {
-            Group {
-                if shop.showingLibrary {
-                    LibraryGrid(shop: shop)
-                } else {
-                    OrdersTable(shop: shop)
-                }
-            }
-            .inspector(isPresented: $showInspector) {
-                Group {
-                    if shop.showingLibrary {
-                        LibraryInspector(shop: shop)
-                    } else {
-                        OrderInspector(shop: shop)
-                    }
-                }
-                .inspectorColumnWidth(min: 260, ideal: 310, max: 420)
+            if shop.showingLibrary {
+                LibraryGrid(shop: shop)
+            } else if shop.showingCustomers {
+                CustomersTable(shop: shop)
+            } else {
+                OrdersTable(shop: shop)
             }
         }
+        // On the split view, not inside `detail`. Inside it, the detail content
+        // is laid out against the window minus the inspector — the sidebar's
+        // width is not taken off — so a Table stretches its columns across a
+        // width it does not have and the right-hand ones are clipped away
+        // rather than compressed. The Owed column disappeared twice that way.
+        .inspector(isPresented: $showInspector) {
+            Group {
+                if shop.showingLibrary {
+                    LibraryInspector(shop: shop)
+                } else if shop.showingCustomers {
+                    CustomerInspector(shop: shop)
+                } else {
+                    OrderInspector(shop: shop)
+                }
+            }
+            .inspectorColumnWidth(min: 260, ideal: 310, max: 420)
+        }
         .searchable(text: $shop.search, placement: .toolbar,
-                    prompt: shop.showingLibrary ? "Model, material or tag" : "Job, customer or number")
+                    prompt: searchPrompt)
         .toolbar {
             ToolbarItem(placement: .navigation) {
                 // Which book is open, always visible. Mistaking the sample for
@@ -64,9 +71,21 @@ struct ShopWindow: View {
     /// never be mistaken for the shop's real position.
     private var subtitle: String {
         let provenance = shop.source.isReal ? "read-only" : "sample data — not a real shop"
-        guard shop.showingLibrary else { return provenance }
-        let n = shop.shownFiles.count
-        return "\(n) model\(n == 1 ? "" : "s") · \(provenance)"
+        if shop.showingLibrary {
+            let n = shop.shownFiles.count
+            return "\(n) model\(n == 1 ? "" : "s") · \(provenance)"
+        }
+        if shop.showingCustomers {
+            let n = shop.shownCustomers.count
+            return "\(n) customer\(n == 1 ? "" : "s") · \(provenance)"
+        }
+        return provenance
+    }
+
+    private var searchPrompt: String {
+        if shop.showingLibrary { return "Model, material or tag" }
+        if shop.showingCustomers { return "Customer or job" }
+        return "Job, customer or number"
     }
 }
 

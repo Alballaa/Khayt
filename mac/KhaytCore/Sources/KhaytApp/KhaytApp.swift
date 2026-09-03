@@ -126,6 +126,16 @@ final class Activator: NSObject, NSApplicationDelegate {
                 capture(named: "05-group", into: dir)
             }
 
+            // The sample for the last two. A shop whose jobs are auto-logged
+            // from printer history has no customers and no prices — true, and
+            // no use at all for looking at a design.
+            await shop.load(.sample)
+            shop.shelf = .customers
+            shop.customerSelection = shop.shownCustomers.max { $0.owed < $1.owed }?.id
+            await settle()
+            capture(named: "06-customers", into: dir)
+            capturePanes(named: "06-customers", into: dir)
+
             try? await Task.sleep(for: .milliseconds(300))
             NSApp.terminate(nil)
         }

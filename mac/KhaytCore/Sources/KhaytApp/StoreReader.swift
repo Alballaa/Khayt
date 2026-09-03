@@ -59,6 +59,13 @@ public struct StoreReader: Sendable {
         public var keychainService: String { "\(rawValue) Safe Storage" }
         public var keychainAccount: String { "\(rawValue) Key" }
         public var exists: Bool { FileManager.default.fileExists(atPath: storeURL.path) }
+
+        /// When this store was last written. Both builds are often present on a
+        /// developer's Mac — one of them a copy nobody has touched in weeks —
+        /// and the recently written one is the book someone is actually keeping.
+        public var lastWritten: Date? {
+            try? FileManager.default.attributesOfItem(atPath: storeURL.path)[.modificationDate] as? Date
+        }
     }
 
     public let build: Build
