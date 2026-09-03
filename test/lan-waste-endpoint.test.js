@@ -52,6 +52,7 @@ before(async () => {
     ensureLanCalendarToken: () => ({ token: 'cal', generated: false }),
     writeStoreToDisk: async () => {},
     persistLanStoreUpdate: async (s) => { store = s; },
+    updateStoreOnDisk: async (fn) => { store = fn(store); return store; },
     getLanServerStore: () => store,
     setLanServerStore: (s) => { store = s; },
     // Capture what the desktop would be told, so the notify path is covered too.

@@ -53,6 +53,7 @@ before(async () => {
     ensureLanCalendarToken: () => ({ token: 'cal', generated: false }),
     writeStoreToDisk: async () => {},
     persistLanStoreUpdate: async (s) => { store = s; },
+    updateStoreOnDisk: async (fn) => { store = fn(store); return store; },
     getLanServerStore: () => store,
     setLanServerStore: (s) => { store = s; },
     getMainWindow: () => null,

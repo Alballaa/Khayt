@@ -155,6 +155,7 @@ const {
   ensureLanCalendarToken,
   isEncryptionAvailable,
   persistLanStoreUpdate,
+  updateStoreOnDisk,
   resolveStoreSecret,
   isStoreSecretMasked,
   readStoreDecryptedFromDisk,
@@ -166,6 +167,9 @@ const {
   safeJsonParse,
   crypto,
   onStoreUpdated(data) { lanServerStore = data; },
+  // Read INSIDE the write chain, so a read-modify-write always sees the result of
+  // every write queued ahead of it. See updateStoreOnDisk.
+  getStore: () => lanServerStore,
 });
 
 // ZATCA e-invoicing is a business-only surface — skip its IPC on the Bed Ready flavor.
@@ -3676,20 +3680,18 @@ const COMPLETIONS_KEY = 'printerCompletions';
 
 async function persistCompletions() {
   try {
-    // Read the newest copy off disk FIRST, then add one key to it.
+    // Read-modify-write INSIDE the write chain.
     //
     // This runs on a background timer and writes the WHOLE store back. Building
     // that write from a long-lived in-memory copy is how a save made in the
     // renderer thirty seconds ago gets overwritten by a snapshot taken before
     // it — the same shape as the restore bug in #708, arriving from a different
-    // direction. Re-reading narrows the window to the length of this function
-    // instead of the lifetime of the process, and it costs a file read a few
-    // times a day.
-    syncLanServerStoreFromDisk();
+    // direction. Re-reading first narrowed that window; it did not close it,
+    // because the in-memory copy is only refreshed after a write LANDS, so any
+    // write already in flight was still invisible. updateStoreOnDisk takes the
+    // read inside the chain, which closes it.
     const saved = completionsToPersist(printerStatusCache);
-    const store = { ...(lanServerStore || {}) };
-    store[COMPLETIONS_KEY] = saved;
-    await persistLanStoreUpdate(store);
+    await updateStoreOnDisk((cur) => ({ ...cur, [COMPLETIONS_KEY]: saved }));
   } catch (e) {
     console.error('persistCompletions:', e && e.message ? e.message : e);
   }
@@ -3730,6 +3732,7 @@ registerLanServer({
   ensureLanCalendarToken,
   writeStoreToDisk,
   persistLanStoreUpdate,
+  updateStoreOnDisk,
   getLanServerStore: () => lanServerStore,
   setLanServerStore(data) { lanServerStore = data; },
   getMainWindow: () => mainWindow,

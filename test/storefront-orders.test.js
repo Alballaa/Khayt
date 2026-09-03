@@ -133,10 +133,19 @@ test('both storefront handlers check before they create, and record the id', () 
     // on prose is a test people learn to edit rather than read.
     const body = lan.slice(at, at + 3000);
     const check = body.indexOf(`alreadyRecorded(storeData.printLog, '${source}'`);
-    const create = body.indexOf('storeData.printLog.unshift(newOrder)');
+    const create = body.indexOf('log.unshift(newOrder)');
     assert.ok(check > 0, `the ${source} handler does not check for a duplicate`);
     assert.ok(create > 0, `the ${source} handler no longer creates an order here`);
     assert.ok(check < create, `the ${source} handler creates the order before checking for it`);
+    // The check answering the request is not enough. A provider retry arriving
+    // while the first write is still in flight reads a log that has not been
+    // updated yet and passes it, so the check has to be repeated INSIDE the
+    // write, against the store as it stands when that write's turn comes.
+    const inWrite = body.indexOf(`alreadyRecorded(log, '${source}'`);
+    assert.ok(inWrite > 0,
+      `the ${source} handler does not re-check for a duplicate inside updateStoreOnDisk`);
+    assert.ok(inWrite < create,
+      `the ${source} handler inserts before re-checking inside the write`);
     assert.match(body, /sourceOrderId: \w+Ref \|\| undefined/,
       `the ${source} handler does not record the id, so the NEXT delivery cannot be recognised`);
     assert.match(body, /notes:\s+storefrontOrders\.noteFor\(/,
