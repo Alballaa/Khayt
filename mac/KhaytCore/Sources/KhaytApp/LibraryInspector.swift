@@ -22,7 +22,8 @@ struct LibraryInspector: View {
                         Divider()
                         geometry(mesh)
                     }
-                    if let notes = file.testedNotes, !notes.isEmpty {
+                    actions(file)
+            if let notes = file.testedNotes, !notes.isEmpty {
                         Divider()
                         DetailSection("Notes") { Text(notes).textSelection(.enabled) }
                     }
@@ -32,6 +33,23 @@ struct LibraryInspector: View {
         } else {
             ContentUnavailableView("No model selected", systemImage: "cube",
                                    description: Text("Pick a model to see its file and its filament."))
+        }
+    }
+
+    /// The file, reachable. Buttons rather than only a context menu: a menu you
+    /// have to know is there is a feature for the person who wrote it.
+    @ViewBuilder private func actions(_ file: LibraryFile) -> some View {
+        if let url = shop.modelFile(for: file) {
+            HStack(spacing: 8) {
+                Button { FileActions.reveal(url) } label: {
+                    Label("Reveal", systemImage: "folder")
+                }
+                Button { FileActions.open(url) } label: {
+                    Label("Open", systemImage: "arrow.up.forward.app")
+                }
+            }
+            .controlSize(.small)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 

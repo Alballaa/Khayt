@@ -27,6 +27,11 @@ struct Sidebar: View {
                         .foregroundStyle(n == 0 ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.primary))
                 }
             }
+            Section("People") {
+                Row(title: "Customers", symbol: "person.2", count: shop.customers.count,
+                    selected: shop.shelf == .customers)
+                    .tag(Shop.Shelf.customers)
+            }
             // The models, below the work. A group is a set that belongs
             // together — the seven Saudi Kings, offered as one collection —
             // so the groups a shop has actually made are named here rather

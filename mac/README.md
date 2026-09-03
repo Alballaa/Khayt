@@ -138,10 +138,17 @@ Two things the bundle changes:
   bundle identifier. An app that shoves itself in front of your work on every
   launch is one people learn to resent.
 
-The shop's book: a source list of the pipeline, a real `Table` of jobs, and an
-inspector for the selected one — and the print library as a grid of models, with
-the shop's groups in the sidebar. It opens on the shop's own book if there is
-one, falling back to the sample only when there is not.
+Three shelves off one sidebar: the pipeline as a real `Table` of jobs, the
+customers derived from those jobs, and the print library as a grid of models with
+the shop's groups beneath it. Each has an inspector. It opens on the shop's own
+book if there is one, falling back to the sample only when there is not.
+
+**Put `.inspector` on the `NavigationSplitView`, never inside `detail`.** Inside
+it, the detail content is laid out against the window *minus the inspector* with
+the sidebar's width never taken off — so a `Table` stretches its columns across
+200pt it does not have, and the right-hand ones are clipped away rather than
+compressed. The Owed column vanished twice that way before the cause was found,
+and column `max` widths do not save you: the stretch ignores them.
 
 It opens a store **read-only**, and there is no code in `KhaytApp` that writes — that is the constraint at the foot of this file
 honoured rather than worked around.
@@ -184,11 +191,18 @@ an offline bitmap, not faults to go and fix:
 * **The sidebar comes out black and empty.** `NSVisualEffectView` draws nothing
   into a cached bitmap, and `.listStyle(.sidebar)` is one. To see those rows,
   run once with `.listStyle(.plain)`, which has no material.
-* **With two scroll views on screen, one comes back black.** The library grid
-  and its inspector are that pair. The run also writes `*-paneN.png`, each
-  scrolling pane photographed on its own, which shows what the window shot
-  lost — at the cost of the thumbnails, which a pane draws into its own layer.
-  Between the two everything is visible; in neither is it all visible at once.
+The run also writes `*-paneN.png`, each scrolling pane photographed on its own,
+for when the window shot leaves a doubt. It has the opposite blind spot — it
+loses what a pane draws into its own layer, so thumbnails go missing there.
+
+**A correction, since the wrong version stood here for a day.** The library
+inspector once photographed as a solid black column and this file blamed the
+capture, claiming that two `NSScrollView`s on screen meant one came back black.
+That was not it. The inspector was attached inside `detail`, the content was laid
+out against a width that never subtracted the sidebar, and the inspector had
+nowhere to draw. Moving `.inspector` onto the `NavigationSplitView` fixed the
+picture and the app at once. A capture limitation is a comfortable thing to
+blame — check the layout first.
 * `ImageRenderer` is not the way round it. It returns a "cannot render"
   placeholder for `NavigationSplitView`, `Table` and the toolbar alike — which
   is to say for everything that makes this a Mac window rather than a page.

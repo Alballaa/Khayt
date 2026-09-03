@@ -1,0 +1,160 @@
+import SwiftUI
+
+/// The shop's customers, and what each of them owes.
+struct CustomersTable: View {
+    @Bindable var shop: Shop
+    @State private var order: [KeyPathComparator<Customer>] = [
+        .init(\.owed, order: .reverse)
+    ]
+
+    private var rows: [Customer] { shop.shownCustomers.sorted(using: order) }
+
+    var body: some View {
+        Table(rows, selection: $shop.customerSelection, sortOrder: $order) {
+            TableColumn("Customer", value: \.name) { person in
+                HStack(spacing: 6) {
+                    if person.overdueCount > 0 {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.orange)
+                            .help("\(person.overdueCount) unpaid jobs past their due date")
+                    }
+                    Text(person.name).lineLimit(1)
+                }
+            }
+            // Every column is capped. Without a max the name column absorbs
+            // all the slack, the table lays out wider than the space it has,
+            // and the right-hand columns are clipped away rather than
+            // compressed — Owed, the one this screen is sorted by, first.
+            // Hard maxima, summing to well under the space the table has.
+            // The table lays itself out wider than the pane it sits in — the
+            // detail area is sized before the inspector takes its share — so
+            // a column that stretches to fill goes under the inspector and is
+            // simply gone. Owed, the column this screen is sorted by, went
+            // first. Columns that stop short leave trailing space instead.
+            .width(min: 140, ideal: 210, max: 300)
+
+            TableColumn("Owed", value: \.owed) { person in
+                if person.isSettled {
+                    Text("settled")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                } else {
+                    Text(Money.figure(person.owed))
+                        .foregroundStyle(person.overdueCount > 0 ? AnyShapeStyle(.orange)
+                                                                 : AnyShapeStyle(.primary))
+                        .moneyStyle()
+                }
+            }
+            .width(min: 96, ideal: 120, max: 150)
+            .alignment(.trailing)
+            TableColumn("Jobs", value: \.jobCount) { person in
+                Text("\(person.jobCount)").moneyStyle()
+            }
+            .width(min: 48, ideal: 58, max: 70)
+            .alignment(.trailing)
+
+            TableColumn("Open", value: \.openCount) { person in
+                // Zero is a full stop, not a number to read past. Dimming it
+                // leaves the column scannable for the ones that are not zero.
+                Text(person.openCount == 0 ? "—" : "\(person.openCount)")
+                    .foregroundStyle(person.openCount == 0 ? AnyShapeStyle(.quaternary)
+                                                           : AnyShapeStyle(.primary))
+                    .moneyStyle()
+            }
+            .width(min: 48, ideal: 60, max: 70)
+            .alignment(.trailing)
+
+            TableColumn("Last job", value: \.lastJobSort) { person in
+                if let day = person.lastJob {
+                    Text(day, format: .dateTime.day().month(.abbreviated).year())
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text("—").foregroundStyle(.quaternary)
+                }
+            }
+            .width(min: 90, ideal: 108, max: 130)
+
+        }
+        .tableStyle(.inset(alternatesRowBackgrounds: true))
+        .overlay {
+            if rows.isEmpty {
+                if !shop.search.isEmpty {
+                    ContentUnavailableView.search(text: shop.search)
+                } else {
+                    ContentUnavailableView("No customers yet", systemImage: "person.2",
+                        description: Text("A customer appears here once a job is billed to them."))
+                }
+            }
+        }
+    }
+}
+
+extension Customer {
+    /// `Table` sorts on a comparable value, and `Date?` is not one. Absent dates
+    /// sort oldest rather than crashing the column.
+    var lastJobSort: Date { lastJob ?? .distantPast }
+}
+
+/// One customer: what they owe, and every job you have done for them.
+struct CustomerInspector: View {
+    let shop: Shop
+
+    var body: some View {
+        if let person = shop.selectedCustomer {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(person.name)
+                            .font(.title3.weight(.semibold))
+                            .textSelection(.enabled)
+                        Text("\(person.jobCount) job\(person.jobCount == 1 ? "" : "s")")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Divider()
+                    DetailSection("Money") {
+                        DetailLine("Billed", Money.text(person.billed, shop.currency))
+                        DetailLine("Paid", Money.text(person.paid, shop.currency), dim: true)
+                        DetailLine("Owed", Money.text(person.owed, shop.currency),
+                                   strong: !person.isSettled, warn: person.overdueCount > 0)
+                        if person.overdueCount > 0 {
+                            DetailLine("Past due", "\(person.overdueCount)", warn: true)
+                        }
+                    }
+                    Divider()
+                    DetailSection("Jobs") {
+                        ForEach(person.orders.sorted { ($0.day ?? .distantPast) > ($1.day ?? .distantPast) }) { job in
+                            HStack(alignment: .firstTextBaseline) {
+                                VStack(alignment: .leading, spacing: 1) {
+                                    Text(job.project).lineLimit(1)
+                                    HStack(spacing: 4) {
+                                        if let stage = Stage.of(job) {
+                                            Text(stage.title)
+                                        }
+                                        Text("·")
+                                        Text(job.id)
+                                    }
+                                    .font(.caption2)
+                                    .foregroundStyle(.tertiary)
+                                }
+                                Spacer(minLength: 8)
+                                Text(Money.figure(job.isSettled ? job.price : job.owed))
+                                    .font(.callout)
+                                    .monospacedDigit()
+                                    .foregroundStyle(job.isSettled ? AnyShapeStyle(.tertiary)
+                                                                   : AnyShapeStyle(.primary))
+                            }
+                            .padding(.vertical, 2)
+                        }
+                    }
+                }
+                .padding(16)
+            }
+        } else {
+            ContentUnavailableView("No customer selected", systemImage: "person",
+                                   description: Text("Pick a row to see their jobs and their balance."))
+        }
+    }
+}
