@@ -57,6 +57,43 @@ That is a fork waiting to happen, so:
 cd mac/KhaytCore && swift test
 ```
 
+## Secrets
+
+The store file is plain JSON; three fields inside it are not. The AI key, the
+cloud token and the S3 secret are `__enc__` + base64 of Electron `safeStorage`,
+which on macOS is Chromium's OSCrypt. `SafeStorage.swift` implements it, and the
+shape was measured rather than assumed:
+
+```
+ai.apiKey            total 115  prefix "v10"  body 112  body % 16 == 0
+cloud.token          total  83  prefix "v10"  body  80  body % 16 == 0
+s3.secretAccessKey   total  35  prefix "v10"  body  32  body % 16 == 0
+```
+
+Swift and Node are held to identical bytes across the padding edges, and `seal`
+refuses to return a field it cannot itself open — the failure it guards is
+overwriting a working secret with bytes nothing can decrypt.
+
+One link is deliberately not in the suite: that the Keychain item holds the
+PBKDF2 password. Confirming it means reading a live secret, so it is a command
+you run, not a test that runs itself:
+
+```bash
+./mac/verify-safestorage.sh          # dev store
+./mac/verify-safestorage.sh Khayt    # packaged app
+```
+
+Two traps it will show you:
+
+* **The Keychain item is named after `app.getName()`, which is not constant.**
+  A dev run uses `khayt` (package.json `name`); a packaged build uses `Khayt`
+  (electron-builder `productName`). Different items, different keys, different
+  store files. Mixing them looks exactly like a corrupt store.
+* **A native binary has a different code signature, so macOS treats it as a
+  different application** and prompts before granting access to Electron's key.
+  Expected, once per binary — but it means an unsigned debug build and the
+  shipped app are two separate grants.
+
 ## Not yet built
 
 The store, the platform layer, and every screen. `KhaytCore` is the foundation

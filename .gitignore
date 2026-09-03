@@ -60,3 +60,8 @@ store/microsoft/metadata.json
 /khayt-website/
 /Khayt-Social-Launch-Kit.pdf
 ios/**/*.xcworkspace/contents.xcworkspacedata
+
+# Swift Package Manager build output (note the dot: the `build/` rule above does not match it)
+.build/
+*.xcodeproj/xcuserdata/
+DerivedData/
