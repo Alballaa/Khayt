@@ -67,6 +67,13 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   from the printer itself, and then deleted that record on the very next edit
   you made — so the figures were never there the next morning, and a job's
   actuals fell back to an estimate. The history is kept now.
+- **The VAT return declared no VAT at all.** Boxes 1 to 3 read fields Khayt has
+  never written to an order, so the VAT due always came out as zero and total
+  sales were reported with the VAT still in them. On SAR 400,000 of sales at 15%
+  the form said SAR 400,000 of sales and nothing owed, when SAR 52,173.92 was.
+  Sales are now shown net and the VAT is worked out with the same arithmetic your
+  invoices use. Box 7 is left blank with a note, because Khayt does not record
+  VAT on expenses — put your own figure in before you file.
 
 - **Two people using the shop at once could lose one of their entries.** If an
   order was logged on one phone while an expense, a spool update or a survey was
