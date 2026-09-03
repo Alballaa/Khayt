@@ -73,6 +73,11 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   see what was dragging it down and no way to remove anything. Settings →
   Storefront now lists your reviews, marks which came from a signed-in customer,
   and lets you delete one.
+- **A model Khayt could not measure is no longer quoted as free.** A damaged or
+  malformed 3D file could come through the estimator as zero grams and zero
+  hours, and be marked as a sound estimate — including on the public quote page
+  and the intake form your customers use. Khayt now says the figure cannot be
+  trusted, which is what the warning was there for.
 
 - **A shop with several printers could lose a finished job's real figures.** If
   enough machines were slow to answer — printers switched off overnight, say —
