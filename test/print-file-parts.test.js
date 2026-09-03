@@ -113,10 +113,33 @@ test('promoting the file that is already primary is a no-op, not a reshuffle', (
   assert.deepEqual(P.partsOf(rec).map((x) => x.filename), ['head.stl', 'torso.stl']);
 });
 
-test('files wins over sourceFile when both are present and disagree', () => {
-  // They should never disagree — everything that writes one writes the other —
-  // but if a record is ever hand-edited or half-migrated, the list is the truth
-  // and the card follows it rather than showing a file the print does not have.
-  const rec = { files: [f('torso.stl')], sourceFile: f('stale.stl') };
-  assert.deepEqual(P.primaryOf(rec), f('torso.stl'));
+test('a sourceFile that is not in the list is added rather than ignored', () => {
+  /* This asserted that `files` simply wins — "the list is the truth". It is the
+   * truth about which PARTS a print has, and it is not the truth about which
+   * file somebody last pointed at: the older build's Identify writes
+   * `sourceFile` alone, and dropping it lost the file the shop had just chosen.
+   *
+   * Both are kept, primary first, so neither writer's work is discarded. */
+  const rec = { files: [f('torso.stl')], sourceFile: f('picked.stl') };
+  assert.deepEqual(P.primaryOf(rec), f('picked.stl'));
+  assert.deepEqual(P.partsOf(rec).map((x) => x.filename), ['picked.stl', 'torso.stl']);
+});
+
+test('a writer that only knows sourceFile does not lose the other parts', () => {
+  /* The older build's "Identify" sets `rec.sourceFile` when a record has no file
+   * on this computer, and never touches `files`. Sync carries such a record
+   * between machines intact and self-contradicting.
+   *
+   * Preferring `files` dropped the file the shop had just chosen; preferring
+   * `sourceFile` would drop every other part of a multi-part print. */
+  const f = (n) => ({ filename: n, originalName: n, size: 1, ext: 'stl', kind: 'model' });
+  const rec = { id: 'r', files: [f('head.stl'), f('arm.stl')], sourceFile: f('head.stl') };
+  assert.deepEqual(P.partsOf(rec).map((x) => x.filename), ['head.stl', 'arm.stl']);
+
+  rec.sourceFile = f('picked.stl');                    // the older build's Identify
+  assert.deepEqual(P.partsOf(rec).map((x) => x.filename), ['picked.stl', 'head.stl', 'arm.stl'],
+    'the parts were dropped, or the newly chosen file was');
+  assert.equal(P.primaryOf(rec).filename, 'picked.stl',
+    'the card should speak for the file somebody most recently pointed at');
+  assert.equal(P.totalSize(rec), 3, 'the size chip should cover everything the record now holds');
 });
