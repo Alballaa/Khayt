@@ -1151,7 +1151,13 @@ async function aiDraftReply(orderId) {
       });
       modal.querySelector('#arEmail')?.addEventListener('click', () => {
         const subj = (shopField('biz') || 'Khayt') + ' — ' + (order.project || order.id);
-        window.hubAPI?.openExternal?.(`mailto:${client.email}?subject=${encodeURIComponent(subj)}&body=${encodeURIComponent(draftEl.value)}`);
+        // encodeURIComponent the ADDRESS too. A client's email is not the shop's
+        // text: the LAN intake form accepts one from anyone who can reach it and
+        // stores it after nothing but trim+slice(500). An address ending
+        // `...?bcc=someone@else` injected a header into the shop's own reply and
+        // copied it to a stranger, in a compose window that looked normal.
+        window.hubAPI?.openExternal?.(
+          `mailto:${encodeURIComponent(client.email || '')}?subject=${encodeURIComponent(subj)}&body=${encodeURIComponent(draftEl.value)}`);
       });
     },
     // "Generate" fills the draft area for editing instead of closing.

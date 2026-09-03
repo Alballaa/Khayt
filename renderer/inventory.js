@@ -500,16 +500,24 @@ function parseOpenPrintTagCBOR(bytes) {
     const material = matType || matName;
     if (!material && !brand) return null;
 
+    // Every one of these is a temperature, a time or a weight. CBOR can carry a
+    // TEXT STRING under any key, and these went into the result untouched and from
+    // there straight into innerHTML — so a crafted tag put markup on the panel.
+    // The app's CSP (script-src 'self', img-src 'self' data: blob:) stops it
+    // running script or fetching anything, but injected markup can still add
+    // controls the delegated [data-act] handler will act on, which is exactly the
+    // hole the G-code thumbnail had. A number that is not a number is not data.
+    const num = (v) => (Number.isFinite(+v) ? +v : null);
     return {
       standard:    'OpenPrintTag',
       manufacturer: brand,
       material:    matType || matName,
       colorName:   null,
       hex,
-      weight:      weight ? Math.round(weight) : null,
-      minPrint:    data[34], maxPrint: data[35],
-      minBed:      data[37], maxBed:   data[38],
-      dryTemp:     data[57], dryTime:  data[58] // dryTime in minutes
+      weight:      Number.isFinite(+weight) && +weight ? Math.round(+weight) : null,
+      minPrint:    num(data[34]), maxPrint: num(data[35]),
+      minBed:      num(data[37]), maxBed:   num(data[38]),
+      dryTemp:     num(data[57]), dryTime:  num(data[58]) // dryTime in minutes
     };
   } catch { return null; }
 }
@@ -773,14 +781,18 @@ async function openFilamentScanner() {
           : '';
         const stdBadge = `<span style="font-size:10px;padding:2px 7px;border-radius:20px;background:rgba(91,156,240,0.18);color:var(--primary);font-weight:600;">${escapeHtml(nfcData.standard)}</span>`;
 
+        // The parsers coerce these to numbers, and this escapes them anyway: the
+        // panel is built from a stranger's tag, and one parser forgetting a
+        // coercion should not be enough to put markup on the screen.
         const metaRows = [];
-        if (nfcData.weight)    metaRows.push(`${escapeHtml(t('inv.weight')||'Weight')}: <strong>${nfcData.weight} g</strong>`);
-        if (nfcData.printTemp) metaRows.push(`Print: <strong>${nfcData.printTemp}°C</strong>`);
-        if (nfcData.minPrint && nfcData.maxPrint) metaRows.push(`Print range: <strong>${nfcData.minPrint}–${nfcData.maxPrint}°C</strong>`);
-        if (nfcData.bedTemp)   metaRows.push(`Bed: <strong>${nfcData.bedTemp}°C</strong>`);
-        if (nfcData.minBed && nfcData.maxBed)     metaRows.push(`Bed range: <strong>${nfcData.minBed}–${nfcData.maxBed}°C</strong>`);
-        if (nfcData.dryTemp)   metaRows.push(`Dry: <strong>${nfcData.dryTemp}°C${nfcData.dryTime ? ' × ' + nfcData.dryTime + ' h' : ''}</strong>`);
-        if (nfcData.density)   metaRows.push(`Density: <strong>${nfcData.density} g/cm³</strong>`);
+        const n = (v) => escapeHtml(String(v));
+        if (nfcData.weight)    metaRows.push(`${escapeHtml(t('inv.weight')||'Weight')}: <strong>${n(nfcData.weight)} g</strong>`);
+        if (nfcData.printTemp) metaRows.push(`Print: <strong>${n(nfcData.printTemp)}°C</strong>`);
+        if (nfcData.minPrint && nfcData.maxPrint) metaRows.push(`Print range: <strong>${n(nfcData.minPrint)}–${n(nfcData.maxPrint)}°C</strong>`);
+        if (nfcData.bedTemp)   metaRows.push(`Bed: <strong>${n(nfcData.bedTemp)}°C</strong>`);
+        if (nfcData.minBed && nfcData.maxBed)     metaRows.push(`Bed range: <strong>${n(nfcData.minBed)}–${n(nfcData.maxBed)}°C</strong>`);
+        if (nfcData.dryTemp)   metaRows.push(`Dry: <strong>${n(nfcData.dryTemp)}°C${nfcData.dryTime ? ' × ' + n(nfcData.dryTime) + ' h' : ''}</strong>`);
+        if (nfcData.density)   metaRows.push(`Density: <strong>${n(nfcData.density)} g/cm³</strong>`);
 
         resultEl.style.display = 'block';
         resultEl.innerHTML = `

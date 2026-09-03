@@ -69,6 +69,15 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   new sub-order started as though nothing had been paid and the customer was
   invoiced for the full amount again. The deposit and any credit notes now
   travel with the work, split the same way the price is.
+- **A customer could get a copy of the reply you sent them.** An email address
+  submitted through your intake form was put into the mail link exactly as
+  typed, so an address with extra instructions hidden on the end could quietly
+  add a second recipient to your own reply — and the compose window looked
+  completely normal. Addresses are now encoded, everywhere Khayt opens mail.
+- **A filament tag can no longer put its own buttons on the scan screen.** The
+  temperatures and weights read from an NFC tag were trusted to be numbers; a
+  specially made tag could put page content in their place. They are now checked
+  and escaped.
 
 - **What actually came off the printer was thrown away every time you saved.**
   Khayt records the real filament weight and print time of each finished job
