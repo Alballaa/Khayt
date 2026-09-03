@@ -1264,8 +1264,27 @@ async function deleteQuoteTemplate() {
 function populateFilamentDropdown() {
   const select = $('#filamentSelect');
   const previous = select.value;
+  /* THE SPOOL'S SIZE, NOT WHAT IS LEFT OF IT.
+   *
+   * `item.weight` is REMAINING grams — the inventory editor labels it
+   * "Remaining (g)" and every completed job decrements it (inventory.js:1871,
+   * :2146). The calculator's field says "Spool weight (g)" and computes
+   * `(spoolCost / spoolWeight) x grams`, so quoting off a partly-used spool
+   * valued the material at whatever fraction was left:
+   *
+   *     full spool (1000 g)   material  9.00   <- correct
+   *     250 g left            material 36.00   <- 4x
+   *     50 g left             material 180.00  <- 20x
+   *
+   * …for the same 100 g part off the same SAR 90 kilo. The shop over-quotes,
+   * and its own margin report shows a cost that never existed.
+   *
+   * Every other cost site already divides by the spool SIZE — inventory.js:1251,
+   * inventory.js:1673 (whose comment says "dividing by the *remaining* weight
+   * valued every partly-used spool at full purchase cost") and
+   * lib/po-audit.js:64. This dropdown was the one feeding it the wrong number. */
   select.innerHTML = inventory.map(item => `
-    <option value="${item.id}" data-cost="${item.cost}" data-weight="${item.weight}" data-color="${escapeHtml(item.color || '#888888')}">
+    <option value="${item.id}" data-cost="${item.cost}" data-weight="${Math.max(1, +item.spoolWeight || 1000)}" data-color="${escapeHtml(item.color || '#888888')}">
       ${escapeHtml(item.material)}${item.weight <= (item.reorderPoint ?? settings.lowStockThreshold) ? '  ⚠' : ''}
     </option>`).join('');
   if (inventory.find(i => i.id === previous)) {

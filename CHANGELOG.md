@@ -62,6 +62,14 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **Quoting off a part-used spool no longer multiplies the material cost.** The
+  calculator divided the spool's price by however many grams were LEFT on it
+  instead of the spool's size, so the same 100 g part costed SAR 9 off a fresh
+  kilo and SAR 36 off a quarter-full one — and SAR 180 off the last 50 g. Every
+  other place in Khayt already used the spool size.
+- **A rush fee no longer follows you into the next quote.** Every other money
+  field is cleared after you log a job; the rush checkbox was not, so one rush
+  job silently added its percentage to every quote after it.
 - **Importing the wrong file no longer erases everything you have.** Choosing any
   `.json` that was not a Khayt export — a slicer profile, a settings file,
   anything — emptied every order, client, invoice, spool and print file, applied
