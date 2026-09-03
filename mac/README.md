@@ -155,6 +155,11 @@ an offline bitmap, not faults to go and fix:
 * **The sidebar comes out black and empty.** `NSVisualEffectView` draws nothing
   into a cached bitmap, and `.listStyle(.sidebar)` is one. To see those rows,
   run once with `.listStyle(.plain)`, which has no material.
+* **With two scroll views on screen, one comes back black.** The library grid
+  and its inspector are that pair. The run also writes `*-paneN.png`, each
+  scrolling pane photographed on its own, which shows what the window shot
+  lost — at the cost of the thumbnails, which a pane draws into its own layer.
+  Between the two everything is visible; in neither is it all visible at once.
 * `ImageRenderer` is not the way round it. It returns a "cannot render"
   placeholder for `NavigationSplitView`, `Table` and the toolbar alike — which
   is to say for everything that makes this a Mac window rather than a page.

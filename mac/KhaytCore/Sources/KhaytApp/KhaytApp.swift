@@ -9,7 +9,10 @@ struct KhaytApp: App {
     var body: some Scene {
         Window("Khayt", id: "shop") {
             ShopWindow(shop: shop)
-                .task { await shop.load(Shop.available.first ?? .sample) }
+                .task {
+                    Snapshot.subject = shop
+                    await shop.load(Shop.available.first ?? .sample)
+                }
         }
         // Wide enough that all six columns are on screen with the inspector
         // open, which is how the window opens. At 1180 the table was given
@@ -58,22 +61,92 @@ final class Activator: NSObject, NSApplicationDelegate {
 /// needs a screen-recording grant. A window can always draw itself into a
 /// bitmap, so that is the route.
 ///
-/// One thing it cannot show: `NSVisualEffectView` draws nothing into an offline
-/// bitmap, so the sidebar comes out black and empty. That is the photograph, not
-/// the app — confirm a sidebar you doubt by running once with
-/// `.listStyle(.plain)`, which has no material, rather than by "fixing" it.
+/// Two things it cannot show, both the photograph rather than the app:
+///
+/// * `NSVisualEffectView` draws nothing into an offline bitmap, so the sidebar
+///   comes out black and empty. Confirm a sidebar you doubt by running once with
+///   `.listStyle(.plain)`, which has no material, rather than by "fixing" it.
+/// * With two `NSScrollView`s on screen at once only one comes back; the other
+///   is black. The library grid and its inspector are exactly that pair, and the
+///   inspector looked broken for an afternoon on the strength of it. `capturePanes`
+///   photographs each one on its own and settles the question — though it loses
+///   what the pane draws into its own layer, so the thumbnails go missing there
+///   instead. Between the two pictures everything is visible; in neither is it
+///   all visible at once.
 ///
 /// Only runs when KHAYT_SNAPSHOT_DIR is set, so it costs a normal launch
 /// nothing and cannot fire by accident.
 @MainActor enum Snapshot {
+    /// The window's shop, so the run can move between shelves. Set once, on
+    /// launch; nil in a normal run because nothing else asks for it.
+    static weak var subject: Shop?
+
     static func run(into dir: URL) {
         Task { @MainActor in
             // The window has to have laid out and drawn once. Two seconds is
             // generous; capturing an unlaid-out window yields a blank sheet.
             try? await Task.sleep(for: .seconds(2))
-            capture(named: "01-shop", into: dir)
-            try? await Task.sleep(for: .milliseconds(400))
+            capture(named: "01-jobs", into: dir)
+
+            guard let shop = subject else { NSApp.terminate(nil); return }
+
+            shop.selection = shop.shown.first { !$0.isSettled }?.id
+            await settle()
+            capture(named: "02-job-selected", into: dir)
+
+            shop.shelf = .library(nil)
+            await settle()
+            capture(named: "03-library", into: dir)
+
+            shop.fileSelection = shop.shownFiles.first?.id
+            await settle()
+            capture(named: "04-model-selected", into: dir)
+            capturePanes(named: "04-model-selected", into: dir)
+
+            if let group = shop.groups.first {
+                shop.shelf = .library(group)
+                shop.fileSelection = nil
+                await settle()
+                capture(named: "05-group", into: dir)
+            }
+
+            try? await Task.sleep(for: .milliseconds(300))
             NSApp.terminate(nil)
+        }
+    }
+
+    /// Let SwiftUI apply the change and AppKit redraw before photographing it.
+    /// Without this the picture is of the previous state, which is worse than
+    /// no picture: it looks like the change did nothing.
+    private static func settle() async {
+        try? await Task.sleep(for: .milliseconds(700))
+    }
+
+    /// Photograph each scrolling pane on its own.
+    ///
+    /// The whole-window shot loses a pane sometimes — two `NSScrollView`s on
+    /// screen at once and only one comes back. Capturing them individually says
+    /// whether the pane is empty or merely unphotographed, which is the
+    /// difference between a bug and a picture of one.
+    static func capturePanes(named name: String, into dir: URL) {
+        guard let window = NSApp.windows.first(where: { $0.isVisible && $0.contentView != nil }),
+              let root = window.contentView else { return }
+        var found: [NSScrollView] = []
+        func walk(_ v: NSView) {
+            if let scroll = v as? NSScrollView { found.append(scroll) }
+            v.subviews.forEach(walk)
+        }
+        walk(root)
+        for (i, scroll) in found.enumerated() {
+            let target = scroll.documentView ?? scroll
+            let bounds = target.bounds
+            guard bounds.width > 1, bounds.height > 1,
+                  let rep = target.bitmapImageRepForCachingDisplay(in: bounds) else { continue }
+            target.cacheDisplay(in: bounds, to: rep)
+            guard let png = rep.representation(using: .png, properties: [:]) else { continue }
+            try? png.write(to: dir.appending(path: "\(name)-pane\(i).png"))
+            FileHandle.standardError.write(Data(
+                "  pane\(i): \(type(of: target)) \(Int(bounds.width))x\(Int(bounds.height))\n".utf8))
         }
     }
 
@@ -91,6 +164,7 @@ final class Activator: NSObject, NSApplicationDelegate {
         view.cacheDisplay(in: view.bounds, to: rep)
         guard let png = rep.representation(using: .png, properties: [:]) else { return }
         try? png.write(to: dir.appending(path: name + ".png"))
+
         FileHandle.standardError.write(Data("wrote \(name).png (\(Int(view.bounds.width))x\(Int(view.bounds.height)))\n".utf8))
     }
 }
