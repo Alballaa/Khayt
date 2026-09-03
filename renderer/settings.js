@@ -3697,7 +3697,7 @@ function renderWebhookSettings() {
     const url = el.querySelector('#whk_status_changed')?.value || Object.values((settings.webhooks?.events||{})).find(Boolean);
     if (!url) { toast(t('webhook.enter_url'), 'warning'); return; }
     const res = await window.hubAPI?.fireWebhook?.(url, 'ping', { message: 'Khayt webhook test' }, settings.webhooks?.secret || '');
-    if (res?.ok) toast('✅ Webhook delivered!', 'success');
+    if (res?.ok) toast(t('hook.delivered'), 'success');
     else toast(`⚠ Webhook failed: ${res?.error || res?.status || '?'}`, 'error');
   });
 }
@@ -3759,7 +3759,7 @@ function renderEventWebhookSettings() {
           { at: new Date().toISOString(), shopName: shopField('biz') || 'Khayt', clientName: 'Test client', currency: (typeof currencySymbol === 'function') ? currencySymbol() : '' })
       : { id: 'SAMPLE-1', event: 'order.created' };
     const res = await window.hubAPI?.webhookPost?.({ url, secret, payload: sample });
-    if (res?.ok) toast('✅ Webhook delivered!', 'success');
+    if (res?.ok) toast(t('hook.delivered'), 'success');
     else toast(`⚠ ${res?.error || 'HTTP ' + (res?.status || '?')}`, 'error');
   });
 }
@@ -4051,7 +4051,7 @@ function renderLanApiSettings() {
 
   el.querySelector('#btnSaveLan')?.addEventListener('click', () => {
     saveLanApiSettingsFromForm({ restartServer: true });
-    toast('LAN API settings saved', 'success');
+    toast(t('lan.settings_saved'), 'success');
   });
 
   // Reveal the pricing fields only when the shop opts in, so the panel does not
@@ -5888,7 +5888,7 @@ function deleteCustomField(idx) {
  *  Each record is flagged sample:true and uses a stable DEMO-* id, so loading
  *  is idempotent and it can be removed cleanly later. */
 async function loadSampleData() {
-  if (typeof KhaytSampleData === 'undefined') { toast('Sample data unavailable', 'error'); return; }
+  if (typeof KhaytSampleData === 'undefined') { toast(t('common.feature_missing'), 'error'); return; }
   const ok = await confirmModal(t('set.sample_load_q') || 'Add demo clients, products, spools and orders to explore? You can remove them anytime.');
   if (!ok) return;
   const data = KhaytSampleData.buildSampleData({ today: localDateStr() });
@@ -6238,13 +6238,13 @@ function renderTelegramSettings() {
   el.querySelector('#btnTgTest')?.addEventListener('click', () => {
     const botToken = el.querySelector('#tgBotToken').value.trim();
     const chatId   = el.querySelector('#tgChatId').value.trim();
-    if (!botToken || !chatId) { toast('Enter bot token and chat ID first', 'error'); return; }
+    if (!botToken || !chatId) { toast(t('tg.need_credentials'), 'error'); return; }
     if (window.hubAPI?.sendTelegram) {
       window.hubAPI.sendTelegram({ botToken, chatId, message: '✅ Khayt test notification' })
-        .then(() => toast('Telegram test sent!', 'success'))
-        .catch(e => toast('Telegram error: ' + e.message, 'error'));
+        .then(() => toast(t('tg.test_sent'), 'success'))
+        .catch(e => toast(t('tg.error') + ': ' + e.message, 'error'));
     } else {
-      toast('Telegram API not available in this build', 'info');
+      toast(t('common.telegram_unavailable'), 'info');
     }
   });
 
@@ -6262,7 +6262,7 @@ function renderTelegramSettings() {
       notifyPrinterError, notifyPrinterOffline, notifyPrinterStall,
     };
     saveAll();
-    toast('Telegram settings saved', 'success');
+    toast(t('tg.settings_saved'), 'success');
   });
 }
   const api = {

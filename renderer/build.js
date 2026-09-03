@@ -278,7 +278,7 @@ function calculateLivePartCost() {
  *  selected material, grounded in comparable completed jobs. Deterministic
  *  baseline; an AI rationale is layered on when AI assist is enabled. */
 async function aiSuggestPrice() {
-  if (typeof KhaytAiPrice === 'undefined') { toast('AI price module not loaded', 'error'); return; }
+  if (typeof KhaytAiPrice === 'undefined') { toast(t('common.feature_missing'), 'error'); return; }
   const fsel = $('#filamentSelect');
   const material = fsel?.options?.[fsel.selectedIndex]?.text || '';
   const comps = KhaytAiPrice.buildComparables(printLog, { material, now: Date.now() });
@@ -1458,7 +1458,7 @@ function updateResinFieldsVisibility() {
   async function openAiAssistant() {
     const ai = settings.ai || {};
     if (!ai.apiKey || !window.KhaytAiPrivacy.isFeatureEnabled(ai, 'assistant')) { toast(t('ai.assistant_need_key') || 'Enable AI assist (with your API key) in Settings first', 'error'); return; }
-    if (typeof KhaytAiAssistant === 'undefined') { toast('AI assistant not loaded', 'error'); return; }
+    if (typeof KhaytAiAssistant === 'undefined') { toast(t('common.feature_missing'), 'error'); return; }
     const ctx = KhaytAiAssistant.buildShopContext(collectStoreCollections(), { now: Date.now(), currency: (typeof currencySymbol === 'function' ? currencySymbol() : '') });
     const sugg = [
       t('ai.assistant_q1') || 'How much is outstanding?',

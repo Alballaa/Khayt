@@ -62,6 +62,12 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **Sixty-five messages appeared in English whatever language you use.** Saving
+  a calibration model, starting a shift, a rejected temperature, a failed
+  export — and, worst of all, the warning that your data file could not be read
+  — were all written into the app in English and never translated. They are now
+  in all nine languages, and a check stops another being added.
+
 - **An older Duet could show every print as finished.** On the pre-RRF-3
   interface, a job that was 5% done reported as 100% complete, and stayed there
   for the whole print. Progress is now read correctly whichever of the two forms

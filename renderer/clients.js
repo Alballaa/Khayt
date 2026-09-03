@@ -1045,7 +1045,7 @@ function checkSubscriptionBilling() {
 
 /** Manage subscriptions/retainers: list, add, pause/resume, end. Shows MRR. */
 function openSubscriptionsModal() {
-  if (typeof KhaytSubscriptions === 'undefined') { toast('Subscriptions module not loaded', 'error'); return; }
+  if (typeof KhaytSubscriptions === 'undefined') { toast(t('common.feature_missing'), 'error'); return; }
   const cur = (typeof currencySymbol === 'function') ? currencySymbol() : '';
   const intervals = KhaytSubscriptions.INTERVALS;
   const render = (modal) => {
@@ -1543,7 +1543,7 @@ function exportClientPortal(clientId) {
    Marketing campaigns — segment + broadcast over email / SMS
    ============================================================ */
 function openCampaignModal() {
-  if (typeof KhaytCampaigns === 'undefined') { toast('Campaigns unavailable', 'error'); return; }
+  if (typeof KhaytCampaigns === 'undefined') { toast(t('common.feature_missing'), 'error'); return; }
   const tierOf = (id) => (getClientTier(id) || {}).name || '';
   const tierNames = (settings.loyaltyEnabled ? (settings.loyaltyTiers || []) : []).map((x) => x.name).filter(Boolean);
   const allTags = [...new Set(clients.flatMap((c) => Array.isArray(c.tags) ? c.tags : []))].filter(Boolean);

@@ -229,7 +229,7 @@
           const name = `${test}-${material.replace(/[^a-z0-9]+/gi, '')}.stl`.toLowerCase();
           if (hub() && hub().saveTextFile) {
             const r = await hub().saveTextFile({ content: stl, defaultName: name, filters: [{ name: 'STL model', extensions: ['stl'] }] });
-            if (r && r.ok !== false) toast('Model saved ✓', 'success');
+            if (r && r.ok !== false) toast(t('cal.model_saved'), 'success');
           } else if (typeof downloadBlob === 'function') {
             downloadBlob(stl, name, 'model/stl');
           }
@@ -242,7 +242,7 @@
           if (typeof saveAll === 'function') saveAll();
           modal.querySelector('#calResult').value = '';
           paintLog();
-          toast('Result saved ✓', 'success');
+          toast(t('cal.result_saved'), 'success');
         });
         paint();
         paintLog();
@@ -289,7 +289,7 @@
             const r = await hub().calibSaveProfile({ slicerId: s.id, baseFile, printerLabel: modal.querySelector('#calPrinter').value || undefined, name: modal.querySelector('#calName').value.trim() || undefined, values });
             if (!r || !r.ok) { say(esc((r && r.error) || 'Could not save the profile.'), 'var(--danger,#e0492f)'); return; }
             say('Saved “' + esc(r.name) + '” to ' + esc(r.slicer) + '. Relaunch it to see the tuned filament.', 'var(--ok,#159d68)');
-            if (typeof toast === 'function') toast('Tuned profile saved ✓', 'success');
+            if (typeof toast === 'function') toast(t('cal.profile_saved'), 'success');
           } catch (e) { say(esc((e && e.message) || 'Could not save the profile.'), 'var(--danger,#e0492f)'); }
         };
 

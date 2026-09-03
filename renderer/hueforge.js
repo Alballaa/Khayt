@@ -608,9 +608,9 @@
 
   function export3mf() {
     if (isFlat()) { exportFlat3mf(); return; }
-    if (!S.paint || !S.solve) { toast('Add a picture and filaments first'); return; }
+    if (!S.paint || !S.solve) { toast(t('hf.need_image_filaments')); return; }
     const api = (typeof window !== 'undefined' && window.hubAPI);
-    if (!api || !api.hfExport3mf) { toast('Export unavailable'); return; }
+    if (!api || !api.hfExport3mf) { toast(t('common.feature_missing')); return; }
     const p = S.paint;
     const btn = document.getElementById('hf3mf');
     if (btn) { btn.disabled = true; btn.textContent = 'Building…'; }
@@ -629,8 +629,8 @@
       render();
       if (r && r.ok) toast('U1 3MF saved · open in Snapmaker Orca');
       else if (r && r.canceled) { /* silent */ }
-      else toast('Export failed' + (r && r.error ? ': ' + r.error : ''));
-    }).catch((e) => { render(); toast('Export failed'); });
+      else toast(t('common.export_failed') + (r && r.error ? ': ' + r.error : ''));
+    }).catch((e) => { render(); toast(t('common.export_failed')); });
   }
 
   /**
@@ -640,9 +640,9 @@
    */
   function exportFlat3mf() {
     const f = S.flat;
-    if (!f || !f.parts.length) { toast('Add a picture and filaments first'); return; }
+    if (!f || !f.parts.length) { toast(t('hf.need_image_filaments')); return; }
     const api = (typeof window !== 'undefined' && window.hubAPI);
-    if (!api || !api.hfExportFlat3mf) { toast('Export unavailable'); return; }
+    if (!api || !api.hfExportFlat3mf) { toast(t('common.feature_missing')); return; }
     const btn = document.getElementById('hf3mf');
     if (btn) { btn.disabled = true; btn.textContent = 'Building…'; }
     api.hfExportFlat3mf({
@@ -660,27 +660,27 @@
       render();
       if (r && r.ok) toast('Flat U1 3MF saved · open in Snapmaker Orca');
       else if (r && r.canceled) { /* silent */ }
-      else toast('Export failed' + (r && r.error ? ': ' + r.error : ''));
-    }).catch(() => { render(); toast('Export failed'); });
+      else toast(t('common.export_failed') + (r && r.error ? ': ' + r.error : ''));
+    }).catch(() => { render(); toast(t('common.export_failed')); });
   }
 
   function exportStl() {
     const hf = HF();
-    if (!hf) { toast('Nothing to export yet'); return; }
+    if (!hf) { toast(t('common.export_empty')); return; }
     // Flat mode has no heightfield to turn into a surface — it already IS meshes. Merging
     // the parts loses the colour split, which is why the export card calls it a plate: it
     // carries the shape and nothing about which head prints what.
     let mesh;
     if (isFlat()) {
-      if (!S.flat || !S.flat.parts.length) { toast('Nothing to export yet'); return; }
+      if (!S.flat || !S.flat.parts.length) { toast(t('common.export_empty')); return; }
       const tris = [];
       for (const part of S.flat.parts) for (const t of part.triangles) tris.push(t);
       mesh = { triangles: tris, triangleCount: tris.length, sizeMm: S.flat.sizeMm };
     } else {
-      if (!S.solve || !S.stack) { toast('Nothing to export yet'); return; }
+      if (!S.solve || !S.stack) { toast(t('common.export_empty')); return; }
       mesh = hf.heightfieldToMesh(S.solve, { layerH: S.stack.layerH, widthMm: S.widthMm });
     }
-    if (!mesh.triangleCount) { toast('Empty model'); return; }
+    if (!mesh.triangleCount) { toast(t('hf.empty_model')); return; }
     const bytes = hf.meshToStlBinary(mesh.triangles);
     const blob = new Blob([bytes], { type: 'model/stl' });
     const url = URL.createObjectURL(blob);

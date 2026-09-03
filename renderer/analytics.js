@@ -2774,7 +2774,7 @@ function renderTimeAnalytics() {
 /** Executive summary: at-a-glance KPIs (revenue, margin, on-time, cash) + top
  *  clients/products, scoped to a quick date range. Self-contained modal. */
 function openExecutiveSummary() {
-  if (typeof KhaytKpi === 'undefined') { toast('KPI module not loaded', 'error'); return; }
+  if (typeof KhaytKpi === 'undefined') { toast(t('common.feature_missing'), 'error'); return; }
   const cur = (typeof currencySymbol === 'function') ? currencySymbol() : '';
   let range = 'month';
   let locId = settings.activeLocationId || ''; // '' = all locations
@@ -2856,7 +2856,7 @@ function openExecutiveSummary() {
 /** Custom report builder: choose fields/filters/range over orders → preview +
  *  CSV, and save report definitions for re-use. */
 function openReportBuilder() {
-  if (typeof KhaytReportBuilder === 'undefined') { toast('Report module not loaded', 'error'); return; }
+  if (typeof KhaytReportBuilder === 'undefined') { toast(t('common.feature_missing'), 'error'); return; }
   const STATUSES = ['quote', 'pending', 'printing', 'post', 'qc', 'completed', 'delivered', 'on_hold'];
   const flatten = () => (printLog || []).filter((o) => !o.voidedAt).map((o) => {
     const client = o.clientId ? clients.find((c) => c.id === o.clientId) : null;

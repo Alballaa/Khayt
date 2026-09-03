@@ -51,6 +51,9 @@ function runReturn({ orders, expenses = [], settings = { enableVat: true, vatRat
     currencySymbol: () => 'SAR',
     shopName: () => 'Test Shop',
     escapeHtml: (s2) => String(s2).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])),
+    // The report now calls t() for its own toasts, like the rest of the app.
+    // Returning the key is enough: nothing here asserts on a toast.
+    t: (k) => k,
     toast: () => {},
     downloadBlob: () => {},
     Blob: class { constructor(parts) { captured = parts.join(''); } },

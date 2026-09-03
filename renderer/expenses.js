@@ -548,7 +548,7 @@ function retryFailedAccountingPushes() {
 
 /** Export invoices/expenses as accountant-ready CSV (QuickBooks/Xero/Zoho/generic). */
 function exportAccounting() {
-  if (typeof KhaytAccountingExport === 'undefined') { toast('Accounting export unavailable', 'error'); return; }
+  if (typeof KhaytAccountingExport === 'undefined') { toast(t('common.feature_missing'), 'error'); return; }
   openFormModal({
     title: t('an.accounting_export') || 'Accounting CSV',
     sizeLg: false,

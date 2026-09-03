@@ -282,7 +282,7 @@ function openTimeEntryModal(orderId) {
       const date    = modal.querySelector('#teDate').value || today;
       const notes   = modal.querySelector('#teNotes').value.trim();
       if (!opId)    { toast('Select an operator', 'error'); return false; }
-      if (hours <= 0) { toast('Hours must be > 0', 'error'); return false; }
+      if (hours <= 0) { toast(t('shift.hours_positive'), 'error'); return false; }
       const rate = +op?.hourlyRate || 0;
       timeEntries.push({
         id: uid('TE'),
@@ -375,7 +375,7 @@ function openOperatorEditor(opId = null) {
 /** Render the PIN lock settings sub-section inside settings tab */
 function openPinPadModal(afterUnlock) {
   const opList = operators.filter(o => o.active !== false);
-  if (opList.length === 0) { toast('No operators configured', 'info'); return; }
+  if (opList.length === 0) { toast(t('shift.no_operators'), 'info'); return; }
 
   let selectedOpId = opList[0].id;
   let enteredPin = '';

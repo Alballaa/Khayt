@@ -1836,7 +1836,7 @@ function openOrderEditor(orderId) {
       // Auto-generate an evenly-split dated plan (unpaid rows — no money moves;
       // collection stays the existing mark-paid flow). Reuses lib/payment-plan.
       modal.querySelector('#oeGenInstalments')?.addEventListener('click', async () => {
-        if (typeof KhaytPaymentPlan === 'undefined') { toast('Payment plan unavailable', 'error'); return; }
+        if (typeof KhaytPaymentPlan === 'undefined') { toast(t('common.feature_missing'), 'error'); return; }
         // What is LEFT to pay, not the gross price. A job with a deposit already
         // taken produced a schedule that billed the deposit a second time —
         // SAR 3,000 across three payments on a job with SAR 2,000 outstanding —
@@ -1959,7 +1959,7 @@ function openOrderEditor(orderId) {
       carrierTrackBtn.addEventListener('click', () => {
         const url = getCarrierTrackingUrl(draft.courierName, draft.trackingNumber);
         if (url) window.hubAPI?.openExternal?.(url);
-        else toast('Enter courier name and tracking number first', 'warning');
+        else toast(t('ship.need_courier'), 'warning');
       });
     },
     async onSave() {
@@ -3061,7 +3061,7 @@ function openChangeOrderModal(orderId) {
       </div>`,
     onSave(modal) {
       const description = modal.querySelector('#coDescription').value.trim();
-      if (!description) { toast('Describe what changed', 'error'); return false; }
+      if (!description) { toast(t('co.describe_required'), 'error'); return false; }
       const newPrice    = modal.querySelector('#coNewPrice').value;
       const newDueDate  = modal.querySelector('#coNewDueDate').value;
       const entry = {
@@ -3079,7 +3079,7 @@ function openChangeOrderModal(orderId) {
       saveAll();
       renderLogs();
       renderKanban();
-      toast('Change order saved', 'success');
+      toast(t('co.saved'), 'success');
     },
   });
 }
@@ -3116,10 +3116,10 @@ async function captureFailurePhoto(orderId) {
       const filename = await window.hubAPI.copyFileToVault(filePath, orderId);
       order.failurePhotoPath = filename;
       saveAll();
-      toast('Failure photo saved', 'success');
+      toast(t('qc.photo_saved'), 'success');
       renderKanban();
     } catch(e) {
-      toast('Could not save photo: ' + e.message, 'error');
+      toast(t('qc.photo_save_failed') + ': ' + e.message, 'error');
     }
     return;
   }
@@ -3145,7 +3145,7 @@ async function captureFailurePhoto(orderId) {
         order.failurePhotoPath = filename;
       }
       saveAll();
-      toast('Failure photo captured', 'success');
+      toast(t('qc.photo_captured'), 'success');
       renderKanban();
     };
     reader.readAsDataURL(filePath);
