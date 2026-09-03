@@ -1,0 +1,19 @@
+{
+  "": {
+    "swift-dependencies": "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCoreTests.build/primary.swiftdeps"
+  },
+  "/Users/turkialballaa/Khayt/mac/KhaytCore/Tests/KhaytCoreTests/BundledLogicIsNotAForkTests.swift": {
+    "dependencies": "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCoreTests.build/BundledLogicIsNotAForkTests.d",
+    "object": "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCoreTests.build/BundledLogicIsNotAForkTests.swift.o",
+    "swiftmodule": "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCoreTests.build/BundledLogicIsNotAForkTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCoreTests.build/BundledLogicIsNotAForkTests.swiftdeps",
+    "diagnostics": "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCoreTests.build/BundledLogicIsNotAForkTests.dia"
+  },
+  "/Users/turkialballaa/Khayt/mac/KhaytCore/Tests/KhaytCoreTests/MoneyParityTests.swift": {
+    "dependencies": "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCoreTests.build/MoneyParityTests.d",
+    "object": "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCoreTests.build/MoneyParityTests.swift.o",
+    "swiftmodule": "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCoreTests.build/MoneyParityTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCoreTests.build/MoneyParityTests.swiftdeps",
+    "diagnostics": "/Users/turkialballaa/Khayt/mac/KhaytCore/.build/arm64-apple-macosx/debug/KhaytCoreTests.build/MoneyParityTests.dia"
+  }
+}
