@@ -855,23 +855,29 @@ async function exportOrderStatusPage(orderId) {
   const bizName = shopField('biz') || 'Khayt';
   const accentColor = safeCssColor(settings.invAccentColor, '#5E2E14');
 
-  const STATUS_ORDER = ['quote', 'pending', 'on_hold', 'printing', 'post', 'completed'];
+  // qc and delivered were missing here too, and the fallback prints the raw key
+  // — so a customer read "qc" and "delivered" as the status of their order.
   const STATUS_LABELS = {
     quote:     'Quote',
     pending:   'Pending',
     on_hold:   'On Hold',
     printing:  'Printing',
     post:      'Post-Processing',
+    qc:        'Final Checks',
     completed: 'Completed',
+    delivered: 'Delivered',
   };
 
-  const curIdx = STATUS_ORDER.indexOf(order.status);
+  // One shared progress map — see lib/order-progress.js. This used to be
+  // STATUS_ORDER.indexOf(order.status), and `qc` and `delivered` were not in
+  // that list: indexOf returned -1, every step compared false, and a customer
+  // who had ALREADY RECEIVED their print saw a tracker with nothing reached.
+  const curIdx = KhaytOrderProgress.progressIndex(order.status);
   const stepsHtml = ['Quote', 'Pending', 'Printing', 'Post-Processing', 'Completed']
     .map((lbl, i) => {
-      const stepStatus = ['quote', 'pending', 'printing', 'post', 'completed'][i];
-      const stepIdx = STATUS_ORDER.indexOf(stepStatus);
-      const done    = curIdx >= stepIdx;
-      const current = order.status === stepStatus;
+      const stepStatus = KhaytOrderProgress.STEPS[i];
+      const done    = KhaytOrderProgress.stepReached(order.status, i);
+      const current = curIdx === i;
       return `<div style="display:flex;flex-direction:column;align-items:center;flex:1;">
         <div style="width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;
           background:${done ? accentColor : '#e5e7eb'};color:${done ? '#fff' : '#9ca3af'};
@@ -882,7 +888,7 @@ async function exportOrderStatusPage(orderId) {
       </div>`;
     });
   const connectors = stepsHtml.map((s, i) => i < stepsHtml.length - 1
-    ? s + `<div style="flex:0 0 24px;height:2px;background:${curIdx > STATUS_ORDER.indexOf(['quote','pending','printing','post','completed'][i]) ? accentColor : '#e5e7eb'};margin-top:15px;"></div>`
+    ? s + `<div style="flex:0 0 24px;height:2px;background:${curIdx > i ? accentColor : '#e5e7eb'};margin-top:15px;"></div>`
     : s
   ).join('');
 
@@ -959,14 +965,13 @@ async function autoExportStatusPage(order) {
     // Build the same HTML as exportOrderStatusPage but don't open it
     const bizName = shopField('biz') || 'Khayt';
     const accentColor = safeCssColor(settings.invAccentColor, '#5E2E14');
-    const STATUS_ORDER = ['quote', 'pending', 'on_hold', 'printing', 'post', 'completed'];
-    const curIdx = STATUS_ORDER.indexOf(order.status);
+    // Same shared map as exportOrderStatusPage — see lib/order-progress.js.
+    const curIdx = KhaytOrderProgress.progressIndex(order.status);
     const stepsHtml = ['Quote', 'Pending', 'Printing', 'Post-Processing', 'Completed']
       .map((lbl, i) => {
-        const stepStatus = ['quote', 'pending', 'printing', 'post', 'completed'][i];
-        const stepIdx = STATUS_ORDER.indexOf(stepStatus);
-        const done    = curIdx >= stepIdx;
-        const current = order.status === stepStatus;
+        const stepStatus = KhaytOrderProgress.STEPS[i];
+        const done    = KhaytOrderProgress.stepReached(order.status, i);
+        const current = curIdx === i;
         return `<div style="display:flex;flex-direction:column;align-items:center;flex:1;">
           <div style="width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;
             background:${done ? accentColor : '#e5e7eb'};color:${done ? '#fff' : '#9ca3af'};
@@ -977,7 +982,7 @@ async function autoExportStatusPage(order) {
         </div>`;
       });
     const connectors = stepsHtml.map((s, i) => i < stepsHtml.length - 1
-      ? s + `<div style="flex:0 0 24px;height:2px;background:${curIdx > STATUS_ORDER.indexOf(['quote','pending','printing','post','completed'][i]) ? accentColor : '#e5e7eb'};margin-top:15px;"></div>`
+      ? s + `<div style="flex:0 0 24px;height:2px;background:${curIdx > i ? accentColor : '#e5e7eb'};margin-top:15px;"></div>`
       : s
     ).join('');
     const isReady = order.status === 'completed';
@@ -1090,7 +1095,8 @@ async function openCustomerPortalModal(orderId) {
 
 const CLOUD_PORTAL_STATUS_LABELS = {
   quote: 'Quote', pending: 'Pending', on_hold: 'On hold',
-  printing: 'Printing', post: 'Post-processing', completed: 'Completed',
+  printing: 'Printing', post: 'Post-processing', qc: 'Final checks',
+  completed: 'Completed', delivered: 'Delivered',
 };
 
 /** AI assist: draft a customer message for an order (status update, quote
