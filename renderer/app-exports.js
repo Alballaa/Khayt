@@ -12,13 +12,29 @@ async function maybeAutoBackup() {
     const localJson  = JSON.stringify(buildExportPayload({ redactSecrets: false }));
     const icloudJson = JSON.stringify(buildExportPayload({ redactSecrets: true }));
     if (last !== today) {
-      await window.hubAPI.writeBackup(localJson);
+      // A backup that fails is worse than no backup, because the settings screen
+      // goes on showing yesterday's date as though the net were still there.
+      // Whatever the reason — too large, disk full, folder gone — say so.
+      const r = await window.hubAPI.writeBackup(localJson);
+      if (r && r.ok === false) { reportBackupFailure(r.error); return; }
       updateLastBackupDisplay();
     }
     if (settings.useIcloud && window.hubAPI?.writeIcloudBackup) {
       await window.hubAPI.writeIcloudBackup(icloudJson).catch(e => console.warn('iCloud backup failed', e));
     }
-  } catch (e) { console.warn('Auto-backup failed', e); }
+  } catch (e) { reportBackupFailure(e && e.message); }
+}
+
+/** Auto-backup runs unattended, so a failure has to leave a mark that outlives a toast. */
+function reportBackupFailure(detail) {
+  console.warn('Auto-backup failed', detail || '');
+  try { toast(t('set.backup_failed'), 'error'); } catch (e) { /* toast may not be up yet */ }
+  const el = $('#lastBackupDate');
+  if (el) {
+    // The span carries an inline colour in the markup, so a class would lose.
+    el.textContent = t('set.backup_failed');
+    el.style.color = 'var(--danger)';
+  }
 }
 
 async function updateLastBackupDisplay() {
@@ -27,6 +43,7 @@ async function updateLastBackupDisplay() {
   try {
     const last = await window.hubAPI.lastBackupDate();
     el.textContent = last || t('set.backup_never');
+    el.style.color = 'var(--text-dim)';
   } catch { /* ignore */ }
 }
 

@@ -698,6 +698,7 @@
   "set.auto_backup": "Copia de seguridad automática diaria",
   "set.last_backup": "Última copia de seguridad",
   "set.backup_never": "nunca",
+  "set.backup_failed": "La copia de seguridad falló — tus datos NO se copiaron",
   "set.reveal_backups": "Mostrar carpeta de copias de seguridad",
   "set.bank_section": "Banco y métodos de pago",
   "set.bank_name": "Nombre del banco",

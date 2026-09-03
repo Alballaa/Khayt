@@ -75,6 +75,7 @@
     "check:release-claims": "node scripts/check-release-claims.js",
     "check:globals": "node scripts/check-globals-loaded.js renderer/index.html",
     "test:e2e:pollcache": "node scripts/e2e-poll-cache.mjs",
+    "test:e2e:backupsize": "node scripts/e2e-backup-size.mjs",
     "test:e2e:setups": "node scripts/e2e-print-setups-smoke.mjs",
     "test:e2e:multipart": "node scripts/e2e-multi-part-print-smoke.mjs",
     "test:e2e:organise": "node scripts/e2e-organise-smoke.mjs",

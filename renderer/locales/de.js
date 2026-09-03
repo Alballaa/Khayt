@@ -698,6 +698,7 @@
   "set.auto_backup": "Tägliche automatische Sicherung",
   "set.last_backup": "Letzte Sicherung",
   "set.backup_never": "nie",
+  "set.backup_failed": "Sicherung fehlgeschlagen — Ihre Daten wurden NICHT gesichert",
   "set.reveal_backups": "Sicherungsordner anzeigen",
   "set.bank_section": "Bank & Zahlungsmethoden",
   "set.bank_name": "Bankname",

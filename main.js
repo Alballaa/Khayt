@@ -73,7 +73,7 @@ const KhaytRepetier = require('./lib/repetier');
 const printerCommands = require('./lib/printer-commands');
 const { normalizeStoreSnapshot, STORE_VERSION } = require('./lib/store-validate');
 const upgradeBackup = require('./lib/upgrade-backup');
-const { createStoreIo } = require('./lib/store-io');
+const { createStoreIo, MAX_STORE_BYTES } = require('./lib/store-io');
 const { parseGcodeText } = require('./lib/gcode-parse');
 const moonrakerHistory = require('./lib/moonraker-history');
 const contextMenu = require('./lib/main/context-menu');
@@ -758,7 +758,7 @@ ipcMain.handle('hub:icloud-available', async () => {
 });
 
 ipcMain.handle('hub:write-icloud-backup', async (event, jsonString) => {
-  if (!jsonString || typeof jsonString !== 'string' || jsonString.length > 20_000_000) {
+  if (!jsonString || typeof jsonString !== 'string' || jsonString.length > MAX_STORE_BYTES) {
     return { ok: false, error: 'Backup data too large or invalid' };
   }
   if (process.platform !== 'darwin') return null;
@@ -799,7 +799,7 @@ function writePreUpgradeBackup(raw, diskVersion) {
 
 // --- Daily auto-backup (new in 1.3) ---
 ipcMain.handle('hub:write-backup', async (event, jsonString) => {
-  if (!jsonString || typeof jsonString !== 'string' || jsonString.length > 20_000_000) {
+  if (!jsonString || typeof jsonString !== 'string' || jsonString.length > MAX_STORE_BYTES) {
     return { ok: false, error: 'Backup data too large or invalid' };
   }
   const filename = `${new Date().toISOString().split('T')[0]}.json`;
@@ -866,7 +866,7 @@ const restorePointsDir = () => ensureDir('restore-points');
 const sanitizeRpLabel = (s) => String(s || 'Restore point').replace(/[^\p{L}\p{N} _-]/gu, '').trim().slice(0, 60) || 'Restore point';
 
 ipcMain.handle('hub:create-restore-point', async (_e, { json, label } = {}) => {
-  if (!json || typeof json !== 'string' || json.length > 20_000_000) return { ok: false, error: 'Invalid data' };
+  if (!json || typeof json !== 'string' || json.length > MAX_STORE_BYTES) return { ok: false, error: 'Invalid data' };
   let parsed;
   try { parsed = safeJsonParse(json); } catch (e) { return { ok: false, error: 'Invalid JSON' }; }
   const safeLabel = sanitizeRpLabel(label);
@@ -1343,7 +1343,7 @@ ipcMain.handle('hub:load-store', async (event) => {
     // or previous-generation .prev) and quarantining an unreadable primary so it's never
     // overwritten. This closes the window where a corrupt/partial read led the app to run
     // on empty state and then overwrite the good file on the next save.
-    const rec = recoverStoreRaw(50_000_000);
+    const rec = recoverStoreRaw(MAX_STORE_BYTES);
     if (!rec.data) {
       if (!rec.existed) return null; // genuinely a fresh install
       console.error('hub:load-store: store unreadable; quarantined to', rec.quarantined);
@@ -1748,7 +1748,7 @@ ipcMain.handle('hub:save-store', async (event, data) => {
     const serialized = JSON.stringify(encryptForDisk(merged));
     // Write-side guard: mirror the 50 MB read-side limit from hub:load-store.
     // Prevents runaway data-URL or blob embedding from silently bloating the store.
-    if (serialized.length > 50_000_000) {
+    if (serialized.length > MAX_STORE_BYTES) {
       console.error('hub:save-store: refusing to write store exceeding 50 MB');
       return { ok: false, error: 'Store too large' };
     }
@@ -5243,7 +5243,7 @@ ipcMain.handle('hub:cloud-unlock', (_e, { url, shopId, token, keyset, passphrase
       // disk, and the check refuses on local being OLDER — so reading the file
       // here errs toward a cold pull, never toward adopting a view it should not.
       getLocalSnapshot: () => {
-        try { return recoverStoreRaw(50_000_000).data || null; } catch (e) { return null; }
+        try { return recoverStoreRaw(MAX_STORE_BYTES).data || null; } catch (e) { return null; }
       },
     });
     return { ok: true };

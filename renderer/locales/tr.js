@@ -698,6 +698,7 @@
   "set.auto_backup": "Günde bir kez otomatik yedekle",
   "set.last_backup": "Son yedek",
   "set.backup_never": "hiçbir zaman",
+  "set.backup_failed": "Yedekleme başarısız — verileriniz yedeklenmedi",
   "set.reveal_backups": "Yedekler klasörünü göster",
   "set.bank_section": "Banka ve Ödeme Yöntemleri",
   "set.bank_name": "Banka adı",
