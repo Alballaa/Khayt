@@ -1177,10 +1177,23 @@ function clientLoyaltyPoints(clientId) {
   let pts = 0;
   for (const o of printLog) {
     if (o.clientId !== clientId || o.status !== 'completed') continue;
-    const price = +o.price || 0;
+    // A voided order is not a sale, and neither is a print the shop marked as
+    // not business. Both earned points anyway — this loop checked only the
+    // status — and so did an order refunded in full by a credit note, because
+    // it read the gross price. Points are a liability the shop honours, so it
+    // was awarding a discount on money it never kept: four times the real
+    // figure on a client with one kept sale, one void, one personal print and
+    // one refund.
+    if (o.voidedAt) continue;
+    // orderNetRevenueBase is the shop's revenue chokepoint: it excludes a
+    // non-business print and a split parent, subtracts credit notes, and
+    // converts to the shop's base currency — which this sum needs anyway, since
+    // it was adding prices from different currencies together.
+    const kept = orderNetRevenueBase(o);
+    if (kept <= 0) continue;
     // Points are earned on the value the shop keeps, not on the tax it merely
     // collects — true whichever way it prices.
-    const exVat = KhaytTax.computeTax(price, _tp).subtotal;
+    const exVat = KhaytTax.computeTax(kept, _tp).subtotal;
     pts += KhaytLoyalty.earnPoints(exVat, { pointsPerUnit: perUnit, tierMultiplier: mult });
   }
   return pts;

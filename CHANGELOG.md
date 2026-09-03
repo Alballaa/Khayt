@@ -68,6 +68,13 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   billing the customer SAR 3,000 for SAR 2,000 of work. Plans are now built from
   what is actually outstanding, and an order that is already settled says so
   instead of offering to bill it again.
+- **Loyalty points were awarded for sales that never happened.** A cancelled
+  order, a print you had marked as not business, and an order you had refunded
+  in full all still earned the customer points — the calculation looked only at
+  whether the job was finished. A client with one real sale alongside those three
+  was owed four times the points they had earned. Points now follow the money the
+  shop actually kept, and a report of monthly margin no longer counts your
+  personal prints either.
 
 - Internal: one guard now names every new seam in this release and fails if
   nothing calls it, so a finished feature cannot ship switched off.
