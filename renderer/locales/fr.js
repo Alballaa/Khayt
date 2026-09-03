@@ -2289,6 +2289,7 @@
   "inst.add": "+ Ajouter versement",
   "inst.generate": "Générer un échéancier",
   "inst.need_price": "Définissez d'abord le prix de la commande",
+  "inst.nothing_owed": "Cette commande est déjà intégralement payée",
   "inst.replace_q": "Remplacer les échéances actuelles ?",
   "inst.generated": "Échéancier de 3 paiements généré — modifiez les montants/dates au besoin",
   "inst.amount": "Montant",

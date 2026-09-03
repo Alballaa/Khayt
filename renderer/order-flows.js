@@ -1833,8 +1833,17 @@ function openOrderEditor(orderId) {
       // collection stays the existing mark-paid flow). Reuses lib/payment-plan.
       modal.querySelector('#oeGenInstalments')?.addEventListener('click', async () => {
         if (typeof KhaytPaymentPlan === 'undefined') { toast('Payment plan unavailable', 'error'); return; }
-        const total = +order.price || 0;
-        if (total <= 0) { toast(t('inst.need_price') || 'Set an order price first', 'error'); return; }
+        // What is LEFT to pay, not the gross price. A job with a deposit already
+        // taken produced a schedule that billed the deposit a second time —
+        // SAR 3,000 across three payments on a job with SAR 2,000 outstanding —
+        // and the customer was asked for money they had handed over.
+        const total = orderOwedRaw(order);
+        if (total <= 0) {
+          toast((+order.price || 0) <= 0
+            ? (t('inst.need_price') || 'Set an order price first')
+            : (t('inst.nothing_owed') || 'This order is already paid in full'), 'error');
+          return;
+        }
         if (draft.instalments.length && !(await confirmModal(t('inst.replace_q') || 'Replace the current installments?', { danger: true }))) return;
         const today = new Date();
         // Clamp to the target month's length: new Date(2026, 1, 31) silently

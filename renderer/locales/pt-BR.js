@@ -2290,6 +2290,7 @@
   "inst.add": "+ Adicionar parcela",
   "inst.generate": "Gerar plano",
   "inst.need_price": "Defina primeiro um preço para o pedido",
+  "inst.nothing_owed": "Este pedido já está totalmente pago",
   "inst.replace_q": "Substituir as parcelas atuais?",
   "inst.generated": "Plano de 3 pagamentos gerado — ajuste valores e datas conforme necessário",
   "inst.amount": "Valor",

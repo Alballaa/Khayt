@@ -2289,6 +2289,7 @@
   "inst.add": "+ Taksit ekle",
   "inst.generate": "Plan oluştur",
   "inst.need_price": "Önce bir sipariş fiyatı belirleyin",
+  "inst.nothing_owed": "Bu sipariş zaten tamamen ödendi",
   "inst.replace_q": "Mevcut taksitler değiştirilsin mi?",
   "inst.generated": "3 ödemelik plan oluşturuldu — tutarları/tarihleri gerektiği gibi düzenleyin",
   "inst.amount": "Tutar",

@@ -2289,6 +2289,7 @@
   "inst.add": "+ 添加分期",
   "inst.generate": "生成计划",
   "inst.need_price": "请先设置订单价格",
+  "inst.nothing_owed": "此订单已全额付清",
   "inst.replace_q": "是否替换当前的分期付款？",
   "inst.generated": "已生成 3 期付款计划 — 可按需修改金额/日期",
   "inst.amount": "金额",

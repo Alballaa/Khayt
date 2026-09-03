@@ -2289,6 +2289,7 @@
   "inst.add": "+ 分割払いを追加",
   "inst.generate": "プランを作成",
   "inst.need_price": "先に注文金額を設定してください",
+  "inst.nothing_owed": "この注文はすでに全額支払われています",
   "inst.replace_q": "現在の分割払いを置き換えますか？",
   "inst.generated": "3回払いのプランを作成しました — 必要に応じて金額や日付を編集してください",
   "inst.amount": "金額",
