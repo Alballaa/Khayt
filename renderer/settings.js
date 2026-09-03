@@ -5107,17 +5107,42 @@ async function renderStorageUsage() {
   try {
     sizeBytes = await window.hubAPI?.storeSize?.() || 0;
   } catch(e) {}
-  const sizeMB = (sizeBytes / (1024 * 1024)).toFixed(2);
+  /* THERE IS A SIZE LIMIT, AND THIS SAID THERE WAS NOT.
+   *
+   * "No size limit — file-based storage ✓", in green, with a tick. main.js
+   * refuses to WRITE a store over 50 MB (`hub:save-store`) and refuses to READ
+   * one (`recoverStoreRaw(50_000_000)`). Past that line every save fails: the
+   * shop gets a toast, keeps working, and loses the day at the next launch.
+   *
+   * A shop with a few thousand print files was reaching it — previews were about
+   * nine tenths of what a record cost — and the one screen they would look at to
+   * find out told them the opposite, in the colour that means "fine".
+   *
+   * So: say the number, say the limit, and change colour BEFORE the wall rather
+   * than after it. */
+  const LIMIT = 50 * 1000 * 1000;          // the byte figure main.js compares against
+  const pct = Math.min(100, Math.round((sizeBytes / LIMIT) * 100));
+  /* DECIMAL MB on both sides, because the limit is a decimal figure — main.js
+   * refuses at 50,000,000 bytes. Dividing by 1024x1024 rendered it as "48 MB",
+   * which is the same limit described with a number nobody has written down. */
+  const sizeMB = (sizeBytes / 1_000_000).toFixed(1);
+  const limitMB = Math.round(LIMIT / 1_000_000);
+  const tone = pct >= 90 ? 'var(--danger)' : pct >= 70 ? 'var(--warning, #d97706)' : 'var(--success)';
+  const note = pct >= 90
+    ? (t('set.store_full') || 'Almost full. Past this, saving stops working — open Print Files to move previews out of the data file.')
+    : pct >= 70
+      ? (t('set.store_filling') || 'Filling up. Opening Print Files moves model previews out of the data file.')
+      : (t('set.store_room') || 'Plenty of room.');
   el.innerHTML = `
     <div style="margin-bottom:6px;">
-      <span style="font-weight:600;">Storage file:</span> khayt-store.json
+      <span style="font-weight:600;">${escapeHtml(t('set.store_file') || 'Storage file')}:</span> khayt-store.json
     </div>
     <div style="margin-bottom:6px;">
-      <span style="font-weight:600;">Size:</span>
-      <span style="color:var(--success);">${sizeMB} MB</span>
+      <span style="font-weight:600;">${escapeHtml(t('set.store_size') || 'Size')}:</span>
+      <span style="color:${tone};">${escapeHtml(t('set.store_of_limit', { used: sizeMB, limit: String(limitMB), pct: String(pct) }))}</span>
     </div>
-    <div style="color:var(--success); font-size:12px;">No size limit — file-based storage ✓</div>
-    <button id="btnRevealStoreFile" class="btn small" style="margin-top:10px;">Reveal data file</button>`;
+    <div style="color:${tone}; font-size:12px;">${escapeHtml(note)}</div>
+    <button id="btnRevealStoreFile" class="btn small" style="margin-top:10px;">${escapeHtml(t('set.reveal_store') || 'Reveal data file')}</button>`;
   el.querySelector('#btnRevealStoreFile')?.addEventListener('click', () => {
     window.hubAPI?.revealStoreFile?.();
   });

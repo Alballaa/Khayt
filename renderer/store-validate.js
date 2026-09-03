@@ -190,7 +190,31 @@
     return { normalized, warnings, errors };
   }
 
+  /**
+   * Does this object look like a Khayt store at all?
+   *
+   * `normalizeStoreSnapshot` SALVAGES — it keeps whatever it recognises and
+   * skips the rest, which is right for a slightly damaged store on load and
+   * catastrophic for a file that is not one. Handed `{"name":"foo"}` it returns
+   * a TRUTHY EMPTY OBJECT, and `replaceStoreFromSnapshot` only refused a falsy
+   * one. So picking the wrong .json in Settings → Import — a slicer profile, a
+   * package.json, anything — zeroed all 31 collections, applied nothing, and
+   * toasted "Imported successfully".
+   *
+   * A genuine export always carries the keys even when the shop is brand new:
+   * buildExportPayload writes every collection (as empty arrays), `settings`,
+   * `version` and `exportedAt`. So "recognises at least one" is safe for an
+   * empty shop and refuses a file that was never ours.
+   */
+  function looksLikeStore(store) {
+    if (!store || typeof store !== 'object' || Array.isArray(store)) return false;
+    if (isPlainObject(store.settings)) return true;
+    for (const key of ARRAY_COLLECTIONS) if (Array.isArray(store[key])) return true;
+    return false;
+  }
+
   const api = {
+    looksLikeStore,
     STORE_VERSION,
     ARRAY_COLLECTIONS,
     sanitisePlainObject,
