@@ -3795,6 +3795,8 @@
   "sync.resurrected_many": "{n} enregistrements que vous aviez supprimés sont revenus. Un ancien bug de synchronisation pouvait réajouter des enregistrements supprimés ; supprimez-les à nouveau s’ils doivent disparaître.",
   "sync.discarded_one": "Une modification a été ignorée — « {name} » a été supprimé sur un autre appareil.",
   "sync.discarded_many": "{n} modifications ont été ignorées — ces enregistrements ont été supprimés sur un autre appareil.",
+  "sync.overwritten_one": "Une modification que vous aviez faite sur « {name} » a été remplacée par une version plus récente venant d'un autre appareil — à vérifier.",
+  "sync.overwritten_many": "{n} de vos modifications ont été remplacées par des versions plus récentes venant d'un autre appareil — à vérifier.",
   "set.ai_master": "Assistance IA",
   "set.ai_sends": "Envoie à Anthropic :",
   "set.ai_pii_badge": "Données client",

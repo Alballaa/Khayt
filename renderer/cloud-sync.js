@@ -114,7 +114,18 @@
         if (!merged.ok) { setStatus('error', { error: merged.error }); return merged; }
         r = await deps.push(deps.buildSnapshot()); // re-push the merged result
       }
-      if (r && r.ok && !r.conflict) { retryAttempt = 0; setStatus('synced', { rev: r.rev }); return { ok: true, rev: r.rev }; }
+      if (r && r.ok && !r.conflict) {
+        // The server now has this version of every record. Noting it per record is
+        // what lets a later merge tell an edit the server never saw from one it
+        // sent us. Device-local (it lives in the change index, not on the record),
+        // so it neither travels nor churns a fingerprint.
+        try {
+          if (global.KhaytSync && global.KhaytSync.markSynced) {
+            global.KhaytSync.markSynced(deps.buildSnapshot());
+          }
+        } catch (e) { /* the baseline is an aid to reporting, never a reason to fail a push */ }
+        retryAttempt = 0; setStatus('synced', { rev: r.rev }); return { ok: true, rev: r.rev };
+      }
       if (r && r.error === 'locked') { setStatus('locked'); return { ok: false, error: 'locked' }; }
       if (r && r.conflict) { setStatus('conflict'); return { ok: false, error: 'conflict' }; }
       setStatus('error', { error: (r && r.error) || 'push failed' });

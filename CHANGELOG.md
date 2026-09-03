@@ -91,6 +91,12 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   whichever copy is genuinely newest. And when recovery does cost you your last
   save, it says so plainly instead of showing a green tick that read "Recovered
   your data", so you know to check your most recent work.
+- **Cloud sync no longer overwrites your edit without telling you.** If another
+  machine had changed the same client, order or spool more times than yours had,
+  its version won and yours simply vanished — no message, nothing in the record.
+  The version that wins is unchanged, because one of the two edits has to go, but
+  Khayt now tells you which of your edits were replaced and by which record, so
+  you can look again at anything you had just typed.
 
 - **A downloaded print file can no longer put fake controls on its own card.** A
   G-code file carrying a specially made preview image could add a hidden button

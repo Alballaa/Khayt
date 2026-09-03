@@ -3795,6 +3795,8 @@
   "sync.resurrected_many": "Sildiğiniz {n} kayıt geri geldi. Eski bir eşitleme hatası silinen kayıtları yeniden ekleyebiliyordu; gitmeleri gerekiyorsa tekrar silin.",
   "sync.discarded_one": "Bir düzenleme yok sayıldı — “{name}” başka bir cihazda silindi.",
   "sync.discarded_many": "{n} düzenleme yok sayıldı — bu kayıtlar başka bir cihazda silindi.",
+  "sync.overwritten_one": "“{name}” üzerinde yaptığınız bir değişiklik, başka bir cihazdaki daha yeni sürümle değiştirildi — gözden geçirin.",
+  "sync.overwritten_many": "{n} değişikliğiniz, başka bir cihazdaki daha yeni sürümlerle değiştirildi — gözden geçirin.",
   "set.ai_master": "Yapay zekâ desteği",
   "set.ai_sends": "Anthropic'e gönderilir:",
   "set.ai_pii_badge": "Müşteri verisi",

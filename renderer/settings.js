@@ -1888,6 +1888,32 @@ function reportSyncConflicts(conflicts) {
 }
 
 /**
+ * Tell the shop about an edit another device's newer version wrote over.
+ *
+ * Separate from the delete case on purpose. `rev` is a per-record counter, not a
+ * causal clock, so a peer that edited the same record twice arrives at a higher
+ * rev than this device's own single edit and wins — correctly, for convergence,
+ * but the local edit is gone and used to go unmentioned. The record still exists
+ * here, showing the other machine's version, so the useful advice is "look at it
+ * again", not "it was deleted".
+ */
+function reportOverwrittenEdits(conflicts) {
+  const { count, firstName } = (typeof KhaytSync !== 'undefined' && KhaytSync.summarizeOverwrittenEdits)
+    ? KhaytSync.summarizeOverwrittenEdits(conflicts)
+    : { count: 0, firstName: '' };
+  if (!count) return;
+  const msg = count === 1
+    ? t('sync.overwritten_one').replace('{name}', firstName)
+    : t('sync.overwritten_many').replace('{n}', String(count));
+  if (typeof toast === 'function') toast(msg, 'warning', 10000);
+  try {
+    console.warn('[sync] local edits overwritten by a newer version from another device:',
+      (conflicts || []).filter((c) => c && c.kind === 'remote_over_local_edit')
+        .map((c) => `${c.collection}/${c.id} (local rev ${c.localRev} → incoming ${c.incomingRev})`).join(', '));
+  } catch (e) { /* noop */ }
+}
+
+/**
  * Tell the shop about records that came back after they deleted them.
  *
  * Until the tombstone fix, a pull that predated a local delete re-added the
@@ -1963,7 +1989,7 @@ function cloudSyncDeps() {
     save: () => saveAll(),
     push: (snap) => window.hubAPI.cloudPush(snap),
     pull: () => window.hubAPI.cloudPull(),
-    onConflicts: (conflicts) => reportSyncConflicts(conflicts),
+    onConflicts: (conflicts) => { reportSyncConflicts(conflicts); reportOverwrittenEdits(conflicts); },
   };
 }
 
