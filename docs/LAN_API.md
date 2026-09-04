@@ -235,7 +235,7 @@ the two do not diverge until a reload.
 Cost a part using the desktop's own maths. **Requires owner PIN.**
 
 For quoting a walk-in customer without going back to the desk. The endpoint runs
-`renderer/calculator-cost.js` against the live store, so a phone can never
+`lib/calculator-cost.js` against the live store, so a phone can never
 produce a different number from the desktop it is paired to — reimplementing the
 costing anywhere else would mean two costs for one part, and the wrong one would
 be whichever the shop happened to be looking at.

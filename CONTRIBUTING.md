@@ -67,7 +67,7 @@ GPL/AGPL).
 | `renderer/format.js` | Number, money, CSV, and unit-price helpers |
 | `renderer/util.js` | DOM, storage, dates, HTML escape, CSV parse |
 | `renderer/currency.js` | Currency catalogue and conversion |
-| `renderer/calculator-cost.js` | Part costing (`computePartBaseCost`, tiers, breakdown) |
+| `lib/calculator-cost.js` | Part costing (`computePartBaseCost`, tiers, breakdown) |
 | `renderer/kanban.js` | Production queue board, machine queues, drag-reorder |
 | `renderer/invoicing.js` | Invoice/quote render, ZATCA, PDF export, credit notes |
 | `renderer/i18n.js` | Translations |

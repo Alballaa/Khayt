@@ -10,7 +10,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { publicQuote, DEFAULT_CONFIG } = require('../lib/public-quote.js');
-const KhaytCost = require('../renderer/calculator-cost.js');
+const KhaytCost = require('../lib/calculator-cost.js');
 const KhaytPricing = require('../lib/pricing.js');
 const { estimateFromStl } = require('../lib/stl-estimate.js');
 

@@ -247,7 +247,7 @@ function updateFailureRateHint() {
   }
 }
 
-/* computePartBaseCost, getActivePriceTier, computePartBreakdown — renderer/calculator-cost.js */
+/* computePartBaseCost, getActivePriceTier, computePartBreakdown — lib/calculator-cost.js */
 
 function calculateLivePartCost() {
   // Snapshot the DOM into a part-shaped object and reuse the pure helper.

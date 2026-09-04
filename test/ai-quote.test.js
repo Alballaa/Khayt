@@ -51,7 +51,7 @@ test('CONTRACT: mock model → draftToPart → the real calculator computes the 
   // The calculator is the price authority; AI only fills the form.
   global.inventory = INVENTORY;
   global.settings = {};
-  require('../renderer/calculator-cost.js'); // global.computePartBaseCost
+  require('../lib/calculator-cost.js'); // global.computePartBaseCost
 
   const transport = async () => ({ qty: 1, materialGuess: 'PLA', printWeightG: 100, printTimeMin: 60, confidence: 0.8 });
   return ai.createAiQuoteClient({ transport }).extract('100g PLA bracket', { materials: INVENTORY }).then((draft) => {

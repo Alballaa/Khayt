@@ -112,6 +112,18 @@ function computeWithinWarranty(deliveredAt, warrantyDays, nowMs) {
   return (now - delivered) <= days * 86400000;
 }
 
+/** The new-order rules, however this file happens to be loaded. */
+function NewOrderRules() {
+  if (NewOrderRules.cached) return NewOrderRules.cached;
+  if (typeof globalThis !== 'undefined' && globalThis.KhaytOrderNew) {
+    NewOrderRules.cached = globalThis.KhaytOrderNew;
+    return NewOrderRules.cached;
+  }
+  try { NewOrderRules.cached = require('../lib/order-new.js'); }
+  catch (e) { NewOrderRules.cached = null; }
+  return NewOrderRules.cached;
+}
+
 function logPrint(asQuote = false) {
   if (currentBuild.length === 0) {
     const before = currentBuild.length;
@@ -119,152 +131,47 @@ function logPrint(asQuote = false) {
     if (currentBuild.length === before) return;
   }
 
-  const totalBaseCost  = currentBuild.reduce((s, p) => s + p.baseCost, 0);
-  const totalPrintTime = currentBuild.reduce((s, p) => s + p.printTime, 0);
-  const margin = clampPositive($('#margin').value);
-  const discountPct = Math.min(100, Math.max(0, num($('#discountPct').value, 0)));
-  const shippingCost = Math.max(0, num($('#shippingCost')?.value, 0));
-  const logRushEnabled = !!$('#calcRushFee')?.checked;
-  const logRushPct = logRushEnabled ? num(settings.rushFeePct, 25) : 0;
-  // Through lib/pricing.js, not a second copy of the formula. This block used to
-  // re-derive the price itself, which is precisely what that module was extracted
-  // to stop — "a second implementation means two prices for one job, with the
-  // wrong one being whichever the shop happens to be looking at". It also could
-  // not see a percentage fee at all, so a quote shown as 132 was logged as 120.
-  const _lq = KhaytPricing.quoteTotal({
-    baseCost: totalBaseCost,
-    qty: 1,                       // the cart's parts already carry their own qty
-    margin,
-    priceTier: null,              // a tier never applies to a multi-line cart
-    discountPct,
-    rushEnabled: logRushEnabled,
-    rushPct: logRushPct,
-    shippingCost,
-    extraLines: currentExtraLines,
-    business: true,               // logPrint is business-only (see bedready-shim)
-  });
-  const priceBeforeDiscount = _lq.priceBeforeDiscount;
-  const subAfterDiscount = _lq.subtotal;
-  const logRushFeeAmt = _lq.rushFee;
-  const extraLinesTotal = _lq.extras;
-  const finalPrice = _lq.total;
-
-  const clientInputVal = $('#clientInput').value.trim();
-  const project = clientInputVal;
-  const clientRef = ($('#calcClientRef')?.value || '').trim() || null;
-  const now = new Date();
-  const materials = [...new Set(currentBuild.map(p => p.material))].join(', ');
-
-  const prefix = asQuote ? (settings.quotePrefix || 'QUO') : (settings.invPrefix || 'INV');
-  // Only advance the formal invoice counter for real orders, not quotes
-  const invoiceNum = asQuote ? null : nextInvoiceNumber();
-  // Quotes use their own counter so two quotes never share an id (id is the primary key).
-  const seq = asQuote ? nextQuoteSeq() : String(settings.invNumNext - 1).padStart(4, '0');
-  const id = `${prefix}-${now.getFullYear()}-${seq}`;
-  printLog.unshift({
-    id,
-    invoiceNum,
-    invoiceNumber: invoiceNum,
-    date: localDateStr(now),
-    timestamp: now.toISOString(),
-    project,
+  // WHAT A NEW JOB IS lives in lib/order-new.js. It used to be written here,
+  // inline, reading twenty form controls — which is why only this window could
+  // create one, and why the native Mac app could not replace Electron for a
+  // shop that still had to open Electron to take an order.
+  //
+  // The form is still this file's. The record is not.
+  const bytes = (n) => { const b = new Uint8Array(n); crypto.getRandomValues(b); return b; };
+  const N = NewOrderRules();
+  const entry = N.newOrder({
+    parts: currentBuild,
+    project: $('#clientInput').value.trim(),
     clientId: currentClientId || null,
+    clientRef: ($('#calcClientRef')?.value || '').trim() || null,
     productId: currentBuildFromProductId || null,
-    currency: ($('#calcCurrency')?.value || '') || undefined,
-    material: materials,
-    printTime: +totalPrintTime.toFixed(1),
-    price: +finalPrice.toFixed(2),
-    discountPct: discountPct || 0,
-    priceBeforeDiscount: discountPct > 0 ? +priceBeforeDiscount.toFixed(2) : null,
-    shippingCost: shippingCost > 0 ? +shippingCost.toFixed(2) : 0,
-    deliveredAt: null,
-    // Shipping & fulfillment (manual-first; populated at ship time). See KHAYT-3.0-SHIPPING-SPEC.md.
-    carrier: null,
-    trackingNumber: null,
-    labelUrl: null,
-    shippedAt: null,
-    shippingStatus: null,
-    shippingHistory: [],
-    shippingService: null,
-    shipmentMeta: null,
-    attachedFiles: [],
-    // `amount` is frozen at the resolved figure so an invoice never recomputes a
-    // percentage against a base that has since changed. `pct` is kept beside it
-    // so the row still reads as "6.5%" — pricing ignores `amount` on a % line,
-    // so carrying both cannot double-charge.
-    extraLines: currentExtraLines.length > 0
-      ? KhaytPricing.resolveExtraLines(currentExtraLines, _lq.extrasBase)
-        .map((r, i) => ({ ...currentExtraLines[i], label: r.label, amount: r.amount }))
-      : undefined,
-    status: asQuote ? 'quote' : 'pending',
-    statusHistory: [{ status: asQuote ? 'quote' : 'pending', at: now.toISOString() }],
-    queuePos: printLog.filter(o => o.status === 'pending').length + 1,
     machineId: $('#machineAssign')?.value || null,
-    materialDeducted: false,
+    currency: ($('#calcCurrency')?.value || '') || undefined,
+    margin: clampPositive($('#margin').value),
+    discountPct: Math.min(100, Math.max(0, num($('#discountPct').value, 0))),
+    shippingCost: Math.max(0, num($('#shippingCost')?.value, 0)),
     depositAmount: Math.max(0, num($('#depositAmount')?.value, 0)),
-    paymentStatus: (() => {
-      const dep = Math.max(0, num($('#depositAmount')?.value, 0));
-      if (dep <= 0) return 'unpaid';
-      return dep >= finalPrice ? 'paid' : 'partial';
-    })(),
-    paidAmount: Math.max(0, num($('#depositAmount')?.value, 0)),
-    paymentMethod: null,
-    paidAt: null,
-    notes: '',
-    internalNotes: '',
-    invoiceNotes: '',
-    clientRef:    clientRef,
-    tags: [],
-    dueDate: (() => {
-      // Auto-estimate due date from queue depth + working hours
-      if (!asQuote) {
-        const queueHrs = printLog
-          .filter(o => o.status !== 'completed' && o.status !== 'quote' && o.status !== 'on_hold')
-          .reduce((s, o) => s + (+o.printTime || 0), 0);
-        const totalHrs = queueHrs + totalPrintTime;
-        const dailyHrs = avgDailyWorkingHours();
-        if (dailyHrs > 0 && totalHrs > 0) {
-          const daysNeeded = Math.ceil(totalHrs / dailyHrs);
-          const d = new Date(now);
-          d.setDate(d.getDate() + daysNeeded);
-          return localDateStr(d);
-        }
-      }
-      return null;
-    })(),
-    priority: false,
-    printPhotos: [],
-    parts: currentBuild.map(p => ({ ...p, partStatus: p.partStatus || 'pending' })),
-    // BOM / assembly: non-printed components (magnets, screws, packaging) + how many
-    // finished assemblies. Empty components[] = a plain single-part product (unchanged).
-    // See docs/KHAYT-3.0-BOM-SPEC.md.
+    rushEnabled: !!$('#calcRushFee')?.checked,
+    extraLines: currentExtraLines,
     components: (typeof currentComponents !== 'undefined' && Array.isArray(currentComponents))
-      ? currentComponents.filter(c => c && c.consumableId).map(c => ({ ...c }))
-      : [],
-    assemblyQty: (typeof currentAssemblyQty !== 'undefined' && currentAssemblyQty > 0) ? currentAssemblyQty : 1,
-    // Actuals — filled in when order is marked completed
-    actualPrintTime: null,
-    actualWeight:    null,
-    // Quote lifecycle
-    quoteSentAt:     asQuote ? localDateStr(now) : null,
-    rushFee:         logRushFeeAmt > 0 ? +logRushFeeAmt.toFixed(2) : undefined,
-    rushFeeAmount:   logRushFeeAmt > 0 ? +logRushFeeAmt.toFixed(2) : 0,
-    quoteExpiresAt:  asQuote ? localDateStr(new Date(now.getTime() + (settings.quoteValidityDays || 7) * 86400000)) : null,
-    quoteApprovalToken: asQuote ? (() => {
-      const b = new Uint8Array(16);
-      crypto.getRandomValues(b);
-      return Array.from(b, (x) => x.toString(16).padStart(2, '0')).join('');
-    })() : undefined,
-    quoteAcceptedAt: null,
-    // Feature 8: Quote revision history
-    quoteVersion:    asQuote ? 1 : undefined,
-    quoteRevisions:  asQuote ? [] : undefined,
-    trackingToken: (() => {
-      const b = new Uint8Array(16);
-      crypto.getRandomValues(b);
-      return Array.from(b, (b) => b.toString(16).padStart(2, '0')).join('');
-    })(),
+      ? currentComponents : [],
+    assemblyQty: (typeof currentAssemblyQty !== 'undefined') ? currentAssemblyQty : 1,
+    asQuote,
+  }, {
+    settings,
+    orders: printLog,
+    now: new Date(),
+    tokens: { tracking: bytes(N.TOKEN_BYTES), quoteApproval: bytes(N.TOKEN_BYTES) },
   });
+  // The counters it advanced are the shop's, and an allocation nobody wrote
+  // down hands the same invoice number to the next job.
+  saveAll();
+  printLog.unshift(entry);
+  // Names the rest of this function still reads.
+  const finalPrice = entry.price;
+  const id = entry.id;
+  const project = entry.project;
+  const totalPrintTime = entry.printTime;
 
   // Linked reprint: stamp reprintOf/reason/cost/chain onto this new order and
   // back-reference the original (never re-deducts the original's material).

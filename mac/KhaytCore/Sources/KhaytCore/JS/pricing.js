@@ -6,7 +6,7 @@
  * This arithmetic lived inside `renderer/build.js`, interleaved with reading
  * `<input>` values and writing `textContent`. That made it unreachable from
  * anywhere else: the LAN quote endpoint can cost a part with the desktop's own
- * maths (`renderer/calculator-cost.js`) but could not turn that cost into a
+ * maths (`lib/calculator-cost.js`) but could not turn that cost into a
  * price without reimplementing this — and a second implementation means two
  * prices for one job, with the wrong one being whichever the shop happens to be
  * looking at.

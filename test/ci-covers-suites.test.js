@@ -27,7 +27,25 @@ const ci = fs.readFileSync(path.join(ROOT, '.github/workflows/ci.yml'), 'utf8');
  * guard that silently is not a guard.
  */
 
-const e2eScripts = Object.keys(pkg.scripts).filter((k) => k.startsWith('test:e2e'));
+/**
+ * `test:e2e:all` is not a suite. It RUNS the suites — locally, in one command,
+ * reading the list from package.json so it cannot drift.
+ *
+ * It exists because the same defect this file is about bit again from the other
+ * side: forty-five e2e suites, and it is far too easy to run two of them, see
+ * two greens and push. A change that moved order creation into a shared module
+ * reached CI with `NewOrderRules is not defined` — caught by `test:e2e:qc`, and
+ * by nothing else that had been run.
+ *
+ * Excluded from the coverage check rather than added to ci.yml: CI already runs
+ * every suite by name, and naming this one too would run all forty-five a second
+ * time. Its own test below proves it actually covers them.
+ */
+const RUNNER = 'test:e2e:all';
+
+const e2eScripts = Object.keys(pkg.scripts)
+  .filter((k) => k.startsWith('test:e2e'))
+  .filter((k) => k !== RUNNER);
 
 /**
  * Suites deliberately not in ci.yml, each with the reason and where it DOES run.
@@ -69,4 +87,17 @@ test('the suites named as running elsewhere really do', () => {
     assert.match(fs.readFileSync(abs, 'utf8'), new RegExp(`npm run ${script.replace(/:/g, ':')}`),
       `${workflow} does not run ${script}`);
   }
+});
+
+test('the runner runs every suite CI does', () => {
+  // The exclusion above is a claim: that `test:e2e:all` covers what it is
+  // excused from being listed for. A runner with a hard-coded list that had
+  // gone stale would be worse than no runner, because it reports green.
+  assert.ok(RUNNER in pkg.scripts, 'test:e2e:all has gone missing');
+  const runner = fs.readFileSync(path.join(ROOT, 'scripts/e2e-all.mjs'), 'utf8');
+  assert.match(runner, /pkg\.scripts/,
+    'the runner writes its own list down instead of reading package.json, so it can drift');
+  assert.match(runner, /startsWith\('test:e2e:'\)/, 'the runner does not select the e2e scripts');
+  assert.match(runner, new RegExp(`!== '${RUNNER}'`),
+    'the runner does not exclude itself, so it would run forever');
 });

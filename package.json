@@ -18,6 +18,7 @@
     "test:future": "node scripts/test-future.mjs",
     "pretest:e2e": "node scripts/ensure-electron.js",
     "test:e2e": "node scripts/e2e-smoke.mjs",
+    "test:e2e:all": "node scripts/e2e-all.mjs",
     "test:e2e:themes": "node scripts/e2e-theme-shells.mjs",
     "test:e2e:bedready": "node scripts/e2e-bedready-smoke.mjs",
     "test:e2e:qc": "node scripts/e2e-qc-smoke.mjs",

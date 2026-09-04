@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const cost = require('../renderer/calculator-cost.js');
+const cost = require('../lib/calculator-cost.js');
 
 const CONS = [
   { id: 'c1', name: 'Magnet 6mm', cost: 0.5, stock: 100, minStock: 20, unit: 'pcs' },

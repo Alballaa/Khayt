@@ -82,7 +82,7 @@ All parsing is in `hub:parse-print-file` (extend it). Read **head (first ~16 KB)
 - `main.js` → `ipcMain.handle('hub:parse-print-file')` — extend regex set (Orca/Bambu, support grams, multi-extruder), add tail-read, return `slicer` + `supportGrams`.
 - `preload.js` → `parsePrintFile` — return shape gains `slicer`, `supportGrams` (no signature change).
 - `renderer/wire-events.js` → `#btnParseFile` handler — stamp `printFileRef`/`parsed*` on the draft part, route `supportGrams` per `gcodeSupportInWeight`, render the "from file" chip.
-- `renderer/calculator-cost.js` → `computePartBaseCost` / `computePartBreakdown` — **unchanged**; they already read `printWeight`, `supportWeight`, `printTime`. This is the contract we fill.
+- `lib/calculator-cost.js` → `computePartBaseCost` / `computePartBreakdown` — **unchanged**; they already read `printWeight`, `supportWeight`, `printTime`. This is the contract we fill.
 - `renderer/order-flows.js` → order editor attachment list — add `data-act="parse-to-part"`; on order create, carry `printFileRef`/`parsed*` through `parts.map(...)` (line ~93).
 - `renderer/inventory.js` → `deductFilamentForOrder` / `partGramsConsumed` — **unchanged**: they already deduct `printWeight (+ support) × qty` per `part.filamentId`. Parsed grams feed `printWeight`, so deduction "just works" once the part is bound to a spool.
 - `renderer/expenses.js` → `renderAttachedFiles` — reused as-is; print files get the `kind` badge.

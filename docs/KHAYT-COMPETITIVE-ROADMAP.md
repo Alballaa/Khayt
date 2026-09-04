@@ -53,7 +53,7 @@ Printago is its own thing: farm automation at 3–300 printers. Not Khayt's buye
 **Every pricing calculator in this list starts from a file. Khayt starts from
 numbers the user must already know.**
 
-Verified, not remembered: `renderer/calculator-cost.js` takes `printWeight`,
+Verified, not remembered: `lib/calculator-cost.js` takes `printWeight`,
 `printTime`, `spoolCost` and `spoolWeight`, and hands a `baseCost` to
 `pricing.quoteTotal`. The user supplies the two hardest numbers. 3D Price Lab,
 3DPPC and Quote3D all take an STL/3MF/OBJ upload and derive weight and time

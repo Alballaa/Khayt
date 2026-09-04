@@ -324,7 +324,7 @@ struct APIErrorResponse: Codable, Sendable {
 /**
  * What the desktop says a part costs, and what to charge for it.
  *
- * Every number here is computed on the desktop — `renderer/calculator-cost.js`
+ * Every number here is computed on the desktop — `lib/calculator-cost.js`
  * for the cost, `lib/pricing.js` for the price — and none of it is recomputed on
  * the phone. That is the whole point: a quote given standing next to a customer
  * has to be the same number as the one on the desk, and the only way to
