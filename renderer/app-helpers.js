@@ -424,13 +424,15 @@ function clientOutstandingBalance(clientId) {
     .reduce((s, o) => s + orderOwedBase(o), 0);
 }
 
-/** True when moving orderId into newStatus would meet or exceed the configured WIP limit. */
+/** True when moving orderId into newStatus would meet or exceed the configured WIP limit.
+ *
+ *  The rule moved to lib/order-status.js with the rest of the status rules, so
+ *  the Mac app can grey out a full column by the same arithmetic. This name
+ *  stays because bedready-queue.js and the queue view both call it. */
 function wouldExceedWipLimit(orders, orderId, newStatus, wipLimits) {
-  if (!newStatus || newStatus === 'completed' || newStatus === 'delivered' || newStatus === 'quote') return false;
-  const limit = (wipLimits || {})[newStatus] || 0;
-  if (limit <= 0) return false;
-  const colCount = (orders || []).filter(o => o.id !== orderId && o.status === newStatus).length;
-  return colCount >= limit;
+  const rules = (typeof globalThis !== 'undefined' && globalThis.KhaytOrderStatus)
+    || (() => { try { return require('../lib/order-status.js'); } catch (e) { return null; } })();
+  return rules ? rules.wouldExceedWipLimit(orders, orderId, newStatus, wipLimits) : false;
 }
 
 

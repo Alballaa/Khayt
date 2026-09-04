@@ -60,6 +60,19 @@ public actor KhaytEngine {
         // credentials. Bundling it is what stops the Mac app from becoming a
         // sixth hand-maintained copy; SafeStorage encrypts exactly these.
         "store-secret-paths",
+        // What happens to a job when its stage changes: what may move, and what
+        // moving it costs. Lifted out of renderer/order-flows.js so this app can
+        // move a job by the same rules rather than reimplement the most
+        // consequential write in Khayt a second way.
+        //
+        // ASSEMBLY MUST COME FIRST. `order-status` consults `KhaytAssembly`
+        // through a `typeof` guard, so without it the completion gate does not
+        // crash — it silently stops gating, and this app would let a shop
+        // complete an assembly whose parts have not passed QC while the Electron
+        // app refuses. A missing module that changes an answer instead of
+        // raising is the worst kind, so it is listed rather than guarded against.
+        "assembly",
+        "order-status",
     ]
 
     /// The languages whose strings are bundled.
@@ -266,6 +279,28 @@ public actor KhaytEngine {
     /// `machines[].printerApi.apiKey` means "for every element of machines".
     public func secretPaths() throws -> [String] {
         try runtime.value("KhaytStoreSecretPaths", "SECRET_PATHS", as: [String].self)
+    }
+
+    // MARK: - Moving a job
+
+    /// May this job move to `status`?
+    ///
+    /// This is the half of the status rules a screen that only SHOWS work
+    /// needs: it is what greys out a drop target before anything is dragged
+    /// onto it. Performing the move — stamping `completedAt`, deducting the
+    /// filament and the packaging, settling the hold, moving the customer's
+    /// tier — is `apply()` in the same module, and this app does not call it
+    /// yet. The board shows where the work is piling up; the rules it would
+    /// need to move a card now exist in one place rather than two.
+    ///
+    /// `orders` is the whole log because a WIP limit is a fact about a column,
+    /// not about a job.
+    public func statusGate(order: JSONValue, to status: String,
+                           orders: [JSONValue],
+                           settings: [String: JSONValue]) throws -> StatusGate {
+        let ctx: JSONValue = .object(["orders": .array(orders), "settings": .object(settings)])
+        return try runtime.call("KhaytOrderStatus", "gate",
+                                [order, status, ctx], as: StatusGate.self)
     }
 
     public func raw<T: Decodable>(_ script: String, as type: T.Type) throws -> T {

@@ -6,6 +6,16 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Changed
 
+- **The rules for moving a job between stages now live in one place.** What
+  may move, and what moving it costs — stamping the completion, deducting the
+  filament and the packaging, clearing a hold and pushing the due date out by
+  the days it waited, fixing the cost the job will be judged on ever after,
+  moving a customer up a tier — used to be readable only by the Electron
+  window. The native Mac app could show you where work was piling up but could
+  not let you move a card, because the only place that knew what moving a card
+  means was code it does not run. Nothing about how you use Khayt changes; the
+  two apps can no longer come to disagree about whether a job is finished.
+
 - **Which settings count as secrets is now decided in one place.** Every
   credential Khayt stores — the cloud token, the AI key, the bucket and Drive
   keys, printer API keys, ZATCA IDs, BNPL and webhook secrets, the LAN PINs —
