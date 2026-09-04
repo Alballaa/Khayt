@@ -587,6 +587,8 @@
   "slp.name_required": "Geben Sie einen Namen für das Profil ein",
   "store.unreadable": "⚠ Ihre Datendatei konnte nicht gelesen werden, daher startete Khayt leer. Die alte Datei wurde behalten — prüfen Sie Ihre Sicherungen.",
   "tg.error": "Telegram-Fehler",
+  "tg.bad_chat_id": "An diese Chat-ID kann Telegram nicht zustellen. Nutzen Sie eine numerische ID oder den @Benutzernamen eines öffentlichen Kanals.",
+  "tg.chat_id_hint": "Eine numerische ID für eine Gruppe oder der @Benutzername eines öffentlichen Kanals.",
   "tg.need_credentials": "Geben Sie zuerst Bot-Token und Chat-ID ein",
   "tg.settings_saved": "Telegram-Einstellungen gespeichert",
   "tg.test_sent": "Testnachricht gesendet",

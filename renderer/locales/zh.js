@@ -587,6 +587,8 @@
   "slp.name_required": "请输入配置名称",
   "store.unreadable": "⚠ 无法读取您的数据文件，Khayt 已以空白状态启动。旧文件已保留 — 请检查您的备份。",
   "tg.error": "Telegram 错误",
+  "tg.bad_chat_id": "Telegram 无法发送到该 chat ID。请使用数字 ID，或公开频道的 @用户名。",
+  "tg.chat_id_hint": "群组的数字 ID，或公开频道的 @用户名。",
   "tg.need_credentials": "请先填写机器人令牌和聊天 ID",
   "tg.settings_saved": "Telegram 设置已保存",
   "tg.test_sent": "测试消息已发送",

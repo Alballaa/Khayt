@@ -588,6 +588,8 @@
   "slp.name_required": "Digite um nome para o perfil",
   "store.unreadable": "⚠ Não foi possível ler seu arquivo de dados, então o Khayt iniciou vazio. O arquivo antigo foi mantido — confira seus backups.",
   "tg.error": "Erro do Telegram",
+  "tg.bad_chat_id": "O Telegram não consegue entregar nesse ID de chat. Use um id numérico ou o @usuário de um canal público.",
+  "tg.chat_id_hint": "Um id numérico para um grupo, ou o @usuário de um canal público.",
   "tg.need_credentials": "Informe primeiro o token do bot e o ID do chat",
   "tg.settings_saved": "Configurações do Telegram salvas",
   "tg.test_sent": "Mensagem de teste enviada",

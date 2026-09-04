@@ -16,6 +16,8 @@ enum Telegram {
     enum Failure: Error, Equatable {
         /// The bot token in Settings cannot be a Telegram token.
         case badToken
+        /// The chat id in Settings is not one Telegram can deliver to.
+        case badChatId
         /// Telegram answered, and said no.
         case refused(Int, String)
         /// It could not be reached at all.
@@ -31,6 +33,9 @@ enum Telegram {
     static func send(botToken: String, chatId: String, message: String,
                      session: URLSession = .shared) async throws {
         guard KhaytTelegram.isBotToken(botToken) else { throw Failure.badToken }
+        // Refused before anything is sent, and named: a mangled chat id sends
+        // to nowhere and reports a bare 400.
+        guard let chat = KhaytTelegram.chatId(chatId) else { throw Failure.badChatId }
         // Percent-encoded into the path, as the Electron handler does: a token
         // is not a path component a URL should be trusted to parse.
         let escaped = botToken.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? botToken
@@ -44,7 +49,7 @@ enum Telegram {
         // not wait on a network that is not answering.
         request.timeoutInterval = 10
         request.httpBody = try JSONEncoder().encode([
-            "chat_id": KhaytTelegram.chatId(chatId),
+            "chat_id": chat,
             "text": String(message.prefix(KhaytTelegram.maxMessage)),
         ])
 
@@ -84,9 +89,22 @@ enum KhaytTelegram {
         token.range(of: "^[0-9]+:[A-Za-z0-9_-]+$", options: .regularExpression) != nil
     }
 
-    /// A chat id with anything that is not one taken out — Khayt's own rule,
-    /// which keeps digits, `@` and `-`.
-    static func chatId(_ value: String) -> String {
-        String(value.filter { $0.isNumber || $0 == "@" || $0 == "-" })
+    /// A chat id Telegram will accept, or nil.
+    ///
+    /// Either a numeric id (negative for a group or channel) or a public
+    /// `@username` of 5–32 letters, digits and underscores. Khayt used to strip
+    /// with `[^0-9@-]`, which keeps the @ and throws the name away — a shop
+    /// that typed `@khaytshop` was sending to `@` and getting nothing.
+    ///
+    /// Spelled here because it is asked on the way into a network call, and
+    /// pinned to `lib/telegram-message.js` by a test that runs both.
+    static func chatId(_ value: String) -> String? {
+        let raw = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !raw.isEmpty else { return nil }
+        if raw.range(of: "^-?[0-9]+$", options: .regularExpression) != nil { return raw }
+        let name = raw.hasPrefix("@") ? String(raw.dropFirst()) : raw
+        guard name.range(of: "^[A-Za-z0-9_]{5,32}$", options: .regularExpression) != nil,
+              name.contains(where: { $0.isLetter || $0 == "_" }) else { return nil }
+        return "@" + name
     }
 }

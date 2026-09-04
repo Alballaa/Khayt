@@ -105,8 +105,13 @@ struct TelegramTests {
             let theirs = try await engine.raw("KhaytTelegramMessage.isBotToken(\(Self.json(token)))", as: Bool.self)
             #expect(KhaytTelegram.isBotToken(token) == theirs, "\(token)")
         }
-        for id in [" -100123456 ", "@khaytshop", "123; rm -rf /", "", "42"] {
-            let theirs = try await engine.raw("KhaytTelegramMessage.chatId(\(Self.json(id)))", as: String.self)
+        // A chat id is one of the two shapes Telegram documents, or nothing —
+        // and the Swift copy has to agree with the module about which is which,
+        // because this app sends on the strength of it.
+        for id in [" -100123456 ", "@khaytshop", "khaytshop", " @Khayt_Shop ", "12345678",
+                   "123; rm -rf /", "", "@my-shop", "@abc"] {
+            let theirs = try await engine.raw("KhaytTelegramMessage.chatId(\(Self.json(id)))",
+                                              as: String?.self)
             #expect(KhaytTelegram.chatId(id) == theirs, "\(id)")
         }
     }
@@ -124,11 +129,25 @@ struct TelegramTests {
         }
     }
 
+    @Test("a chat id Telegram cannot deliver to is refused, rather than mangled")
+    func badChatId() async throws {
+        // Khayt used to strip with `[^0-9@-]`, so "@khaytshop" became "@" and
+        // the shop was sending to nowhere with nothing said.
+        let token = "123456:AAHdqTcvCH1vGWJxfSeofSAs0K5PALDsaw"
+        for bad in ["", "  ", "@my-shop", "@abc", "not a chat"] {
+            await #expect(throws: Telegram.Failure.badChatId, "\(bad)") {
+                try await Telegram.send(botToken: token, chatId: bad, message: "x")
+            }
+        }
+        #expect(KhaytTelegram.chatId("@khaytshop") == "@khaytshop", "and a real one goes through whole")
+    }
+
     @Test("what Telegram says when it refuses is passed on")
     func refusal() {
         // A shop can act on "chat not found"; it cannot act on a bare 400.
         #expect(Shop.describe(.refused(400, "chat not found")) == "chat not found")
         #expect(Shop.describe(.refused(400, "")) == "HTTP 400")
         #expect(Shop.describe(.badToken).contains("Settings"))
+        #expect(Shop.describe(.badChatId).contains("chat ID"))
     }
 }

@@ -381,12 +381,15 @@ subscriptions, a delivery log, retries with backoff that survive a quit, and a
 410-Gone rule; doing that badly means a shop's ERP counting a job twice, which
 is a real invoice. Refusing is the honest answer until it is done properly.
 
-One thing found on the way, and NOT fixed here: Khayt has always stripped chat
-ids with `[^0-9@-]`, which keeps the `@` and throws the name away — so a shop
-that typed `@khaytshop` has been sending to `@` and getting nothing, for as
-long as the feature has existed. Copied unchanged, because a lift whose job is
-to change nothing does not quietly fix a bug on the way past. It is written
-down in `test/telegram-message.test.js` so it is not mistaken for an accident.
+**The chat id is fixed.** Khayt stripped every chat id with `[^0-9@-]`, which
+keeps the `@` and throws the name away — so a shop that typed `@khaytshop` was
+sending to `@`, getting a 400 back, and being told nothing, for as long as the
+feature had existed. `chatId` now recognises the two shapes Telegram documents
+(a numeric id, negative for a group; a public `@username` of 5–32 letters,
+digits and underscores) and REFUSES anything else rather than mangling it: a
+refusal a shop can see beats a silent send to nowhere. The settings page
+refuses a bad one at the point it is typed, the Electron main process refuses
+before sending, and this app refuses before the request is built.
 
 ## A day in the shop
 

@@ -6069,7 +6069,8 @@ function renderTelegramSettings() {
     <label>Bot Token</label>
     <input type="password" id="tgBotToken" value="${escapeHtml(tg.botToken || '')}" placeholder="123456:ABC-...">
     <label style="margin-top:8px;">Chat ID</label>
-    <input type="text" id="tgChatId" value="${escapeHtml(tg.chatId || '')}" placeholder="-100123456789">
+    <input type="text" id="tgChatId" value="${escapeHtml(tg.chatId || '')}" placeholder="-100123456789 or @yourchannel">
+    <div style="font-size:11px;color:var(--text-muted);margin-top:3px;">${escapeHtml(t('tg.chat_id_hint') || 'A numeric id for a group, or the @username of a public channel.')}</div>
     <div style="margin-top:10px;display:flex;gap:8px;align-items:center;">
       <button class="btn small" id="btnTgTest">Test</button>
       <span style="font-size:12px;color:var(--text-muted);">Sends a test message to verify the bot works</span>
@@ -6100,6 +6101,10 @@ function renderTelegramSettings() {
     const botToken = el.querySelector('#tgBotToken').value.trim();
     const chatId   = el.querySelector('#tgChatId').value.trim();
     if (!botToken || !chatId) { toast(t('tg.need_credentials'), 'error'); return; }
+    // A chat id Telegram cannot deliver to, said now rather than as a silent
+    // non-delivery weeks later. `@khaytshop` used to be mangled to `@`.
+    const TG = (typeof globalThis !== 'undefined' && globalThis.KhaytTelegramMessage) || null;
+    if (TG && !TG.isChatId(chatId)) { toast(t('tg.bad_chat_id'), 'error'); return; }
     if (window.hubAPI?.sendTelegram) {
       window.hubAPI.sendTelegram({ botToken, chatId, message: '✅ Khayt test notification' })
         .then(() => toast(t('tg.test_sent'), 'success'))

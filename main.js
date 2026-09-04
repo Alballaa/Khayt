@@ -5580,11 +5580,27 @@ ipcMain.handle('hub:fire-webhook', async (event, { url, event: webhookEvent, pay
 });
 
 
+/** The chat-id rule, shared with both windows and the Mac app. */
+function telegramChatId(value) {
+  try {
+    return require('./lib/telegram-message.js').chatId(value);
+  } catch (e) {
+    return null;
+  }
+}
+
 ipcMain.handle('hub:send-telegram', async (_e, { botToken, chatId, message } = {}) => {
   botToken = resolveStoreSecret(botToken, d => d?.settings?.telegram?.botToken);
   if (!botToken || !chatId || !message) return { ok: false, error: 'Missing params' };
   if (!/^[0-9]+:[A-Za-z0-9_-]+$/.test(botToken)) return { ok: false, error: 'Invalid bot token format' };
-  const chatIdStr = String(chatId).replace(/[^0-9@-]/g, '');
+  /* The chat id, by the shared rule — a numeric id or a public @username.
+   *
+   * This used to be `String(chatId).replace(/[^0-9@-]/g, '')`, which keeps the
+   * @ and THROWS THE NAME AWAY: a shop that typed "@khaytshop" was sending to
+   * "@", getting a 400 back, and being told nothing. Now a value Telegram
+   * could not deliver to is refused here, with a reason the shop can act on. */
+  const chatIdStr = telegramChatId(chatId);
+  if (!chatIdStr) return { ok: false, error: 'Invalid chat id — use a numeric id or @username' };
   if (isBlockedHost('api.telegram.org')) return { ok: false, error: 'Host is blocked' };
   const url = `https://api.telegram.org/bot${encodeURIComponent(botToken)}/sendMessage`;
   const body = JSON.stringify({ chat_id: chatIdStr, text: message.slice(0, 4096) });
