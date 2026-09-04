@@ -166,6 +166,8 @@ final class Words {
         "mac.reach_email":         ["en": "an email to the customer", "ar": "بريداً للعميل"],
         "mac.reach_portal":        ["en": "the customer's tracking link", "ar": "رابط متابعة العميل"],
         "mac.and":           ["en": "and",            "ar": "و"],
+        "mac.board_unplaced": ["en": "{n} job(s) are in a stage this board has no column for.",
+                               "ar": "{n} من الأعمال في مرحلة لا عمود لها في هذا اللوح."],
         "mac.library":       ["en": "Library",       "ar": "المكتبة"],
         "mac.all_models":    ["en": "All models",    "ar": "كل المجسمات"],
         "mac.people":        ["en": "People",        "ar": "الأشخاص"],

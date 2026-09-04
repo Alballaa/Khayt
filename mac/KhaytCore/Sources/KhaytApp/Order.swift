@@ -77,7 +77,10 @@ struct Order: Identifiable, Decodable, Hashable, Sendable {
 /// sidebar's order is the pipeline's order, not alphabetical and not whatever
 /// the data happened to contain.
 enum Stage: String, CaseIterable, Identifiable, Sendable {
-    case quote, pending, printing, completed, delivered, cancelled
+    // In the order work moves through them, which is also the order the board
+    // and the sidebar draw. `on_hold` sits between pending and printing because
+    // that is where a job stops: nothing is held before it is accepted.
+    case quote, pending, on_hold, printing, post, qc, completed, delivered, cancelled
 
     var id: String { rawValue }
 
@@ -88,7 +91,10 @@ enum Stage: String, CaseIterable, Identifiable, Sendable {
         switch self {
         case .quote: "queue.quote"
         case .pending: "queue.pending"
+        case .on_hold: "queue.on_hold"
         case .printing: "queue.printing"
+        case .post: "queue.post"
+        case .qc: "queue.qc"
         case .completed: "queue.completed"
         case .delivered: "queue.delivered"
         case .cancelled: "mac.cancelled"
@@ -103,12 +109,23 @@ enum Stage: String, CaseIterable, Identifiable, Sendable {
         switch self {
         case .quote: "doc.text"
         case .pending: "clock"
+        case .on_hold: "pause.circle"
         case .printing: "printer"
+        // Washing, curing, sanding — the work after the printer stops.
+        case .post: "sparkles"
+        // Inspection, not approval: a job in QC is being looked at.
+        case .qc: "magnifyingglass"
         case .completed: "checkmark.circle"
         case .delivered: "shippingbox"
         case .cancelled: "xmark.circle"
         }
     }
 
+    /// The stage a job is in, or nil for a status this app has no column for.
+    ///
+    /// Nil is not "no stage" — it is a job that will not appear on the board, so
+    /// every caller has to decide what to do about it rather than filtering it
+    /// away. `split` reaches here: a parent order replaced by the sub-orders
+    /// that carry its price between them.
     static func of(_ order: Order) -> Stage? { Stage(rawValue: order.status) }
 }
