@@ -1,0 +1,135 @@
+import Foundation
+import KhaytCore
+
+/// Who owns the shop's book.
+///
+/// A port of `lib/store-lock.js`, and the second module in this app written
+/// twice — for the same reason as `LibraryLocation`: it is a protocol two
+/// different runtimes have to agree on, and it reaches the filesystem and the
+/// process table, neither of which JavaScriptCore has. `StoreLockParityTests`
+/// runs both against the same cases.
+///
+/// The Electron app takes ownership for its whole session and refreshes a
+/// heartbeat. This app reads that record and says what it found. It does not
+/// take the lock, because it does not write — and a reader that claimed
+/// ownership would lock a shop out of its own app for nothing.
+enum StoreLock {
+
+    /// Three missed heartbeats. Consulted only where liveness cannot be — see
+    /// `decide`.
+    static let staleAfterMs: Double = 90_000
+    static let filename = "khayt-store.lock"
+
+    struct Record: Codable, Equatable, Sendable {
+        var app: String?
+        var pid: Int?
+        var host: String?
+        var takenAt: Double?
+        var heartbeat: Double?
+    }
+
+    enum Action: String, Equatable, Sendable { case take, own, held }
+
+    struct Verdict: Equatable, Sendable {
+        let action: Action
+        let holder: Record?
+        let reason: String
+    }
+
+    /// A hostname, comparably.
+    ///
+    /// `ProcessInfo.hostName` and Node's `os.hostname()` return the SAME machine
+    /// in different case — `turkis-macbook-air.local` against
+    /// `Turkis-MacBook-Air.local`. Compared raw, this app reads the Electron
+    /// app's lock as coming from another machine, stops asking whether that pid
+    /// is alive, and falls back to the clock: a live holder whose heartbeat
+    /// lagged would have its lock taken. Two writers, which is the one thing
+    /// this file exists to prevent. Hostnames are case-insensitive by
+    /// convention, so folding is not a workaround.
+    private static func host(_ value: String?) -> String {
+        (value ?? "").trimmingCharacters(in: .whitespaces).lowercased()
+    }
+
+    /// A heartbeat in the FUTURE is not stale. Two machines never agree on the
+    /// time, and treating a negative age as old breaks a live holder's lock
+    /// instantly — the one outcome this exists to prevent.
+    private static func isStale(_ record: Record, now: Double) -> Bool {
+        now - (record.heartbeat ?? 0) >= staleAfterMs
+    }
+
+    /// What the lock record means. `alive` answers "is that pid running on THIS
+    /// machine?", and is nil when it cannot be known — which includes every
+    /// record written by another host.
+    static func decide(_ existing: Record?, pid: Int, host hostName: String,
+                       now: Double, alive: Bool?) -> Verdict {
+        guard let existing else {
+            return Verdict(action: .take, holder: nil, reason: "no-lock")
+        }
+        let theirPid = existing.pid ?? 0
+        let theirHost = host(existing.host)
+        guard theirPid != 0 else {
+            // Not a lock record: truncated by a crash, hand-edited, a stray file.
+            // A holder that can never be disproved would wedge the app.
+            return Verdict(action: .take, holder: nil, reason: "unreadable")
+        }
+        let myHost = Self.host(hostName)
+        if theirPid == pid && theirHost == myHost {
+            return Verdict(action: .own, holder: existing, reason: "already-ours")
+        }
+        // Pids are unique per host only. Without this, one machine adopts
+        // another's lock the moment the numbers collide.
+        if !theirHost.isEmpty && !myHost.isEmpty && theirHost != myHost {
+            return isStale(existing, now: now)
+                ? Verdict(action: .take, holder: existing, reason: "other-host-stale")
+                : Verdict(action: .held, holder: existing, reason: "other-host-fresh")
+        }
+        // LIVENESS BEATS TIME. A running process still owns the store even if it
+        // has not written a heartbeat for an hour — paused at a breakpoint,
+        // stopped by the OS, or busy through a long import.
+        if alive == true { return Verdict(action: .held, holder: existing, reason: "holder-alive") }
+        if alive == false { return Verdict(action: .take, holder: existing, reason: "holder-gone") }
+        return isStale(existing, now: now)
+            ? Verdict(action: .take, holder: existing, reason: "unknown-stale")
+            : Verdict(action: .held, holder: existing, reason: "unknown-fresh")
+    }
+
+    // MARK: - The impure half
+
+    static func lockURL(for build: StoreReader.Build) -> URL {
+        build.storeURL.deletingLastPathComponent().appending(path: filename)
+    }
+
+    static func read(for build: StoreReader.Build) -> Record? {
+        guard let data = try? Data(contentsOf: lockURL(for: build)) else { return nil }
+        return try? JSONDecoder().decode(Record.self, from: data)
+    }
+
+    /// Is that pid a running process? `EPERM` means it exists and is not ours.
+    static func pidIsAlive(_ pid: Int) -> Bool {
+        if pid <= 0 { return false }
+        if kill(pid_t(pid), 0) == 0 { return true }
+        return errno == EPERM
+    }
+
+    /// The verdict for a store on this Mac, right now.
+    static func verdict(for build: StoreReader.Build) -> Verdict {
+        let record = read(for: build)
+        let host = ProcessInfo.processInfo.hostName
+        let sameHost = record.map { ($0.host ?? "") == host } ?? false
+        let alive: Bool? = (sameHost && (record?.pid ?? 0) != 0)
+            ? pidIsAlive(record!.pid!) : nil
+        return decide(record, pid: Int(ProcessInfo.processInfo.processIdentifier),
+                      host: host, now: Date().timeIntervalSince1970 * 1000, alive: alive)
+    }
+
+    /// A sentence for a person. Never a pid: what matters is which application,
+    /// and — when it is elsewhere — which machine.
+    static func describe(_ verdict: Verdict, selfHost: String = ProcessInfo.processInfo.hostName) -> String? {
+        guard verdict.action == .held, let holder = verdict.holder else { return nil }
+        let who = (holder.app ?? "").isEmpty ? "Another copy of Khayt" : holder.app!
+        let theirHost = host(holder.host)
+        let where_ = (!theirHost.isEmpty && theirHost != host(selfHost))
+            ? " on \(holder.host ?? "")" : ""
+        return "\(who)\(where_) has this book open"
+    }
+}

@@ -3210,6 +3210,7 @@ function mfRun(op, args) {
 }
 
 app.on('will-quit', () => { try { mfClient.dispose(); } catch (_) {} });
+app.on('will-quit', () => { try { releaseStoreOwnership(); } catch (_) {} });
 
 /**
  * Jobs that produce a file write it to a temp path; this puts it where it belongs once the
@@ -5802,7 +5803,80 @@ app.on('open-url', (event, url) => { // macOS
   if (mainWindow) handleBedreadyLink(url); else pendingBedreadyLink = url;
 });
 
+
+// --- Store ownership -------------------------------------------------------
+//
+// Khayt has always had exactly one writer and never said so. `requestSingleInstanceLock`
+// keeps the renderer, the LAN handlers, the printer poll and the updater inside one
+// process, and store-io's write chain serialises them; the invariant held because
+// nothing else on the machine could open the file. The native Mac app can. This
+// publishes who owns the book so the newcomer can stay out of the way.
+//
+// EVERY PATH HERE IS BEST-EFFORT ON PURPOSE. A lock that can stop a shop opening its
+// own app is worse than the collision it guards against, so nothing below is allowed
+// to throw into startup. Electron is the writer, and it takes ownership even when it
+// finds a live foreign holder — today the only other holder is a reader, and refusing
+// to launch on the strength of a file would be a far bigger failure than the one being
+// prevented. The verdict is recorded so a later release can act on it.
+const StoreLock = require('./lib/store-lock');
+let _storeLockBeat = null;
+let _storeLockMine = null;
+
+const storeLockPath = () => path.join(app.getPath('userData'), StoreLock.LOCK_FILENAME);
+
+function readStoreLockRecord() {
+  try { return JSON.parse(fs.readFileSync(storeLockPath(), 'utf8')); } catch (_) { return null; }
+}
+
+/** Is that pid a running process? EPERM means it exists and is not ours. */
+function pidIsAlive(pid) {
+  try { process.kill(pid, 0); return true; }
+  catch (e) { return !!(e && e.code === 'EPERM'); }
+}
+
+function acquireStoreOwnership() {
+  try {
+    const os = require('os');
+    const host = String(os.hostname() || '');
+    const existing = readStoreLockRecord();
+    const sameHost = existing && String(existing.host || '') === host;
+    const alive = sameHost && Number(existing.pid) ? pidIsAlive(Number(existing.pid)) : null;
+    const verdict = StoreLock.decide(existing, { pid: process.pid, host, now: Date.now(), alive });
+    if (verdict.action === 'held') {
+      console.warn('store lock:', StoreLock.describe({ ...verdict, selfHost: host })
+        || 'another application claims this store; taking ownership anyway');
+    }
+    _storeLockMine = StoreLock.claim({ app: 'Khayt', pid: process.pid, host, now: Date.now() });
+    fs.writeFileSync(storeLockPath(), JSON.stringify(_storeLockMine));
+    // A heartbeat is what lets a lock left by a crash on ANOTHER machine be
+    // broken later; on this one, liveness answers it and the beat is belt and braces.
+    _storeLockBeat = setInterval(() => {
+      try {
+        _storeLockMine = StoreLock.beat(_storeLockMine, Date.now());
+        fs.writeFileSync(storeLockPath(), JSON.stringify(_storeLockMine));
+      } catch (_) { /* a lock we cannot refresh is not worth crashing over */ }
+    }, StoreLock.HEARTBEAT_MS);
+    if (_storeLockBeat.unref) _storeLockBeat.unref();
+  } catch (e) {
+    console.warn('store lock: could not take ownership —', (e && e.message) || e);
+  }
+}
+
+/** Give it up on the way out. A crash skips this, and the next start sees a dead pid. */
+function releaseStoreOwnership() {
+  try { if (_storeLockBeat) clearInterval(_storeLockBeat); } catch (_) {}
+  _storeLockBeat = null;
+  try {
+    const current = readStoreLockRecord();
+    if (current && _storeLockMine && Number(current.pid) === Number(_storeLockMine.pid)
+        && String(current.host || '') === String(_storeLockMine.host || '')) {
+      fs.unlinkSync(storeLockPath());
+    }
+  } catch (_) { /* nothing left to release */ }
+}
+
 app.whenReady().then(() => {
+  acquireStoreOwnership();
   completePendingFullWipe();
   applyDockIcon();
   buildMenu();

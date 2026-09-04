@@ -4,7 +4,12 @@
  * Requires display (use xvfb-run on Linux CI).
  */
 import fs from 'fs';
+import path from 'path';
+import { createRequire } from 'module';
 import zipWrite from '../lib/zip-write.js';
+
+const require = createRequire(import.meta.url);
+const StoreLock = require('../lib/store-lock.js');
 import {
   E2E_LAN_PIN,
   E2E_LAN_PORT,
@@ -527,6 +532,40 @@ async function testConverter(window) {
   if (bad.length) throw new Error(`converter checks failed: ${bad.join(', ')} — ${JSON.stringify(r)}`);
 }
 
+/**
+ * The running app must say it owns the store.
+ *
+ * store-lock.js is pure and unit-tested, which proves the rules and nothing
+ * about whether anything calls them. This is the half that can only be checked
+ * with the app actually running: the record on disk, naming the live process.
+ * Delete `acquireStoreOwnership()` from main.js and this fails.
+ */
+function testStoreOwnership() {
+  const lockFile = path.join(userData, StoreLock.LOCK_FILENAME);
+  if (!fs.existsSync(lockFile)) {
+    throw new Error(`no ${StoreLock.LOCK_FILENAME} while the app is running — nothing took ownership`);
+  }
+  const record = JSON.parse(fs.readFileSync(lockFile, 'utf8'));
+  if (!Number(record.pid)) throw new Error(`lock record has no pid: ${JSON.stringify(record)}`);
+  if (!record.host) throw new Error('lock record has no host — a pid alone is not unique');
+  // The app must read its own record as its own, or it would fight itself on the
+  // next launch and every heartbeat would look like a rival.
+  const asOwner = StoreLock.decide(record, {
+    pid: record.pid, host: record.host, now: Date.now(), alive: true,
+  });
+  if (asOwner.action !== 'own') {
+    throw new Error(`the app does not recognise its own lock: ${JSON.stringify(asOwner)}`);
+  }
+  // And a different process on the same machine must be told to keep out.
+  const asRival = StoreLock.decide(record, {
+    pid: record.pid + 1, host: record.host, now: Date.now(), alive: true,
+  });
+  if (asRival.action !== 'held') {
+    throw new Error(`a second app would have taken the store: ${JSON.stringify(asRival)}`);
+  }
+  return record;
+}
+
 try {
   ({ electronApp } = await launchApp(userData));
   const window = await electronApp.firstWindow();
@@ -547,11 +586,13 @@ try {
   await testConverter(window);
   await testIndexes(window);
   await testPruneArchived(window);
+  const owner = testStoreOwnership();
 
   console.log(
-    'e2e-smoke: ok (version=%s, tabs + order %s + store + LAN PIN gate)',
+    'e2e-smoke: ok (version=%s, tabs + order %s + store + LAN PIN gate + store owned by pid %s)',
     version,
-    orderId
+    orderId,
+    owner.pid
   );
 } finally {
   if (electronApp) await electronApp.close().catch(() => {});

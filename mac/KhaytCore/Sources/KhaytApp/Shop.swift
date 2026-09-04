@@ -42,6 +42,9 @@ final class Shop {
     /// Where this shop's models live. Resolved once per book, because it reads
     /// settings and probes the disk, and every cell asks about it.
     private(set) var libraryRoots: LibraryLocation.Roots?
+    /// Who has this book open, when that is somebody else. Nil when nothing
+    /// claims it — which is the ordinary case, and says nothing on screen.
+    private(set) var owner: String?
     private(set) var shopName = "Khayt"
     private(set) var currency = "SAR"
     private(set) var skipped: [String] = []
@@ -120,6 +123,10 @@ final class Shop {
                                              defaultRoot: LibraryLocation.defaultRoot(for: build))
             }
             fileSelection = nil
+            // Read, never taken. This app does not write, and a reader that
+            // claimed ownership would lock a shop out of its own app for
+            // nothing. When writing arrives, this is the check that gates it.
+            owner = next.build.flatMap { StoreLock.describe(StoreLock.verdict(for: $0)) }
             if case .object(let settings)? = root["settings"] {
                 if case .string(let n)? = settings["shopName"], !n.isEmpty { shopName = n }
                 else { shopName = next.title }
@@ -132,6 +139,7 @@ final class Shop {
             orders = []
             files = []
             libraryRoots = nil
+            owner = nil
             problem = String(describing: error)
         }
     }
