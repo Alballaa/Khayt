@@ -346,6 +346,14 @@ Measured grams or nothing. Only Moonraker and Duet report cumulative extrusion;
 OctoPrint, PrusaLink and Bambu report time and a slicer prediction dressed as a
 measurement, which `lib/printer-actuals.js` explains at length and refuses.
 
+**Waste logged against a job deducts too**, off that job's spools rather than
+off the first spool of the material — which is what a material lookup does, and
+it charges the wrong roll when a shop has two of the same filament. The entry
+records `drawn`: which spool and how much off each, so deleting it puts back
+exactly what it took. That matters when the assigned spool ran out and the rest
+spilled onto a sibling; a row that remembered only "which spool" would put the
+whole lot back on one. Rows written before `drawn` still restore the old way.
+
 **On the Mac the figure is typed**, because reading it needs the poller, which
 lives in Khayt. The sheet says so, and says the grams come off the shelf.
 

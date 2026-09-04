@@ -76,9 +76,54 @@
   }
 
   /**
-   * Take an entry out of the log, and put its grams back on the spool it
-   * came off. `wasteLog` and `ctx.inventory` are mutated. Returns the entry
-   * removed, or null when the id is not in the log.
+   * One entry for a print that failed on a JOB, and the filament it burned.
+   *
+   * The difference from `newEntry` is where the grams come from: a job's waste
+   * comes off the spools that job was printing from, in the proportions its
+   * parts were assigned — the same claims a completion would settle — rather
+   * than off the first spool of a material. Logging waste against a job used
+   * to record it and take nothing at all.
+   *
+   * `ctx`: `{ id, today, inventory, settings, machines }`. `ctx.inventory` IS
+   * MUTATED. Returns `{ entry, deducted }`, or `{ refused: 'material' }`.
+   */
+  function forOrder(order, input, ctx) {
+    const i = input || {};
+    const c = ctx || {};
+    const material = trim(i.material);
+    if (!material) return { refused: 'material' };
+    const weight = Math.max(0, num(i.weight));
+    const entry = {
+      id: c.id,
+      date: i.date || c.today,
+      orderId: (order && order.id) || null,
+      material,
+      weight,
+      failureType: FAILURE_TYPES.includes(i.failureType) ? i.failureType : 'other',
+      notes: trim(i.notes),
+      cost: Math.round(costOf(material, weight, c.inventory) * 100) / 100,
+    };
+    const D = deduction();
+    const taken = (D && weight > 0 && order)
+      ? D.deductActual(order, weight, {
+          settings: c.settings, inventory: c.inventory, machines: c.machines, today: entry.date,
+        })
+      : { deducted: 0, spools: [], drawn: [] };
+    if (taken.drawn.length) entry.drawn = taken.drawn.slice();
+    if (taken.spools.length === 1) entry.spoolId = taken.spools[0];
+    return { entry, deducted: taken.deducted };
+  }
+
+  /**
+   * Take an entry out of the log, and put back exactly what it took.
+   *
+   * `drawn` says which spool and how much off each — a failure can spill onto
+   * a sibling when the assigned spool runs out, and a row that remembers only
+   * "which spool" restores the wrong amounts. `spoolId` + `weight` is the older
+   * shape and is still honoured, for every entry written before `drawn`.
+   *
+   * `wasteLog` and `ctx.inventory` are mutated. Returns the entry removed, or
+   * null when the id is not in the log.
    */
   function removeEntry(wasteLog, id, ctx) {
     const log = wasteLog || [];
@@ -86,11 +131,23 @@
     if (idx < 0) return null;
     const entry = log[idx];
     log.splice(idx, 1);
+    const inventory = ((ctx || {}).inventory) || [];
+    if (Array.isArray(entry.drawn) && entry.drawn.length) {
+      const D = deduction();
+      if (D) D.restoreDrawn(entry.drawn, { inventory });
+      return entry;
+    }
     if (entry.spoolId && num(entry.weight) > 0) {
-      const spool = ((ctx || {}).inventory || []).find((i) => i && i.id === entry.spoolId);
+      const spool = inventory.find((i) => i && i.id === entry.spoolId);
       if (spool) spool.weight = num(spool.weight) + num(entry.weight);
     }
     return entry;
+  }
+
+  /** The shelf rules, however this file happens to be loaded. */
+  function deduction() {
+    if (typeof global.KhaytOrderDeduction !== 'undefined') return global.KhaytOrderDeduction;
+    try { return require('./order-deduction.js'); } catch (e) { return null; }
   }
 
   /** What the log comes to: entries, grams, cost, and failures by category. */
@@ -108,7 +165,7 @@
     return { count, grams, cost, byFailureType };
   }
 
-  const api = { FAILURE_TYPES, costOf, newEntry, removeEntry, totals };
+  const api = { FAILURE_TYPES, costOf, newEntry, forOrder, removeEntry, totals };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   global.KhaytWasteEntry = api;
 

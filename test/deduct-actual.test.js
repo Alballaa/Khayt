@@ -117,7 +117,7 @@ test('a failed print takes nothing when there is nothing to take', () => {
   for (const grams of [0, -1, null, undefined, 'x']) {
     const inv = shelf();
     assert.deepEqual(D.deductActual(job(), grams, { settings: {}, inventory: inv, today: 'd' }),
-      { deducted: 0, spools: [], nowLow: [] }, String(grams));
+      { deducted: 0, spools: [], drawn: [], nowLow: [] }, String(grams));
     assert.equal(inv[0].weight, 1000);
   }
   const inv = shelf();
@@ -167,4 +167,74 @@ test('the measured grams are used, and only when something measured them', () =>
     completion: { at: now - 1000 * 60 * 60 * 24 * 30, actuals: { filamentGrams: 96, source: 'moonraker' } },
     now,
   }), null);
+});
+
+/* ── Waste logged against a job ─────────────────────────────────────────── */
+
+test('waste logged against a job comes off that job\'s spools, not the first of a material', () => {
+  const W = require('../lib/waste-entry.js');
+  // Two PLA spools; the job prints from the SECOND. Taking the grams off the
+  // first — which is what a material lookup does — charges the wrong roll and
+  // leaves both wrong.
+  const inv = [
+    { id: 'S1', material: 'PLA', weight: 1000, cost: 90 },
+    { id: 'S2', material: 'PLA', weight: 800, cost: 90 },
+  ];
+  const order = { id: 'J1', parts: [{ filamentId: 'S2', printWeight: 300, qty: 1 }] };
+  const out = W.forOrder(order, { material: 'PLA', weight: 120, failureType: 'warping' },
+                         { id: 'W1', today: 'd', inventory: inv, settings: {} });
+  assert.equal(out.deducted, 120);
+  assert.equal(inv[0].weight, 1000, 'the spool this job was not printing from is untouched');
+  assert.equal(inv[1].weight, 680);
+  assert.deepEqual(out.entry.drawn, [{ spoolId: 'S2', grams: 120 }]);
+  assert.equal(out.entry.orderId, 'J1');
+  assert.ok(out.entry.cost > 0, 'and it is costed');
+});
+
+test('deleting a job\'s waste puts back exactly what it took, spool by spool', () => {
+  const W = require('../lib/waste-entry.js');
+  // The assigned spool runs out and the rest spills onto its sibling. A row
+  // that remembered only "which spool" would put the whole lot back on one.
+  const inv = [
+    { id: 'S1', material: 'PLA', weight: 50, cost: 90 },
+    { id: 'S2', material: 'PLA', weight: 500, cost: 90 },
+  ];
+  const order = { id: 'J1', parts: [{ filamentId: 'S1', printWeight: 200, qty: 1 }] };
+  const out = W.forOrder(order, { material: 'PLA', weight: 200 },
+                         { id: 'W1', today: 'd', inventory: inv, settings: {} });
+  assert.deepEqual(out.entry.drawn, [{ spoolId: 'S1', grams: 50 }, { spoolId: 'S2', grams: 150 }]);
+  assert.deepEqual(inv.map((s) => s.weight), [0, 350]);
+
+  const log = [out.entry];
+  W.removeEntry(log, 'W1', { inventory: inv });
+  assert.deepEqual(inv.map((s) => s.weight), [50, 500], 'both spools, the right amounts');
+  assert.equal(log.length, 0);
+});
+
+test('an older waste row, written before `drawn`, still restores the way it always did', () => {
+  const W = require('../lib/waste-entry.js');
+  const inv = [{ id: 'S1', material: 'PLA', weight: 800 }];
+  const log = [{ id: 'W-old', spoolId: 'S1', weight: 120, material: 'PLA' }];
+  W.removeEntry(log, 'W-old', { inventory: inv });
+  assert.equal(inv[0].weight, 920);
+});
+
+test('a spool deleted since the waste was logged is skipped, not recreated', () => {
+  const D = require('../lib/order-deduction.js');
+  const inv = [{ id: 'S2', material: 'PLA', weight: 500 }];
+  // The filament went with the spool; inventing it back would be a lie about
+  // stock the shop no longer has.
+  assert.equal(D.restoreDrawn([{ spoolId: 'S1', grams: 50 }, { spoolId: 'S2', grams: 150 }],
+                              { inventory: inv }), 150);
+  assert.equal(inv[0].weight, 650);
+});
+
+test('a job\'s waste with no material is refused, and takes nothing', () => {
+  const W = require('../lib/waste-entry.js');
+  const inv = [{ id: 'S1', material: 'PLA', weight: 800 }];
+  const out = W.forOrder({ id: 'J1', parts: [{ filamentId: 'S1', printWeight: 200, qty: 1 }] },
+                         { material: '   ', weight: 100 },
+                         { id: 'W1', today: 'd', inventory: inv, settings: {} });
+  assert.deepEqual(out, { refused: 'material' });
+  assert.equal(inv[0].weight, 800);
 });

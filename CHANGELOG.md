@@ -113,6 +113,11 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   that cannot work is refused when you type it instead of failing silently
   later.
 
+- **Waste logged against a job takes its filament off the shelf too**, and off
+  that job's own spools — not the first spool of that material, which charged
+  the wrong roll for a shop with two of the same filament. Deleting the entry
+  puts back exactly what it took, spool by spool.
+
 - **A failed print now takes its filament off the shelf.** The waste log
   recorded the grams and their cost, and the stock was left untouched — so
   every failed print left the shelf reading higher than it really was, and the

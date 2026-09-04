@@ -200,15 +200,19 @@
    * because the job is not done: the reprint will deduct its own.
    *
    * `ctx`: `{ settings, inventory, machines, today }`.
-   * Returns `{ deducted, spools, nowLow }` — the grams actually taken, the
-   * spool ids they came off, and any that are now low.
+   * Returns `{ deducted, spools, drawn, nowLow }` — the grams actually taken,
+   * the spool ids they came off, WHAT CAME OFF EACH, and any spool now low.
+   *
+   * `drawn` is what makes a deduction reversible. A failure can spill across
+   * several spools when the assigned one runs out, and a row that remembers
+   * only "which spools" cannot put the right grams back on each.
    */
   function deductActual(order, grams, ctx) {
     const c = ctxOf(ctx);
     const settings = ctxOf(c.settings);
     const inventory = arrayOf(c.inventory);
     const wanted = Math.max(0, +grams || 0);
-    const empty = { deducted: 0, spools: [], nowLow: [] };
+    const empty = { deducted: 0, spools: [], drawn: [], nowLow: [] };
     if (wanted <= 0) return empty;
 
     const claims = claimsFor(order, inventory);
@@ -217,6 +221,7 @@
 
     let deducted = 0;
     const spools = [];
+    const drawn = [];
     const nowLow = [];
     const orderLoc = orderLocationId(order, c.machines);
 
@@ -235,10 +240,37 @@
         remaining -= take;
         deducted += take;
         if (!spools.includes(sp.id)) spools.push(sp.id);
+        const already = drawn.find(d => d.spoolId === sp.id);
+        if (already) already.grams += take;
+        else drawn.push({ spoolId: sp.id, grams: take });
         if (isLowStock(sp, settings) && !nowLow.some(x => x.id === sp.id)) nowLow.push(sp);
       }
     }
-    return { deducted, spools, nowLow };
+    return { deducted, spools, drawn, nowLow };
+  }
+
+  /**
+   * Put back exactly what a deduction took.
+   *
+   * `drawn` is what `deductActual` recorded: which spool, and how much off it.
+   * A row that remembers only which spools cannot restore correctly when the
+   * assigned one ran out and the rest spilled onto its siblings.
+   *
+   * Returns the grams put back. A spool that has since been deleted is skipped
+   * rather than recreated — the filament is gone with it.
+   */
+  function restoreDrawn(drawn, ctx) {
+    const inventory = arrayOf(ctxOf(ctx).inventory);
+    let restored = 0;
+    for (const d of arrayOf(drawn)) {
+      const grams = Math.max(0, +((d && d.grams)) || 0);
+      if (grams <= 0) continue;
+      const spool = inventory.find(s => s && s.id === d.spoolId);
+      if (!spool) continue;
+      spool.weight = (+spool.weight || 0) + grams;
+      restored += grams;
+    }
+    return restored;
   }
 
   /**
@@ -404,7 +436,7 @@
     USAGE_CAP, DEFAULT_LOW_STOCK,
     isLowStock, spoolsByLocationPreference, partGramsConsumed, orderLocationId,
     deductForOrder, deductPackaging,
-    claimsFor, claimedGrams, scaleFor, deductActual,
+    claimsFor, claimedGrams, scaleFor, deductActual, restoreDrawn,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   global.KhaytOrderDeduction = api;
