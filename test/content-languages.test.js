@@ -227,7 +227,9 @@ test('the settings form builds its fields from the chosen languages', () => {
   const src = fs.readFileSync(path.join(RENDERER, 'settings.js'), 'utf8');
   assert.match(src, /function renderContentFields\(\)/,
     'the five shop-text fields are built per language, not hard-coded as pairs');
-  assert.match(src, /\.\.\.readContentFields\(\)/,
+  // Read back into the form the shared save rule is handed (the save itself
+  // is lib/settings-edit.js now, which spreads `content` over the settings).
+  assert.match(src, /content:\s*readContentFields\(\)/,
     'and read back from whatever fields are on screen');
   // The old ten hard-coded save lines are gone.
   assert.doesNotMatch(src, /bizEn:\s*\$\('#set_bizEn'\)/);

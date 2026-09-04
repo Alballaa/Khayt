@@ -38,11 +38,9 @@ const LOCALES = (() => {
 })();
 const EN = LOCALES.en;
 
-const CURRENCIES = {
-  SAR: { symbol: 'SAR', decimals: 2 },
-  USD: { symbol: '$', decimals: 2 },
-  EUR: { symbol: '€', decimals: 2 },
-};
+// The real table, not a three-row stand-in: the fixtures are what the document
+// prints, and the document prints against lib/currencies.js.
+const { CURRENCIES } = require('../../lib/currencies.js');
 
 /** A DOM element that only remembers what it was given. */
 function fakeArea() {

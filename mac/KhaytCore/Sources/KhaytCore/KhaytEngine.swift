@@ -116,6 +116,12 @@ public actor KhaytEngine {
         // showed the raw ISO timestamp under DATE.
         "print-date",
         "invoice-document",
+        // The currencies a shop can price in, and how a settings form is
+        // saved. The save was a 240-line literal inside the Electron settings
+        // page, which is why only that page could change a setting; lifted so
+        // the Mac's Settings window writes the same record by the same clamps.
+        "currencies",
+        "settings-edit",
     ]
 
     /// The languages whose strings are bundled.
