@@ -11,6 +11,19 @@
 const _countsForBusiness = (o) =>
   (typeof KhaytBusinessScope === 'undefined') || KhaytBusinessScope.countsForBusiness(o);
 
+/* Who the shop's best customers are and what it is asked for most — the same
+ * two rollups this file used to write out four times, now in lib/top-lists.js
+ * so the Mac app shows the same lists rather than forming a second opinion.
+ * Guarded like the line above, and for the same reason. */
+const _topLists = () => (typeof KhaytTopLists === 'undefined' ? null : KhaytTopLists);
+const _topCtx = () => ({
+  settings: typeof settings !== 'undefined' ? settings : {},
+  clients: typeof clients !== 'undefined' ? clients : [],
+  products: typeof products !== 'undefined' ? products : [],
+  currencies: (typeof KhaytCurrencies !== 'undefined' && KhaytCurrencies.CURRENCIES) || null,
+  language: (typeof i18n !== 'undefined' && i18n.current) || 'en',
+});
+
 (function (global) {
 /* ============================================================
    Simple Reports — shown instead of full Analytics in Simple mode
@@ -211,21 +224,14 @@ function renderHandoffAnalyticsOverview(ctx) {
   const heat = buildHandoffHeatmapCells();
   const dayLabels = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
-  const clientAgg = {};
-  completed.forEach(o => {
-    if (!o.clientId) return;
-    clientAgg[o.clientId] = clientAgg[o.clientId] || { count: 0, revenue: 0 };
-    clientAgg[o.clientId].count++;
-    clientAgg[o.clientId].revenue += orderNetRevenueBase(o);
-  });
-  const topClients = Object.entries(clientAgg)
-    .map(([id, agg]) => {
-      const c = clients.find(x => x.id === id);
-      const tier = typeof getClientTier === 'function' ? getClientTier(id) : null;
-      return { id, name: c ? localName(c) : id, color: c?.color || 'var(--accent)', tier: tier?.name || '—', ...agg };
-    })
-    .sort((a, b) => b.revenue - a.revenue)
-    .slice(0, 8);
+  // Eight here, five on the simple screen — the whole of the difference
+  // between the two copies this used to be.
+  const topClients = (_topLists()?.topClients(completed, _topCtx(), { limit: 8 }) || [])
+    .map(row => {
+      const c = clients.find(x => x.id === row.id);
+      const tier = typeof getClientTier === 'function' ? getClientTier(row.id) : null;
+      return { ...row, color: c?.color || 'var(--accent)', tier: tier?.name || '—' };
+    });
   const maxLtv = Math.max(...topClients.map(c => c.revenue), 1);
 
   wrap.innerHTML = `
@@ -345,21 +351,7 @@ function renderAnalytics() {
   renderHandoffAnalyticsOverview({ revenue, completed, receivables, convRate, revSpark });
 
   // Top products
-  const productAgg = {};
-  orders.forEach(o => {
-    if (!o.productId) return;
-    productAgg[o.productId] = productAgg[o.productId] || { count: 0, revenue: 0 };
-    productAgg[o.productId].count++;
-    if (o.status === 'completed' && !o.voidedAt && _countsForBusiness(o)) productAgg[o.productId].revenue += orderNetRevenueBase(o);
-  });
-  const topProducts = Object.entries(productAgg)
-    .map(([id, agg]) => {
-      const p = products.find(x => x.id === id);
-      const name = p ? (localName(p)) : id;
-      return { name, ...agg };
-    })
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 5);
+  const topProducts = _topLists()?.topProducts(orders, _topCtx(), { limit: 5 }) || [];
 
   const tpList = $('#topProductsList');
   if (topProducts.length === 0) {
@@ -374,21 +366,7 @@ function renderAnalytics() {
   }
 
   // Top clients
-  const clientAgg = {};
-  completed.forEach(o => {
-    if (!o.clientId) return;
-    clientAgg[o.clientId] = clientAgg[o.clientId] || { count: 0, revenue: 0 };
-    clientAgg[o.clientId].count++;
-    clientAgg[o.clientId].revenue += orderNetRevenueBase(o);
-  });
-  const topClients = Object.entries(clientAgg)
-    .map(([id, agg]) => {
-      const c = clients.find(x => x.id === id);
-      const name = c ? (localName(c)) : id;
-      return { name, ...agg };
-    })
-    .sort((a, b) => b.revenue - a.revenue)
-    .slice(0, 5);
+  const topClients = _topLists()?.topClients(completed, _topCtx(), { limit: 5 }) || [];
 
   const tcList = $('#topClientsList');
   if (topClients.length === 0) {

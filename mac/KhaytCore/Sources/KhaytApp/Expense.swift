@@ -92,11 +92,18 @@ enum Period: String, CaseIterable, Identifiable {
 }
 
 
-/// The two things a shop reads at the end of a month: what it made, and what
-/// it is still owed. On the Shop rather than the view, so a snapshot run can
-/// turn the page — the same reason the period and the settings pane are.
+/// What a shop reads at the end of a month: what it made, what it is still
+/// owed, and who it made it from. On the Shop rather than the view, so a
+/// snapshot run can turn the page — the same reason the period and the
+/// settings pane are.
 enum ReportPage: String, CaseIterable, Identifiable {
-    case profit, owing
+    case profit, owing, best
     var id: String { rawValue }
-    var key: String { self == .profit ? "an.pnl_title" : "an.aged_receivables" }
+    var key: String {
+        switch self {
+        case .profit: return "an.pnl_title"
+        case .owing:  return "an.aged_receivables"
+        case .best:   return "mac.best"
+        }
+    }
 }

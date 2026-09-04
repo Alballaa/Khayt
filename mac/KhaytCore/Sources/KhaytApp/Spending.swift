@@ -245,36 +245,44 @@ struct Waste: View {
     }
 }
 
-/// The period picker and the add button, shared by both screens.
+/// Which stretch of the book a screen is showing.
+///
+/// A Menu, not a Picker. A Picker in a toolbar draws as a popup whose label is
+/// its selected value, and it came out EMPTY — a chevron with nothing beside
+/// it, in every photograph, whichever style and sizing it was given. A Menu
+/// says what it is showing.
+struct PeriodMenu: View {
+    let shop: Shop
+
+    var body: some View {
+        Menu {
+            ForEach(Period.allCases) { period in
+                Button {
+                    shop.period = period
+                } label: {
+                    if shop.period == period { Label(shop.words.callIt(period.key), systemImage: "checkmark") }
+                    else { Text(shop.words.callIt(period.key)) }
+                }
+            }
+        } label: {
+            // A bare `Text`. A toolbar Menu draws a `Label` as its icon alone —
+            // `.labelStyle(.titleAndIcon)` does not change that — and which
+            // period a list is showing is the one thing a period control has to
+            // say. It was a calendar glyph and a chevron.
+            Text(shop.words.callIt(shop.period.key))
+        }
+        .menuStyle(.borderlessButton)
+    }
+}
+
+/// The period picker and the add button, shared by both spending screens.
 struct SpendToolbar: ToolbarContent {
     let shop: Shop
     let add: () -> Void
     let addLabel: String
 
     var body: some ToolbarContent {
-        ToolbarItem {
-            // A Menu, not a Picker. A Picker in a toolbar draws as a popup
-            // whose label is its selected value, and it came out EMPTY — a
-            // chevron with nothing beside it, in every photograph, whichever
-            // style and sizing it was given. A Menu says what it is showing.
-            Menu {
-                ForEach(Period.allCases) { period in
-                    Button {
-                        shop.period = period
-                    } label: {
-                        if shop.period == period { Label(shop.words.callIt(period.key), systemImage: "checkmark") }
-                        else { Text(shop.words.callIt(period.key)) }
-                    }
-                }
-            } label: {
-                // A bare `Text`. A toolbar Menu draws a `Label` as its icon
-                // alone — `.labelStyle(.titleAndIcon)` does not change that —
-                // and which period a list is showing is the one thing a period
-                // control has to say. It was a calendar glyph and a chevron.
-                Text(shop.words.callIt(shop.period.key))
-            }
-            .menuStyle(.borderlessButton)
-        }
+        ToolbarItem { PeriodMenu(shop: shop) }
         ToolbarItem {
             Button(addLabel, systemImage: "plus", action: add)
                 // The sample shop is for looking at, and a button that opens a

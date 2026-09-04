@@ -101,6 +101,9 @@ final class Activator: NSObject, NSApplicationDelegate {
     static weak var subject: Shop?
 
     static func run(into dir: URL) {
+        // Every write below is `try?`, so a directory that is not there costs a
+        // whole run and says nothing at all — 31 "wrote …" lines and no files.
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         Task { @MainActor in
             // The window has to have laid out and drawn once. Two seconds is
             // generous; capturing an unlaid-out window yields a blank sheet.
@@ -289,6 +292,12 @@ final class Activator: NSObject, NSApplicationDelegate {
             await settle()
             try? await Task.sleep(for: .milliseconds(600))
             capture(named: "20b-owing", into: dir)
+            // And the third: who the money came from. Same reason as the P&L —
+            // the lists are computed by the runtime after the screen appears.
+            shop.reportPage = .best
+            await settle()
+            try? await Task.sleep(for: .milliseconds(600))
+            capture(named: "20c-best", into: dir)
             shop.reportPage = .profit
             await settle()
 

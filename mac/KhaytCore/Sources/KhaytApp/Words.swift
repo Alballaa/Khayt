@@ -432,6 +432,12 @@ final class Words {
                                 "ar": "تُحذف مفاتيح الواجهات وكلمات المرور ورموز الوصول من هذه النسخة."],
         "mac.exported_to":   ["en": "Exported as", "ar": "صُدّرت باسم"],
         "mac.export_failed": ["en": "Nothing was exported:", "ar": "لم يُصدَّر شيء:"],
+        // Who the shop's money came from, and what it is asked for. Khayt has
+        // its own words for the two lists; this is the name of the page that
+        // holds both, which it does not.
+        "mac.best":          ["en": "Best",         "ar": "الأفضل"],
+        "mac.times_ordered": ["en": "Orders",       "ar": "الطلبات"],
+        "mac.unnamed":       ["en": "(no name yet)", "ar": "(بلا اسم بعد)"],
         // Settings
         "mac.revert":        ["en": "Revert",       "ar": "تراجع"],
         "mac.settings_saved": ["en": "Saved.",      "ar": "حُفظ."],
