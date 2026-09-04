@@ -6,7 +6,7 @@
       "status": "delivered",
       "project": "Turbine bracket",
       "client": "KAUST Prototyping Lab",
-      "clientId": null,
+      "clientId": "CLI-8A5045",
       "machineId": "MACH-core-one",
       "parts": [
         {
@@ -45,7 +45,8 @@
       "notes": "Reprint — first attempt warped.",
       "statusHistory": [],
       "rev": 1,
-      "updatedAt": "2026-07-02T11:32:00Z"
+      "updatedAt": "2026-07-02T11:32:00Z",
+      "productId": "PRD-3E4E75"
     },
     {
       "id": "ORD-01001",
@@ -53,7 +54,7 @@
       "status": "pending",
       "project": "Dental model set",
       "client": "Nouf Al-Dossari",
-      "clientId": null,
+      "clientId": "CLI-F633FC",
       "machineId": "MACH-core-one",
       "parts": [
         {
@@ -92,7 +93,8 @@
       "notes": "Reprint — first attempt warped.",
       "statusHistory": [],
       "rev": 1,
-      "updatedAt": "2026-08-31T15:24:00Z"
+      "updatedAt": "2026-08-31T15:24:00Z",
+      "productId": "PRD-6A91F9"
     },
     {
       "id": "ORD-01002",
@@ -100,7 +102,7 @@
       "status": "completed",
       "project": "Kaaba desk piece",
       "client": "Tuwaiq Makerspace",
-      "clientId": null,
+      "clientId": "CLI-1A9EB5",
       "machineId": "MACH-x1c",
       "parts": [
         {
@@ -139,7 +141,8 @@
       "notes": "",
       "statusHistory": [],
       "rev": 1,
-      "updatedAt": "2026-06-15T09:08:00Z"
+      "updatedAt": "2026-06-15T09:08:00Z",
+      "productId": "PRD-0522F9"
     },
     {
       "id": "ORD-01003",
@@ -147,7 +150,7 @@
       "status": "delivered",
       "project": "Cable chain, 40 links",
       "client": "Sara Al-Harbi",
-      "clientId": null,
+      "clientId": "CLI-1EF91E",
       "machineId": "MACH-u1",
       "parts": [
         {
@@ -186,7 +189,8 @@
       "notes": "Colour matched to their brand sample.",
       "statusHistory": [],
       "rev": 1,
-      "updatedAt": "2026-07-06T14:26:00Z"
+      "updatedAt": "2026-07-06T14:26:00Z",
+      "productId": "PRD-8F047C"
     },
     {
       "id": "ORD-01004",
@@ -194,7 +198,7 @@
       "status": "printing",
       "project": "Museum replica — Kings",
       "client": "Turki Al-Otaibi",
-      "clientId": null,
+      "clientId": "CLI-418DAE",
       "machineId": "MACH-x1c",
       "parts": [
         {
@@ -233,7 +237,8 @@
       "notes": "",
       "statusHistory": [],
       "rev": 1,
-      "updatedAt": "2026-08-16T12:00:00Z"
+      "updatedAt": "2026-08-16T12:00:00Z",
+      "productId": "PRD-9FE0F9"
     },
     {
       "id": "ORD-01005",
@@ -241,7 +246,7 @@
       "status": "quote",
       "project": "Drone arm v4",
       "client": "Nouf Al-Balawi",
-      "clientId": null,
+      "clientId": "CLI-A7B55E",
       "machineId": "MACH-x1c",
       "parts": [
         {
@@ -280,7 +285,8 @@
       "notes": "Customer collecting Thursday.",
       "statusHistory": [],
       "rev": 1,
-      "updatedAt": "2026-08-22T10:37:00Z"
+      "updatedAt": "2026-08-22T10:37:00Z",
+      "productId": "PRD-51069B"
     },
     {
       "id": "ORD-01006",
@@ -288,7 +294,7 @@
       "status": "quote",
       "project": "Signage letters, 12",
       "client": "Sara Al-Harbi",
-      "clientId": null,
+      "clientId": "CLI-1EF91E",
       "machineId": "MACH-core-one",
       "parts": [
         {
@@ -327,7 +333,8 @@
       "notes": "Customer collecting Thursday.",
       "statusHistory": [],
       "rev": 1,
-      "updatedAt": "2026-08-29T11:43:00Z"
+      "updatedAt": "2026-08-29T11:43:00Z",
+      "productId": "PRD-EF6642"
     },
     {
       "id": "ORD-01007",
@@ -335,7 +342,7 @@
       "status": "completed",
       "project": "Gearbox housing",
       "client": "Hail Motors",
-      "clientId": null,
+      "clientId": "CLI-B84866",
       "machineId": "MACH-x1c",
       "parts": [
         {
@@ -374,7 +381,8 @@
       "notes": "Rush job for an exhibition.",
       "statusHistory": [],
       "rev": 1,
-      "updatedAt": "2026-08-28T17:31:00Z"
+      "updatedAt": "2026-08-28T17:31:00Z",
+      "productId": "PRD-68297E"
     },
     {
       "id": "ORD-01008",
@@ -382,7 +390,7 @@
       "status": "delivered",
       "project": "Falcon hood",
       "client": "Layla Al-Shammari",
-      "clientId": null,
+      "clientId": "CLI-994C0F",
       "machineId": "MACH-u1",
       "parts": [
         {
@@ -421,7 +429,8 @@
       "notes": "Customer collecting Thursday.",
       "statusHistory": [],
       "rev": 1,
-      "updatedAt": "2026-08-26T19:01:00Z"
+      "updatedAt": "2026-08-26T19:01:00Z",
+      "productId": "PRD-2CF8FF"
     },
     {
       "id": "ORD-01009",
@@ -429,7 +438,7 @@
       "status": "completed",
       "project": "Camera rig plate",
       "client": "Maha Al-Qahtani",
-      "clientId": null,
+      "clientId": "CLI-08D285",
       "machineId": "MACH-x1c",
       "parts": [
         {
@@ -468,7 +477,8 @@
       "notes": "",
       "statusHistory": [],
       "rev": 1,
-      "updatedAt": "2026-08-03T13:42:00Z"
+      "updatedAt": "2026-08-03T13:42:00Z",
+      "productId": "PRD-F68FC0"
     },
     {
       "id": "ORD-01010",
@@ -476,7 +486,7 @@
       "status": "quote",
       "project": "Palm frond mould",
       "client": "Khalid Al-Otaibi",
-      "clientId": null,
+      "clientId": "CLI-2E3820",
       "machineId": "MACH-core-one",
       "parts": [
         {
@@ -515,7 +525,8 @@
       "notes": "",
       "statusHistory": [],
       "rev": 1,
-      "updatedAt": "2026-08-16T15:04:00Z"
+      "updatedAt": "2026-08-16T15:04:00Z",
+      "productId": "PRD-BA8B48"
     },
     {
       "id": "ORD-01011",
@@ -523,7 +534,7 @@
       "status": "printing",
       "project": "Coffee dallah stand",
       "client": "Maha Al-Ghamdi",
-      "clientId": null,
+      "clientId": "CLI-E2682E",
       "machineId": "MACH-core-one",
       "parts": [
         {
@@ -562,7 +573,8 @@
       "notes": "",
       "statusHistory": [],
       "rev": 1,
-      "updatedAt": "2026-09-01T09:55:00Z"
+      "updatedAt": "2026-09-01T09:55:00Z",
+      "productId": "PRD-A86347"
     },
     {
       "id": "ORD-01012",
@@ -570,7 +582,7 @@
       "status": "delivered",
       "project": "Prosthetic socket trial",
       "client": "Nouf Al-Balawi",
-      "clientId": null,
+      "clientId": "CLI-A7B55E",
       "machineId": "MACH-core-one",
       "parts": [
         {
@@ -609,7 +621,8 @@
       "notes": "Customer collecting Thursday.",
       "statusHistory": [],
       "rev": 1,
-      "updatedAt": "2026-05-16T09:16:00Z"
+      "updatedAt": "2026-05-16T09:16:00Z",
+      "productId": "PRD-3C492B"
     },
     {
       "id": "ORD-01013",
@@ -617,7 +630,7 @@
       "status": "completed",
       "project": "HVAC duct adapter",
       "client": "Nouf Al-Shammari",
-      "clientId": null,
+      "clientId": "CLI-BF48B2",
       "machineId": "MACH-core-one",
       "parts": [
         {
@@ -656,7 +669,8 @@
       "notes": "Rush job for an exhibition.",
       "statusHistory": [],
       "rev": 1,
-      "updatedAt": "2026-05-07T11:44:00Z"
+      "updatedAt": "2026-05-07T11:44:00Z",
+      "productId": "PRD-49E07C"
     },
     {
       "id": "ORD-01014",
@@ -664,7 +678,7 @@
       "status": "printing",
       "project": "Shelf brackets, 24",
       "client": "Sara Al-Subaie",
-      "clientId": null,
+      "clientId": "CLI-43C78E",
       "machineId": "MACH-core-one",
       "parts": [
         {
@@ -703,7 +717,8 @@
       "notes": "",
       "statusHistory": [],
       "rev": 1,
-      "updatedAt": "2026-08-19T18:59:00Z"
+      "updatedAt": "2026-08-19T18:59:00Z",
+      "productId": "PRD-3B7A21"
     },
     {
       "id": "ORD-01015",
@@ -711,7 +726,7 @@
       "status": "pending",
       "project": "Oud bridge jig",
       "client": "Jood Al-Dossari",
-      "clientId": null,
+      "clientId": "CLI-DEDCB9",
       "machineId": "MACH-core-one",
       "parts": [
         {
@@ -750,7 +765,8 @@
       "notes": "Colour matched to their brand sample.",
       "statusHistory": [],
       "rev": 1,
-      "updatedAt": "2026-08-22T10:08:00Z"
+      "updatedAt": "2026-08-22T10:08:00Z",
+      "productId": "PRD-77CFAD"
     },
     {
       "id": "ORD-01016",
@@ -758,7 +774,7 @@
       "status": "completed",
       "project": "Ramadan lantern",
       "client": "Red Sea Global",
-      "clientId": null,
+      "clientId": "CLI-75DFFA",
       "machineId": "MACH-x1c",
       "parts": [
         {
@@ -797,7 +813,8 @@
       "notes": "",
       "statusHistory": [],
       "rev": 1,
-      "updatedAt": "2026-08-29T14:24:00Z"
+      "updatedAt": "2026-08-29T14:24:00Z",
+      "productId": "PRD-B5BCAD"
     },
     {
       "id": "ORD-01017",
@@ -805,7 +822,7 @@
       "status": "delivered",
       "project": "Robot gripper fingers",
       "client": "Tuwaiq Makerspace",
-      "clientId": null,
+      "clientId": "CLI-1A9EB5",
       "machineId": "MACH-x1c",
       "parts": [
         {
@@ -844,7 +861,8 @@
       "notes": "",
       "statusHistory": [],
       "rev": 1,
-      "updatedAt": "2026-06-04T13:19:00Z"
+      "updatedAt": "2026-06-04T13:19:00Z",
+      "productId": "PRD-0E40B5"
     },
     {
       "id": "ORD-01018",
@@ -852,7 +870,7 @@
       "status": "delivered",
       "project": "Wind tunnel model",
       "client": "Reem Al-Dossari",
-      "clientId": null,
+      "clientId": "CLI-1542D4",
       "machineId": "MACH-core-one",
       "parts": [
         {
@@ -891,7 +909,8 @@
       "notes": "Reprint — first attempt warped.",
       "statusHistory": [],
       "rev": 1,
-      "updatedAt": "2026-06-13T18:07:00Z"
+      "updatedAt": "2026-06-13T18:07:00Z",
+      "productId": "PRD-9A0055"
     },
     {
       "id": "ORD-01019",
@@ -899,7 +918,7 @@
       "status": "quote",
       "project": "Souq stall sign",
       "client": "Red Sea Global",
-      "clientId": null,
+      "clientId": "CLI-75DFFA",
       "machineId": "MACH-x1c",
       "parts": [
         {
@@ -938,7 +957,8 @@
       "notes": "",
       "statusHistory": [],
       "rev": 1,
-      "updatedAt": "2026-08-14T20:30:00Z"
+      "updatedAt": "2026-08-14T20:30:00Z",
+      "productId": "PRD-293BE2"
     },
     {
       "id": "ORD-01020",
@@ -946,7 +966,7 @@
       "status": "quote",
       "project": "Turbine bracket",
       "client": "Faisal Al-Zahrani",
-      "clientId": null,
+      "clientId": "CLI-502F3A",
       "machineId": "MACH-x1c",
       "parts": [
         {
@@ -985,7 +1005,8 @@
       "notes": "Customer collecting Thursday.",
       "statusHistory": [],
       "rev": 1,
-      "updatedAt": "2026-08-26T11:05:00Z"
+      "updatedAt": "2026-08-26T11:05:00Z",
+      "productId": "PRD-3E4E75"
     },
     {
       "id": "ORD-01021",
@@ -993,7 +1014,7 @@
       "status": "completed",
       "project": "Dental model set",
       "client": "Hessa Al-Mutairi",
-      "clientId": null,
+      "clientId": "CLI-AA555E",
       "machineId": "MACH-x1c",
       "parts": [
         {
@@ -1032,7 +1053,8 @@
       "notes": "",
       "statusHistory": [],
       "rev": 1,
-      "updatedAt": "2026-07-07T09:46:00Z"
+      "updatedAt": "2026-07-07T09:46:00Z",
+      "productId": "PRD-6A91F9"
     },
     {
       "id": "ORD-01022",
@@ -1040,7 +1062,7 @@
       "status": "delivered",
       "project": "Kaaba desk piece",
       "client": "Hessa Al-Shammari",
-      "clientId": null,
+      "clientId": "CLI-6517BB",
       "machineId": "MACH-u1",
       "parts": [
         {
@@ -1079,7 +1101,8 @@
       "notes": "",
       "statusHistory": [],
       "rev": 1,
-      "updatedAt": "2026-08-07T13:32:00Z"
+      "updatedAt": "2026-08-07T13:32:00Z",
+      "productId": "PRD-0522F9"
     },
     {
       "id": "ORD-01023",
@@ -1087,7 +1110,7 @@
       "status": "completed",
       "project": "Cable chain, 40 links",
       "client": "KAUST Prototyping Lab",
-      "clientId": null,
+      "clientId": "CLI-8A5045",
       "machineId": "MACH-u1",
       "parts": [
         {
@@ -1126,7 +1149,8 @@
       "notes": "Reprint — first attempt warped.",
       "statusHistory": [],
       "rev": 1,
-      "updatedAt": "2026-06-25T16:21:00Z"
+      "updatedAt": "2026-06-25T16:21:00Z",
+      "productId": "PRD-8F047C"
     },
     {
       "id": "ORD-01024",
@@ -1134,7 +1158,7 @@
       "status": "printing",
       "project": "Museum replica — Kings",
       "client": "Najd Architects",
-      "clientId": null,
+      "clientId": "CLI-5C0B0D",
       "machineId": "MACH-u1",
       "parts": [
         {
@@ -1173,7 +1197,8 @@
       "notes": "Colour matched to their brand sample.",
       "statusHistory": [],
       "rev": 1,
-      "updatedAt": "2026-08-18T19:35:00Z"
+      "updatedAt": "2026-08-18T19:35:00Z",
+      "productId": "PRD-9FE0F9"
     },
     {
       "id": "ORD-01025",
@@ -1181,7 +1206,7 @@
       "status": "printing",
       "project": "Drone arm v4",
       "client": "Riyadh Dental Studio",
-      "clientId": null,
+      "clientId": "CLI-68E74C",
       "machineId": "MACH-core-one",
       "parts": [
         {
@@ -1220,7 +1245,8 @@
       "notes": "Reprint — first attempt warped.",
       "statusHistory": [],
       "rev": 1,
-      "updatedAt": "2026-08-17T17:31:00Z"
+      "updatedAt": "2026-08-17T17:31:00Z",
+      "productId": "PRD-51069B"
     },
     {
       "id": "ORD-01026",
@@ -1228,7 +1254,7 @@
       "status": "completed",
       "project": "Signage letters, 12",
       "client": "Turki Al-Mutairi",
-      "clientId": null,
+      "clientId": "CLI-7C497F",
       "machineId": "MACH-core-one",
       "parts": [
         {
@@ -1267,7 +1293,8 @@
       "notes": "Customer collecting Thursday.",
       "statusHistory": [],
       "rev": 1,
-      "updatedAt": "2026-09-03T16:29:00Z"
+      "updatedAt": "2026-09-03T16:29:00Z",
+      "productId": "PRD-EF6642"
     },
     {
       "id": "ORD-01027",
@@ -1275,7 +1302,7 @@
       "status": "delivered",
       "project": "Gearbox housing",
       "client": "Salman Al-Subaie",
-      "clientId": null,
+      "clientId": "CLI-8E9FBF",
       "machineId": "MACH-core-one",
       "parts": [
         {
@@ -1314,7 +1341,8 @@
       "notes": "Colour matched to their brand sample.",
       "statusHistory": [],
       "rev": 1,
-      "updatedAt": "2026-07-02T17:01:00Z"
+      "updatedAt": "2026-07-02T17:01:00Z",
+      "productId": "PRD-68297E"
     },
     {
       "id": "ORD-01028",
@@ -1322,7 +1350,7 @@
       "status": "delivered",
       "project": "Falcon hood",
       "client": "Hessa Al-Ghamdi",
-      "clientId": null,
+      "clientId": "CLI-36E7BA",
       "machineId": "MACH-x1c",
       "parts": [
         {
@@ -1361,7 +1389,8 @@
       "notes": "Reprint — first attempt warped.",
       "statusHistory": [],
       "rev": 1,
-      "updatedAt": "2026-09-01T15:46:00Z"
+      "updatedAt": "2026-09-01T15:46:00Z",
+      "productId": "PRD-2CF8FF"
     },
     {
       "id": "ORD-01029",
@@ -1369,7 +1398,7 @@
       "status": "delivered",
       "project": "Camera rig plate",
       "client": "Nouf Al-Zahrani",
-      "clientId": null,
+      "clientId": "CLI-DA6156",
       "machineId": "MACH-x1c",
       "parts": [
         {
@@ -1408,7 +1437,8 @@
       "notes": "Rush job for an exhibition.",
       "statusHistory": [],
       "rev": 1,
-      "updatedAt": "2026-06-16T17:10:00Z"
+      "updatedAt": "2026-06-16T17:10:00Z",
+      "productId": "PRD-F68FC0"
     },
     {
       "id": "ORD-01030",
@@ -1416,7 +1446,7 @@
       "status": "completed",
       "project": "Palm frond mould",
       "client": "Maha Al-Dossari",
-      "clientId": null,
+      "clientId": "CLI-C8D133",
       "machineId": "MACH-core-one",
       "parts": [
         {
@@ -1455,7 +1485,8 @@
       "notes": "",
       "statusHistory": [],
       "rev": 1,
-      "updatedAt": "2026-06-27T13:57:00Z"
+      "updatedAt": "2026-06-27T13:57:00Z",
+      "productId": "PRD-BA8B48"
     },
     {
       "id": "ORD-01031",
@@ -1463,7 +1494,7 @@
       "status": "delivered",
       "project": "Coffee dallah stand",
       "client": "KAUST Prototyping Lab",
-      "clientId": null,
+      "clientId": "CLI-8A5045",
       "machineId": "MACH-x1c",
       "parts": [
         {
@@ -1502,7 +1533,8 @@
       "notes": "Customer collecting Thursday.",
       "statusHistory": [],
       "rev": 1,
-      "updatedAt": "2026-08-07T14:34:00Z"
+      "updatedAt": "2026-08-07T14:34:00Z",
+      "productId": "PRD-A86347"
     },
     {
       "id": "ORD-01032",
@@ -1510,7 +1542,7 @@
       "status": "cancelled",
       "project": "Prosthetic socket trial",
       "client": "Bandar Al-Qahtani",
-      "clientId": null,
+      "clientId": "CLI-4E7DF7",
       "machineId": "MACH-x1c",
       "parts": [
         {
@@ -1549,7 +1581,8 @@
       "notes": "Colour matched to their brand sample.",
       "statusHistory": [],
       "rev": 1,
-      "updatedAt": "2026-06-15T13:32:00Z"
+      "updatedAt": "2026-06-15T13:32:00Z",
+      "productId": "PRD-3C492B"
     },
     {
       "id": "ORD-01033",
@@ -1557,7 +1590,7 @@
       "status": "pending",
       "project": "HVAC duct adapter",
       "client": "Riyadh Dental Studio",
-      "clientId": null,
+      "clientId": "CLI-68E74C",
       "machineId": "MACH-u1",
       "parts": [
         {
@@ -1596,7 +1629,8 @@
       "notes": "",
       "statusHistory": [],
       "rev": 1,
-      "updatedAt": "2026-09-01T10:18:00Z"
+      "updatedAt": "2026-09-01T10:18:00Z",
+      "productId": "PRD-49E07C"
     },
     {
       "id": "ORD-01034",
@@ -1604,7 +1638,7 @@
       "status": "quote",
       "project": "Shelf brackets, 24",
       "client": "Mishal Al-Subaie",
-      "clientId": null,
+      "clientId": "CLI-DE0F3C",
       "machineId": "MACH-x1c",
       "parts": [
         {
@@ -1643,7 +1677,8 @@
       "notes": "",
       "statusHistory": [],
       "rev": 1,
-      "updatedAt": "2026-08-13T13:00:00Z"
+      "updatedAt": "2026-08-13T13:00:00Z",
+      "productId": "PRD-3B7A21"
     },
     {
       "id": "ORD-01035",
@@ -1651,7 +1686,7 @@
       "status": "delivered",
       "project": "Oud bridge jig",
       "client": "Sara Al-Balawi",
-      "clientId": null,
+      "clientId": "CLI-85403B",
       "machineId": "MACH-u1",
       "parts": [
         {
@@ -1690,7 +1725,8 @@
       "notes": "Rush job for an exhibition.",
       "statusHistory": [],
       "rev": 1,
-      "updatedAt": "2026-08-11T08:20:00Z"
+      "updatedAt": "2026-08-11T08:20:00Z",
+      "productId": "PRD-77CFAD"
     },
     {
       "id": "ORD-01036",
@@ -1698,7 +1734,7 @@
       "status": "delivered",
       "project": "Ramadan lantern",
       "client": "Hessa Al-Shammari",
-      "clientId": null,
+      "clientId": "CLI-6517BB",
       "machineId": "MACH-u1",
       "parts": [
         {
@@ -1737,7 +1773,8 @@
       "notes": "Customer collecting Thursday.",
       "statusHistory": [],
       "rev": 1,
-      "updatedAt": "2026-05-14T19:49:00Z"
+      "updatedAt": "2026-05-14T19:49:00Z",
+      "productId": "PRD-B5BCAD"
     },
     {
       "id": "ORD-01037",
@@ -1745,7 +1782,7 @@
       "status": "pending",
       "project": "Robot gripper fingers",
       "client": "Jood Al-Dossari",
-      "clientId": null,
+      "clientId": "CLI-DEDCB9",
       "machineId": "MACH-u1",
       "parts": [
         {
@@ -1784,7 +1821,8 @@
       "notes": "",
       "statusHistory": [],
       "rev": 1,
-      "updatedAt": "2026-08-30T13:19:00Z"
+      "updatedAt": "2026-08-30T13:19:00Z",
+      "productId": "PRD-0E40B5"
     },
     {
       "id": "ORD-01038",
@@ -1792,7 +1830,7 @@
       "status": "cancelled",
       "project": "Wind tunnel model",
       "client": "Hessa Al-Dossari",
-      "clientId": null,
+      "clientId": "CLI-2A6590",
       "machineId": "MACH-core-one",
       "parts": [
         {
@@ -1831,7 +1869,8 @@
       "notes": "Customer collecting Thursday.",
       "statusHistory": [],
       "rev": 1,
-      "updatedAt": "2026-06-14T16:04:00Z"
+      "updatedAt": "2026-06-14T16:04:00Z",
+      "productId": "PRD-9A0055"
     },
     {
       "id": "ORD-01039",
@@ -1839,7 +1878,7 @@
       "status": "pending",
       "project": "Souq stall sign",
       "client": "KAUST Prototyping Lab",
-      "clientId": null,
+      "clientId": "CLI-8A5045",
       "machineId": "MACH-u1",
       "parts": [
         {
@@ -1878,7 +1917,8 @@
       "notes": "",
       "statusHistory": [],
       "rev": 1,
-      "updatedAt": "2026-08-14T14:32:00Z"
+      "updatedAt": "2026-08-14T14:32:00Z",
+      "productId": "PRD-293BE2"
     },
     {
       "id": "ORD-01040",
@@ -1886,7 +1926,7 @@
       "status": "quote",
       "project": "Turbine bracket",
       "client": "Mishal Al-Subaie",
-      "clientId": null,
+      "clientId": "CLI-DE0F3C",
       "machineId": "MACH-x1c",
       "parts": [
         {
@@ -1925,7 +1965,8 @@
       "notes": "Reprint — first attempt warped.",
       "statusHistory": [],
       "rev": 1,
-      "updatedAt": "2026-08-31T18:28:00Z"
+      "updatedAt": "2026-08-31T18:28:00Z",
+      "productId": "PRD-3E4E75"
     },
     {
       "id": "ORD-01041",
@@ -1933,7 +1974,7 @@
       "status": "pending",
       "project": "Dental model set",
       "client": "Faisal Al-Mutairi",
-      "clientId": null,
+      "clientId": "CLI-A16AFD",
       "machineId": "MACH-core-one",
       "parts": [
         {
@@ -1972,7 +2013,8 @@
       "notes": "Reprint — first attempt warped.",
       "statusHistory": [],
       "rev": 1,
-      "updatedAt": "2026-08-13T14:31:00Z"
+      "updatedAt": "2026-08-13T14:31:00Z",
+      "productId": "PRD-6A91F9"
     }
   ],
   "settings": {
@@ -3082,6 +3124,542 @@
       "orderId": null,
       "machineId": "MACH-x1c",
       "spoolId": "sp-3"
+    }
+  ],
+  "clients": [
+    {
+      "id": "CLI-8A5045",
+      "nameEn": "KAUST Prototyping Lab",
+      "nameAr": "مختبر النماذج — كاوست",
+      "phone": "",
+      "email": "",
+      "cr": "",
+      "vat": "",
+      "notes": "",
+      "defaultDiscount": 0,
+      "createdAt": "2026-01-05T09:00:00.000Z"
+    },
+    {
+      "id": "CLI-F633FC",
+      "nameEn": "Nouf Al-Dossari",
+      "nameAr": "",
+      "phone": "",
+      "email": "",
+      "cr": "",
+      "vat": "",
+      "notes": "",
+      "defaultDiscount": 0,
+      "createdAt": "2026-01-05T09:00:00.000Z"
+    },
+    {
+      "id": "CLI-1A9EB5",
+      "nameEn": "Tuwaiq Makerspace",
+      "nameAr": "مساحة طويق للصناع",
+      "phone": "",
+      "email": "",
+      "cr": "",
+      "vat": "",
+      "notes": "",
+      "defaultDiscount": 0,
+      "createdAt": "2026-01-05T09:00:00.000Z"
+    },
+    {
+      "id": "CLI-1EF91E",
+      "nameEn": "Sara Al-Harbi",
+      "nameAr": "سارة الحربي",
+      "phone": "",
+      "email": "",
+      "cr": "",
+      "vat": "",
+      "notes": "",
+      "defaultDiscount": 0,
+      "createdAt": "2026-01-05T09:00:00.000Z"
+    },
+    {
+      "id": "CLI-418DAE",
+      "nameEn": "Turki Al-Otaibi",
+      "nameAr": "تركي العتيبي",
+      "phone": "",
+      "email": "",
+      "cr": "",
+      "vat": "",
+      "notes": "",
+      "defaultDiscount": 0,
+      "createdAt": "2026-01-05T09:00:00.000Z"
+    },
+    {
+      "id": "CLI-A7B55E",
+      "nameEn": "Nouf Al-Balawi",
+      "nameAr": "نوف البلوي",
+      "phone": "",
+      "email": "",
+      "cr": "",
+      "vat": "",
+      "notes": "",
+      "defaultDiscount": 0,
+      "createdAt": "2026-01-05T09:00:00.000Z"
+    },
+    {
+      "id": "CLI-B84866",
+      "nameEn": "Hail Motors",
+      "nameAr": "حائل للسيارات",
+      "phone": "",
+      "email": "",
+      "cr": "",
+      "vat": "",
+      "notes": "",
+      "defaultDiscount": 0,
+      "createdAt": "2026-01-05T09:00:00.000Z"
+    },
+    {
+      "id": "CLI-994C0F",
+      "nameEn": "Layla Al-Shammari",
+      "nameAr": "ليلى الشمري",
+      "phone": "",
+      "email": "",
+      "cr": "",
+      "vat": "",
+      "notes": "",
+      "defaultDiscount": 0,
+      "createdAt": "2026-01-05T09:00:00.000Z"
+    },
+    {
+      "id": "CLI-08D285",
+      "nameEn": "Maha Al-Qahtani",
+      "nameAr": "مها القحطاني",
+      "phone": "",
+      "email": "",
+      "cr": "",
+      "vat": "",
+      "notes": "",
+      "defaultDiscount": 0,
+      "createdAt": "2026-01-05T09:00:00.000Z"
+    },
+    {
+      "id": "CLI-2E3820",
+      "nameEn": "Khalid Al-Otaibi",
+      "nameAr": "",
+      "phone": "",
+      "email": "",
+      "cr": "",
+      "vat": "",
+      "notes": "",
+      "defaultDiscount": 0,
+      "createdAt": "2026-01-05T09:00:00.000Z"
+    },
+    {
+      "id": "CLI-E2682E",
+      "nameEn": "Maha Al-Ghamdi",
+      "nameAr": "",
+      "phone": "",
+      "email": "",
+      "cr": "",
+      "vat": "",
+      "notes": "",
+      "defaultDiscount": 0,
+      "createdAt": "2026-01-05T09:00:00.000Z"
+    },
+    {
+      "id": "CLI-BF48B2",
+      "nameEn": "Nouf Al-Shammari",
+      "nameAr": "",
+      "phone": "",
+      "email": "",
+      "cr": "",
+      "vat": "",
+      "notes": "",
+      "defaultDiscount": 0,
+      "createdAt": "2026-01-05T09:00:00.000Z"
+    },
+    {
+      "id": "CLI-43C78E",
+      "nameEn": "Sara Al-Subaie",
+      "nameAr": "",
+      "phone": "",
+      "email": "",
+      "cr": "",
+      "vat": "",
+      "notes": "",
+      "defaultDiscount": 0,
+      "createdAt": "2026-01-05T09:00:00.000Z"
+    },
+    {
+      "id": "CLI-DEDCB9",
+      "nameEn": "Jood Al-Dossari",
+      "nameAr": "",
+      "phone": "",
+      "email": "",
+      "cr": "",
+      "vat": "",
+      "notes": "",
+      "defaultDiscount": 0,
+      "createdAt": "2026-01-05T09:00:00.000Z"
+    },
+    {
+      "id": "CLI-75DFFA",
+      "nameEn": "Red Sea Global",
+      "nameAr": "البحر الأحمر العالمية",
+      "phone": "",
+      "email": "",
+      "cr": "",
+      "vat": "",
+      "notes": "",
+      "defaultDiscount": 0,
+      "createdAt": "2026-01-05T09:00:00.000Z"
+    },
+    {
+      "id": "CLI-1542D4",
+      "nameEn": "Reem Al-Dossari",
+      "nameAr": "",
+      "phone": "",
+      "email": "",
+      "cr": "",
+      "vat": "",
+      "notes": "",
+      "defaultDiscount": 0,
+      "createdAt": "2026-01-05T09:00:00.000Z"
+    },
+    {
+      "id": "CLI-502F3A",
+      "nameEn": "Faisal Al-Zahrani",
+      "nameAr": "فيصل الزهراني",
+      "phone": "",
+      "email": "",
+      "cr": "",
+      "vat": "",
+      "notes": "",
+      "defaultDiscount": 0,
+      "createdAt": "2026-01-05T09:00:00.000Z"
+    },
+    {
+      "id": "CLI-AA555E",
+      "nameEn": "Hessa Al-Mutairi",
+      "nameAr": "",
+      "phone": "",
+      "email": "",
+      "cr": "",
+      "vat": "",
+      "notes": "",
+      "defaultDiscount": 0,
+      "createdAt": "2026-01-05T09:00:00.000Z"
+    },
+    {
+      "id": "CLI-6517BB",
+      "nameEn": "Hessa Al-Shammari",
+      "nameAr": "",
+      "phone": "",
+      "email": "",
+      "cr": "",
+      "vat": "",
+      "notes": "",
+      "defaultDiscount": 0,
+      "createdAt": "2026-01-05T09:00:00.000Z"
+    },
+    {
+      "id": "CLI-5C0B0D",
+      "nameEn": "Najd Architects",
+      "nameAr": "نجد للعمارة",
+      "phone": "",
+      "email": "",
+      "cr": "",
+      "vat": "",
+      "notes": "",
+      "defaultDiscount": 0,
+      "createdAt": "2026-01-05T09:00:00.000Z"
+    },
+    {
+      "id": "CLI-68E74C",
+      "nameEn": "Riyadh Dental Studio",
+      "nameAr": "استوديو الرياض لطب الأسنان",
+      "phone": "",
+      "email": "",
+      "cr": "",
+      "vat": "",
+      "notes": "",
+      "defaultDiscount": 0,
+      "createdAt": "2026-01-05T09:00:00.000Z"
+    },
+    {
+      "id": "CLI-7C497F",
+      "nameEn": "Turki Al-Mutairi",
+      "nameAr": "",
+      "phone": "",
+      "email": "",
+      "cr": "",
+      "vat": "",
+      "notes": "",
+      "defaultDiscount": 0,
+      "createdAt": "2026-01-05T09:00:00.000Z"
+    },
+    {
+      "id": "CLI-8E9FBF",
+      "nameEn": "Salman Al-Subaie",
+      "nameAr": "",
+      "phone": "",
+      "email": "",
+      "cr": "",
+      "vat": "",
+      "notes": "",
+      "defaultDiscount": 0,
+      "createdAt": "2026-01-05T09:00:00.000Z"
+    },
+    {
+      "id": "CLI-36E7BA",
+      "nameEn": "Hessa Al-Ghamdi",
+      "nameAr": "",
+      "phone": "",
+      "email": "",
+      "cr": "",
+      "vat": "",
+      "notes": "",
+      "defaultDiscount": 0,
+      "createdAt": "2026-01-05T09:00:00.000Z"
+    },
+    {
+      "id": "CLI-DA6156",
+      "nameEn": "Nouf Al-Zahrani",
+      "nameAr": "",
+      "phone": "",
+      "email": "",
+      "cr": "",
+      "vat": "",
+      "notes": "",
+      "defaultDiscount": 0,
+      "createdAt": "2026-01-05T09:00:00.000Z"
+    },
+    {
+      "id": "CLI-C8D133",
+      "nameEn": "Maha Al-Dossari",
+      "nameAr": "",
+      "phone": "",
+      "email": "",
+      "cr": "",
+      "vat": "",
+      "notes": "",
+      "defaultDiscount": 0,
+      "createdAt": "2026-01-05T09:00:00.000Z"
+    },
+    {
+      "id": "CLI-4E7DF7",
+      "nameEn": "Bandar Al-Qahtani",
+      "nameAr": "",
+      "phone": "",
+      "email": "",
+      "cr": "",
+      "vat": "",
+      "notes": "",
+      "defaultDiscount": 0,
+      "createdAt": "2026-01-05T09:00:00.000Z"
+    },
+    {
+      "id": "CLI-DE0F3C",
+      "nameEn": "Mishal Al-Subaie",
+      "nameAr": "",
+      "phone": "",
+      "email": "",
+      "cr": "",
+      "vat": "",
+      "notes": "",
+      "defaultDiscount": 0,
+      "createdAt": "2026-01-05T09:00:00.000Z"
+    },
+    {
+      "id": "CLI-85403B",
+      "nameEn": "Sara Al-Balawi",
+      "nameAr": "",
+      "phone": "",
+      "email": "",
+      "cr": "",
+      "vat": "",
+      "notes": "",
+      "defaultDiscount": 0,
+      "createdAt": "2026-01-05T09:00:00.000Z"
+    },
+    {
+      "id": "CLI-2A6590",
+      "nameEn": "Hessa Al-Dossari",
+      "nameAr": "",
+      "phone": "",
+      "email": "",
+      "cr": "",
+      "vat": "",
+      "notes": "",
+      "defaultDiscount": 0,
+      "createdAt": "2026-01-05T09:00:00.000Z"
+    },
+    {
+      "id": "CLI-A16AFD",
+      "nameEn": "Faisal Al-Mutairi",
+      "nameAr": "",
+      "phone": "",
+      "email": "",
+      "cr": "",
+      "vat": "",
+      "notes": "",
+      "defaultDiscount": 0,
+      "createdAt": "2026-01-05T09:00:00.000Z"
+    }
+  ],
+  "products": [
+    {
+      "id": "PRD-3E4E75",
+      "nameEn": "Turbine bracket",
+      "nameAr": "حامل توربين",
+      "category": "",
+      "notes": "",
+      "active": true
+    },
+    {
+      "id": "PRD-6A91F9",
+      "nameEn": "Dental model set",
+      "nameAr": "طقم نماذج أسنان",
+      "category": "",
+      "notes": "",
+      "active": true
+    },
+    {
+      "id": "PRD-0522F9",
+      "nameEn": "Kaaba desk piece",
+      "nameAr": "مجسم الكعبة للمكتب",
+      "category": "",
+      "notes": "",
+      "active": true
+    },
+    {
+      "id": "PRD-8F047C",
+      "nameEn": "Cable chain, 40 links",
+      "nameAr": "",
+      "category": "",
+      "notes": "",
+      "active": true
+    },
+    {
+      "id": "PRD-9FE0F9",
+      "nameEn": "Museum replica — Kings",
+      "nameAr": "نسخة متحفية — الملوك",
+      "category": "",
+      "notes": "",
+      "active": true
+    },
+    {
+      "id": "PRD-51069B",
+      "nameEn": "Drone arm v4",
+      "nameAr": "",
+      "category": "",
+      "notes": "",
+      "active": true
+    },
+    {
+      "id": "PRD-EF6642",
+      "nameEn": "Signage letters, 12",
+      "nameAr": "",
+      "category": "",
+      "notes": "",
+      "active": true
+    },
+    {
+      "id": "PRD-68297E",
+      "nameEn": "Gearbox housing",
+      "nameAr": "",
+      "category": "",
+      "notes": "",
+      "active": true
+    },
+    {
+      "id": "PRD-2CF8FF",
+      "nameEn": "Falcon hood",
+      "nameAr": "برقع الصقر",
+      "category": "",
+      "notes": "",
+      "active": true
+    },
+    {
+      "id": "PRD-F68FC0",
+      "nameEn": "Camera rig plate",
+      "nameAr": "",
+      "category": "",
+      "notes": "",
+      "active": true
+    },
+    {
+      "id": "PRD-BA8B48",
+      "nameEn": "Palm frond mould",
+      "nameAr": "قالب سعف النخيل",
+      "category": "",
+      "notes": "",
+      "active": true
+    },
+    {
+      "id": "PRD-A86347",
+      "nameEn": "Coffee dallah stand",
+      "nameAr": "حامل دلة القهوة",
+      "category": "",
+      "notes": "",
+      "active": true
+    },
+    {
+      "id": "PRD-3C492B",
+      "nameEn": "Prosthetic socket trial",
+      "nameAr": "",
+      "category": "",
+      "notes": "",
+      "active": true
+    },
+    {
+      "id": "PRD-49E07C",
+      "nameEn": "HVAC duct adapter",
+      "nameAr": "",
+      "category": "",
+      "notes": "",
+      "active": true
+    },
+    {
+      "id": "PRD-3B7A21",
+      "nameEn": "Shelf brackets, 24",
+      "nameAr": "",
+      "category": "",
+      "notes": "",
+      "active": true
+    },
+    {
+      "id": "PRD-77CFAD",
+      "nameEn": "Oud bridge jig",
+      "nameAr": "قالب فرس العود",
+      "category": "",
+      "notes": "",
+      "active": true
+    },
+    {
+      "id": "PRD-B5BCAD",
+      "nameEn": "Ramadan lantern",
+      "nameAr": "فانوس رمضان",
+      "category": "",
+      "notes": "",
+      "active": true
+    },
+    {
+      "id": "PRD-0E40B5",
+      "nameEn": "Robot gripper fingers",
+      "nameAr": "",
+      "category": "",
+      "notes": "",
+      "active": true
+    },
+    {
+      "id": "PRD-9A0055",
+      "nameEn": "Wind tunnel model",
+      "nameAr": "",
+      "category": "",
+      "notes": "",
+      "active": true
+    },
+    {
+      "id": "PRD-293BE2",
+      "nameEn": "Souq stall sign",
+      "nameAr": "لوحة بسطة السوق",
+      "category": "",
+      "notes": "",
+      "active": true
     }
   ]
 }
