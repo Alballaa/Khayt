@@ -169,6 +169,12 @@ public actor KhaytEngine {
         // adding a shipping carrier does not quietly export the next one's
         // credentials — which is exactly why it is not rewritten here.
         "store",
+        // Who the shop's best customers are and what it is asked for most.
+        // ORDER-MONEY, CONTENT-LANGUAGES, BUSINESS-SCOPE AND DATE-RANGE ARE ALL
+        // ALREADY ABOVE and must be: it reaches every one of them through a
+        // global, and without them the lists do not raise — they report every
+        // customer at zero and every name as an id.
+        "top-lists",
         // What counts as a Khayt store at all. Restoring a backup REPLACES a
         // shop's book, so the one thing that must not be a second opinion is
         // which files are allowed to do that — the renderer learned the hard
@@ -808,6 +814,59 @@ public actor KhaytEngine {
     public func rotatableBackups(_ filenames: [String]) throws -> [String] {
         try runtime.call2("KhaytUpgradeBackup.partitionForRotation(ARG0).rotatable",
                           [.array(filenames.map(JSONValue.string))], as: [String].self)
+    }
+
+    /// Who the shop's best customers are, and what it is asked for most.
+    ///
+    /// The rollups are `lib/top-lists.js`'s, and so is the filter in front of
+    /// them: which orders fall in the period, which count as trade, and which
+    /// are voided are `date-range` and `business-scope`'s answers. Deciding any
+    /// of that in Swift would be a second opinion about who a shop's biggest
+    /// customer is, and nobody notices a disagreement like that until two
+    /// people are looking at two screens.
+    ///
+    /// The two lists are fed DIFFERENT sets, deliberately. Customers are ranked
+    /// over what completed and was billed; products over every order in the
+    /// period whatever became of it, because a part quoted twenty times and
+    /// made twice is a fact about the shop worth seeing.
+    public func topLists(orders: [JSONValue], products: [JSONValue], clients: [JSONValue],
+                         settings: [String: JSONValue], currencies: [String: JSONValue],
+                         language: String, period: String, limit: Int = 8,
+                         now: Date = Date()) throws -> TopLists {
+        try runtime.call2(
+            "(function (orders, ctx, period, at, limit) {"
+          + "  var now = new Date(at);"
+          + "  var ranged = orders.filter(function (o) {"
+          + "    return o && KhaytDateRange.inRange(o.date, period, { now: now });"
+          + "  });"
+          + "  var completed = ranged.filter(function (o) {"
+          + "    return o.status === 'completed' && !o.voidedAt"
+          + "        && KhaytBusinessScope.countsForBusiness(o);"
+          + "  });"
+          + "  return { clients: KhaytTopLists.topClients(completed, ctx, { limit: limit }),"
+          + "           products: KhaytTopLists.topProducts(ranged, ctx, { limit: limit }) };"
+          + "})(ARG0, {settings: ARG1, clients: ARG2, products: ARG3, currencies: ARG4, language: ARG5},"
+          + "   ARG6, ARG7, ARG8)",
+            [.array(orders), .object(settings), .array(clients), .array(products),
+             .object(currencies), .string(language), .string(period),
+             .number(now.timeIntervalSince1970 * 1000), .number(Double(limit))],
+            as: TopLists.self)
+    }
+
+    /// The two lists, and one row of either.
+    public struct TopLists: Decodable, Sendable {
+        public let clients: [TopRow]
+        public let products: [TopRow]
+    }
+
+    public struct TopRow: Decodable, Sendable, Identifiable, Hashable {
+        /// The record's own id. The renderer's lists threw it away — they build
+        /// a list item — but a table a person can click needs it, and a name is
+        /// not a key: two customers called Ahmed are two customers.
+        public let id: String
+        public let name: String
+        public let count: Int
+        public let revenue: Double
     }
 
     /// The shop's book as a file it can hand to somebody else.

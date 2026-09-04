@@ -16,6 +16,7 @@ struct Reports: View {
     @Bindable var shop: Shop
     @State private var rows: [PnlPeriod] = []
     @State private var owed: Receivables?
+    @State private var best: KhaytEngine.TopLists?
     @State private var order: [KeyPathComparator<PnlPeriod>] = [.init(\.period, order: .reverse)]
     @SceneStorage("reports.columns") private var columns: TableColumnCustomization<PnlPeriod>
 
@@ -31,6 +32,8 @@ struct Reports: View {
 
             if shop.reportPage == .owing {
                 Owing(shop: shop, owed: owed)
+            } else if shop.reportPage == .best {
+                Best(shop: shop, best: best)
             } else if rows.isEmpty {
                 ContentUnavailableView(shop.words.callIt("an.pnl_empty"), systemImage: "chart.bar.doc.horizontal")
                     .frame(maxHeight: .infinity)
@@ -42,7 +45,19 @@ struct Reports: View {
                 }
             }
         }
+        // Only the Best page reads the period, so only it offers the control.
+        // A picker on a screen it does not move is a control that teaches a
+        // shop it does nothing.
+        .toolbar {
+            if shop.reportPage == .best {
+                ToolbarItem { PeriodMenu(shop: shop) }
+            }
+        }
         .task(id: shop.orderRows.count + shop.expenseRows.count) { await recompute() }
+        // The period is the Best page's alone — the P&L reports every quarter
+        // at once and the receivables age themselves — so recomputing all three
+        // when it changes would be three answers to a question one asked.
+        .task(id: shop.period) { await recomputeBest() }
     }
 
     private var table: some View {
@@ -104,6 +119,110 @@ struct Reports: View {
         owed = try? await engine.receivables(
             orders: shop.orderRows, settings: shop.settingsDict, clients: shop.clientRows,
             currencies: Invoice.currencyTable(shop), language: shop.words.language, now: Date())
+        await recomputeBest()
+    }
+
+    private func recomputeBest() async {
+        guard let engine = shop.engine else { best = nil; return }
+        best = try? await engine.topLists(
+            orders: shop.orderRows, products: shop.productRows, clients: shop.clientRows,
+            settings: shop.settingsDict, currencies: Invoice.currencyTable(shop),
+            language: shop.words.language, period: shop.period.rawValue, now: Date())
+    }
+
+    /// Who the shop's money came from, and what it is asked for.
+    ///
+    /// Two lists rather than one, because they answer different questions and
+    /// are counted differently: customers are ranked over what completed and
+    /// was billed, products over every order in the period whatever became of
+    /// it. A part quoted twenty times and made twice belongs at the top of the
+    /// second list and nowhere on the first.
+    private struct Best: View {
+        let shop: Shop
+        let best: KhaytEngine.TopLists?
+
+        var body: some View {
+            HStack(alignment: .top, spacing: 0) {
+                Ranking(title: shop.words.callIt("an.top_clients"),
+                        rows: best?.clients ?? [], empty: "an.no_top_clients",
+                        shop: shop, showing: .revenue)
+                Divider()
+                Ranking(title: shop.words.callIt("an.top_products"),
+                        rows: best?.products ?? [], empty: "an.no_top_products",
+                        shop: shop, showing: .count)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        }
+
+        /// Which number the list is ranked by — the one that gets the emphasis,
+        /// because a column of bold figures in an order nobody can see is a
+        /// table that has to be read twice.
+        enum Ranked { case revenue, count }
+
+        struct Ranking: View {
+            let title: String
+            let rows: [KhaytEngine.TopRow]
+            let empty: String
+            let shop: Shop
+            let showing: Ranked
+
+            var body: some View {
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(title)
+                        .font(.headline)
+                        .padding(.horizontal, 14).padding(.top, 12).padding(.bottom, 8)
+                    if rows.isEmpty {
+                        Text(shop.words.callIt(empty))
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 14)
+                        Spacer()
+                    } else {
+                        ScrollView {
+                            VStack(spacing: 0) {
+                                ForEach(Array(rows.enumerated()), id: \.element.id) { place, row in
+                                    Row(place: place + 1, row: row, shop: shop, showing: showing)
+                                    if place < rows.count - 1 { Divider().padding(.leading, 40) }
+                                }
+                            }
+                        }
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+
+        struct Row: View {
+            let place: Int
+            let row: KhaytEngine.TopRow
+            let shop: Shop
+            let showing: Ranked
+
+            var body: some View {
+                HStack(spacing: 10) {
+                    Text("\(place)")
+                        .font(.callout.monospacedDigit())
+                        .foregroundStyle(.tertiary)
+                        .frame(width: 18, alignment: .trailing)
+                    // A record with no name filled in reads as blank in Khayt's
+                    // own lists. Here it says so, because a blank line in a
+                    // ranked list looks like the app lost the row.
+                    Text(row.name.isEmpty ? shop.words.callIt("mac.unnamed") : row.name)
+                        .foregroundStyle(row.name.isEmpty ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary))
+                        .lineLimit(1)
+                    Spacer(minLength: 12)
+                    Text(Money.text(row.revenue, shop.currency))
+                        .monospacedDigit()
+                        .font(showing == .revenue ? .body.weight(.semibold) : .body)
+                        .foregroundStyle(showing == .revenue ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
+                    Text("\(row.count)×")
+                        .monospacedDigit()
+                        .font(showing == .count ? .body.weight(.semibold) : .callout)
+                        .foregroundStyle(showing == .count ? AnyShapeStyle(.primary) : AnyShapeStyle(.tertiary))
+                        .frame(width: 46, alignment: .trailing)
+                }
+                .padding(.horizontal, 14).padding(.vertical, 7)
+            }
+        }
     }
 
     /// What the shop is still owed, and since when.

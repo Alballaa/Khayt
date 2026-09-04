@@ -6,6 +6,15 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Changed
 
+- **The Mac app shows who the shop's best customers are, and what it is asked
+  for most.** A third page beside the P&L and the receivables, over whichever
+  period you pick. Customers are ranked by what they actually paid; products by
+  how often they were asked for, whatever became of the order — a part quoted
+  twenty times and made twice belongs at the top of that list and nowhere on
+  the other. Both rollups were written out four times inside the analytics
+  screen and are now one shared module, so the two apps cannot disagree about
+  who a shop's biggest customer is.
+
 - **The Mac app prints the invoice.** ⌘P on a job, or *Invoice* beside the
   money in the inspector: the same document Khayt prints, saved as an A4 PDF.
   A registered shop gets its ZATCA QR; a shop missing a field the QR needs is

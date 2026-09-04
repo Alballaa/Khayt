@@ -278,6 +278,7 @@ final class Shop {
             if case .array(let shelf)? = root["inventory"] { inventoryRows = shelf } else { inventoryRows = [] }
             if case .array(let jobs)? = root["printLog"] { orderRows = jobs } else { orderRows = [] }
             if case .array(let people)? = root["clients"] { clientRows = people } else { clientRows = [] }
+            if case .array(let catalog)? = root["products"] { productRows = catalog } else { productRows = [] }
             clients = Self.decodeClients(root)
             await keepTheDaysBackup()
             expenses = Self.decode(root, "expenses", as: Expense.self)
@@ -1024,6 +1025,13 @@ final class Shop {
     /// registration number vanishing from a tax document because a Swift struct
     /// did not name it is exactly the kind of loss this avoids.
     private(set) var clientRows: [JSONValue] = []
+
+    /// The catalogue, as the book holds it.
+    ///
+    /// This app does not show the catalogue — it has no products screen — but
+    /// it does rank what the shop is asked for most, and that list is a column
+    /// of ids without the names.
+    private(set) var productRows: [JSONValue] = []
 
     /// The shop's address, resolved the way its name already is.
     var shopAddress: String { shopFieldValue("addr") }
