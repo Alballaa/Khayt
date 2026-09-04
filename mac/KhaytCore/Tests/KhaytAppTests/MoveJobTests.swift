@@ -989,3 +989,244 @@ struct MoveOnARealBookTests {
         #expect(decoded == couldDecodeBefore, "a move must not make a row unreadable")
     }
 }
+
+/// Taking a job.
+///
+/// The record is `lib/order-new.js`'s and is proved field-for-field against the
+/// original there. What is tested here is that this app asks for it correctly,
+/// writes the order AND the counter it consumed in one swap, and produces a row
+/// its own decoder can read — a job created on the Mac that does not appear in
+/// the Mac's own table would be the worst possible first impression.
+@MainActor
+struct NewJobTests {
+
+    static func shelf() -> [JSONValue] {
+        [.object(["id": .string("S1"), "material": .string("PLA"),
+                  "cost": .number(80), "weight": .number(1000)]),
+         .object(["id": .string("R1"), "material": .string("Resin"),
+                  "materialType": .string("resin"), "cost": .number(300), "weight": .number(1000)])]
+    }
+
+    @Test("a job taken here is costed the way the calculator costs it")
+    func partCostMatchesTheSharedModel() async throws {
+        let engine = try KhaytEngine()
+        let part: JSONValue = .object([
+            "filamentId": .string("S1"), "spoolCost": .number(80), "spoolWeight": .number(1000),
+            "printWeight": .number(250), "printTime": .number(4), "qty": .number(1),
+            "laborRate": .number(40), "prepTime": .number(0.25),
+        ])
+        let cost = try await engine.partCost(part, inventory: Self.shelf(), settings: [:])
+        // 250g of an 80-per-kilo spool is 20, plus a quarter hour at 40 is 10.
+        #expect(abs(cost - 30) < 0.0001)
+    }
+
+    /// Resin is priced per kilo and filament per spool, and the difference is
+    /// read off `materialType` on the SHELF — not off anything the part carries.
+    /// Handing the cost model a re-encoded `Spool`, which has no `materialType`,
+    /// would silently cost every resin part as if it were filament.
+    @Test("resin is costed as resin, which needs the shelf's own rows")
+    func resinNeedsTheRawShelf() async throws {
+        let engine = try KhaytEngine()
+        let part: JSONValue = .object([
+            "filamentId": .string("R1"), "spoolCost": .number(300), "spoolWeight": .number(1000),
+            "printWeight": .number(100), "printTime": .number(0), "qty": .number(1),
+        ])
+        let asResin = try await engine.partCost(part, inventory: Self.shelf(), settings: [:])
+        let withoutTheFlag = try await engine.partCost(
+            part,
+            inventory: [.object(["id": .string("R1"), "material": .string("Resin"),
+                                 "cost": .number(300), "weight": .number(1000)])],
+            settings: [:])
+        #expect(abs(asResin - 30) < 0.0001, "300 per kilo, 100 grams")
+        #expect(abs(withoutTheFlag - 30) < 0.0001, "the same here only because spoolWeight is 1000")
+        #expect(asResin == withoutTheFlag)
+    }
+
+    @Test("the order and the counter it consumed are written together")
+    func orderAndCounterTogether() async throws {
+        let engine = try KhaytEngine()
+        let input: [String: JSONValue] = [
+            "parts": .array([.object(["name": .string("Bracket"), "material": .string("PLA"),
+                                      "baseCost": .number(100), "printTime": .number(4),
+                                      "qty": .number(2)])]),
+            "project": .string("Bracket set"),
+            "margin": .number(40),
+        ]
+        let out = try await engine.newOrder(
+            input, orders: [], settings: ["invNumNext": .number(12), "invNumYear": .number(2026)],
+            now: Date(), tokens: (tracking: Shop.randomBytes(16), quoteApproval: Shop.randomBytes(16)))
+
+        guard case .object(let order) = out.order else { Issue.record("not an order"); return }
+        #expect(MoveJobTests.string(order["id"]) == "INV-2026-0012")
+        #expect(MoveJobTests.string(order["status"]) == "pending")
+        #expect(MoveJobTests.number(order["price"]) == 140)
+        // The counter came back advanced. Writing the order without it hands the
+        // same invoice number to the next job.
+        #expect(MoveJobTests.number(out.settings["invNumNext"]) == 13)
+    }
+
+    @Test("a job this app writes is a job this app can read")
+    func theRowDecodes() async throws {
+        let engine = try KhaytEngine()
+        let input: [String: JSONValue] = [
+            "parts": .array([.object(["name": .string("Bracket"), "material": .string("PLA"),
+                                      "baseCost": .number(100), "printTime": .number(4),
+                                      "qty": .number(1), "printWeight": .number(180)])]),
+            "project": .string("Bracket set"),
+            "clientId": .string("C1"),
+            "margin": .number(40),
+            "depositAmount": .number(50),
+        ]
+        let out = try await engine.newOrder(input, orders: [], settings: [:], now: Date(),
+                                            tokens: (tracking: Shop.randomBytes(16),
+                                                     quoteApproval: Shop.randomBytes(16)))
+        let decoded = try JSONDecoder().decode(Order.self, from: JSONEncoder().encode(out.order))
+        #expect(decoded.project == "Bracket set")
+        #expect(decoded.status == "pending")
+        #expect(decoded.parts.count == 1)
+        #expect(decoded.paidAmount == 50)
+        #expect(Stage.of(decoded) == .pending, "and it lands on the board")
+    }
+
+    @Test("a quote is a quote, and takes no invoice number")
+    func quotesTakeNoInvoiceNumber() async throws {
+        let engine = try KhaytEngine()
+        let input: [String: JSONValue] = [
+            "parts": .array([.object(["baseCost": .number(10), "printTime": .number(1)])]),
+            "margin": .number(0), "asQuote": .bool(true),
+        ]
+        let settings: [String: JSONValue] = ["invNumNext": .number(9), "quoteNumNext": .number(3)]
+        let out = try await engine.newOrder(input, orders: [], settings: settings, now: Date(),
+                                            tokens: (tracking: Shop.randomBytes(16),
+                                                     quoteApproval: Shop.randomBytes(16)))
+        guard case .object(let order) = out.order else { Issue.record("not an order"); return }
+        #expect(MoveJobTests.string(order["status"]) == "quote")
+        #expect(order["invoiceNumber"] == .null)
+        #expect(MoveJobTests.number(out.settings["invNumNext"]) == 9, "untouched")
+        #expect(MoveJobTests.number(out.settings["quoteNumNext"]) == 4)
+    }
+
+    @Test("the tokens are real bytes, not the same bytes every time")
+    func tokensAreRandom() {
+        let a = Shop.randomBytes(16), b = Shop.randomBytes(16)
+        #expect(a.count == 16)
+        #expect(a != b, "a shared tracking token would let one customer read another's job")
+    }
+}
+
+/// Taking a job, all the way to the file.
+///
+/// The order and the counter it consumed have to land in the same swap. Saving
+/// the order without the counter hands the same invoice number to the next job;
+/// saving the counter without the order burns one for nothing. Neither is
+/// visible in a test that only inspects the record.
+@MainActor
+struct NewJobOnDiskTests {
+
+    static func book() -> [String: JSONValue] {
+        [
+            "printLog": .array([.object(["id": .string("OLD"), "status": .string("pending"),
+                                         "date": .string("2026-09-01"), "project": .string("Older"),
+                                         "price": .number(10), "paidAmount": .number(0),
+                                         "paymentStatus": .string("unpaid"), "printTime": .number(1),
+                                         "priority": .bool(false), "notes": .string("")])]),
+            "inventory": .array([]),
+            "settings": .object(["invNumNext": .number(21), "invNumYear": .number(2026)]),
+        ]
+    }
+
+    static func write(_ root: [String: JSONValue]) throws -> URL {
+        let dir = FileManager.default.temporaryDirectory
+            .appending(path: "khayt-newjob-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let url = dir.appending(path: "khayt-store.json")
+        try JSONEncoder().encode(root).write(to: url)
+        return url
+    }
+
+    static let INPUT: [String: JSONValue] = [
+        "parts": .array([.object(["name": .string("Bracket"), "material": .string("PLA"),
+                                  "baseCost": .number(100), "printTime": .number(3),
+                                  "qty": .number(2)])]),
+        "project": .string("Bracket set"),
+        "margin": .number(40),
+    ]
+
+    @Test("the order and the counter land together, and the older job is untouched")
+    func writesBoth() async throws {
+        let url = try Self.write(Self.book())
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+        let engine = try KhaytEngine()
+
+        try await StoreWriter.update(storeURL: url, owns: { true }, whoHasIt: { nil }) { root in
+            let out = try await engine.newOrder(
+                Self.INPUT, orders: MoveJobTests.rowValues(root, "printLog"),
+                settings: Shop.settings(root), now: Date(),
+                tokens: (tracking: Shop.randomBytes(16), quoteApproval: Shop.randomBytes(16)))
+            root["printLog"] = .array([out.order] + MoveJobTests.rowValues(root, "printLog"))
+            root["settings"] = .object(out.settings)
+        }
+
+        let after = try JSONDecoder().decode([String: JSONValue].self,
+                                             from: Data(contentsOf: url))
+        let jobs = MoveJobTests.rows(after, "printLog")
+        #expect(jobs.count == 2)
+        #expect(MoveJobTests.string(jobs[0]["id"]) == "INV-2026-0021", "newest first")
+        #expect(MoveJobTests.string(jobs[1]["id"]) == "OLD", "and the older one is still there")
+        // The counter, in the same file, advanced exactly once.
+        guard case .object(let settings)? = after["settings"] else { Issue.record("no settings"); return }
+        #expect(MoveJobTests.number(settings["invNumNext"]) == 22)
+    }
+
+    @Test("two jobs in a row take two different numbers")
+    func noCollision() async throws {
+        let url = try Self.write(Self.book())
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+        let engine = try KhaytEngine()
+
+        for _ in 0..<3 {
+            try await StoreWriter.update(storeURL: url, owns: { true }, whoHasIt: { nil }) { root in
+                let out = try await engine.newOrder(
+                    Self.INPUT, orders: MoveJobTests.rowValues(root, "printLog"),
+                    settings: Shop.settings(root), now: Date(),
+                    tokens: (tracking: Shop.randomBytes(16), quoteApproval: Shop.randomBytes(16)))
+                root["printLog"] = .array([out.order] + MoveJobTests.rowValues(root, "printLog"))
+                root["settings"] = .object(out.settings)
+            }
+        }
+
+        let after = try JSONDecoder().decode([String: JSONValue].self, from: Data(contentsOf: url))
+        let ids = MoveJobTests.rows(after, "printLog").compactMap { MoveJobTests.string($0["id"]) }
+        #expect(Set(ids).count == ids.count, "the id is the primary key — a collision overwrites a job")
+        #expect(ids.prefix(3) == ["INV-2026-0023", "INV-2026-0022", "INV-2026-0021"])
+    }
+
+    @Test("every job written is a job the table can show")
+    func allDecodable() async throws {
+        let url = try Self.write(Self.book())
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+        let engine = try KhaytEngine()
+
+        for quote in [false, true] {
+            var input = Self.INPUT
+            input["asQuote"] = .bool(quote)
+            try await StoreWriter.update(storeURL: url, owns: { true }, whoHasIt: { nil }) { root in
+                let out = try await engine.newOrder(
+                    input, orders: MoveJobTests.rowValues(root, "printLog"),
+                    settings: Shop.settings(root), now: Date(),
+                    tokens: (tracking: Shop.randomBytes(16), quoteApproval: Shop.randomBytes(16)))
+                root["printLog"] = .array([out.order] + MoveJobTests.rowValues(root, "printLog"))
+                root["settings"] = .object(out.settings)
+            }
+        }
+
+        let after = try JSONDecoder().decode([String: JSONValue].self, from: Data(contentsOf: url))
+        let rows = MoveJobTests.rowValues(after, "printLog")
+        let encoder = JSONEncoder(), decoder = JSONDecoder()
+        let decoded = rows.compactMap { try? decoder.decode(Order.self, from: encoder.encode($0)) }
+        #expect(decoded.count == rows.count,
+                "a job this app wrote and cannot read is a job that vanishes from the table")
+        #expect(decoded.contains { Stage.of($0) == .quote })
+        #expect(decoded.contains { Stage.of($0) == .pending })
+    }
+}

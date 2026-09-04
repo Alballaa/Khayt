@@ -175,6 +175,32 @@ final class Activator: NSObject, NSApplicationDelegate {
             await settle()
             capture(named: "09-board", into: dir)
 
+            // The sheets. Each is its own window and the window shot cannot see
+            // them, so they are photographed on their own — six were built
+            // before there was a picture of any.
+            shop.shelf = .jobs(nil)
+            await settle()
+            if let job = shop.orders.first {
+                let subject = Shop.PendingHold(id: job.id, project: job.project)
+                for (name, open) in [
+                    ("10-hold", { shop.pendingHold = subject }),
+                    ("11-payment", { shop.pendingPayment = subject }),
+                    ("12-edit-job", { shop.pendingEdit = subject }),
+                    ("13-qc-fail", { shop.pendingQcFail = subject }),
+                ] as [(String, () -> Void)] {
+                    open()
+                    await settle()
+                    captureSheet(named: name, into: dir)
+                    shop.clearQuestion()
+                    await settle()
+                }
+            }
+            shop.takingAJob = true
+            await settle()
+            captureSheet(named: "14-new-job", into: dir)
+            shop.takingAJob = false
+            await settle()
+
             shop.shelf = .machines
             await settle()
             capture(named: "07-machines", into: dir)
@@ -273,6 +299,30 @@ final class Activator: NSObject, NSApplicationDelegate {
             FileHandle.standardError.write(Data(
                 "  pane\(i): \(type(of: target)) \(Int(bounds.width))x\(Int(bounds.height))\n".utf8))
         }
+    }
+
+    /// Photograph a sheet, which `capture` cannot see.
+    ///
+    /// A sheet is its OWN window, attached to the main one — so the window shot
+    /// finds the main window first and photographs the screen behind the sheet.
+    /// Six sheets were built before anybody noticed there was no picture of any
+    /// of them.
+    ///
+    /// `attachedSheet` is the honest way to find it: it is the sheet AppKit is
+    /// actually showing, rather than whichever window happens to be frontmost.
+    static func captureSheet(named name: String, into dir: URL) {
+        guard let host = NSApp.windows.first(where: { $0.isVisible && $0.attachedSheet != nil }),
+              let sheet = host.attachedSheet,
+              let view = sheet.contentView,
+              let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) else {
+            FileHandle.standardError.write(Data("no sheet to capture for \(name)\n".utf8))
+            return
+        }
+        view.cacheDisplay(in: view.bounds, to: rep)
+        guard let png = rep.representation(using: .png, properties: [:]) else { return }
+        try? png.write(to: dir.appending(path: name + ".png"))
+        FileHandle.standardError.write(Data(
+            "wrote \(name).png (\(Int(view.bounds.width))x\(Int(view.bounds.height))) [sheet]\n".utf8))
     }
 
     static func capture(named name: String, into dir: URL) {

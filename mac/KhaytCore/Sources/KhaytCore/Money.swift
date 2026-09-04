@@ -236,3 +236,13 @@ public struct QcFailure: Decodable, Sendable {
     public let order: JSONValue
     public let waste: JSONValue
 }
+
+/// A new job, and the shop's counters as taking it left them.
+///
+/// Both, because they must be written together: the order carries an invoice
+/// number the settings have just consumed, and saving one without the other
+/// either loses the job or hands its number to the next one.
+public struct NewOrder: Decodable, Sendable {
+    public let order: JSONValue
+    public let settings: [String: JSONValue]
+}

@@ -103,7 +103,9 @@ private struct Detail: View {
 
     private var parts: some View {
         DetailSection(shop.words.callIt("mac.parts")) {
-            ForEach(job.parts) { part in
+            // By position: a part with no id of its own is given a fresh one on
+            // every read, and keying on that would rebuild the rows each reload.
+            ForEach(Array(job.parts.enumerated()), id: \.offset) { _, part in
                 HStack(alignment: .firstTextBaseline) {
                     VStack(alignment: .leading, spacing: 1) {
                         Text(part.name).lineLimit(1)

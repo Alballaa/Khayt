@@ -70,6 +70,14 @@ struct Spool: Identifiable, Decodable, Hashable, Sendable {
     let openedAt: String?
     let storage: String?
 
+    /// How a shop picks this spool out of a list: what it is, and where — the
+    /// two things that tell one 1kg PLA apart from another on the same shelf.
+    var label: String {
+        let grams = weight.map { " · \(Int($0))g" } ?? ""
+        let where_ = storage.flatMap { $0.isEmpty ? nil : " · \($0)" } ?? ""
+        return material + grams + where_
+    }
+
     /// Cost per kilo, which is the number that compares two suppliers.
     /// Nil rather than infinity when a row has a cost and no weight.
     var costPerKilo: Double? {
