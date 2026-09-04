@@ -318,6 +318,61 @@ sizing tried; a `Menu` with a bare `Text` label works. And a toolbar `Menu`
 draws a `Label` as its icon alone, which `.labelStyle(.titleAndIcon)` does not
 change.
 
+## A day in the shop
+
+`DayInTheShopTests` asks the question the whole project is for: can a shop get
+through a day without opening Khayt? One book, one file, the same calls the
+screens make — take a job, price it, move it along the floor, fail an
+inspection, print again, finish, hand over, take the money, print the invoice,
+record what the day cost, put a spool right — and read the file back at the
+end. A book where every write is correct on its own and the collections
+disagree with each other is exactly the failure a shop finds at the end of a
+month, and no single-write test can see it.
+
+**It found one thing, and it is not fixed here.** A QC failure writes a waste
+row with the grams and their cost and does NOT take those grams off the shelf —
+`lib/qc-failure.js` leaves the inventory alone, which `renderer/order-flows.js`
+calls "unchanged accounting" and does deliberately. The reprint deducts its own
+filament when it completes, so the failed attempt's grams are recorded as waste
+and never leave the shelf: **the shelf overstates stock by every failed
+inspection's grams**, in both apps equally. The behaviour is pinned by the test
+and written down here. Changing it is a decision about a shop's money, not a
+tidy-up, so it is the shop's to make.
+
+## The floor
+
+＋ adds a printer, ⌘-click or double-click its name to correct one. The record
+and what picking a model fills in are `lib/machine-edit.js`.
+
+**An honest note on that lift.** The Electron machine editor mutates a draft
+through thirty separate event handlers, so most of it is not a function that
+can be copied and run beside a module. What IS lifted verbatim, and compared
+over every printer in the catalogue, is `fillSpecs` — the piece where the
+decisions are, including both rules it carries in capitals: the nozzle MATERIAL
+is the point of the catalogue knowing it (an X1C ships hardened steel and an
+MK4S ships brass, a ten-fold difference in expected life), and a threshold the
+shop has typed is NEVER rewritten, because the app cannot tell a default from a
+decision. The rest is a new rule assembled from those handlers and tested on
+its behaviour; said plainly, because a weak guarantee described as a strong one
+is worse than a weak one nobody relied on.
+
+**What the sheet deliberately does not offer:** the printer's API, its webcam
+and its downtime blocks. Those belong with the polling this app does not do
+yet, and a screen that writes connection settings it cannot test is worse than
+one that does not offer them. `MachineTests` asserts an edit made here carries
+all three through untouched.
+
+Two things this found. `printer-facts.js` has to be bundled BEFORE
+`printer-catalog.js`: the catalogue reaches it through a global and falls back
+to nothing, so without it every printer came back with no nozzle material and
+no hotend limit — it does not raise, it just knows less. And the nozzle
+fitments are read from `lib/nozzle-wear-data.js` rather than listed in Swift,
+because a hand-written list said "steel" where the data says "stainless", the
+sample shop's U1 matched nothing, and the picker photographed blank. That also
+turned up a bad value in the sample itself — "hardened steel", which the wear
+data does not know — so its X1C had a maintenance threshold worked out from the
+wrong life.
+
 ## The shelf
 
 ⌘-click or double-click a spool to correct it, ＋ to add one. The record and

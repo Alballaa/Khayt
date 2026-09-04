@@ -241,14 +241,37 @@ test('picking a printer model applies its nozzle material', () => {
   // see: an X1C (hardened, ~50 kg) and an MK4S (brass, ~5 kg) both landed on
   // the brass default, and the wear warning fired at the wrong time for one of
   // them.
+  // The rule moved into lib/machine-edit.js, so this RUNS it rather than
+  // reading the renderer's source: a hardened-nozzle printer and a brass one
+  // must land on their own materials and their own expected lives.
+  require('../lib/nozzle-wear-data.js');
+  const wear = require('../lib/nozzle-wear.js');
+  const catalog = require('../lib/printer-catalog.js');
+  const { applySpecs } = require('../lib/machine-edit.js');
+  const byMaterial = {};
+  for (const entry of catalog.list()) {
+    const material = catalog.toMachineSpecs(entry).nozzle?.material;
+    if (material && !byMaterial[material]) byMaterial[material] = entry;
+  }
+  assert.ok(byMaterial.hardened && byMaterial.brass,
+    'the catalogue must know at least one hardened and one brass printer for this to prove anything');
+  for (const [material, entry] of Object.entries(byMaterial)) {
+    const machine = { id: 'M1' };
+    applySpecs(machine, catalog.toMachineSpecs(entry), catalog.displayName(entry), { settings: {} });
+    assert.equal(machine.nozzle.material, material, catalog.displayName(entry));
+    assert.equal(machine.nozzle.gramsThreshold, wear.defaultThresholdFor(material, {}),
+      `${catalog.displayName(entry)}: the threshold must move with the material`);
+  }
+  // But only when the catalog actually checked. An unswept printer keeps asking.
+  const unswept = { id: 'M2' };
+  applySpecs(unswept, { printerModel: 'x', bed: { x: 1, y: 1, z: 1 } }, 'Unknown', { settings: {} });
+  assert.equal(unswept.nozzle, undefined,
+    'an unknown fitment must not be defaulted to brass — the catalog omits it on purpose');
+  // And the renderer still puts it in the field the shop can see and change.
   const src = fs.readFileSync(path.join(__dirname, '..', 'renderer', 'machines.js'), 'utf8');
   const fill = src.slice(src.indexOf('const fillSpecs = '), src.indexOf('// Network scan'));
-  assert.match(fill, /s\.nozzle && s\.nozzle\.material/, 'fillSpecs must apply the catalog nozzle material');
-  assert.match(fill, /machNozzleMaterial/, 'and put it in the field the shop can see and change');
-  assert.match(fill, /defaultThresholdFor\(s\.nozzle\.material/, 'and move the threshold with it');
-  // But only when the catalog actually checked. An unswept printer keeps asking.
-  assert.doesNotMatch(fill, /material:\s*s\.nozzle\.material \|\| 'brass'/,
-    'an unknown fitment must not be defaulted to brass here — the catalog omits it on purpose');
+  assert.match(fill, /MachineEdit\.applySpecs\(/, 'fillSpecs must apply the shared rule');
+  assert.match(fill, /machNozzleMaterial/, 'and put the material in the field the shop can see and change');
 });
 
 test('a threshold the shop set is never rewritten', () => {
@@ -274,5 +297,15 @@ test('a threshold the shop set is never rewritten', () => {
     'nor because it equals the PREVIOUS material\'s suggestion');
   // Filling an empty one is fine, and is the only thing allowed.
   assert.match(src, /if \(thEl && !thEl\.value\)/, 'an empty threshold may still be filled in');
+  // And the rule itself only fills an empty one.
+  require('../lib/nozzle-wear-data.js');
+  require('../lib/nozzle-wear.js');
+  const cat = require('../lib/printer-catalog.js');
+  const { applySpecs: apply } = require('../lib/machine-edit.js');
+  const hardened = cat.list().find((p) => cat.toMachineSpecs(p).nozzle?.material === 'hardened');
+  const kept = { id: 'M1', nozzle: { material: 'brass', gramsThreshold: 5000, installedAt: '2026-01-01', gramsAtInstall: 90 } };
+  apply(kept, cat.toMachineSpecs(hardened), 'x', { settings: {} });
+  assert.equal(kept.nozzle.gramsThreshold, 5000,
+    'a threshold the shop typed must survive picking a model');
   assert.match(src, /if \(field && !field\.value\)/, 'and so may an empty one in the log-nozzle dialog');
 });

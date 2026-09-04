@@ -134,6 +134,18 @@ public actor KhaytEngine {
         // Electron window could add a spool or fix a weight — and a shop's
         // shelf drifts every day.
         "spool-edit",
+        // A machine, and what picking a printer model fills in. NOZZLE-WEAR IS
+        // ALREADY ABOVE and must be: the threshold falls back to what a nozzle
+        // material is expected to last, and without it a shop gets a
+        // maintenance figure of zero rather than one it can act on.
+        // PRINTER-FACTS FIRST. The catalogue reaches it through a global and
+        // falls back to nothing when it is absent — so without it every
+        // printer comes back with no nozzle material, no hotend limit and no
+        // chamber, and the machine sheet quietly offers a shop less than the
+        // Electron one does. It does not raise; it just knows less.
+        "printer-facts",
+        "printer-catalog",
+        "machine-edit",
         // The shop's quarters. ORDER-MONEY AND TAX ARE ALREADY ABOVE, and both
         // must be: this consults them through their globals, and without them
         // it does not raise — it reports every order at its gross price and no
@@ -677,6 +689,63 @@ public actor KhaytEngine {
     public func spoolColours(settings: [String: JSONValue], material: String) throws -> [String] {
         try runtime.call2("KhaytSpoolEdit.coloursFor(ARG0, ARG1)",
                           [.object(settings), .string(material)], as: [String].self)
+    }
+
+    // MARK: - The machines
+
+    /// A new machine: an id, a name, and the next colour along.
+    public func newMachine(_ input: [String: JSONValue], id: String, count: Int) throws -> MachineWritten {
+        try runtime.call2("KhaytMachineEdit.newMachine(ARG0, {id: ARG1, count: ARG2})",
+                          [.object(input), .string(id), .number(Double(count))], as: MachineWritten.self)
+    }
+
+    /// Correct a machine — only the fields `input` carries.
+    public func editMachine(_ machine: JSONValue, input: [String: JSONValue],
+                            settings: [String: JSONValue]) throws -> MachineWritten {
+        try runtime.call2(
+            "(function(){var m = ARG0;"
+          + " var out = KhaytMachineEdit.applyEdit(m, ARG1, {settings: ARG2});"
+          + " return {machine: m, refused: out.refused};})()",
+            [machine, .object(input), .object(settings)], as: MachineWritten.self)
+    }
+
+    /// What picking a printer model fills in: the bed, the colours, the power,
+    /// and — the point of the catalogue knowing it — what the nozzle is made
+    /// of, with the expected life that goes with it. A threshold the shop has
+    /// already typed is never rewritten.
+    public func applyPrinterModel(_ machine: JSONValue, catalogId: String,
+                                  settings: [String: JSONValue]) throws -> MachineWritten {
+        try runtime.call2(
+            "(function(){var m = ARG0, entry = KhaytPrinterCatalog.get(ARG1);"
+          + " if (!entry) return {machine: m, refused: 'unknown_model'};"
+          + " KhaytMachineEdit.applySpecs(m, KhaytPrinterCatalog.toMachineSpecs(entry),"
+          + "   KhaytPrinterCatalog.displayName(entry), {settings: ARG2});"
+          + " return {machine: m};})()",
+            [machine, .string(catalogId), .object(settings)], as: MachineWritten.self)
+    }
+
+    /// The nozzle fitments Khayt's wear model knows, with their own labels and
+    /// what each is expected to last.
+    ///
+    /// Asked rather than listed in Swift. A hand-written list here said
+    /// "steel" where the data says "stainless", so the sample shop's U1 —
+    /// which is stainless — matched nothing and the picker came out blank.
+    /// A material added to the wear data now appears here on its own.
+    public func nozzleMaterials() throws -> [NozzleMaterial] {
+        try runtime.call2(
+            "Object.keys(KhaytNozzleWearData.NOZZLE_LIFE_G).map(function (k) {"
+          + " var row = KhaytNozzleWearData.NOZZLE_LIFE_G[k];"
+          + " return {key: k, label: row.label, grams: row.grams};})", [], as: [NozzleMaterial].self)
+    }
+
+    /// The printers Khayt knows, as a screen offers them.
+    public func printerCatalog() throws -> [CatalogPrinter] {
+        try runtime.call2(
+            "KhaytPrinterCatalog.list().map(function (p) {"
+          + " return {id: p.id, name: KhaytPrinterCatalog.displayName(p),"
+          + "  vendor: p.vendor,"
+          + "  specs: KhaytMachineEdit.specsLine(KhaytPrinterCatalog.toMachineSpecs(p), {chamber: ARG0})};})",
+            [.string("chamber")], as: [CatalogPrinter].self)
     }
 
     // MARK: - Who the shop's customers are

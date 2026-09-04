@@ -256,6 +256,31 @@ public struct NewOrder: Decodable, Sendable {
     public let settings: [String: JSONValue]
 }
 
+/// A machine as a rule left it, or the reason it would not.
+public struct MachineWritten: Decodable, Sendable {
+    public let machine: JSONValue?
+    public let refused: String?
+}
+
+/// A nozzle fitment, as `lib/nozzle-wear-data.js` describes it.
+public struct NozzleMaterial: Decodable, Sendable, Identifiable, Equatable {
+    public let key: String
+    public let label: String
+    /// What it is expected to last, in grams.
+    public let grams: Double
+    public var id: String { key }
+}
+
+/// One printer in Khayt's catalogue, as a picker offers it.
+public struct CatalogPrinter: Decodable, Sendable, Identifiable, Equatable {
+    public let id: String
+    public let name: String
+    public let vendor: String?
+    /// The bed, the nozzle, the colours, the power — what the catalogue has
+    /// checked, and by its absence what it has not.
+    public let specs: String
+}
+
 /// A new spool, or the reason there is not one.
 public struct SpoolWritten: Decodable, Sendable {
     public let spool: JSONValue?

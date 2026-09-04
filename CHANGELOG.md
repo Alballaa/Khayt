@@ -11,6 +11,11 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   A registered shop gets its ZATCA QR; a shop missing a field the QR needs is
   told which, on the paper, rather than handed an empty box.
 
+- **The Mac app can add and correct a printer.** Name it, pick a model to fill
+  in its bed, colours, power and what its nozzle is made of, and record a
+  nozzle change. Its connection settings and webcam are left to Khayt and
+  carried through untouched.
+
 - **The Mac app can correct the shelf.** Add a spool, fix a weight after a
   print ran long, change a price — with the price it used to be kept, so a
   supplier's invoice can be checked. Deleting one is undoable.

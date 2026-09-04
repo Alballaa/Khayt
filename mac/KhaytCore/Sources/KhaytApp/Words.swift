@@ -427,6 +427,12 @@ final class Words {
         "plib.material", "plib.tags_short", "plib.group_ph", "set.store_size",
         "tab.clients", "doc.invoice", "doc.quotation", "common.close",
         "inv.qr_failed",
+        // The machines
+        "mach.need_name",
+        "mach.saved",
+        "mach.edit",
+        "mach.add",
+        "mach.color", "mach.name", "mach.name_ph", "mach.nozzle_installed", "mach.nozzle_material", "mach.nozzle_threshold", "mach.printer_model", "mach.printer_model_hint", "mach.printer_model_ph", "mach.target_hours",
         // The shelf
         "inv.colour_variant", "inv.lot", "inv.material_ph", "inv.opened_on", "inv.price_history", "inv.reorder_point",
         // Reports
