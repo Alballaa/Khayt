@@ -64,7 +64,7 @@ final class Shop {
     private(set) var settingsValue: JSONValue = .object([:])
 
     var selection: Order.ID?
-    var fileSelection: LibraryFile.ID?
+    var fileSelection: Set<LibraryFile.ID> = []
     var customerSelection: Customer.ID?
     var shelf: Shelf = .jobs(nil)
     var search = ""
@@ -133,7 +133,7 @@ final class Shop {
                 LibraryLocation.resolveRoots(settings: Self.librarySettings(root),
                                              defaultRoot: LibraryLocation.defaultRoot(for: build))
             }
-            fileSelection = nil
+            fileSelection = []
             // Read, never taken. This app does not write, and a reader that
             // claimed ownership would lock a shop out of its own app for
             // nothing. When writing arrives, this is the check that gates it.
@@ -197,12 +197,39 @@ final class Shop {
 
     /// Mark a model a favourite, or stop. The first thing this app ever wrote.
     func toggleFavourite(_ file: LibraryFile) {
-        guard let build = source.build else { return }
         let wanted = !file.isFavourite
-        do {
-            try StoreWriter.updateRecord(build, collection: "printFiles", id: file.id) { record in
-                record["favorite"] = .bool(wanted)
+        write { root in
+            Self.edit(&root, ids: [file.id]) { record in record["favorite"] = .bool(wanted) }
+        }
+    }
+
+    /// File every selected model under one name, or clear it.
+    ///
+    /// One write for the whole selection, not one per model. Seven kings filed
+    /// one at a time is seven read-modify-writes, seven `.prev` generations, and
+    /// six windows in which a crash leaves the collection half made.
+    func fileSelection(under name: String) async {
+        guard !fileSelection.isEmpty else { return }
+        let ids = fileSelection
+        // Through the engine, so a name matching one the shop already uses
+        // adopts that spelling rather than becoming a second chip holding part
+        // of the same collection.
+        guard let engine, let patch = try? await engine.fileUnderGroup(name, known: groups) else {
+            writeProblem = "Could not work out which group that is."
+            return
+        }
+        write { root in
+            Self.edit(&root, ids: ids) { record in
+                for (key, value) in patch { record[key] = value }
             }
+        }
+    }
+
+    /// The shared shape of every edit: check we may write, do it, re-read.
+    private func write(_ change: (inout [String: JSONValue]) -> Void) {
+        guard let build = source.build else { return }
+        do {
+            try StoreWriter.update(build) { root in change(&root) }
             writeProblem = nil
             // Read the whole book back rather than patching what is on screen.
             // The screen must show what is on disk, not what this app believes
@@ -211,6 +238,20 @@ final class Shop {
         } catch {
             writeProblem = String(describing: error)
         }
+    }
+
+    /// Change some print-file records in place, stamping each.
+    private static func edit(_ root: inout [String: JSONValue], ids: Set<LibraryFile.ID>,
+                             change: (inout [String: JSONValue]) -> Void) {
+        guard case .array(var rows)? = root["printFiles"] else { return }
+        for i in rows.indices {
+            guard case .object(var record) = rows[i],
+                  case .string(let id)? = record["id"], ids.contains(id) else { continue }
+            change(&record)
+            StoreWriter.stamp(&record)
+            rows[i] = .object(record)
+        }
+        root["printFiles"] = .array(rows)
     }
 
     private static func decodeOrders(_ root: [String: JSONValue]) throws -> (items: [Order], skipped: [String]) {
@@ -290,18 +331,18 @@ final class Shop {
     /// The groups a shop has actually made, in the order it reads them.
     var groups: [String] {
         var seen = Set<String>(), out: [String] = []
-        for g in files.compactMap(\.group) where !seen.contains(g) {
+        for g in files.compactMap(\.groupName) where !seen.contains(g) {
             seen.insert(g); out.append(g)
         }
         return out.sorted { $0.localizedStandardCompare($1) == .orderedAscending }
     }
 
-    var ungroupedCount: Int { files.count { $0.group == nil } }
+    var ungroupedCount: Int { files.count { $0.groupName == nil } }
 
     var shownFiles: [LibraryFile] {
         var rows = files
         if case .library(let group) = shelf, let group {
-            rows = rows.filter { $0.group == group }
+            rows = rows.filter { $0.groupName == group }
         }
         let q = search.trimmingCharacters(in: .whitespaces).lowercased()
         if !q.isEmpty {
@@ -314,7 +355,35 @@ final class Shop {
         return rows.sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
     }
 
-    var selectedFile: LibraryFile? { files.first { $0.id == fileSelection } }
+    /// The inspector shows one model. More than one selected is a different
+    /// screen — what they have in common, and what can be done to all of them.
+    var selectedFile: LibraryFile? {
+        fileSelection.count == 1 ? files.first { fileSelection.contains($0.id) } : nil
+    }
+    var selectedFiles: [LibraryFile] { shownFiles.filter { fileSelection.contains($0.id) } }
+
+    /// Click, ⌘-click, ⇧-click. Written out because a grid is not a `List` and
+    /// gets none of this for free — and a Mac app where ⌘-click does not extend
+    /// a selection is one that reads as a web page however it is drawn.
+    func select(_ file: LibraryFile, modifiers: SelectionModifier) {
+        switch modifiers {
+        case .replace:
+            fileSelection = [file.id]
+            anchor = file.id
+        case .toggle:
+            if fileSelection.contains(file.id) { fileSelection.remove(file.id) }
+            else { fileSelection.insert(file.id); anchor = file.id }
+        case .extend:
+            let rows = shownFiles
+            guard let end = rows.firstIndex(where: { $0.id == file.id }) else { return }
+            let start = anchor.flatMap { a in rows.firstIndex { $0.id == a } } ?? end
+            let range = start <= end ? start...end : end...start
+            fileSelection.formUnion(rows[range].map(\.id))
+        }
+    }
+
+    enum SelectionModifier { case replace, toggle, extend }
+    private var anchor: LibraryFile.ID?
 
     // MARK: - What the customers screen shows
 
@@ -330,7 +399,7 @@ final class Shop {
 
     var selectedCustomer: Customer? { customers.first { $0.id == customerSelection } }
 
-    func count(group: String) -> Int { files.count { $0.group == group } }
+    func count(group: String) -> Int { files.count { $0.groupName == group } }
 
     /// The record's folder on this Mac, if it is on this Mac at all.
     func directory(for file: LibraryFile) -> URL? {

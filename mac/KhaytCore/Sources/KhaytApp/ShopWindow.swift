@@ -53,7 +53,9 @@ struct ShopWindow: View {
                     Label(shop.source.title, systemImage: shop.source.symbol)
                 }
             }
-            ToolbarItem(placement: .principal) { OwedSummary(shop: shop) }
+            ToolbarItem(placement: .principal) {
+                if shop.showingLibrary { GroupMenu(shop: shop) } else { OwedSummary(shop: shop) }
+            }
             ToolbarItem {
                 Button {
                     showInspector.toggle()
@@ -70,7 +72,12 @@ struct ShopWindow: View {
     /// Says which book is open before it says anything else. The sample must
     /// never be mistaken for the shop's real position.
     private var subtitle: String {
-        let provenance = shop.source.isReal ? "read-only" : "sample data — not a real shop"
+        // Says what this session can actually do. It said "read-only" for a
+        // while after the app could write, which is the kind of stale label
+        // people stop trusting the rest of the window over.
+        let provenance = shop.source.isReal
+            ? (shop.canWrite ? "yours to change" : "read-only")
+            : "sample data — not a real shop"
         if shop.showingLibrary {
             let n = shop.shownFiles.count
             return "\(n) model\(n == 1 ? "" : "s") · \(provenance)"

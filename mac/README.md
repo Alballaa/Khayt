@@ -138,8 +138,16 @@ Two things the bundle changes:
   bundle identifier. An app that shoves itself in front of your work on every
   launch is one people learn to resent.
 
-It can now change one thing — a model's favourite star — and only while it owns
-the book. See **Who owns the store**; the star is a control when this app holds
+It can change a model's favourite star and file models into groups, and only
+while it owns the book. Select several — click, ⌘-click, ⇧-click — and the whole
+selection is filed in ONE write: seven kings filed one at a time would be seven
+read-modify-writes and six windows in which a crash leaves the collection half
+made.
+
+Group names go through `lib/organise.js`, bundled and run rather than ported,
+because the rule that matters is that a name matching one already in use IS that
+name and adopts its spelling. "Saudi Kings" and "saudi kings" as two chips, each
+holding part of one collection, is exactly what that module exists to prevent. See **Who owns the store**; the star is a control when this app holds
 ownership and a plain mark when the Electron app does, because a disabled toggle
 invites people to keep pressing it.
 
@@ -290,6 +298,25 @@ cloud.
 Verified on a copy of a real store, and once on the real one with a backup: of 34
 collections only `printFiles` changed, of its records only the one named, and of
 its fields only `favorite`, `rev` and `updatedAt`. Secrets byte-identical.
+
+### Reading a group
+
+`groupOf` is the one part of `organise.js` written twice, because asking a
+JSContext for the group of every row to draw a sidebar of four hundred models is
+a call per row for an answer that is two field reads. `OrganiseParityTests` holds
+the copy to the original, and caught two things I had wrong:
+
+* **The PRESENCE of `folder` decides, not whether it holds anything.** A shop
+  clearing the box on an older build leaves `folder: ''`, and that empty string is
+  the instruction. Falling back to `group` there brings back the name they just
+  deleted.
+* **`normalise` does not strip control characters.** A NUL in this field has
+  caused trouble elsewhere in Khayt and the instinct is to strip it — but
+  JavaScript's `\s` does not match NUL, so neither may this. Whatever the two
+  apps do here they must do identically.
+
+A third was in the test rather than the code: it restated the rule instead of
+calling it, and so agreed with the mistake. It calls `LibraryFile.groupName` now.
 
 ## The one hard constraint
 

@@ -24,8 +24,11 @@ struct LibraryFile: Identifiable, Decodable, Hashable, Sendable {
     let userPhoto: String?
     let testedNotes: String?
     let tags: [String]?
-    /// The shop's own grouping. Called "Group" on screen since 3.7.0-beta.25 —
-    /// the field kept its old name so nothing had to be re-filed.
+    /// The shop's own grouping, under the name the field has had since
+    /// 3.7.0-beta.25. Records written by any earlier build carry only `folder`,
+    /// and `assign()` writes both, so both are read.
+    let group: String?
+    /// What `group` used to be called. Nothing was migrated, deliberately.
     let folder: String?
     let material: String?
     let favorite: Bool?
@@ -65,19 +68,67 @@ struct LibraryFile: Identifiable, Decodable, Hashable, Sendable {
 
     /// The group this model belongs to, or nil for ungrouped.
     ///
-    /// Whitespace and control characters count as ungrouped. A NUL used as a
-    /// sentinel has reached this field before and survived into the interface as
-    /// a group nothing could ever match, so "empty" is judged on what is left
-    /// after they are stripped rather than on the string being `""`.
-    var group: String? {
-        guard let folder else { return nil }
-        // Strip control characters, then trim. Not `filter` over the whole
-        // string: a group really called "Saudi Kings" must keep its space.
-        let stripped = String(String.UnicodeScalarView(
-            folder.unicodeScalars.filter { $0.properties.generalCategory != .control }))
-        let cleaned = stripped.trimmingCharacters(in: .whitespacesAndNewlines)
-        return cleaned.isEmpty ? nil : cleaned
+    /// **The PRESENCE of `folder` decides, not whether it holds anything.** A
+    /// shop clearing the box on the older build leaves `folder: ''`, and that
+    /// empty string is the instruction — falling back to `group` there would
+    /// bring back the name they had just deleted. Only a record with no
+    /// `folder` key at all falls through, which is what a product is.
+    ///
+    /// `folder` winning at all is a sync decision, not an accident: sync merges
+    /// whole records last-writer-wins, and the older build's dialog writes only
+    /// `folder`. Held to `KhaytOrganise.groupOf` by `OrganiseParityTests`.
+    var groupName: String? { Self.groupName(folder: folder, group: group) }
+
+    /// Split out from the property so the parity test can exercise the real
+    /// rule. A test that restates the logic proves only that I can write it
+    /// twice — and the first version of that test did exactly that, agreeing
+    /// with a mistake.
+    static func groupName(folder: String?, group: String?) -> String? {
+        let name = normalise(folder != nil ? folder : group)
+        return name.isEmpty ? nil : name
     }
+
+    /// `String(raw).replace(/\s+/g, ' ').trim().slice(0, 60).trim()`, exactly.
+    ///
+    /// Deliberately does NOT strip control characters, though a NUL in a field
+    /// like this has caused trouble elsewhere in Khayt. Whatever the two apps do
+    /// here they must do identically, and JavaScript's `\s` does not match NUL —
+    /// so neither does this. Divergence would file a model under one name here
+    /// and another in the app beside it.
+    static func normalise(_ raw: String?) -> String {
+        guard let raw else { return "" }
+        var out = String.UnicodeScalarView()
+        var pendingSpace = false, started = false
+        for scalar in raw.unicodeScalars {
+            if Self.jsWhitespace.contains(scalar) {
+                if started { pendingSpace = true }
+                continue
+            }
+            if pendingSpace { out.append(" "); pendingSpace = false }
+            out.append(scalar)
+            started = true
+        }
+        // `.slice(0, 60)` counts UTF-16 code units, not Characters.
+        let text = String(out)
+        let units = Array(text.utf16)
+        let cut = units.count <= 60 ? text : String(decoding: units.prefix(60), as: UTF16.self)
+        return cut.trimmingCharacters(in: Self.jsWhitespaceSet)
+    }
+
+    /// The set JavaScript's `\s` matches. Written out rather than approximated
+    /// with `.whitespacesAndNewlines`, which is close and not the same.
+    static let jsWhitespace: Set<Unicode.Scalar> = [
+        "\u{0009}", "\u{000A}", "\u{000B}", "\u{000C}", "\u{000D}", "\u{0020}",
+        "\u{00A0}", "\u{1680}", "\u{2000}", "\u{2001}", "\u{2002}", "\u{2003}",
+        "\u{2004}", "\u{2005}", "\u{2006}", "\u{2007}", "\u{2008}", "\u{2009}",
+        "\u{200A}", "\u{2028}", "\u{2029}", "\u{202F}", "\u{205F}", "\u{3000}",
+        "\u{FEFF}",
+    ]
+    static let jsWhitespaceSet: CharacterSet = {
+        var set = CharacterSet()
+        for scalar in jsWhitespace { set.insert(scalar) }
+        return set
+    }()
 
     /// Bytes of the model file, if the record says.
     var size: Double? { sourceFile?.size }

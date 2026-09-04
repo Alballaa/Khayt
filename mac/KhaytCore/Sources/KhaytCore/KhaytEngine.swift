@@ -22,6 +22,12 @@ public actor KhaytEngine {
         "business-scope",
         "order-progress",
         "loyalty",
+        // Groups and categories. Pure, and bundled rather than ported because
+        // the rule that matters is not the reading — it is that a name matching
+        // one already in use IS that name and adopts its spelling. "Saudi Kings"
+        // and "saudi kings" as two groups, each holding part of one collection,
+        // is precisely the mess this module exists to prevent.
+        "organise",
         // Not business logic — the one list of which store fields hold
         // credentials. Bundling it is what stops the Mac app from becoming a
         // sixth hand-maintained copy; SafeStorage encrypts exactly these.
@@ -75,6 +81,54 @@ public actor KhaytEngine {
 
     public func quoteTotal(_ input: [String: JSONValue]) throws -> QuoteTotal {
         try runtime.call("KhaytPricing", "quoteTotal", [input], as: QuoteTotal.self)
+    }
+
+    // MARK: - Groups
+
+    /// One of the shop's group names, and how many things carry it.
+    ///
+    /// `counts` returns pairs — `["Saudi Kings", 7]` — rather than objects, so
+    /// this decodes positionally. Keeping the JS shape rather than reshaping it
+    /// in the bridge means one less place for the two to drift.
+    public struct GroupCount: Decodable, Sendable, Equatable {
+        public let name: String
+        public let count: Int
+        public init(from decoder: any Decoder) throws {
+            var row = try decoder.unkeyedContainer()
+            name = try row.decode(String.self)
+            count = try row.decode(Int.self)
+        }
+    }
+
+    /// The names a shop has actually used, most-used first, with counts.
+    ///
+    /// One call for the whole library rather than one per row: building a
+    /// JSContext call is cheap and doing it four hundred times to draw a sidebar
+    /// is not.
+    public func groupCounts(_ records: [JSONValue]) throws -> [GroupCount] {
+        try runtime.call("KhaytOrganise", "counts", [JSONValue.array(records), "group"],
+                         as: [GroupCount].self)
+    }
+
+    /// The patch that files a record under a name — `{group, folder}`, both set.
+    ///
+    /// Shared rather than ported precisely because of `unify`: a name matching
+    /// one the shop already uses adopts that spelling, so "saudi kings" typed
+    /// into the box files a model with the Saudi Kings rather than beside them.
+    /// `folder` is written alongside `group` because records from earlier builds
+    /// have only `folder`, and `bedready-library.js` still reads it directly.
+    public func fileUnderGroup(_ name: String, known: [String]) throws -> [String: JSONValue] {
+        let patch: [String: JSONValue] = ["group": .string(name)]
+        let knownNames: [String: JSONValue] = ["group": .array(known.map { .string($0) })]
+        return try runtime.call("KhaytOrganise", "assign",
+                                [JSONValue.object([:]), patch, knownNames],
+                                as: [String: JSONValue].self)
+    }
+
+    /// The name one record is filed under. `folder` wins over `group` — see the
+    /// module header: it is a sync decision, not an accident.
+    public func groupOf(_ record: JSONValue) throws -> String {
+        try runtime.call("KhaytOrganise", "groupOf", [record], as: String.self)
     }
 
     // MARK: - Order progress
