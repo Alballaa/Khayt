@@ -50,43 +50,51 @@
     return cur.pos === 'before' ? `${cur.symbol} ${val}` : `${val} ${cur.symbol}`;
   }
 
+  /* The rules moved to lib/order-money.js so the Mac app could use the same
+   * ones — it needed "what did this order earn" for its dashboard, and the
+   * alternative was a second implementation of revenue. These wrappers keep the
+   * names and signatures every call site already uses, and supply the globals
+   * that module deliberately does not reach for. */
+  /* require() under Node and the test suite; the global under the renderer,
+   * where lib/ modules arrive as <script> tags and order-money.js is loaded
+   * first. Same shape as lib/nozzle-wear.js, and for the same reason: a file
+   * that works in one runtime and throws in the other is not shared code. */
+  let _money;
+  const M = () => {
+    if (_money) return _money;
+    if (global.KhaytOrderMoney) { _money = global.KhaytOrderMoney; return _money; }
+    try { _money = require('../lib/order-money.js'); } catch (e) { _money = null; }
+    return _money;
+  };
+  const ctx = () => ({ settings: global.settings || {}, clients: global.clients || [] });
+
   function clientCurrency(clientId) {
-    const settings = global.settings || {};
-    const clients = global.clients || [];
-    if (!clientId) return settings.currency || 'SAR';
-    const c = clients.find((x) => x.id === clientId);
-    return c && c.currency ? c.currency : settings.currency || 'SAR';
+    return M().clientCurrency(clientId, ctx());
   }
 
   /** Resolve an order's currency: an explicit per-order override wins, else the
    *  client's currency, else the shop base. Lets a single quote be priced in a
    *  currency that differs from the client default (or for a client-less quote). */
   function orderCurrency(o) {
-    if (o && o.currency && CURRENCIES[o.currency]) return o.currency;
-    return clientCurrency(o && o.clientId);
+    return M().orderCurrency(o, ctx(), CURRENCIES);
   }
 
   function convertToBase(amount, fromCurrency) {
-    const settings = global.settings || {};
-    const base = settings.currency || 'SAR';
-    if (!fromCurrency || fromCurrency === base) return +amount || 0;
-    const rate = (settings.exchangeRates || {})[fromCurrency];
-    if (!rate || rate <= 0) return +amount || 0;
-    return (+amount || 0) * rate;
+    return M().convertToBase(amount, fromCurrency, ctx());
   }
 
   function orderRevenueBase(o) {
-    return convertToBase(+o.price || 0, orderCurrency(o));
+    return M().orderRevenueBase(o, ctx(), CURRENCIES);
   }
 
   /** Total credit notes issued against an order, in the ORDER's own currency. */
   function orderCreditedRaw(o) {
-    return ((o && o.creditNotes) || []).reduce((s, cn) => s + (+cn.amount || 0), 0);
+    return M().orderCreditedRaw(o);
   }
 
   /** Total credit notes issued against an order, in the shop's base currency. */
   function orderCreditedBase(o) {
-    return convertToBase(orderCreditedRaw(o), orderCurrency(o));
+    return M().orderCreditedBase(o, ctx(), CURRENCIES);
   }
 
   /**
@@ -111,21 +119,7 @@
    * reduction of the sale.
    */
   function orderNetRevenueBase(o) {
-    /* A print the shop marked as not business earns nothing, everywhere at once.
-     *
-     * This function is the single chokepoint for revenue in stats — 53 call
-     * sites, and NOT used by any order's own invoice, statement or work order,
-     * which read `price` directly. So gating here excludes a personal print from
-     * every reported figure without altering the document for the one order that
-     * might still have a price on it.
-     *
-     * lib/business-scope.js says why the flag stops at money and trade counts:
-     * the print still wears the nozzle and still occupies the machine. */
-    if (typeof KhaytBusinessScope !== 'undefined' && !KhaytBusinessScope.countsForBusiness(o)) return 0;
-    // A parent that was split into sub-orders has been replaced by them, and they
-    // carry its price between them. Counting it too reports the job twice.
-    if (typeof KhaytBusinessScope !== 'undefined' && KhaytBusinessScope.isSuperseded(o)) return 0;
-    return Math.max(0, orderRevenueBase(o) - orderCreditedBase(o));
+    return M().orderNetRevenueBase(o, ctx(), CURRENCIES);
   }
 
   /**
@@ -141,28 +135,11 @@
    * SAR 3,000 across three payments on a job with SAR 2,000 left to pay.
    */
   function orderOwedRaw(o) {
-    if (typeof KhaytBusinessScope !== 'undefined' && !KhaytBusinessScope.countsForBusiness(o)) return 0;
-    if (typeof KhaytBusinessScope !== 'undefined' && KhaytBusinessScope.isSuperseded(o)) return 0;
-    return Math.max(
-      0,
-      (+o.price || 0) - (+o.paidAmount || 0) - (+o.giftCardDiscount || 0) - orderCreditedRaw(o),
-    );
+    return M().orderOwedRaw(o);
   }
 
   function orderOwedBase(o) {
-    // Nothing is owed on a print that was never sold.
-    if (typeof KhaytBusinessScope !== 'undefined' && !KhaytBusinessScope.countsForBusiness(o)) return 0;
-    // Nor on a parent whose sub-orders now carry the debt between them.
-    if (typeof KhaytBusinessScope !== 'undefined' && KhaytBusinessScope.isSuperseded(o)) return 0;
-    const cur = orderCurrency(o);
-    // Credit notes reduce what's owed (refund / cancelled charge).
-    return Math.max(
-      0,
-      convertToBase(+o.price || 0, cur) -
-        convertToBase(+o.paidAmount || 0, cur) -
-        convertToBase(+o.giftCardDiscount || 0, cur) -
-        orderCreditedBase(o),
-    );
+    return M().orderOwedBase(o, ctx(), CURRENCIES);
   }
 
   function refreshCurrencyLabels() {

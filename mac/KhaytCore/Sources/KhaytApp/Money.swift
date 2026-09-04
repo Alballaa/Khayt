@@ -36,8 +36,11 @@ enum Money {
     static func short(_ amount: Double, _ currency: String) -> String {
         let f = NumberFormatter()
         f.numberStyle = .decimal
-        f.maximumFractionDigits = amount >= 10_000 ? 0 : 2
-        f.minimumFractionDigits = 0
+        // Both bounds, or a tidy figure loses its trailing zero and sits next
+        // to one that kept it: "839.3 SAR" beside "1,243.08 SAR".
+        let places = amount >= 10_000 ? 0 : 2
+        f.maximumFractionDigits = places
+        f.minimumFractionDigits = places
         let n = f.string(from: amount as NSNumber) ?? "\(amount)"
         return "\(n) \(currency)"
     }

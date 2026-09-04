@@ -247,12 +247,22 @@ which is how this screen briefly showed "0 SAR revenue" beside a toolbar reading
 where both apps can share it. A bridge method that quietly answers zero is worse
 than no bridge method.
 
-So the money section shows the one figure this app computes itself — what is
-owed, `price - paid` over the open jobs, the same arithmetic the toolbar uses, so
-the two cannot disagree. There is also no second "Late" tile: the floor already
-has one from the attention engine, and the money section's counted something
-subtly different (unpaid *and* overdue). Two tiles with the same label and
-different numbers is the same fault as the zeros.
+That is fixed. `lib/kpi-rows.js` and `lib/order-money.js` were lifted out of the
+renderer, and the money section now shows revenue, gross profit, margin, average
+job and on-time — all from the shared modules, for a period you choose. The
+margin here is the margin the Electron app shows, because it is the same three
+functions: `order-money` prices an order, `kpi-rows` says which orders count,
+`kpi` adds them up.
+
+The money function is written in JavaScript inside `KhaytEngine.kpis` — a
+function cannot cross the JSON bridge — and it is the renderer's own three calls.
+
+**Two tiles are deliberately absent.** There is no second "Late": the floor
+already has one from the attention engine, and the money section's counted
+something subtly different (unpaid *and* overdue). And there is no "Owed": `kpi`
+scopes outstanding to the period, while the toolbar shows what the whole book is
+owed, unscoped and always visible — two figures under one word, inches apart,
+differing by an order of magnitude.
 
 ### The shop floor
 

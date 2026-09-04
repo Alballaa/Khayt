@@ -96,9 +96,18 @@ const SEAMS = [
   },
   {
     what: 'a superseded parent is out of the money',
-    where: 'renderer/currency.js',
-    needs: /KhaytBusinessScope\.isSuperseded\(o\)\) return 0;[\s\S]{0,400}KhaytBusinessScope\.isSuperseded\(o\)\) return 0;/,
-    why: 'a split job is counted twice — both chokepoints must gate it, not one',
+    // The chokepoints moved to lib/order-money.js so the Mac app could share
+    // them; the two repeated gates are now one `earns(o)` that all three money
+    // functions call — which is why this asks for three and not two.
+    where: 'lib/order-money.js',
+    needs: /!earns\(o\)\) return 0;[\s\S]{0,900}!earns\(o\)\) return 0;[\s\S]{0,900}!earns\(o\)\) return 0;/,
+    why: 'a split job is counted twice — every money chokepoint must gate it, not one',
+  },
+  {
+    what: 'the shared money gate still excludes a superseded parent',
+    where: 'lib/order-money.js',
+    needs: /function earns\(o\)[\s\S]{0,300}isSuperseded/,
+    why: 'the gate every money figure goes through stopped checking for a split parent',
   },
   {
     what: 'the split uses the tested share arithmetic',

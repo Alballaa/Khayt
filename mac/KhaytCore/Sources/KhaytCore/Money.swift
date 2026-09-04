@@ -115,3 +115,19 @@ public struct NozzleWear: Decodable, Sendable {
     public let over: Bool
     public let abrasive: Bool
 }
+
+/// The figures `lib/kpi.js` computes, from rows `lib/kpi-rows.js` selected and
+/// `lib/order-money.js` priced. Not recomputed in Swift: the margin a shop is
+/// shown here is the margin its other app shows.
+public struct Kpis: Decodable, Sendable {
+    public let orderCount: Int
+    public let completedCount: Int
+    public let revenue: Double
+    public let cost: Double
+    public let grossProfit: Double
+    public let grossMargin: Double
+    public let avgOrderValue: Double
+    public let onTimePct: Double?
+    public let onTimeTotal: Int
+    public let outstanding: Double
+}

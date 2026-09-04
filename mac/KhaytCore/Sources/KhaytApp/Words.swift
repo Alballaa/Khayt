@@ -137,6 +137,8 @@ final class Words {
         "mac.revenue":       ["en": "Revenue",         "ar": "الإيراد"],
         "mac.margin":        ["en": "Margin",          "ar": "هامش الربح"],
         "mac.avg_order":     ["en": "Average job",     "ar": "متوسط العمل"],
+        "mac.gross":         ["en": "Gross profit",    "ar": "الربح الإجمالي"],
+        "mac.on_time":       ["en": "On time",         "ar": "في الموعد"],
         "mac.days_late":     ["en": "{n} days late",   "ar": "متأخر {n} يوماً"],
         "mac.no_figures":    ["en": "No figures yet",  "ar": "لا أرقام بعد"],
         "mac.no_figures_hint": ["en": "They appear once the shop's book has loaded.",
@@ -161,6 +163,8 @@ final class Words {
     static let borrowed = [
         "queue.quote", "queue.pending", "queue.printing", "queue.completed",
         "queue.delivered", "doc.client", "doc.due", "doc.notes", "common.total",
+        "an.range.month", "an.range.last_month", "an.range.quarter", "an.range.year",
+        "an.range.all",
         "flow.owed", "flow.paid", "plib.group", "plib.unfiled", "plib.favorite",
         "plib.material", "plib.tags_short", "plib.group_ph", "set.store_size",
         "tab.clients",

@@ -52,13 +52,28 @@ test('both money chokepoints exclude a superseded parent', () => {
   // Thirteen call sites total owed money and twenty total revenue. Gating the
   // two chokepoints is what makes all of them agree; patching call sites would
   // leave the next one wrong.
+  // The chokepoints moved to lib/order-money.js so the Mac app could use the
+  // same rules; renderer/currency.js delegates. Both halves are checked: the
+  // gate is where the money is worked out, AND the renderer has not grown a
+  // second copy of it.
+  const money = code('lib/order-money.js');
+  for (const fn of ['orderNetRevenueBase', 'orderOwedBase']) {
+    const at = money.indexOf(`function ${fn}(`);
+    assert.ok(at > 0, `${fn} is gone`);
+    const body = money.slice(at, money.indexOf('\n  }', at));
+    assert.match(body, /earns\(o\)/,
+      `${fn} still counts a parent whose sub-orders carry its price`);
+  }
+  const earnsAt = money.indexOf('function earns(o)');
+  assert.match(money.slice(earnsAt, earnsAt + 300), /isSuperseded/,
+    'the shared gate must still exclude a superseded parent');
+
   const cur = code('renderer/currency.js');
   for (const fn of ['orderNetRevenueBase', 'orderOwedBase']) {
     const at = cur.indexOf(`function ${fn}(`);
-    assert.ok(at > 0, `${fn} is gone`);
     const body = cur.slice(at, cur.indexOf('\n  }', at));
-    assert.match(body, /KhaytBusinessScope\.isSuperseded\(o\)\) return 0;/,
-      `${fn} still counts a parent whose sub-orders carry its price`);
+    assert.match(body, /M\(\)\./,
+      `renderer ${fn} must delegate, not carry a second copy of the rule`);
   }
 });
 

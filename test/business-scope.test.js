@@ -45,12 +45,22 @@ test('the trade subset drops exactly the marked ones', () => {
 /* ── where the flag is actually applied ──────────────────────────────────── */
 
 test('revenue is gated at the one chokepoint, not at 53 call sites', () => {
-  const src = fs.readFileSync(path.join(ROOT, 'renderer', 'currency.js'), 'utf8');
-  const fn = src.slice(src.indexOf('function orderNetRevenueBase'), src.indexOf('function refreshCurrencyLabels'));
-  assert.match(fn, /countsForBusiness/,
-    'orderNetRevenueBase is the single revenue chokepoint — gating here covers every report at once');
-  // And nothing is owed on a print that was never sold.
-  assert.match(src.slice(src.indexOf('function orderOwedBase')), /countsForBusiness/);
+  // The chokepoint moved to lib/order-money.js so the Mac app could use the
+  // same rule rather than inventing one. The gate travelled with it.
+  const src = fs.readFileSync(path.join(ROOT, 'lib', 'order-money.js'), 'utf8');
+  const earnsAt = src.indexOf('function earns(o)');
+  assert.ok(earnsAt > 0, 'the shared gate is gone');
+  assert.match(src.slice(earnsAt, earnsAt + 300), /countsForBusiness/,
+    'the one revenue chokepoint is gated here — which covers every report at once');
+  for (const fn of ['orderNetRevenueBase', 'orderOwedBase']) {
+    const at = src.indexOf(`function ${fn}(`);
+    assert.ok(at > 0, `${fn} is gone`);
+    assert.match(src.slice(at, src.indexOf('\n  }', at)), /earns\(o\)/,
+      `${fn} must go through the gate`);
+  }
+  // And the renderer delegates rather than keeping a copy that could drift.
+  const cur = fs.readFileSync(path.join(ROOT, 'renderer', 'currency.js'), 'utf8');
+  assert.match(cur.slice(cur.indexOf('function orderNetRevenueBase')), /M\(\)\./);
 });
 
 test('an order document still shows its own price', () => {

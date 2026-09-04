@@ -39,6 +39,10 @@ function loadOwedRaw() {
   // while the shipped code, which does have it, behaved differently.
   vm.runInContext(read('lib/business-scope.js'), sandbox, { filename: 'business-scope.js' });
   sandbox.module = { exports: {} };
+  // order-money.js first: currency.js's rules moved there so the Mac app
+  // could share them, and it delegates through the global. In a sandbox
+  // there is no require, so the dependency has to be run in here too.
+  vm.runInContext(read('lib/order-money.js'), sandbox, { filename: 'order-money.js' });
   vm.runInContext(read('renderer/currency.js'), sandbox, { filename: 'currency.js' });
   const api = sandbox.module.exports;
   assert.equal(typeof api.orderOwedRaw, 'function', 'orderOwedRaw is not exported');
