@@ -146,6 +146,10 @@ public actor KhaytEngine {
         "printer-facts",
         "printer-catalog",
         "machine-edit",
+        // What a shop's Telegram bot says when a job moves. Built inline in
+        // renderer/integrations.js, so this app had no way to say it — which
+        // is why it refused to finish a job for any shop with a bot.
+        "telegram-message",
         // The shop's quarters. ORDER-MONEY AND TAX ARE ALREADY ABOVE, and both
         // must be: this consults them through their globals, and without them
         // it does not raise — it reports every order at its gross price and no
@@ -746,6 +750,18 @@ public actor KhaytEngine {
           + "  vendor: p.vendor,"
           + "  specs: KhaytMachineEdit.specsLine(KhaytPrinterCatalog.toMachineSpecs(p), {chamber: ARG0})};})",
             [.string("chamber")], as: [CatalogPrinter].self)
+    }
+
+    /// What the shop's Telegram bot would say about this move, or nil when the
+    /// shop has not asked for one — no bot configured, or not this move.
+    public func telegramMessage(order: JSONValue, newStatus: String,
+                                settings: [String: JSONValue],
+                                currency: String) throws -> TelegramMessage? {
+        try runtime.call2(
+            "KhaytTelegramMessage.forStatus(ARG0, ARG1, {settings: ARG2,"
+          + " fmtPrice: function (n) { return (+n || 0).toFixed(2) + ' ' + ARG3; }})",
+            [order, .string(newStatus), .object(settings), .string(currency)],
+            as: TelegramMessage?.self)
     }
 
     // MARK: - Who the shop's customers are

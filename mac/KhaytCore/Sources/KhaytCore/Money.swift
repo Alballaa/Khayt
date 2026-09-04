@@ -256,6 +256,13 @@ public struct NewOrder: Decodable, Sendable {
     public let settings: [String: JSONValue]
 }
 
+/// What a shop's Telegram bot is about to say.
+public struct TelegramMessage: Decodable, Sendable, Equatable {
+    public let botToken: String
+    public let chatId: String
+    public let message: String
+}
+
 /// A machine as a rule left it, or the reason it would not.
 public struct MachineWritten: Decodable, Sendable {
     public let machine: JSONValue?

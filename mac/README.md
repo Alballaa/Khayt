@@ -318,6 +318,39 @@ sizing tried; a `Menu` with a bare `Text` label works. And a toolbar `Menu`
 draws a `Label` as its icon alone, which `.labelStyle(.titleAndIcon)` does not
 change.
 
+## Telling the customer
+
+A move that would reach outside the shop is refused whole — a job cannot be
+half-finished, with the book updated and nobody told. **Telegram is the one
+exception now**, because this app can send it: the message is
+`lib/telegram-message.js` (lifted from `renderer/integrations.js` and proved
+against it over 3,000 generated moves) and the sending is `URLSession`.
+
+That removes a real blocker rather than adding a feature. A shop whose only
+integration is a Telegram bot — which is most small shops — could not finish a
+job on the Mac at all.
+
+Three things about how it is sent. It goes **after** the write and only if the
+write succeeded, because a message about a job that was not saved is worse than
+no message. It is **awaited**, not fired and forgotten: the whole reason these
+moves were refused is that a piece of the move would silently not happen, and a
+send nobody looks at puts the app back there. And a failure is **said out loud**
+and is not fatal — the job is finished, the book says so, and undoing a correct
+write because a message did not go out is the wrong trade; the shop is told, and
+can send it by hand.
+
+Webhooks, email and the portal are still refused. The webhook bus has
+subscriptions, a delivery log, retries with backoff that survive a quit, and a
+410-Gone rule; doing that badly means a shop's ERP counting a job twice, which
+is a real invoice. Refusing is the honest answer until it is done properly.
+
+One thing found on the way, and NOT fixed here: Khayt has always stripped chat
+ids with `[^0-9@-]`, which keeps the `@` and throws the name away — so a shop
+that typed `@khaytshop` has been sending to `@` and getting nothing, for as
+long as the feature has existed. Copied unchanged, because a lift whose job is
+to change nothing does not quietly fix a bug on the way past. It is written
+down in `test/telegram-message.test.js` so it is not mistaken for an accident.
+
 ## A day in the shop
 
 `DayInTheShopTests` asks the question the whole project is for: can a shop get

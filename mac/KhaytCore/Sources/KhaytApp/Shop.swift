@@ -1623,6 +1623,13 @@ final class Shop {
         return "SAR"
     }
 
+    /// The shop's own currency, from a settings dictionary rather than the
+    /// loaded book — `applyMove` runs against the record it read from disk.
+    static func shopCurrencyOf(_ settings: [String: JSONValue]) -> String {
+        if case .string(let c)? = settings["currency"], !c.isEmpty { return c }
+        return "SAR"
+    }
+
     static func settings(_ root: [String: JSONValue]) -> [String: JSONValue] {
         if case .object(let s)? = root["settings"] { return s }
         return [:]
@@ -1701,13 +1708,14 @@ final class Shop {
 
         var undoSnapshot: [ChangedRecord] = []
         var said: [String] = []
+        var telegram: TelegramMessage?
         do {
             try await StoreWriter.update(
                 storeURL: build.storeURL,
                 owns: { StoreLock.weOwnIt(build) },
                 whoHasIt: { StoreLock.describe(StoreLock.verdict(for: build)) }
             ) { root in
-                (undoSnapshot, said) = try await Self.applyMove(
+                (undoSnapshot, said, telegram) = try await Self.applyMove(
                     to: &root, id: id, stage: stage, engine: engine, words: self.words,
                     holdReason: holdReason, qcNotes: qcNotes)
             }
@@ -1718,10 +1726,41 @@ final class Shop {
             moveNotices = said
             registerMoveUndo(undoSnapshot, named: words.callIt("mac.move_action"))
             await load(source)
+            // AFTER the write, and only if it succeeded. A message about a job
+            // that was not saved is worse than no message. A send that fails is
+            // said out loud rather than swallowed: the whole point of the app
+            // refusing these moves before was that a piece of the move would
+            // silently not happen.
+            if let telegram { await tell(telegram) }
         } catch let refusal as MoveRefused {
             moveProblem = refusal.sentence
         } catch {
             moveProblem = String(describing: error)
+        }
+    }
+
+    /// Send what the shop's bot has to say, and say so if it could not.
+    ///
+    /// Not fatal: the job IS finished, the book says so, and undoing a correct
+    /// write because a message did not go out would be the wrong trade. The
+    /// shop is told, and can send it by hand.
+    private func tell(_ message: TelegramMessage) async {
+        do {
+            try await Telegram.send(botToken: message.botToken, chatId: message.chatId,
+                                    message: message.message)
+            moveNotices.append(words.callIt("mac.telegram_sent"))
+        } catch let failure as Telegram.Failure {
+            moveProblem = words.callIt("mac.telegram_failed") + " " + Self.describe(failure)
+        } catch {
+            moveProblem = words.callIt("mac.telegram_failed") + " " + String(describing: error)
+        }
+    }
+
+    static func describe(_ failure: Telegram.Failure) -> String {
+        switch failure {
+        case .badToken: return "The bot token in Settings is not a Telegram token."
+        case .refused(let status, let why): return why.isEmpty ? "HTTP \(status)" : why
+        case .unreachable(let why): return why
         }
     }
 
@@ -1750,7 +1789,7 @@ final class Shop {
                                   id: Order.ID, stage: Stage,
                                   engine: KhaytEngine, words: Words,
                                   holdReason: String? = nil, qcNotes: String? = nil)
-    async throws -> (undo: [ChangedRecord], notices: [String]) {
+    async throws -> (undo: [ChangedRecord], notices: [String], telegram: TelegramMessage?) {
 
         let orders = rows(root, "printLog")
         let inventory = rows(root, "inventory")
@@ -1764,15 +1803,26 @@ final class Shop {
             throw MoveRefused(sentence: words.callIt("mac.move_gone"))
         }
 
-        // Asked BEFORE anything is written. A webhook, a Telegram message, an
-        // email or a portal refresh cannot be sent from here and cannot be sent
-        // afterwards, so a move that would trigger one is refused whole rather
-        // than made with a piece missing.
+        // Asked BEFORE anything is written. A webhook, an email or a portal
+        // refresh cannot be sent from here and cannot be sent afterwards, so a
+        // move that would trigger one is refused whole rather than made with a
+        // piece missing.
+        //
+        // TELEGRAM IS THE EXCEPTION, because this app can now send it: the
+        // message is the shared rule's and the sending is URLSession's. It is
+        // sent AFTER the write succeeds — a message about a job that was not
+        // saved is worse than no message — and a send that fails is reported
+        // rather than swallowed, so a shop knows the customer was not told.
         let reaches = (try? await engine.outbound(order: target, to: stage.rawValue,
                                                   settings: settings, clients: clients)) ?? []
-        if !reaches.isEmpty {
-            throw MoveRefused(sentence: words.outboundRefusal(reaches))
+        let cannotSend = reaches.filter { $0.channel != "telegram" }
+        if !cannotSend.isEmpty {
+            throw MoveRefused(sentence: words.outboundRefusal(cannotSend))
         }
+        let telegram = reaches.contains { $0.channel == "telegram" }
+            ? try? await engine.telegramMessage(order: target, newStatus: stage.rawValue,
+                                                settings: settings, currency: shopCurrencyOf(settings))
+            : nil
 
         let move = try await engine.moveJob(
             order: target, to: stage.rawValue, orders: orders, settings: settings,
@@ -1809,7 +1859,7 @@ final class Shop {
         }
 
         let notices = (move.notices ?? []).map { words.sentence(for: $0) }
-        return (undo, notices)
+        return (undo, notices, telegram)
     }
 
     // MARK: - Reading and writing rows

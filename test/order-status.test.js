@@ -628,14 +628,18 @@ test('the outbound conditions still match the renderer they were copied from', (
 
   const integrations = read('renderer/integrations.js');
   const extras = read('renderer/operations-extras.js');
+  const telegram = read('lib/telegram-message.js');
 
   const pinned = [
     ['fireWebhook', integrations, "const wh = settings.webhooks;\n  if (!wh?.enabled) return;"],
-    ['sendTelegramForOrder', integrations,
-      "const tg = settings.telegram;\n  if (!tg || !tg.botToken || !tg.chatId) return;"],
-    ['sendTelegramForOrder completion', integrations,
+    // The Telegram guards moved into lib/telegram-message.js when the Mac app
+    // learned to send one, so they are pinned THERE — and pinned by running
+    // the rule rather than by reading its text, below.
+    ['telegram bot configured', telegram,
+      "if (!tg || !tg.botToken || !tg.chatId) return null;"],
+    ['telegram completion', telegram,
       "if (newStatus === 'completed' && tg.notifyOnComplete) {"],
-    ['sendTelegramForOrder hold', integrations,
+    ['telegram hold', telegram,
       "} else if (newStatus === 'on_hold' && tg.notifyOnHold) {"],
     ['autoSendEmailNotification', integrations,
       "const cfg = settings.emailConfig;\n  if (!cfg || cfg.provider === 'none' || !(cfg.triggers || []).includes(newStatus)) return;"],
@@ -653,6 +657,26 @@ test('the outbound conditions still match the renderer they were copied from', (
       `${name}'s guard has changed. lib/order-status.js outboundFor() copied it, and an app `
       + `uses that copy to decide whether a move it performs would reach anybody. Read the new `
       + `guard, update outboundFor to match, then update this pin.\n\nexpected to find:\n${guard}`);
+  }
+
+  // And the Telegram half is checked by RUNNING it: `outboundFor` says a move
+  // would reach Telegram exactly when the message rule would write one, and
+  // the Mac app now sends on the strength of that agreement.
+  const TG = require('../lib/telegram-message.js');
+  const bot = { botToken: '1:a', chatId: '2' };
+  const cases = [
+    [{}, 'completed'], [{ telegram: bot }, 'completed'],
+    [{ telegram: { ...bot, notifyOnComplete: true } }, 'completed'],
+    [{ telegram: { ...bot, notifyOnComplete: true } }, 'on_hold'],
+    [{ telegram: { ...bot, notifyOnHold: true } }, 'on_hold'],
+    [{ telegram: { ...bot, notifyOnHold: true } }, 'printing'],
+  ];
+  for (const [settings, to] of cases) {
+    const reaches = S.outboundFor({ id: 'o1', status: 'printing' }, to, { settings })
+      .some((o) => o.channel === 'telegram');
+    const writes = !!TG.forStatus({ id: 'o1' }, to, { settings, fmtPrice: String });
+    assert.equal(reaches, writes,
+      `outboundFor and the message rule disagree for ${to} with ${JSON.stringify(settings)}`);
   }
 });
 

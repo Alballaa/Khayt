@@ -400,6 +400,9 @@ final class Words {
         "mac.edit_spool":    ["en": "Edit spool",   "ar": "تعديل البكرة"],
         "mac.new_spool":     ["en": "New Spool",    "ar": "بكرة جديدة"],
         "mac.swatch":        ["en": "Swatch",       "ar": "اللون"],
+        "mac.telegram_sent":   ["en": "Telegram message sent.", "ar": "أُرسلت رسالة تيليجرام."],
+        "mac.telegram_failed": ["en": "The job was saved, but the Telegram message did not go out:",
+                                "ar": "حُفظ العمل، لكن لم تُرسل رسالة تيليجرام:"],
         // Settings
         "mac.revert":        ["en": "Revert",       "ar": "تراجع"],
         "mac.settings_saved": ["en": "Saved.",      "ar": "حُفظ."],

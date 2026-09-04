@@ -96,8 +96,12 @@ struct MoveJobTests {
         // one.
         let words = Words()
         await words.load("en", engine: engine)
-        return try await Shop.applyMove(to: &root, id: id, stage: stage, engine: engine,
-                                        words: words, holdReason: holdReason, qcNotes: qcNotes)
+        // The message a shop's Telegram bot would send is the third thing a move
+        // hands back; these cases are about the book, so it is dropped here and
+        // tested in TelegramTests.
+        let out = try await Shop.applyMove(to: &root, id: id, stage: stage, engine: engine,
+                                           words: words, holdReason: holdReason, qcNotes: qcNotes)
+        return (out.undo, out.notices)
     }
 
     // MARK: -
@@ -188,12 +192,22 @@ struct MoveJobTests {
 
     /// The failure this whole design exists to prevent: a move made here that
     /// silently does not send what the same move sends in Khayt.
+    ///
+    /// TELEGRAM IS NO LONGER AN EXAMPLE OF ONE. This app sends those itself
+    /// now, so the case is written with a webhook — which it still cannot
+    /// deliver, and still refuses whole. See `TelegramTests` for the other
+    /// half: a shop whose only integration is a bot can finish a job here.
     @Test("a move that would reach somebody is refused whole")
     func refusedForOutbound() async throws {
         let wired: [String: JSONValue] = [
             "autoDeduct": .bool(true),
-            "telegram": .object(["botToken": .string("t"), "chatId": .string("c"),
-                                 "notifyOnComplete": .bool(true)]),
+            "webhooks": .object([
+                "enabled": .bool(true),
+                "subscriptions": .array([.object([
+                    "id": .string("W1"), "url": .string("https://example.test/hook"),
+                    "events": .array([.string("*")]),
+                ])]),
+            ]),
         ]
         var root = Self.book(settings: wired)
         let before = root
@@ -205,8 +219,16 @@ struct MoveJobTests {
         }
         #expect(root == before, "not the job, not the spools, not the packaging")
 
-        // The same shop CAN move a job to a stage Telegram says nothing about.
-        var moving = Self.book(settings: wired)
+        // A channel that says nothing about THIS move does not block it. A
+        // webhook is not such a channel — `webhooks.enabled` fires for every
+        // status change, and the subscriptions are matched when it is sent —
+        // so the case is written with an email the shop only sends on
+        // completion.
+        var moving = Self.book(settings: [
+            "autoDeduct": .bool(true),
+            "emailConfig": .object(["provider": .string("resend"),
+                                    "triggers": .array([.string("completed")])]),
+        ])
         _ = try await Self.move(&moving, "J1", .pending)
         #expect(Self.string(Self.row(moving, "printLog", "J1")?["status"]) == "pending")
     }
@@ -876,8 +898,8 @@ struct MoveOnARealBookTests {
         var undo: [Shop.ChangedRecord] = []
 
         try await StoreWriter.update(storeURL: url, owns: { true }, whoHasIt: { nil }) { root in
-            (undo, _) = try await Shop.applyMove(to: &root, id: job.id, stage: job.to,
-                                                 engine: engine, words: words)
+            undo = try await Shop.applyMove(to: &root, id: job.id, stage: job.to,
+                                            engine: engine, words: words).undo
         }
 
         let after = try Self.read(url)
@@ -926,8 +948,8 @@ struct MoveOnARealBookTests {
         var undo: [Shop.ChangedRecord] = []
 
         try await StoreWriter.update(storeURL: url, owns: { true }, whoHasIt: { nil }) { root in
-            (undo, _) = try await Shop.applyMove(to: &root, id: job.id, stage: job.to,
-                                                 engine: engine, words: words)
+            undo = try await Shop.applyMove(to: &root, id: job.id, stage: job.to,
+                                            engine: engine, words: words).undo
         }
         #expect(!undo.isEmpty, "the move wrote nothing, so the undo proves nothing")
         try await StoreWriter.update(storeURL: url, owns: { true }, whoHasIt: { nil }) { root in
