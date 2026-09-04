@@ -2780,32 +2780,30 @@ function openExecutiveSummary() {
   let locId = settings.activeLocationId || ''; // '' = all locations
   const locList = (typeof locations !== 'undefined' && Array.isArray(locations)) ? locations : [];
 
-  const bounds = (r) => {
-    const now = new Date(); const y = now.getFullYear(); const m = now.getMonth();
-    const ymd = (d) => localDateStr(d);
-    if (r === 'month') return [ymd(new Date(y, m, 1)), ymd(new Date(y, m + 1, 0))];
-    if (r === 'last_month') return [ymd(new Date(y, m - 1, 1)), ymd(new Date(y, m, 0))];
-    if (r === 'quarter') { const q = Math.floor(m / 3); return [ymd(new Date(y, q * 3, 1)), ymd(new Date(y, q * 3 + 3, 0))]; }
-    if (r === 'year') return [ymd(new Date(y, 0, 1)), ymd(new Date(y, 11, 31))];
-    return ['', '']; // all
-  };
+  /* The scoping and the completed/on-time rules moved to lib/kpi-rows.js so the
+   * Mac app can use the same ones — it had reached for computeKpis directly,
+   * with raw orders, and been handed a screen of zeros. Money stays here: base
+   * currency needs the rates in settings and the client's own currency, which
+   * is renderer/currency.js's business, so it is passed in per order. */
   const rowsFor = (r) => {
-    const [from, to] = bounds(r);
-    const inR = (d) => { const x = (d || '').slice(0, 10); if (!x) return !from && !to; return (!from || x >= from) && (!to || x <= to); };
-    const inLoc = (o) => !locId || (typeof orderLocationId === 'function' ? orderLocationId(o) === locId : true);
-    return (printLog || []).filter((o) => !o.voidedAt && o.status !== 'quote' && inR(o.date) && inLoc(o)).map((o) => {
-      const done = o.status === 'completed' || o.status === 'delivered';
-      const completedAt = (o.completedAt || o.deliveredAt || o.date || '').slice(0, 10);
-      const client = o.clientId ? clients.find((c) => c.id === o.clientId) : null;
-      return {
+    const [from, to] = KhaytKpiRows.bounds(r);
+    return KhaytKpiRows.kpiRows({
+      orders: printLog || [],
+      from, to,
+      locationId: locId,
+      locationOf: (typeof orderLocationId === 'function') ? orderLocationId : null,
+      money: (o) => ({
         revenue: orderNetRevenueBase(o),
-        cost: (o.parts || []).reduce((s, p) => s + partTotalCost(p), 0) + convertToBase(+o.shippingCost || 0, orderCurrency(o)),
-        completed: done,
-        onTime: (done && o.dueDate) ? (!!completedAt && completedAt <= o.dueDate) : null,
+        cost: (o.parts || []).reduce((s, p) => s + partTotalCost(p), 0)
+          + convertToBase(+o.shippingCost || 0, orderCurrency(o)),
         outstanding: (typeof orderOwedBase === 'function') ? orderOwedBase(o) : 0,
-        clientName: client ? (typeof localName === 'function' ? localName(client) : client.name) : (t('dash.unassigned') || '—'),
-        productName: o.project || o.id,
-      };
+      }),
+      clientName: (o) => {
+        const client = o.clientId ? clients.find((c) => c.id === o.clientId) : null;
+        if (!client) return '';
+        return (typeof localName === 'function') ? localName(client) : client.name;
+      },
+      unassigned: t('dash.unassigned') || '—',
     });
   };
 
