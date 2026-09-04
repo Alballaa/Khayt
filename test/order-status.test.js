@@ -121,6 +121,16 @@ function originalUpdateStatus(g, id, newStatus) {
       if (order.statusHistory.length > 200) order.statusHistory = order.statusHistory.slice(-200);
       order.status = 'completed';
       if (!order.completedAt) order.completedAt = NOW_ISO;
+      // NOT IN THE ORIGINAL, and the second of two deliberate divergences (see
+      // the on_hold stamp above). A completed job used to keep a running
+      // timerStart until some later move cleared it. Nothing displayed it, but
+      // "is this job's timer running" could not be answered by looking at the
+      // job. Added to BOTH sides so the comparison still proves the rest.
+      if (order.timerStart) {
+        delete order.timerStart;
+        delete order.timerPausedAt;
+        delete order.timerPausedMs;
+      }
       deductFilamentForOrder(order);
       if (!order.costBasis) {
         order.costBasis = (order.parts || []).reduce((s, p) => s + (+p.baseCost || 0), 0);
@@ -681,4 +691,18 @@ test('holding a printing job stops its timer', () => {
   S.apply(order, 'on_hold', { now: NOW_MS });
   assert.equal(order.timerStart, undefined, 'elapsed time must not accrue while nobody is working on it');
   assert.equal(order.printingStartedAt, '2026-09-03T00:00:00.000Z');
+});
+
+test('a finished job is not still being printed', () => {
+  const order = {
+    id: 'o1', status: 'printing',
+    timerStart: '2026-09-04T08:00:00.000Z', timerPausedAt: '2026-09-04T08:30:00.000Z',
+    timerPausedMs: 900000, printingStartedAt: '2026-09-03T00:00:00.000Z',
+  };
+  S.apply(order, 'completed', { now: NOW_MS });
+  assert.equal(order.timerStart, undefined);
+  assert.equal(order.timerPausedAt, undefined);
+  assert.equal(order.timerPausedMs, undefined);
+  assert.equal(order.printingStartedAt, '2026-09-03T00:00:00.000Z',
+    'when it first went on the machine is a fact about the job, not about the clock');
 });
