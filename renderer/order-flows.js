@@ -567,6 +567,7 @@ function runStatusEffects(order, effects, { prevTier, undo, toastText } = {}) {
         if (e.dashboard) renderDashboard();
         break;
       case 'toast_updated': toast(toastText || t('toast.status_updated'), 'success'); break;
+      case 'toast_delivered': toast(toastText || t('toast.status_updated'), 'success'); break;
       case 'toast_updated_undoable':
         toast(toastText || t('toast.status_updated'), 'success', 5000, undo ? { undo } : {});
         break;
@@ -986,13 +987,21 @@ async function deleteLog(id) {
   });
 }
 
+/**
+ * Handed over.
+ *
+ * Deliberately does NOT move the status: the Delivered column is built from
+ * `status === 'completed' && deliveredAt`, so setting a status here would empty
+ * the column this button feeds. That rule is `StatusRules().stageOf` now, and
+ * this is `markDelivered` there — one definition, because the Mac app's board
+ * was reading `status` alone and filing every handed-over job under Completed.
+ */
 function markDelivered(orderId) {
   const order = printLog.find(o => o.id === orderId);
-  if (!order || order.status !== 'completed') return;
-  order.deliveredAt = new Date().toISOString();
-  saveAll();
-  renderKanban(); renderLogs(); renderDashboard();
-  toast(t('queue.delivered_toast', { id: order.id }), 'success');
+  if (!order) return;
+  const out = StatusRules().markDelivered(order, { now: Date.now() });
+  if (!out.ok) return;   // not finished yet; the button is not offered there
+  runStatusEffects(order, out.effects, { toastText: t('queue.delivered_toast', { id: order.id }) });
 }
 
 /* ============================================================

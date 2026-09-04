@@ -323,11 +323,19 @@
    */
   function markDelivered(id) {
     const order = find(id);
-    if (!order || order.status !== 'completed') return;
-    order.deliveredAt = new Date().toISOString();
-    if (typeof logActivity === 'function') { try { logActivity('status', `${order.id} → delivered`, order.id); } catch (_) {} }
-    if (typeof saveAll === 'function') saveAll();
-    repaint();
+    const Rules = rules();
+    if (!order || !Rules) return;
+    const out = Rules.markDelivered(order, { now: Date.now() });
+    if (!out.ok) return;   // not finished yet; the button is not offered there
+    for (const e of out.effects) {
+      if (e.type === 'activity_log' && typeof logActivity === 'function') {
+        try { logActivity('status', e.text, order.id); } catch (_) {}
+      } else if (e.type === 'save' && typeof saveAll === 'function') {
+        saveAll();
+      } else if (e.type === 'render') {
+        repaint();
+      }
+    }
     say(T('queue.delivered_toast', 'Marked as delivered'), 'success');
   }
 

@@ -218,3 +218,9 @@ public struct PaymentRecorded: Decodable, Sendable {
     public let order: JSONValue
     public let effects: [String]
 }
+
+/// A job handed over, or a job that was not ready to be.
+public struct Handover: Decodable, Sendable {
+    public let ok: Bool
+    public let order: JSONValue?
+}

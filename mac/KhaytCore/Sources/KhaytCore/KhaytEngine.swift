@@ -365,6 +365,15 @@ public actor KhaytEngine {
                           as: JobMove.self)
     }
 
+    /// Hand a finished job over: `deliveredAt`, and the status left alone.
+    public func markDelivered(order: JSONValue, now: Date) throws -> Handover {
+        try runtime.call2(
+            "(function(){ var o = ARG0;"
+          + " var r = KhaytOrderStatus.markDelivered(o, { now: ARG1 });"
+          + " return { ok: r.ok, order: r.ok ? o : null }; })()",
+            [order, .number(now.timeIntervalSince1970 * 1000)], as: Handover.self)
+    }
+
     // MARK: - Money received
 
     /// Whether this order counts as paid, partly paid or unpaid.

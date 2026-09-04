@@ -344,6 +344,61 @@
   }
 
   /**
+   * Which column a job belongs in.
+   *
+   * DELIVERED IS NOT A STATUS. A handed-over job stays `completed` and carries
+   * a `deliveredAt` — `renderer/kanban.js` builds its Delivered column from
+   * exactly that pair, and `markDelivered` deliberately does not move the
+   * status, because moving it would empty the column the button feeds.
+   *
+   * The rule lived only inside the kanban's own grouping loop, so anything else
+   * asking "which column is this job in" — the Mac app's board, most recently —
+   * read `status` and put every delivered job under Completed.
+   *
+   * `split` is returned as itself. A split parent has been replaced by the
+   * sub-orders that carry its price between them; it is not work anyone does,
+   * and a caller has to decide what to do about it rather than have it quietly
+   * filed under `pending`.
+   */
+  function stageOf(order) {
+    if (!order) return null;
+    const status = order.status;
+    if (status === 'completed' && order.deliveredAt) return 'delivered';
+    return status || null;
+  }
+
+  /**
+   * Hand a finished job over.
+   *
+   * Only from `completed`: a job cannot be delivered before it is made, and
+   * `markDelivered` in both apps has always refused otherwise. Returns
+   * `{ ok, order, effects }` — `ok` false when the job was not ready, so a
+   * caller can say why rather than appear to do nothing.
+   *
+   * The status does NOT move, and that is the whole rule. See `stageOf`.
+   */
+  function markDelivered(order, ctx) {
+    const c = ctxOfStatus(ctx);
+    const nowMs = typeof c.now === 'number' ? c.now : Date.now();
+    if (!order || order.status !== 'completed') {
+      return { ok: false, block: { code: 'not_completed', params: {} }, effects: [] };
+    }
+    const nowIso = new Date(nowMs).toISOString();
+    order.deliveredAt = nowIso;
+    pushHistory(order, 'delivered', nowIso);
+    return {
+      ok: true,
+      block: null,
+      effects: [
+        { type: 'activity_log', text: `${order.id} → delivered` },
+        { type: 'save' },
+        { type: 'render', dashboard: true },
+        { type: 'toast_delivered' },
+      ],
+    };
+  }
+
+  /**
    * What this move would reach OUTSIDE the shop's own book.
    *
    * `apply()` returns every effect a move asks for; most of them — saving,
@@ -429,7 +484,8 @@
 
   const api = {
     HISTORY_CAP, SURVEY_TOKEN_BYTES,
-    wouldExceedWipLimit, gate, apply, outboundFor, resumeFromHold, makeSurveyToken,
+    wouldExceedWipLimit, gate, apply, outboundFor, stageOf, markDelivered,
+    resumeFromHold, makeSurveyToken,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   global.KhaytOrderStatus = api;

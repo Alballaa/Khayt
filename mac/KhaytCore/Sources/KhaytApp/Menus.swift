@@ -123,10 +123,13 @@ private struct SortMenu: View {
 private struct JobMenu: View {
     @Environment(Shop.self) private var shop
 
-    /// The stages a job can be moved to from a menu. `on_hold` is not among
-    /// them because it asks a question first and has its own item below.
+    /// The stages a job can be moved to from a menu.
+    ///
+    /// `on_hold` is not among them because it asks a question first, and
+    /// `delivered` is not because it is not a status: handing a job over stamps
+    /// a date on a completed job, and both have their own item below.
     private static let destinations: [Stage] =
-        [.quote, .pending, .printing, .post, .qc, .completed, .delivered]
+        [.quote, .pending, .printing, .post, .qc, .completed]
 
     private var job: Order? { shop.selection.flatMap { id in shop.orders.first { $0.id == id } } }
     private var canMove: Bool { shop.canMoveJobs && job != nil }
@@ -146,6 +149,10 @@ private struct JobMenu: View {
             // reached by name, which is also how they are read on the board.
             .disabled(!canMove || Stage.of(job!) == stage)
         }
+        Button(Words.upfront("queue.delivered")) {
+            if let id = shop.selection { Task { await shop.markDelivered(id) } }
+        }
+        .disabled(!canMove || job?.status != "completed" || job?.deliveredAt != nil)
         Divider()
         Button(Words.upfront("pay.modal_title")) {
             guard let one = job else { return }

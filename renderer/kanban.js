@@ -455,11 +455,15 @@ function renderKanban() {
     if (window.KhaytBedReadyUI?.orderMatchesStudioQueueFilter?.(o) === false) return false;
     return true;
   }).forEach(o => {
-    // Delivered column: completed orders that have a deliveredAt timestamp
-    if (o.status === 'completed' && o.deliveredAt) {
-      cols.delivered.push(o);
-    } else if (cols[o.status]) {
-      cols[o.status].push(o);
+    // Which column a job is in is lib/order-status.js's answer now — the rule
+    // that "delivered" is a completed job carrying a deliveredAt lived only in
+    // this loop, and the Mac app's board, reading `status` alone, filed every
+    // handed-over job under Completed.
+    const stage = (typeof KhaytOrderStatus !== 'undefined')
+      ? KhaytOrderStatus.stageOf(o)
+      : (o.status === 'completed' && o.deliveredAt ? 'delivered' : o.status);
+    if (cols[stage]) {
+      cols[stage].push(o);
     } else if (o.status === 'split') {
       // Split parent orders shown in pending column with a visual indicator
       cols.pending.push({ ...o, _isSplitParent: true });
