@@ -318,9 +318,34 @@ sizing tried; a `Menu` with a bare `Text` label works. And a toolbar `Menu`
 draws a `Label` as its icon alone, which `.labelStyle(.titleAndIcon)` does not
 change.
 
+## Profit and loss
+
+The shop's quarters, from `lib/pnl-report.js`'s `pnlByPeriod` — lifted out of
+the Electron analytics screen, where the whole aggregation was inline. A table
+rather than a chart: this is the screen a shop reads at the end of a quarter to
+decide something, and a bar it cannot read a figure off is decoration.
+
+What the rule settles, each of which was a comment on the original: a VOIDED
+invoice is not revenue and not VAT collected (voiding keeps `status:
+'completed'` and only sets `voidedAt`); revenue is the price less credit notes,
+in the shop's own currency; VAT is `computeTax(...).taxTotal`, which extracts
+under inclusive pricing and ADDS under exclusive, rather than tax pulled out of
+the revenue; and the fixed overhead is charged to EVERY quarter with activity,
+pro-rated for the one in progress.
+
+**The engine failing was silent, and a photograph is what caught it.** Bundling
+`pnl-report.js` — whose file is named for what it produces rather than for the
+`KhaytPnl` global it assigns — made the loader's own check throw, `Shop.load`
+swallowed it with `try?`, and every screen carried on with no words (the
+catalogue is loaded through the runtime, so every label rendered as its own
+key), no tax, no reports and no writes. `Shop.engineProblem` now says so in the
+sidebar, `EngineStartTests` asserts the runtime starts and that a handful of
+labels are not their own keys, and the loader's exception list has a comment
+saying a NEW module should be named for its global instead.
+
 ## Not yet built
 
-Analytics, the catalog, gift cards, the portfolio,
+The rest of analytics, the catalog, gift cards, the portfolio,
 the colour studio, the converter, the cloud portal, the LAN server, and the
 printer protocols. `KhaytCore` came first because the alternative, screens
 against a half-trusted engine, is how the two apps come to disagree about a

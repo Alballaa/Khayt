@@ -55,6 +55,10 @@ struct Sidebar: View {
                 Row(title: shop.words.callIt("waste.title"), symbol: "trash",
                     count: shop.wasteLog.count, selected: shop.shelf == .waste)
                     .tag(Shop.Shelf.waste)
+                // No count: a quarter is not a thing a shop has a number of.
+                Row(title: shop.words.callIt("an.pnl_title"), symbol: "chart.bar.doc.horizontal",
+                    count: 0, selected: shop.shelf == .reports)
+                    .tag(Shop.Shelf.reports)
             }
             Section(shop.words.callIt("mac.people")) {
                 Row(title: shop.words.callIt("tab.clients"), symbol: "person.2", count: shop.customers.count,
@@ -127,6 +131,13 @@ private struct Provenance: View {
                       systemImage: "exclamationmark.triangle")
                     .foregroundStyle(.orange)
                     .help(shop.skipped.prefix(8).joined(separator: "\n"))
+            }
+            if let engineProblem = shop.engineProblem {
+                // Above everything, in the one place that is on every screen.
+                Label(engineProblem, systemImage: "exclamationmark.octagon")
+                    .foregroundStyle(.orange)
+                    .font(.caption)
+                    .lineLimit(3)
             }
             Label(footerLabel, systemImage: footerSymbol)
             // Who else has it open. Only shown when somebody does — a line that

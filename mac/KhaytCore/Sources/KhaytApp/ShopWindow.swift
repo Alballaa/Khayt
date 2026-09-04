@@ -42,6 +42,8 @@ struct ShopWindow: View {
                     Expenses(shop: shop)
                 } else if shop.showingWaste {
                     Waste(shop: shop)
+                } else if shop.showingReports {
+                    Reports(shop: shop)
                 } else if shop.showingCustomers {
                     CustomersTable(shop: shop)
                 } else {
@@ -61,12 +63,12 @@ struct ShopWindow: View {
         .inspector(isPresented: Binding(
             get: { showInspector && !shop.showingDashboard && !shop.showingBoard
                    && !shop.showingMachines && !shop.showingInventory
-                   && !shop.showingExpenses && !shop.showingWaste },
+                   && !shop.showingExpenses && !shop.showingWaste && !shop.showingReports },
             set: { showInspector = $0 }
         )) {
             Group {
                 if shop.showingMachines || shop.showingInventory || shop.showingBoard
-                    || shop.showingExpenses || shop.showingWaste {
+                    || shop.showingExpenses || shop.showingWaste || shop.showingReports {
                     // Both screens carry their own detail — a card and a table
                     // wide enough to read. A panel beside them would repeat.
                     EmptyView()
@@ -233,6 +235,7 @@ private struct OwedSummary: View {
         case .board: "board"
         case .expenses: "expenses"
         case .waste: "waste"
+        case .reports: "reports"
         case .library(nil): "library"
         case .library(let group?): "library:\(group)"
         }
@@ -259,6 +262,8 @@ private struct OwedSummary: View {
             return .expenses
         case "waste":
             return .waste
+        case "reports":
+            return .reports
         case "library":
             guard parts.count == 2 else { return .library(nil) }
             // Only if it is still a group this shop has.

@@ -394,6 +394,9 @@ final class Words {
         // What the shop spent, and what it wasted
         "mac.search_expenses": ["en": "Note, category or job", "ar": "ملاحظة أو تصنيف أو عمل"],
         "mac.search_waste":  ["en": "Material, reason or failure", "ar": "خامة أو سبب أو نوع العطل"],
+        "mac.of_which_fixed": ["en": "incl. overhead", "ar": "منها التكاليف الثابتة"],
+        "mac.quarter_in_progress": ["en": "This quarter is still running, so its overhead is charged for the days elapsed.",
+                                    "ar": "هذا الربع لم ينتهِ، فتُحتسب تكاليفه الثابتة بحسب الأيام المنقضية."],
         // Settings
         "mac.revert":        ["en": "Revert",       "ar": "تراجع"],
         "mac.settings_saved": ["en": "Saved.",      "ar": "حُفظ."],
@@ -421,6 +424,8 @@ final class Words {
         "plib.material", "plib.tags_short", "plib.group_ph", "set.store_size",
         "tab.clients", "doc.invoice", "doc.quotation", "common.close",
         "inv.qr_failed",
+        // Reports
+        "an.pnl_empty", "an.pnl_expenses", "an.pnl_net", "an.pnl_orders", "an.pnl_period", "an.pnl_title", "an.pnl_vat", "an.revenue",
         // Expenses and waste
         "common.cancel", "common.delete", "exp.add_btn", "exp.add_title", "exp.amount",
         "exp.budget_title", "exp.cat.electricity", "exp.cat.filament",
