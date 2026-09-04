@@ -149,18 +149,21 @@ private struct JobMenu: View {
             // reached by name, which is also how they are read on the board.
             .disabled(!canMove || Stage.of(job!) == stage)
         }
+        // Delivered sits with the stages because that is what it answers —
+        // where the job is — even though it is not one. Everything below the
+        // divider is something you DO to a job rather than somewhere you put it.
+        Button(Words.upfront("queue.delivered")) {
+            if let id = shop.selection { Task { await shop.markDelivered(id) } }
+        }
+        .disabled(!canMove || job?.status != "completed" || job?.deliveredAt != nil)
+
+        Divider()
         Button(Words.upfront("mac.edit_job")) {
             guard let one = job else { return }
             shop.pendingEdit = Shop.PendingHold(id: one.id, project: one.project)
         }
         .keyboardShortcut("e", modifiers: [.command, .shift])
         .disabled(!canMove)
-        Divider()
-        Button(Words.upfront("queue.delivered")) {
-            if let id = shop.selection { Task { await shop.markDelivered(id) } }
-        }
-        .disabled(!canMove || job?.status != "completed" || job?.deliveredAt != nil)
-        Divider()
         Button(Words.upfront("pay.modal_title")) {
             guard let one = job else { return }
             shop.pendingPayment = Shop.PendingHold(id: one.id, project: one.project)
