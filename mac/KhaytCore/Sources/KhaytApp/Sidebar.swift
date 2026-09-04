@@ -132,6 +132,16 @@ private struct Provenance: View {
                     .foregroundStyle(.orange)
                     .help(shop.skipped.prefix(8).joined(separator: "\n"))
             }
+            if let backupProblem = shop.backupProblem {
+                Label(shop.words.callIt("mac.backup_failed") + " " + backupProblem,
+                      systemImage: "exclamationmark.triangle")
+                    .foregroundStyle(.orange).font(.caption).lineLimit(2)
+            } else if let day = shop.lastBackup {
+                // Quiet, and always there. A shop should be able to answer
+                // "when was this last backed up" by looking, not by trusting.
+                Label(shop.words.callIt("set.last_backup") + " " + day, systemImage: "clock.arrow.circlepath")
+                    .foregroundStyle(.tertiary).font(.caption)
+            }
             if let engineProblem = shop.engineProblem {
                 // Above everything, in the one place that is on every screen.
                 Label(engineProblem, systemImage: "exclamationmark.octagon")

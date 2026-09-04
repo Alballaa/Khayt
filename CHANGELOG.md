@@ -25,6 +25,11 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   print ran long, change a price — with the price it used to be kept, so a
   supplier's invoice can be checked. Deleting one is undoable.
 
+- **The Mac app keeps your daily backup.** Same folder, same names and same
+  thirty-day history as Khayt's, so the two apps keep one set of backups
+  between them — and a shop running only the Mac app is no longer one disk
+  failure from losing its book. The sidebar says when the last one was taken.
+
 - **The Mac app shows what the shop is owed, and since when.** Aged
   receivables beside the P&L: the four ages across the top, oldest first
   below. An instalment plan is aged by each payment's own due date, so a plan
@@ -110,6 +115,10 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   already run out, and a re-opened job never being charged twice.
 
 ### Fixed
+
+- **Your backups before an app update are kept properly.** They were counted
+  as ordinary daily backups and survived only by accident of how the filenames
+  sort — and meanwhile each one cost you a day of ordinary backup history.
 
 - **Telegram notifications to a public channel now work.** A chat ID typed as
   `@yourchannel` had its name stripped away and the message went nowhere, with

@@ -109,6 +109,14 @@ final class Activator: NSObject, NSApplicationDelegate {
             // every write, and a gate nobody checked is a gate that is open.
             FileHandle.standardError.write(Data(
                 "ownership: \(shopOwnership())\n".utf8))
+            // Whether the shop's book got today's backup. A shop running only
+            // this app has no other, so "did it actually write one" is worth
+            // seeing in every run rather than trusted.
+            if let shop = subject {
+                let line = "backup: " + (shop.lastBackup ?? "none")
+                    + (shop.backupProblem.map { " — \($0)" } ?? "") + "\n"
+                FileHandle.standardError.write(Data(line.utf8))
+            }
             capture(named: "00-dashboard", into: dir)
 
             guard let shop = subject else { NSApp.terminate(nil); return }

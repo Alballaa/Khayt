@@ -403,6 +403,8 @@ final class Words {
         "mac.telegram_sent":   ["en": "Telegram message sent.", "ar": "أُرسلت رسالة تيليجرام."],
         "mac.telegram_failed": ["en": "The job was saved, but the Telegram message did not go out:",
                                 "ar": "حُفظ العمل، لكن لم تُرسل رسالة تيليجرام:"],
+        "mac.backup_failed": ["en": "Today's backup could not be written:",
+                              "ar": "تعذّرت كتابة نسخة اليوم الاحتياطية:"],
         // Settings
         "mac.revert":        ["en": "Revert",       "ar": "تراجع"],
         "mac.settings_saved": ["en": "Saved.",      "ar": "حُفظ."],
@@ -439,6 +441,7 @@ final class Words {
         "mach.color", "mach.name", "mach.name_ph", "mach.nozzle_installed", "mach.nozzle_material", "mach.nozzle_threshold", "mach.printer_model", "mach.printer_model_hint", "mach.printer_model_ph", "mach.target_hours",
         // The shelf
         "inv.colour_variant", "inv.lot", "inv.material_ph", "inv.opened_on", "inv.price_history", "inv.reorder_point",
+        "set.last_backup",
         // Reports
         "an.aged_receivables",
         "an.aged_bucket_days", "an.aged_col_client", "an.aged_col_days", "an.aged_col_order", "an.aged_col_owed", "an.aged_col_project", "an.aged_none", "an.aged_orders_n",
