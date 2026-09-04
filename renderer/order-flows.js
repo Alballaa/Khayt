@@ -460,16 +460,18 @@ function promptActuals(order, onConfirm) {
  * that knows how to do it in an Electron window.
  */
 
-/** The module, however this file happens to be loaded. */
-let _statusRules = null;
+/** The module, however this file happens to be loaded.
+ *
+ *  The cache hangs off the function rather than a `let` beside it, so a caller
+ *  defined above this line cannot reach it inside its temporal dead zone. */
 function StatusRules() {
-  if (_statusRules) return _statusRules;
+  if (StatusRules.cached) return StatusRules.cached;
   if (typeof globalThis !== 'undefined' && globalThis.KhaytOrderStatus) {
-    _statusRules = globalThis.KhaytOrderStatus;
-    return _statusRules;
+    StatusRules.cached = globalThis.KhaytOrderStatus;
+    return StatusRules.cached;
   }
-  try { _statusRules = require('../lib/order-status.js'); } catch (e) { _statusRules = null; }
-  return _statusRules;
+  try { StatusRules.cached = require('../lib/order-status.js'); } catch (e) { StatusRules.cached = null; }
+  return StatusRules.cached;
 }
 
 /* Round 12 — fire completion webhooks + ensure a survey token exists.

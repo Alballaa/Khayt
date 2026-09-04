@@ -1898,6 +1898,14 @@
 <script src="../lib/ai-price.js"></script>
 <script src="../lib/schedule.js"></script>
 <script src="../lib/order-money.js"></script>
+<!-- The rules for moving a job between stages, and what a finished job takes
+     off the shelf. Bed Ready loads app-helpers.js (whose wouldExceedWipLimit is
+     the shared one) and inventory.js (whose isLowStock is), so these are not
+     optional here — without them the queue throws on the first move and the
+     shelf throws on the first draw. -->
+<script src="../lib/assembly.js"></script>
+<script src="../lib/order-status.js"></script>
+<script src="../lib/order-deduction.js"></script>
 <script src="../lib/kpi-rows.js"></script>
 <script src="../lib/kpi.js"></script>
 <script src="../lib/sample-data.js"></script>

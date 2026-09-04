@@ -6,6 +6,23 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Changed
 
+- **What a finished job takes off the shelf is now decided in one place.** The
+  grams it drew from each spool, the isopropyl and glue its print hours spent,
+  the bolts a BOM assembly consumed, and the one-of-each packaging it ships in
+  — all of it used to be readable only by the Electron window. Nothing about
+  how you use Khayt changes; a job completed anywhere now empties the same
+  shelf by the same arithmetic, including the parts that are easy to get
+  subtly wrong: local stock before another branch, a chosen spool that has
+  already run out, and a re-opened job never being charged twice.
+
+### Fixed
+
+- **Bed Ready's inventory could fail to draw.** A shared module the shelf now
+  depends on was not loaded on Bed Ready's page, so its filament screen threw
+  before it drew anything. Bed Ready's page is now checked for this on every
+  build, as Khayt's already was — it is the fourth time a feature has gone
+  silently missing because nothing loaded the file behind it.
+
 - **The rules for moving a job between stages now live in one place.** What
   may move, and what moving it costs — stamping the completion, deducting the
   filament and the packaging, clearing a hold and pushing the due date out by

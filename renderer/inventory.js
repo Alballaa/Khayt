@@ -43,9 +43,7 @@ if (typeof fetch === 'function' && typeof document !== 'undefined') {
  * disagree.
  */
 function isLowStock(item) {
-  if (!item) return false;
-  const threshold = item.reorderPoint ?? (typeof settings !== 'undefined' ? settings.lowStockThreshold : undefined) ?? 200;
-  return (+item.weight || 0) <= threshold;
+  return isLowStockShared(item);
 }
 
 // Set the add-form colour picker + keep its hex text field in sync.
@@ -111,17 +109,7 @@ function perLocationLowStockCounts(items, lowFn) {
  * multi-site deduction draws down local stock first.
  */
 function orderSpoolsByLocationPreference(candidates, locId) {
-  const list = Array.isArray(candidates) ? candidates.slice() : [];
-  if (!locId) return list;
-  const tier = (s) => {
-    if (s && s.locationId === locId) return 0; // same branch
-    if (!s || !s.locationId) return 1;         // unassigned (shared)
-    return 2;                                   // other branch
-  };
-  return list
-    .map((s, i) => ({ s, i, tier: tier(s) }))
-    .sort((a, b) => (a.tier - b.tier) || (a.i - b.i))
-    .map((x) => x.s);
+  return Deduction().spoolsByLocationPreference(candidates, locId);
 }
 
 /* ============================================================
@@ -1227,7 +1215,7 @@ function getQueuedWeight(itemId) {
 // times quantity) so reservation, over-commit, and forecast never under-count
 // relative to the actual completion deduction.
 function partGramsConsumed(p) {
-  return ((+p.printWeight || 0) + (+p.supportWeight || 0)) * (+p.qty || 1);
+  return Deduction().partGramsConsumed(p);
 }
 
 // Grams THIS part draws from one specific spool id. For a multicolour part the
@@ -2171,152 +2159,96 @@ function openTestPrintLog(itemId) {
 /* ============================================================
    Auto filament deduction (on completion)
    ============================================================ */
+/* WHAT A FINISHED JOB TAKES OFF THE SHELF LIVES IN lib/order-deduction.js.
+ *
+ * The arithmetic used to be here, reading `inventory`, `consumables`,
+ * `machines` and `settings` off the renderer's globals and calling `toast()`
+ * and `renderInventory()` in the middle of itself. That put it out of reach of
+ * the Mac app, whose board could not accept a card dropped on "completed": the
+ * move is shared, but the shelf it empties was not, and a completion that
+ * silently failed to deduct would be worse than no drag at all.
+ *
+ * What stayed here is the shop's globals, the shop's language, and the redraw.
+ */
+
+/** The module, however this file happens to be loaded.
+ *
+ *  The cache hangs off the function rather than a `let` beside it because
+ *  `isLowStock` is defined 2,000 lines above and is called during the first
+ *  render — a `let` here would still be in its temporal dead zone. */
+function Deduction() {
+  if (Deduction.cached) return Deduction.cached;
+  if (typeof globalThis !== 'undefined' && globalThis.KhaytOrderDeduction) {
+    Deduction.cached = globalThis.KhaytOrderDeduction;
+    return Deduction.cached;
+  }
+  try { Deduction.cached = require('../lib/order-deduction.js'); } catch (e) { Deduction.cached = null; }
+  return Deduction.cached;
+}
+
+/** The module names its messages; this file knows the shop's language. */
+function showDeductionNotices(notices) {
+  for (const n of notices || []) {
+    switch (n.code) {
+      case 'filament_deducted':
+        toast(t('inv.deducted_summary', n.params), 'info', 2600); break;
+      case 'filament_deducted_low':
+        toast(t('inv.deducted_summary_low', n.params), 'warning', 4200); break;
+      case 'consumable_low':
+        toast(`${t('cons.low')}: ${n.params.name}`, 'warning', 3000); break;
+      case 'packaging_low':
+        toast(`📦 ${t('cons.low')}: ${n.params.name}`, 'warning', 3000); break;
+      case 'packaging_deducted':
+        toast(t('cons.packaging_deducted'), 'info', 2200); break;
+      default:
+        console.warn('[order-deduction] no message for', n.code);
+    }
+  }
+}
+
+/** Save and redraw whatever the deduction actually changed. */
+function runDeductionEffects(effects) {
+  for (const e of effects || []) {
+    switch (e.type) {
+      case 'save': saveAll(); break;
+      case 'render_inventory': renderInventory(); break;
+      case 'render_consumables': renderConsumables(); break;
+      default: console.warn('[order-deduction] no handler for effect', e.type);
+    }
+  }
+}
+
+/** The context the rules read the shop through. */
+function deductionContext() {
+  return {
+    settings,
+    inventory,
+    consumables,
+    machines: typeof machines !== 'undefined' ? machines : [],
+    today: localDateStr(),
+  };
+}
+
 function deductFilamentForOrder(order, { skipRender = false } = {}) {
-  if (!settings.autoDeduct) return;
-  if (order.materialDeducted) return;
-  let deductedAny = false;
-  let totalDeducted = 0;
-  const spoolsTouched = new Set();
-  const nowLow = [];
-  const today = localDateStr();
-  // Per-location: prefer drawing from spools at the order's branch.
-  const orderLoc = typeof orderLocationId === 'function' ? orderLocationId(order) : (order.locationId || null);
-  for (const part of (order.parts || [])) {
-    // Multicolour part: deduct each colour's grams from its own assigned filament,
-    // falling back to same-material spools — mirrors the single-filament path below.
-    // Guarded so normal single-filament parts are completely unaffected.
-    if (part.colours && part.colours.length) {
-      const perQty = Math.max(1, +part.qty || 1);
-      for (const col of part.colours) {
-        const primaryC = col.filamentId && inventory.find(i => i.id === col.filamentId);
-        if (!primaryC) continue;
-        let remaining = Math.max(0, (+col.grams || 0) * perQty);
-        if (remaining <= 0) continue;
-        const othersC = inventory.filter(s =>
-          s.id !== primaryC.id && s.material === primaryC.material && (+s.weight || 0) > 0);
-        const fbC = (orderLoc && typeof orderSpoolsByLocationPreference === 'function')
-          ? orderSpoolsByLocationPreference(othersC, orderLoc) : othersC;
-        for (const sp of [primaryC, ...fbC]) {
-          if (remaining <= 0) break;
-          const avail = +sp.weight || 0;
-          if (avail <= 0) continue;
-          const take = Math.min(avail, remaining);
-          sp.weight = Math.max(0, avail - take);
-          remaining -= take;
-          if (!sp.usageHistory) sp.usageHistory = [];
-          sp.usageHistory.unshift({ orderId: order.id, project: order.project || '', weightUsed: take, date: today });
-          if (sp.usageHistory.length > 200) sp.usageHistory.length = 200;
-          deductedAny = true;
-          totalDeducted += take;
-          spoolsTouched.add(sp.id);
-          if (isLowStock(sp) && !nowLow.some(x => x.id === sp.id)) nowLow.push(sp);
-        }
-      }
-      continue;
-    }
-    if (!part.filamentId || !part.printWeight) continue;
-    const primary = inventory.find(i => i.id === part.filamentId);
-    if (!primary) continue;
-    // Grams still owed by the primary filament after any spools already deducted
-    // through the spool-switch flow (additionalSpools) — so those aren't counted
-    // twice. Uses the shared grams helper (print + support × qty).
-    const extra = (part.additionalSpools || []).reduce((s, a) => s + (+a.weight || 0), 0);
-    let remaining = Math.max(0, partGramsConsumed(part) - extra);
-    if (remaining <= 0) continue;
-    // Draw from the chosen spool first (honoring the user's pick), then cover any
-    // shortfall — or a fully-empty chosen spool — from other same-material spools,
-    // location-preferred when the order has a branch.
-    const others = inventory.filter(s =>
-      s.id !== primary.id && s.material === primary.material && (+s.weight || 0) > 0);
-    const fallback = (orderLoc && typeof orderSpoolsByLocationPreference === 'function')
-      ? orderSpoolsByLocationPreference(others, orderLoc) : others;
-    for (const sp of [primary, ...fallback]) {
-      if (remaining <= 0) break;
-      const avail = +sp.weight || 0;
-      if (avail <= 0) continue;
-      const take = Math.min(avail, remaining);
-      sp.weight = Math.max(0, avail - take);
-      remaining -= take;
-      if (!sp.usageHistory) sp.usageHistory = [];
-      sp.usageHistory.unshift({ orderId: order.id, project: order.project || '', weightUsed: take, date: today });
-      if (sp.usageHistory.length > 200) sp.usageHistory.length = 200;
-      deductedAny = true;
-      totalDeducted += take;
-      spoolsTouched.add(sp.id);
-      if (isLowStock(sp) && !nowLow.some(x => x.id === sp.id)) nowLow.push(sp);
-    }
-  }
-  if (deductedAny) {
-    // Emit ONE aggregated toast instead of per-spool spam (which could blow the
-    // toast cap and silently drop the low-stock warning). Low-stock count is
-    // always surfaced in the summary.
-    const fields = { weight: Math.round(totalDeducted), spools: spoolsTouched.size, low: nowLow.length };
-    if (nowLow.length > 0) {
-      toast(t('inv.deducted_summary_low', fields), 'warning', 4200);
-    } else {
-      toast(t('inv.deducted_summary', fields), 'info', 2600);
-    }
-    saveAll();
-    if (!skipRender) renderInventory();
-  }
-
-  // Feature 2: Deduct consumables based on print hours
-  const printHrs = +order.printTime || 0;
-  if (printHrs > 0) {
-    consumables.forEach(c => {
-      if (c.usagePerHour && c.usagePerHour > 0) {
-        const used = c.usagePerHour * printHrs;
-        c.stock = Math.max(0, (c.stock || 0) - used);
-        if (c.stock <= (c.minStock || 0)) {
-          toast(`${t('cons.low')}: ${c.name}`, 'warning', 3000);
-        }
-      }
-    });
-    saveAll();
-    renderConsumables();
-  }
-
-  // BOM: deduct non-printed components (qtyPerUnit × assemblyQty) from their consumable
-  // rows. Clamps at 0, warns on low stock (never blocks completion), guarded by the same
-  // materialDeducted flag so re-runs never double-deduct. See docs/KHAYT-3.0-BOM-SPEC.md.
-  const comps = Array.isArray(order.components) ? order.components : [];
-  if (comps.length) {
-    const aq = Math.max(1, +order.assemblyQty || 1);
-    let touched = false;
-    comps.forEach(comp => {
-      if (!comp || !comp.consumableId) return;
-      const c = consumables.find(x => x.id === comp.consumableId);
-      if (!c) return;
-      const draw = Math.max(0, (+comp.qtyPerUnit || 0) * aq);
-      if (draw <= 0) return;
-      c.stock = Math.max(0, (c.stock || 0) - draw);
-      touched = true;
-      if (c.stock <= (c.minStock || 0)) {
-        toast(`${t('cons.low')}: ${c.name}`, 'warning', 3000);
-      }
-    });
-    if (touched) { saveAll(); renderConsumables(); }
-  }
-
-  // Always mark materialDeducted so re-runs never double-deduct
-  order.materialDeducted = true;
+  const out = Deduction().deductForOrder(order, deductionContext(), { skipRender });
+  showDeductionNotices(out.notices);
+  runDeductionEffects(out.effects);
 }
 
 /* Feature 6: Deduct packaging consumables when order completes */
 function deductPackagingConsumables(order) {
-  if (order.packagingDeducted) return;
-  const packagingItems = consumables.filter(c => c.isPackaging && c.stock > 0);
-  if (packagingItems.length === 0) return;
-  packagingItems.forEach(c => {
-    c.stock = Math.max(0, (c.stock || 0) - 1);
-    if (c.stock <= (c.minStock || 0)) {
-      toast(`📦 ${t('cons.low')}: ${c.name}`, 'warning', 3000);
-    }
-  });
-  saveAll();
-  renderConsumables();
-  toast(t('cons.packaging_deducted'), 'info', 2200);
-  order.packagingDeducted = true;
+  const out = Deduction().deductPackaging(order, { consumables });
+  showDeductionNotices(out.notices);
+  runDeductionEffects(out.effects);
+}
+
+/** True when this spool is at or below its reorder point.
+ *
+ *  The rule moved to lib/order-deduction.js with the deduction itself, so the
+ *  banner, the row badge, the reorder list, the Mac app and the deduction can
+ *  never disagree about the same spool. */
+function isLowStockShared(item) {
+  return Deduction().isLowStock(item, settings);
 }
 
 /* ============================================================
