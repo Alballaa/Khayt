@@ -17,7 +17,7 @@ const read = (p) => fs.readFileSync(path.join(root, p), 'utf8');
 function loadValidator() {
   const ctx = vm.createContext({ globalThis: {}, console });
   ctx.globalThis = ctx;
-  vm.runInContext(read('renderer/store-validate.js'), ctx);
+  vm.runInContext(read('lib/store-validate.js'), ctx);
   return ctx.globalThis.KhaytStoreValidate;
 }
 

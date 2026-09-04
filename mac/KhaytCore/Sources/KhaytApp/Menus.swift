@@ -72,6 +72,20 @@ private struct BookMenu: View {
         .disabled(!shop.canMoveJobs)
         Button(Words.upfront("mac.reveal_backups")) { shop.revealBackups() }
             .disabled(shop.source.build == nil)
+        // The other half of a backup. Listed rather than opened through a file
+        // picker: the backups a shop should be choosing between are the ones in
+        // its own folder, and a picker invites choosing something else.
+        Menu(Words.upfront("mac.restore_backup")) {
+            let shelf = Array(shop.restorable.prefix(12))
+            if shelf.isEmpty {
+                Text(Words.upfront("mac.restore_none"))
+            } else {
+                ForEach(shelf) { backup in
+                    Button(backup.filename) { shop.restoring = backup }
+                }
+            }
+        }
+        .disabled(!shop.canMoveJobs)
 
         Divider()
         Picker(Words.upfront("mac.open_book"), selection: Binding(get: { shop.source }, set: { shop.open($0) })) {

@@ -61,7 +61,7 @@ Two layers on top of §2's generic modal:
 | Inventory import | `importSpoolsCsv` — `renderer/inventory.js` |
 | Order import | **new** `importOrdersCsv` — match `logPrint` shape in `renderer/order-flows.js` |
 | Ids | `uid(prefix)` — `renderer/util.js` |
-| Validation | `isValidClient` / `isValidInventoryItem` / `isValidOrder` — `renderer/store-validate.js` |
+| Validation | `isValidClient` / `isValidInventoryItem` / `isValidOrder` — `lib/store-validate.js` |
 | Migration pass | `normalizeStoreSnapshot` + `KhaytMigrate.run` via `loadAll`/`applyStoreFromSnapshot` — `renderer/app-state.js` |
 | Full replace / restore | `replaceStoreFromSnapshot`, restore-backup UI — `renderer/app-state.js`, `renderer/settings.js` |
 | Pre-import backup | `buildExportPayload` + `window.hubAPI.writeBackup` — `renderer/store.js`, `renderer/app-exports.js` |

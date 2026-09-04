@@ -88,7 +88,7 @@ No background timer is added: status is recomputed lazily inside `buildNotificat
 ## 5. Integration points (exact)
 
 - `renderer/app-state.js` — declare `machMaintTasks`, add `K.MTASKS`, include in store snapshot / reset / import filters (model after `machMaintLog`).
-- `renderer/store-validate.js` — add `machMaintTasks` to the collection allow-list and `isPlainObject` map.
+- `lib/store-validate.js` — add `machMaintTasks` to the collection allow-list and `isPlainObject` map.
 - `renderer/machines.js` — add `machineMaintTaskStatus(task)` next to `machineServiceStatus`; extend `openMachineEditor` with the task list; extend `openMaintLog` with the scheduled-task section + "Mark done"; export new helpers from the module `api`.
 - `renderer/notifications.js` — in `buildNotifications()` §4 (Machines due for service) loop, also iterate `machMaintTasks.filter(t => t.enabled)`, push per-task alerts (`type:'service'`, `key:'mtask:'+task.id`), honoring `isDismissed` + `snoozedUntil`. Snooze reuses the existing dismiss machinery.
 - `renderer/order-flows.js` — no change required (meter reads its data); only the `machineHoursMeter` `actualPrintTime` preference touches this domain.

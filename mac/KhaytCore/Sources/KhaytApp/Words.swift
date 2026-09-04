@@ -408,6 +408,21 @@ final class Words {
         "mac.backed_up":     ["en": "Backed up as",   "ar": "حُفظت النسخة باسم"],
         "mac.backup_failed": ["en": "Today's backup could not be written:",
                               "ar": "تعذّرت كتابة نسخة اليوم الاحتياطية:"],
+        // Putting one back. The confirmation says what will be lost in the
+        // shop's own words, because "are you sure?" is not a question anybody
+        // can answer.
+        "mac.restore_backup": ["en": "Restore from Backup\u{2026}", "ar": "استعادة من نسخة احتياطية\u{2026}"],
+        "mac.restore_title": ["en": "Restore this backup?", "ar": "استعادة هذه النسخة؟"],
+        "mac.restore_what": ["en": "Everything in the book is replaced by what this backup held.",
+                             "ar": "سيُستبدل كل ما في الدفتر بما تحتويه هذه النسخة."],
+        "mac.restore_safety": ["en": "A copy of the book as it is now is taken first.",
+                               "ar": "تُؤخذ نسخة من الدفتر كما هو الآن أولًا."],
+        "mac.restore_insurance": ["en": "taken before an update", "ar": "أُخذت قبل تحديث"],
+        "mac.restore_do":    ["en": "Restore",      "ar": "استعادة"],
+        "mac.restored":      ["en": "Restored from", "ar": "استُعيدت من"],
+        "mac.restore_failed": ["en": "Nothing was restored:", "ar": "لم تُستعد أي بيانات:"],
+        "mac.restore_none":  ["en": "There are no backups to restore from yet.",
+                              "ar": "لا توجد نسخ احتياطية للاستعادة منها بعد."],
         // Settings
         "mac.revert":        ["en": "Revert",       "ar": "تراجع"],
         "mac.settings_saved": ["en": "Saved.",      "ar": "حُفظ."],

@@ -163,6 +163,11 @@ public actor KhaytEngine {
         // Which of a shop's backups may be rotated away, and which is the
         // insurance it would want after a schema change.
         "upgrade-backup",
+        // What counts as a Khayt store at all. Restoring a backup REPLACES a
+        // shop's book, so the one thing that must not be a second opinion is
+        // which files are allowed to do that — the renderer learned the hard
+        // way that a salvaging normaliser says yes to a package.json.
+        "store-validate",
     ]
 
     /// The languages whose strings are bundled.
@@ -797,6 +802,41 @@ public actor KhaytEngine {
     public func rotatableBackups(_ filenames: [String]) throws -> [String] {
         try runtime.call2("KhaytUpgradeBackup.partitionForRotation(ARG0).rotatable",
                           [.array(filenames.map(JSONValue.string))], as: [String].self)
+    }
+
+    /// Is this file a Khayt store, and is it whole?
+    ///
+    /// The question a restore has to answer BEFORE it destroys anything.
+    /// `looksLikeStore` is the half that matters most: `normalizeStoreSnapshot`
+    /// SALVAGES — handed a file that is not ours it recognises nothing and
+    /// returns a truthy empty object — so "did it parse" was never the test.
+    /// The renderer's own restore refused a falsy snapshot and nothing else,
+    /// and picking the wrong `.json` in Settings → Import was enough to zero
+    /// all thirty-one collections under a "restored successfully" toast.
+    ///
+    /// Both halves are asked, and both must pass: a file that is recognisably
+    /// ours but whose `printLog` is a string is a truncated or hand-edited
+    /// backup, and a shop restoring one wants to be told, not salvaged.
+    public func storeIsRestorable(_ snapshot: [String: JSONValue]) throws -> RestoreVerdict {
+        try runtime.call2(
+            "(function (s) {"
+          + "  if (!KhaytStoreValidate.looksLikeStore(s))"
+          + "    return { ok: false, ours: false, errors: [], warnings: [] };"
+          + "  var v = KhaytStoreValidate.validateStoreSnapshot(s);"
+          + "  return { ok: !!v.ok, ours: true, errors: v.errors || [], warnings: v.warnings || [] };"
+          + "})(ARG0)",
+            [.object(snapshot)], as: RestoreVerdict.self)
+    }
+
+    /// What `storeIsRestorable` found.
+    public struct RestoreVerdict: Decodable, Sendable {
+        /// Safe to put in place of the shop's book.
+        public let ok: Bool
+        /// It is a Khayt store. False means the shop picked the wrong file,
+        /// which is a different sentence from "your backup is damaged".
+        public let ours: Bool
+        public let errors: [String]
+        public let warnings: [String]
     }
 
     // MARK: - Who the shop's customers are

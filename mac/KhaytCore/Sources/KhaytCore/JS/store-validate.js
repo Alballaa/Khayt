@@ -1,6 +1,14 @@
 /**
  * Khayt store snapshot contract — shape checks and normalization on load/import.
  * @see KhaytStore.VERSION for export payload version (optional on disk snapshots).
+ *
+ * IN `lib/`, NOT `renderer/`, BECAUSE THREE APPS ASK IT THE SAME QUESTION.
+ *
+ * The renderer loads it by script tag like the hundred other `../lib/` modules;
+ * Node requires it; and the Mac app bundles it, because a restore there has to
+ * refuse the same files this refuses. A second opinion about what counts as a
+ * Khayt store is exactly how one app happily replaces a shop's book with a
+ * package.json while the other refuses.
  */
 (function (global) {
   const STORE_VERSION = 10; // v10: filamentDryLog (filament drying/storage tracker); v9: printFiles

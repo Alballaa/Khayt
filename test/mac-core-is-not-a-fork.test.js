@@ -100,3 +100,45 @@ test('sync-js.sh exists and reads the same list', () => {
   const sh = fs.readFileSync(path.join(ROOT, 'mac/sync-js.sh'), 'utf8');
   assert.match(sh, /KhaytEngine\.swift/, 'sync-js.sh keeps its own module list instead of reading the Swift one');
 });
+
+/* ------------------------------------------------------------------
+ * What a Khayt backup does NOT carry, and the Mac restore has to.
+ *
+ * A backup is built from the renderer's export payload, and two kinds of field
+ * never reach the renderer: the credentials (masked as `__KHAYT_MASKED__` on
+ * the way out and merged back from disk on every save) and the keys the main
+ * process owns. Electron survives that because `mergeStoreSecretsFromDisk`
+ * runs on the way to disk; the Mac's Restore.swift does the same thing, and
+ * the two constants it needs are pinned here.
+ *
+ * The failure they guard is silent. Get either wrong and a restore writes the
+ * mask over a shop's printer API keys, LAN access codes, Telegram token and
+ * cloud token — and the only symptom is printers that stop answering.
+ * ------------------------------------------------------------------ */
+
+/** A `static let name = [...]` or `= "..."` out of a Swift source file. */
+function swiftConstant(file, name) {
+  const src = fs.readFileSync(path.join(ROOT, file), 'utf8');
+  const at = src.indexOf(`static let ${name} =`);
+  assert.ok(at > 0, `${file} no longer declares ${name}`);
+  const line = src.slice(at, src.indexOf('\n', at));
+  return [...line.matchAll(/"([^"]*)"/g)].map((m) => m[1]);
+}
+
+test('the Mac restore knows every key the main process owns', () => {
+  const { MAIN_OWNED_KEYS } = require('../lib/store-io.js');
+  assert.deepEqual(
+    swiftConstant('mac/KhaytCore/Sources/KhaytApp/Restore.swift', 'mainOwnedKeys'),
+    MAIN_OWNED_KEYS,
+    'Restore.mainOwnedKeys has drifted from MAIN_OWNED_KEYS in lib/store-io.js — '
+    + 'a key missing there is a key a restore deletes from a shop\'s book');
+});
+
+test('the Mac restore recognises the mask the renderer holds', () => {
+  const { STORE_SECRET_MASK } = require('../lib/store-io.js');
+  assert.deepEqual(
+    swiftConstant('mac/KhaytCore/Sources/KhaytApp/Restore.swift', 'secretMask'),
+    [STORE_SECRET_MASK],
+    'Restore.secretMask has drifted from STORE_SECRET_MASK in lib/store-io.js — '
+    + 'the restore would no longer recognise a masked credential and would write it to disk');
+});
