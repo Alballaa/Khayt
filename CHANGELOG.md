@@ -11,6 +11,11 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   A registered shop gets its ZATCA QR; a shop missing a field the QR needs is
   told which, on the paper, rather than handed an empty box.
 
+- **The Mac app tracks expenses and failed prints.** Two screens under Money,
+  with a period to look at and a search that searches what is on them. Logging
+  a failed print takes the filament off the shelf and remembers which spool, so
+  deleting the entry puts it back.
+
 - **The Mac app has a Settings window.** ⌘, — the shop's details, invoice and
   tax rules, bank details and accepted payments, operational defaults, and the
   language. Each pane saves only what it shows, by the same rules the Khayt

@@ -42,7 +42,7 @@
       "deliveredAt": "2026-07-02T11:32:00Z",
       "dueDate": null,
       "priority": true,
-      "notes": "Reprint \u2014 first attempt warped.",
+      "notes": "Reprint — first attempt warped.",
       "statusHistory": [],
       "rev": 1,
       "updatedAt": "2026-07-02T11:32:00Z"
@@ -89,7 +89,7 @@
       "deliveredAt": null,
       "dueDate": "2026-09-12",
       "priority": false,
-      "notes": "Reprint \u2014 first attempt warped.",
+      "notes": "Reprint — first attempt warped.",
       "statusHistory": [],
       "rev": 1,
       "updatedAt": "2026-08-31T15:24:00Z"
@@ -192,14 +192,14 @@
       "id": "ORD-01004",
       "date": "2026-08-16",
       "status": "printing",
-      "project": "Museum replica \u2014 Kings",
+      "project": "Museum replica — Kings",
       "client": "Turki Al-Otaibi",
       "clientId": null,
       "machineId": "MACH-x1c",
       "parts": [
         {
           "id": "PRT-01004",
-          "name": "Museum replica \u2014 Kings",
+          "name": "Museum replica — Kings",
           "colour": "sand",
           "partNote": "",
           "material": "PLA+",
@@ -888,7 +888,7 @@
       "deliveredAt": "2026-06-13T18:07:00Z",
       "dueDate": null,
       "priority": true,
-      "notes": "Reprint \u2014 first attempt warped.",
+      "notes": "Reprint — first attempt warped.",
       "statusHistory": [],
       "rev": 1,
       "updatedAt": "2026-06-13T18:07:00Z"
@@ -1123,7 +1123,7 @@
       "deliveredAt": null,
       "dueDate": "2026-09-12",
       "priority": false,
-      "notes": "Reprint \u2014 first attempt warped.",
+      "notes": "Reprint — first attempt warped.",
       "statusHistory": [],
       "rev": 1,
       "updatedAt": "2026-06-25T16:21:00Z"
@@ -1132,14 +1132,14 @@
       "id": "ORD-01024",
       "date": "2026-08-18",
       "status": "printing",
-      "project": "Museum replica \u2014 Kings",
+      "project": "Museum replica — Kings",
       "client": "Najd Architects",
       "clientId": null,
       "machineId": "MACH-u1",
       "parts": [
         {
           "id": "PRT-01024",
-          "name": "Museum replica \u2014 Kings",
+          "name": "Museum replica — Kings",
           "colour": "sand",
           "partNote": "",
           "material": "PLA+",
@@ -1217,7 +1217,7 @@
       "deliveredAt": null,
       "dueDate": "2026-08-30",
       "priority": false,
-      "notes": "Reprint \u2014 first attempt warped.",
+      "notes": "Reprint — first attempt warped.",
       "statusHistory": [],
       "rev": 1,
       "updatedAt": "2026-08-17T17:31:00Z"
@@ -1358,7 +1358,7 @@
       "deliveredAt": "2026-09-01T15:46:00Z",
       "dueDate": null,
       "priority": true,
-      "notes": "Reprint \u2014 first attempt warped.",
+      "notes": "Reprint — first attempt warped.",
       "statusHistory": [],
       "rev": 1,
       "updatedAt": "2026-09-01T15:46:00Z"
@@ -1922,7 +1922,7 @@
       "deliveredAt": null,
       "dueDate": "2026-09-17",
       "priority": true,
-      "notes": "Reprint \u2014 first attempt warped.",
+      "notes": "Reprint — first attempt warped.",
       "statusHistory": [],
       "rev": 1,
       "updatedAt": "2026-08-31T18:28:00Z"
@@ -1969,7 +1969,7 @@
       "deliveredAt": null,
       "dueDate": "2026-09-05",
       "priority": false,
-      "notes": "Reprint \u2014 first attempt warped.",
+      "notes": "Reprint — first attempt warped.",
       "statusHistory": [],
       "rev": 1,
       "updatedAt": "2026-08-13T14:31:00Z"
@@ -1977,11 +1977,11 @@
   ],
   "settings": {
     "bizEn": "Tuwaiq Additive",
-      "bizAr": "تويق أدتف",
-      "taglineEn": "Precision 3D printing in Riyadh",
-      "addrEn": "Riyadh",
-      "phone": "+966 50 000 0000",
-      "email": "hello@tuwaiq.example",
+    "bizAr": "تويق أدتف",
+    "taglineEn": "Precision 3D printing in Riyadh",
+    "addrEn": "Riyadh",
+    "phone": "+966 50 000 0000",
+    "email": "hello@tuwaiq.example",
     "currency": "SAR",
     "country": "SA",
     "tax": {
@@ -1999,6 +1999,14 @@
           "compound": false
         }
       ]
+    },
+    "expBudgets": {
+      "filament": 1500,
+      "electricity": 500,
+      "maintenance": 300,
+      "tools": 250,
+      "shipping": 200,
+      "other": 300
     }
   },
   "machines": [
@@ -2090,7 +2098,7 @@
   "printFiles": [
     {
       "id": "PF-sample-king-1",
-      "name": "KING Abdulaziz \u2014 relief 200mm",
+      "name": "KING Abdulaziz — relief 200mm",
       "originalName": "KING-Abdulaziz-ART-200mm-U1.3mf",
       "updatedAt": "2026-08-10T09:12:00.000Z",
       "sourceFile": {
@@ -2149,7 +2157,7 @@
     },
     {
       "id": "PF-sample-king-2",
-      "name": "KING Saud \u2014 relief 200mm",
+      "name": "KING Saud — relief 200mm",
       "originalName": "KING-Saud-ART-200mm-U1.3mf",
       "updatedAt": "2026-08-11T09:12:00.000Z",
       "sourceFile": {
@@ -2208,7 +2216,7 @@
     },
     {
       "id": "PF-sample-king-3",
-      "name": "KING Faisal \u2014 relief 200mm",
+      "name": "KING Faisal — relief 200mm",
       "originalName": "KING-Faisal-ART-200mm-U1.3mf",
       "updatedAt": "2026-08-12T09:12:00.000Z",
       "sourceFile": {
@@ -2267,7 +2275,7 @@
     },
     {
       "id": "PF-sample-king-4",
-      "name": "KING Khalid \u2014 relief 200mm",
+      "name": "KING Khalid — relief 200mm",
       "originalName": "KING-Khalid-ART-200mm-U1.3mf",
       "updatedAt": "2026-08-13T09:12:00.000Z",
       "sourceFile": {
@@ -2326,7 +2334,7 @@
     },
     {
       "id": "PF-sample-king-5",
-      "name": "KING Fahd \u2014 relief 200mm",
+      "name": "KING Fahd — relief 200mm",
       "originalName": "KING-Fahd-ART-200mm-U1.3mf",
       "updatedAt": "2026-08-14T09:12:00.000Z",
       "sourceFile": {
@@ -2385,7 +2393,7 @@
     },
     {
       "id": "PF-sample-king-6",
-      "name": "KING Abdullah \u2014 relief 200mm",
+      "name": "KING Abdullah — relief 200mm",
       "originalName": "KING-Abdullah-ART-200mm-U1.3mf",
       "updatedAt": "2026-08-15T09:12:00.000Z",
       "sourceFile": {
@@ -2444,7 +2452,7 @@
     },
     {
       "id": "PF-sample-king-7",
-      "name": "KING Salman \u2014 relief 200mm",
+      "name": "KING Salman — relief 200mm",
       "originalName": "KING-Salman-ART-200mm-U1.3mf",
       "updatedAt": "2026-08-16T09:12:00.000Z",
       "sourceFile": {
@@ -2602,7 +2610,7 @@
     },
     {
       "id": "PF-sample-dental-a",
-      "name": "Dental model set \u2014 upper",
+      "name": "Dental model set — upper",
       "originalName": "dental-upper.3mf",
       "updatedAt": "2026-08-22T14:00:00.000Z",
       "sourceFile": {
@@ -2648,7 +2656,7 @@
     },
     {
       "id": "PF-sample-dental-b",
-      "name": "Dental model set \u2014 lower",
+      "name": "Dental model set — lower",
       "originalName": "dental-lower.3mf",
       "updatedAt": "2026-08-22T14:00:00.000Z",
       "sourceFile": {
@@ -2893,6 +2901,187 @@
       "openedAt": "2026-09-01",
       "storage": "drybox",
       "updatedAt": "2026-09-01T09:00:00.000Z"
+    }
+  ],
+  "expenses": [
+    {
+      "id": "EXP-0009",
+      "date": "2026-09-02",
+      "category": "filament",
+      "amount": 1240,
+      "note": "6× PLA+ and 2× PETG from supplier",
+      "orderId": null,
+      "receiptPath": null,
+      "recurring": null,
+      "nextDue": null
+    },
+    {
+      "id": "EXP-0008",
+      "date": "2026-09-01",
+      "category": "electricity",
+      "amount": 610,
+      "note": "Workshop meter",
+      "orderId": null,
+      "receiptPath": null,
+      "recurring": "monthly",
+      "nextDue": "2026-10-01"
+    },
+    {
+      "id": "EXP-0007",
+      "date": "2026-08-27",
+      "category": "maintenance",
+      "amount": 180,
+      "note": "Hardened nozzles ×4",
+      "orderId": null,
+      "receiptPath": null,
+      "recurring": null,
+      "nextDue": null
+    },
+    {
+      "id": "EXP-0006",
+      "date": "2026-08-19",
+      "category": "shipping",
+      "amount": 95,
+      "note": "Courier — Turbine bracket",
+      "orderId": "ORD-01000",
+      "receiptPath": null,
+      "recurring": null,
+      "nextDue": null
+    },
+    {
+      "id": "EXP-0005",
+      "date": "2026-08-12",
+      "category": "tools",
+      "amount": 430,
+      "note": "Digital calipers, deburring set",
+      "orderId": null,
+      "receiptPath": null,
+      "recurring": null,
+      "nextDue": null
+    },
+    {
+      "id": "EXP-0004",
+      "date": "2026-08-01",
+      "category": "electricity",
+      "amount": 585,
+      "note": "Workshop meter",
+      "orderId": null,
+      "receiptPath": null,
+      "recurring": null,
+      "nextDue": null
+    },
+    {
+      "id": "EXP-0003",
+      "date": "2026-07-21",
+      "category": "filament",
+      "amount": 890,
+      "note": "ASA + PA-CF restock",
+      "orderId": null,
+      "receiptPath": null,
+      "recurring": null,
+      "nextDue": null
+    },
+    {
+      "id": "EXP-0002",
+      "date": "2026-07-08",
+      "category": "other",
+      "amount": 250,
+      "note": "Storefront domain renewal",
+      "orderId": null,
+      "receiptPath": null,
+      "recurring": "annually",
+      "nextDue": "2027-07-08"
+    },
+    {
+      "id": "EXP-0001",
+      "date": "2026-07-01",
+      "category": "electricity",
+      "amount": 560,
+      "note": "Workshop meter",
+      "orderId": null,
+      "receiptPath": null,
+      "recurring": null,
+      "nextDue": null
+    }
+  ],
+  "wasteLog": [
+    {
+      "id": "W-0006",
+      "date": "2026-09-03",
+      "material": "PA-CF",
+      "weight": 180,
+      "cost": 86.4,
+      "failureType": "warping",
+      "reason": "Lifted at hour six, chamber too cool",
+      "notes": "",
+      "orderId": null,
+      "machineId": "MACH-core-one",
+      "spoolId": "sp-4"
+    },
+    {
+      "id": "W-0005",
+      "date": "2026-08-28",
+      "material": "Sunlu PETG",
+      "weight": 95,
+      "cost": 8.08,
+      "failureType": "stringing",
+      "reason": "Wet spool — dried and reprinted",
+      "notes": "",
+      "orderId": null,
+      "machineId": "MACH-u1",
+      "spoolId": "sp-2"
+    },
+    {
+      "id": "W-0004",
+      "date": "2026-08-20",
+      "material": "PLA+ 2.0",
+      "weight": 42,
+      "cost": 3.15,
+      "failureType": "bed_adhesion",
+      "reason": "First layer let go on a tall part",
+      "notes": "",
+      "orderId": null,
+      "machineId": "MACH-x1c",
+      "spoolId": "sp-1"
+    },
+    {
+      "id": "W-0003",
+      "date": "2026-08-05",
+      "material": "ASA",
+      "weight": 220,
+      "cost": 20.9,
+      "failureType": "nozzle_jam",
+      "reason": "Jam at the heatbreak",
+      "notes": "Nozzle replaced",
+      "orderId": null,
+      "machineId": "MACH-core-one",
+      "spoolId": "sp-5"
+    },
+    {
+      "id": "W-0002",
+      "date": "2026-07-19",
+      "material": "PLA Silk",
+      "weight": 60,
+      "cost": 4.08,
+      "failureType": "operator_error",
+      "reason": "Wrong plate loaded",
+      "notes": "",
+      "orderId": null,
+      "machineId": "MACH-u1",
+      "spoolId": "sp-6"
+    },
+    {
+      "id": "W-0001",
+      "date": "2026-07-04",
+      "material": "Sunlu TPU",
+      "weight": 38,
+      "cost": 5.57,
+      "failureType": "power_failure",
+      "reason": "Cut at 80%",
+      "notes": "",
+      "orderId": null,
+      "machineId": "MACH-x1c",
+      "spoolId": "sp-3"
     }
   ]
 }

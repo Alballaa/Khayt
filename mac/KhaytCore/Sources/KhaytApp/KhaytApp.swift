@@ -258,6 +258,18 @@ final class Activator: NSObject, NSApplicationDelegate {
                 FileHandle.standardError.write(Data("no settings window to capture\n".utf8))
             }
 
+            // What the shop spent and what it wasted. The sample, because this
+            // Mac's own book has neither and an empty table is a picture of
+            // nothing — and because the sample is what most people will open
+            // these two screens in first.
+            shop.period = .all
+            shop.shelf = .expenses
+            await settle()
+            capture(named: "18-expenses", into: dir)
+            shop.shelf = .waste
+            await settle()
+            capture(named: "19-waste", into: dir)
+
             shop.shelf = .machines
             await settle()
             capture(named: "07-machines", into: dir)

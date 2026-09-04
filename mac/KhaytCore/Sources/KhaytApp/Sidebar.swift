@@ -45,6 +45,17 @@ struct Sidebar: View {
                     count: shop.spools.count, selected: shop.shelf == .inventory)
                     .tag(Shop.Shelf.inventory)
             }
+            // What the shop spends and what it throws away. Below the floor,
+            // because both are read at the end of a month rather than during a
+            // day's work.
+            Section(shop.words.callIt("mac.money")) {
+                Row(title: shop.words.callIt("exp.title"), symbol: "creditcard",
+                    count: shop.expenses.count, selected: shop.shelf == .expenses)
+                    .tag(Shop.Shelf.expenses)
+                Row(title: shop.words.callIt("waste.title"), symbol: "trash",
+                    count: shop.wasteLog.count, selected: shop.shelf == .waste)
+                    .tag(Shop.Shelf.waste)
+            }
             Section(shop.words.callIt("mac.people")) {
                 Row(title: shop.words.callIt("tab.clients"), symbol: "person.2", count: shop.customers.count,
                     selected: shop.shelf == .customers)

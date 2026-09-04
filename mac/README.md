@@ -287,9 +287,40 @@ for six weeks, fell back to the build's title, and would have issued this
 shop's invoice from "Khayt". Found by opening the Business pane on the sample
 and seeing every field empty.
 
+## What the shop spent, and what it wasted
+
+Two shelves under *Money*, each with a period menu, the search box wired to
+what is actually on screen, and a form. The rules are `lib/expense-book.js`,
+`lib/waste-entry.js` and `lib/date-range.js`, all lifted from renderer
+handlers and proved against them; the app builds a form, hands it over, and
+writes what comes back.
+
+Logging a failed print writes **two collections in one swap** — the log and
+the shelf — because a log saying a print wasted 200g while the spool still
+holds them has told the shop it has filament it has already thrown away. The
+spools the deduction touched are stamped and the ones it did not are left
+alone: `rev` is what the cloud's sync baseline reads, so an unstamped edit
+never leaves this Mac and a needlessly stamped one sends the whole shelf up.
+
+`Shop.inPeriod` is the one shared rule this app spells out in Swift, because
+it decides whether to draw a row and is asked once per record while a list
+lays out — a bridge crossing each time would be thousands of them.
+`SpendingTests` runs it against `lib/date-range.js` over every period, two
+years of dates and four clocks. That parity run is what found the partial-date
+case: the renderer's original filed a record dated "2026" under *this year*
+and nowhere else, because `"2026".slice(0, 4)` is the year. The shared rule
+now refuses a date that is not `YYYY-MM-DD`, which is what both apps say.
+
+**Two toolbar findings, both only visible in a photograph.** A `Picker` in a
+toolbar draws as a popup labelled with its selected value and came out
+completely empty — a chevron with nothing beside it — in every style and
+sizing tried; a `Menu` with a bare `Text` label works. And a toolbar `Menu`
+draws a `Label` as its icon alone, which `.labelStyle(.titleAndIcon)` does not
+change.
+
 ## Not yet built
 
-Expenses, waste, analytics, the catalog, gift cards, the portfolio,
+Analytics, the catalog, gift cards, the portfolio,
 the colour studio, the converter, the cloud portal, the LAN server, and the
 printer protocols. `KhaytCore` came first because the alternative, screens
 against a half-trusted engine, is how the two apps come to disagree about a

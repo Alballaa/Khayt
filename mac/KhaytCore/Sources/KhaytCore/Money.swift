@@ -256,6 +256,48 @@ public struct NewOrder: Decodable, Sendable {
     public let settings: [String: JSONValue]
 }
 
+/// A record the shared rule built, or the reason it would not.
+///
+/// Both halves optional because exactly one is present: a rule that refuses
+/// returns a reason and no record, and the caller must not be able to read a
+/// record that was never made.
+public struct Written: Decodable, Sendable {
+    public let expense: JSONValue?
+    public let refused: String?
+}
+
+/// A waste entry, and the shelf as deducting from it left it.
+public struct WasteWritten: Decodable, Sendable {
+    public let entry: JSONValue?
+    public let refused: String?
+    public let inventory: [JSONValue]
+}
+
+/// A waste entry taken out, and both collections as that left them.
+public struct WasteRemoved: Decodable, Sendable {
+    public let removed: Bool
+    public let wasteLog: [JSONValue]
+    public let inventory: [JSONValue]
+}
+
+/// A category that has gone past its monthly budget.
+public struct Overspend: Decodable, Sendable, Equatable {
+    public let spent: Double
+    public let budget: Double
+}
+
+/// Budget against actual for one category.
+public struct BudgetRow: Decodable, Sendable, Identifiable, Equatable {
+    public let category: String
+    public let budget: Double
+    public let spent: Double
+    public let remaining: Double
+    /// Capped at 100, for a bar.
+    public let pct: Double
+    public let over: Bool
+    public var id: String { category }
+}
+
 /// A currency a shop can price in, as `lib/currencies.js` describes it.
 public struct Currency: Codable, Sendable, Equatable {
     public let symbol: String
