@@ -76,6 +76,63 @@ function scriptsIn(htmlPath) {
 const isFlavourOwned = (owner) => FLAVOUR_DIRS.some((d) => owner.startsWith(d));
 
 /**
+ * Gaps that already existed when this page was first checked. A RATCHET, not an
+ * exemption: everything listed here is a feature Bed Ready silently does not
+ * have, and the list may only shrink. A new gap is a failure.
+ *
+ * `renderer/bedready.html` was outside this check until a shared module
+ * (lib/order-deduction.js) was added to inventory.js without a matching script
+ * tag there. Nothing errored at build time; the Bed Ready smoke failed on
+ * "Cannot read properties of null (reading 'isLowStock')" — the fourth time
+ * this class of bug has shipped. Checking the page with its known gaps written
+ * down catches the fifth without a day spent closing the other thirty-two.
+ *
+ * Fixing one of these is a script tag away: add it, delete the line, and the
+ * check will tell you if you were wrong.
+ */
+const KNOWN_ABSENT = {
+  'renderer/bedready.html': [
+    ['KhaytAttention', 'lib/queue-groups.js'],
+    ['KhaytAttention', 'renderer/dashboard.js'],
+    ['KhaytAttention', 'renderer/machines.js'],
+    ['KhaytAttention', 'renderer/themes/command/screens.js'],
+    ['KhaytAttention', 'renderer/themes/vivid/screens.js'],
+    ['KhaytAttention', 'renderer/themes/workbench/screens.js'],
+    ['KhaytCloudPlans', 'renderer/settings.js'],
+    ['KhaytConsumableCategories', 'renderer/inventory.js'],
+    ['KhaytConsumableReorder', 'renderer/inventory.js'],
+    ['KhaytDashboardFacts', 'renderer/themes/command/screens.js'],
+    ['KhaytDashboardFacts', 'renderer/themes/vivid/screens.js'],
+    ['KhaytDashboardFacts', 'renderer/themes/workbench/screens.js'],
+    ['KhaytEstimateCalibration', 'renderer/settings.js'],
+    ['KhaytEstimateCalibration', 'renderer/wire-events.js'],
+    ['KhaytFlow', 'renderer/dashboard.js'],
+    ['KhaytFlowShell', 'renderer/themes.js'],
+    ['KhaytForeman', 'renderer/dashboard.js'],
+    ['KhaytForemanShell', 'renderer/themes.js'],
+    ['KhaytGcodeGeometry', 'renderer/wire-events.js'],
+    ['KhaytIntakeView', 'renderer/wire-events.js'],
+    ['KhaytMedusa', 'renderer/settings.js'],
+    ['KhaytMeridian', 'renderer/dashboard.js'],
+    ['KhaytMeridianShell', 'renderer/themes.js'],
+    ['KhaytOrderFileLink', 'renderer/settings.js'],
+    ['KhaytOrderFileLink', 'renderer/wire-events.js'],
+    ['KhaytPortalTrial', 'renderer/settings.js'],
+    ['KhaytPrinterRelocate', 'renderer/dashboard.js'],
+    ['KhaytPrinterRelocate', 'renderer/kanban.js'],
+    ['KhaytPrinterRelocate', 'renderer/machines.js'],
+    ['KhaytPrivacy', 'renderer/settings.js'],
+    ['KhaytTelemetryScrub', 'renderer/settings.js'],
+    ['KhaytThemeCapabilities', 'renderer/themes/theme-picker.js'],
+  ],
+};
+
+const absentKey = (v) => `${v.global}|${v.user}`;
+const knownAbsentFor = (entry) => new Set(
+  (KNOWN_ABSENT[entry.split(path.sep).join('/')] || []).map(([g, user]) => `${g}|${user}`),
+);
+
+/**
  * @returns {{entry: string, violations: Array<{global,owner,user}>}}
  */
 function audit(htmlPath, defs) {
@@ -100,7 +157,7 @@ function audit(htmlPath, defs) {
   return { entry: htmlPath, violations };
 }
 
-module.exports = { audit, findDefinitions, scriptsIn, isFlavourOwned, FLAVOUR_DIRS };
+module.exports = { audit, findDefinitions, scriptsIn, isFlavourOwned, FLAVOUR_DIRS, KNOWN_ABSENT };
 
 if (require.main === module) {
   const defs = findDefinitions(['lib', 'renderer']);
@@ -111,13 +168,29 @@ if (require.main === module) {
   for (const entry of targets) {
     if (!fs.existsSync(entry)) { process.stdout.write(`skipped ${entry} (not found)\n`); continue; }
     const { violations } = audit(entry, defs);
-    if (!violations.length) {
-      process.stdout.write(`globals ok — ${entry}\n`);
+    const known = knownAbsentFor(entry);
+    const fresh = violations.filter((v) => !known.has(absentKey(v)));
+
+    // A gap that has been closed must leave the list, or the list stops meaning
+    // "these are the ones we know about" and starts meaning nothing.
+    const stillMissing = new Set(violations.map(absentKey));
+    const closed = [...known].filter((k) => !stillMissing.has(k));
+    if (closed.length) {
+      process.stderr.write(
+        `\n${entry}: ${closed.length} entr(ies) in KNOWN_ABSENT are no longer missing.\n` +
+        `Delete them from scripts/check-globals-loaded.js — the list only ratchets down.\n`);
+      for (const k of closed) process.stderr.write(`  ${k.replace('|', ' — used by ')}\n`);
+      bad += closed.length;
+    }
+
+    if (!fresh.length) {
+      const note = known.size ? ` (${known.size} known gap(s))` : '';
+      process.stdout.write(`globals ok — ${entry}${note}\n`);
       continue;
     }
-    bad += violations.length;
-    process.stderr.write(`\n${entry}: ${violations.length} global(s) referenced but never loaded\n`);
-    for (const v of violations) {
+    bad += fresh.length;
+    process.stderr.write(`\n${entry}: ${fresh.length} global(s) referenced but never loaded\n`);
+    for (const v of fresh) {
       process.stderr.write(`  ${v.global} — defined in ${v.owner}, used by ${v.user}\n`);
     }
   }
