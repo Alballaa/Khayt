@@ -454,6 +454,13 @@ final class Words {
         "mac.no_connection": ["en": "No connection set up for this printer.",
                               "ar": "لا يوجد اتصال معدّ لهذه الطابعة."],
         "mac.asking":        ["en": "Asking\u{2026}", "ar": "جارٍ السؤال\u{2026}"],
+        // What has gone wrong. Khayt's own alert sentences are built in English
+        // inside the shared module because they go to Telegram; this one is
+        // read by the person in the workshop, in the language the book is kept.
+        "mac.alert_error":   ["en": "{machine} has a fault", "ar": "{machine} بها عطل"],
+        "mac.alert_offline": ["en": "{machine} stopped answering", "ar": "{machine} توقفت عن الرد"],
+        "mac.alert_stalled": ["en": "{machine} has stopped moving", "ar": "{machine} توقفت عن التقدم"],
+        "mac.printer_trouble": ["en": "Printer trouble", "ar": "مشاكل الطابعة"],
         // Settings
         "mac.revert":        ["en": "Revert",       "ar": "تراجع"],
         "mac.settings_saved": ["en": "Saved.",      "ar": "حُفظ."],

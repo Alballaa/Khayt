@@ -279,3 +279,54 @@ test('an explicit false still turns the toggle off', () => {
   });
   assert.deepEqual(types(res), [], 'defaulting ON must not override an explicit opt-out');
 });
+
+/* ------------------------------------------------------------------
+ * A caller whose transport is not Telegram.
+ *
+ * `resolveSettings` gates every alert on `settings.telegram` existing, which is
+ * right when Telegram is the transport and wrong when it is not. The native Mac
+ * app raises a notification on the machine the shop is sitting at; a shop with
+ * no bot would otherwise have been told nothing at all — including that its
+ * printer had gone offline mid-print at two in the morning.
+ * ------------------------------------------------------------------ */
+
+test('enable overrides the Telegram toggles for another transport', () => {
+  const curr = { 'M-1': { error: 'unreachable' } };
+  const noBot = {};   // a shop with no Telegram at all
+
+  // Today's behaviour, unchanged: no transport, no alerts.
+  const silent = computePrinterAlerts({}, curr, noBot, T0, {
+    alertState: { 'M-1': { failCount: 5 } },
+  });
+  assert.deepEqual(silent.alerts, []);
+
+  // …and with a transport of its own, the same poll fires.
+  const spoken = computePrinterAlerts({}, curr, noBot, T0, {
+    alertState: { 'M-1': { failCount: 5 } },
+    enable: { error: true, offline: true, stall: false },
+  });
+  assert.equal(spoken.alerts.length, 1);
+  assert.equal(spoken.alerts[0].type, 'offline');
+});
+
+test('enable can also turn one off', () => {
+  // It replaces all three rather than adding to them, so a caller that wants
+  // only errors gets only errors — a stall it did not ask for is a notification
+  // at 3am about a printer that is fine.
+  const curr = { 'M-1': { error: 'unreachable' } };
+  const out = computePrinterAlerts({}, curr, { telegram: {} }, T0, {
+    alertState: { 'M-1': { failCount: 9 } },
+    enable: { error: true, offline: false, stall: false },
+  });
+  assert.deepEqual(out.alerts, []);
+});
+
+test('an absent enable leaves the Telegram behaviour exactly as it was', () => {
+  const curr = { 'M-1': { error: 'unreachable' } };
+  const withBot = { telegram: { botToken: 'x' } };
+  const a = computePrinterAlerts({}, curr, withBot, T0, { alertState: { 'M-1': { failCount: 5 } } });
+  const b = computePrinterAlerts({}, curr, withBot, T0,
+    { alertState: { 'M-1': { failCount: 5 } }, enable: undefined });
+  assert.deepEqual(a.alerts, b.alerts);
+  assert.equal(a.alerts.length, 1);
+});

@@ -37,6 +37,10 @@ struct Dashboard: View {
                 // answer; this is the printers'. A shop opening this app to ask
                 // "is it still going" should not have to change screens.
                 RunningNow(shop: shop)
+                // And what went wrong while nobody was looking. A notification
+                // dismissed while the shop was making coffee is a notification
+                // it never had, so the alerts are on the screen as well.
+                WentWrong(shop: shop)
                 if shop.facts?.showsMoney != false {
                     MoneyTiles(shop: shop)
                 }
@@ -184,6 +188,44 @@ private struct RunningNow: View {
                     .progressViewStyle(.linear)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+}
+
+/// What has gone wrong with a printer, since the app opened.
+///
+/// The alerts are `lib/printer-alerts.js`'s — its thresholds, its cooldowns,
+/// its stall clock. This is only where they are put once raised, and it exists
+/// because a macOS notification is gone the moment somebody swipes it away.
+private struct WentWrong: View {
+    let shop: Shop
+
+    var body: some View {
+        let notices = shop.printers.notices.raised
+        if !notices.isEmpty {
+            DetailSection(shop.words.callIt("mac.printer_trouble")) {
+                VStack(spacing: 0) {
+                    ForEach(notices.prefix(5)) { notice in
+                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                            Image(systemName: notice.kind == "stall"
+                                  ? "pause.circle" : "exclamationmark.triangle.fill")
+                                .foregroundStyle(.orange)
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(notice.title).font(.body)
+                                if !notice.body.isEmpty {
+                                    Text(notice.body).font(.caption).foregroundStyle(.secondary)
+                                        .lineLimit(1).truncationMode(.middle)
+                                }
+                            }
+                            Spacer(minLength: 12)
+                            Text(notice.at.formatted(date: .omitted, time: .shortened))
+                                .font(.caption).monospacedDigit().foregroundStyle(.tertiary)
+                        }
+                        .padding(.vertical, 5)
+                        if notice.id != notices.prefix(5).last?.id { Divider() }
+                    }
+                }
+            }
         }
     }
 }

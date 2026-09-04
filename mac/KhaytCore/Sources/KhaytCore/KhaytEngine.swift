@@ -174,6 +174,9 @@ public actor KhaytEngine {
         // would see 0% on every machine rather than an error.
         "printer-status",
         "moonraker",
+        // What has just gone wrong with a printer: the thresholds, the
+        // cooldowns and the stall clock. Pure, and already wrapped.
+        "printer-alerts",
         // Whether an address is a printer on the shop's own network. Not
         // business logic — an SSRF guard — and shared for the same reason the
         // secret list is: a second, more forgiving copy in Swift is how the two
@@ -948,6 +951,62 @@ public actor KhaytEngine {
         public let tempNozzle: Double?
         public let tempBed: Double?
         public let type: String
+    }
+
+    /// What has just gone wrong with a printer, and what to remember for next
+    /// time.
+    ///
+    /// `lib/printer-alerts.js` — the thresholds, the cooldowns and the stall
+    /// clock, all of it. `enable` replaces the module's Telegram toggles,
+    /// because the transport here is a notification on the machine the shop is
+    /// sitting at: a shop with no bot would otherwise be told nothing at all,
+    /// including that its printer went offline mid-print at two in the morning.
+    public func printerAlerts(was: [String: JSONValue], now current: [String: JSONValue],
+                              settings: [String: JSONValue], machines: [JSONValue],
+                              state: JSONValue, enable: Alerting,
+                              at: Date = Date()) throws -> PrinterAlerts {
+        try runtime.call2(
+            "KhaytPrinterAlerts.computePrinterAlerts(ARG0, ARG1, ARG2, ARG3,"
+          + " { alertState: ARG4, machines: ARG5, enable: ARG6 })",
+            [.object(was), .object(current), .object(settings), .number(at.timeIntervalSince1970 * 1000),
+             state, .array(machines),
+             .object(["error": .bool(enable.error), "offline": .bool(enable.offline),
+                      "stall": .bool(enable.stall)])],
+            as: PrinterAlerts.self)
+    }
+
+    /// Which of the three a caller wants to hear about.
+    public struct Alerting: Sendable {
+        public var error: Bool
+        public var offline: Bool
+        public var stall: Bool
+        /// The module's own defaults: a machine that faulted or went quiet is
+        /// worth interrupting somebody for; a print that has not moved might
+        /// just be a long layer.
+        public static let sensible = Alerting(error: true, offline: true, stall: false)
+        public init(error: Bool, offline: Bool, stall: Bool) {
+            self.error = error; self.offline = offline; self.stall = stall
+        }
+    }
+
+    public struct PrinterAlerts: Decodable, Sendable {
+        public let alerts: [Alert]
+        /// The cooldown and stall bookkeeping, opaque and owned by the module.
+        /// The caller's only job is to hand the same value back next time.
+        public let state: JSONValue
+
+        public struct Alert: Decodable, Sendable, Hashable, Identifiable {
+            public var id: String { machineId + ":" + type }
+            public let machineId: String
+            /// `offline`, `error` or `stall`.
+            public let type: String
+            /// The module's own sentence. Read for the log; the Mac writes its
+            /// own for the notification, because this one is English.
+            public let message: String
+            public let state: String
+            public let filename: String
+            public let progress: Double
+        }
     }
 
     /// The shop's book as a file it can hand to somebody else.

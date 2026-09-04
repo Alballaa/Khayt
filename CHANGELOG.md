@@ -6,6 +6,18 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Changed
 
+- **The Mac app tells you when a print goes wrong.** A printer that faults or
+  stops answering raises a macOS notification — the reason an app like this is
+  worth leaving open. Khayt sends these to Telegram, email or a webhook, for
+  somebody who is not in the workshop; this one is for the person who is, and it
+  arrives whether or not the shop has ever set up a bot.
+
+  The thresholds and the quiet periods are Khayt's own, so the two apps agree
+  about what counts as trouble. A stall is not raised by default: a print that
+  has not moved might just be a long layer. Everything raised is listed on the
+  dashboard too, because a notification dismissed while you were making coffee
+  is a notification you never had.
+
 - **The Mac app can see what the printer is doing.** A machine card now shows
   the live state, the file, how far along, the time left and both
   temperatures — the one thing that needed the Electron app open. It reads
