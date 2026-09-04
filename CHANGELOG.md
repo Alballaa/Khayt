@@ -6,6 +6,15 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Changed
 
+- **The Mac app can record a payment.** ⇧⌘P, or the link under the money lines
+  in the job panel: what was paid, how, and when. It cannot be more than the
+  price — an overpayment is a credit note — and whether the job ends up paid,
+  partly paid or unpaid is worked out by the same rule every report reads it
+  with, so what is saved is what the next screen says. Clearing a payment puts
+  the job back in what is owed. ⌘Z undoes either. A payment that would send a
+  webhook or email a receipt is refused rather than half-made, the way a status
+  change is.
+
 - **The Mac app records that a job passed inspection.** Finishing a job that
   was in QC — by dragging it or from the Job menu — asks for the inspection
   note first, and writes the same record Khayt writes. Without it the job was

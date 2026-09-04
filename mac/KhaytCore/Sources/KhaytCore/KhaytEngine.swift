@@ -365,6 +365,47 @@ public actor KhaytEngine {
                           as: JobMove.self)
     }
 
+    // MARK: - Money received
+
+    /// Whether this order counts as paid, partly paid or unpaid.
+    ///
+    /// The stored `paymentStatus` field is an answer that was true when it was
+    /// written. This is the answer now, by the rule every report reads it with.
+    public func paymentStatus(of order: JSONValue) throws -> String {
+        try runtime.call("KhaytOrderPayment", "statusOf", [order], as: String.self)
+    }
+
+    /// Where recording a payment would reach outside the shop's own book.
+    ///
+    /// Ask before writing anything, for the same reason a status change does: a
+    /// `payment_received` webhook or a receipt email cannot be sent from here
+    /// and cannot be sent afterwards.
+    public func paymentOutbound(order: JSONValue, settings: [String: JSONValue],
+                                clients: [JSONValue]) throws -> [Outbound] {
+        try runtime.call2("KhaytOrderPayment.outboundFor(ARG0, {settings: ARG1, clients: ARG2})",
+                          [order, .object(settings), .array(clients)], as: [Outbound].self)
+    }
+
+    /// Record what a customer has paid, and what that makes the order.
+    ///
+    /// The status is DERIVED here, never taken from the caller — a stored
+    /// status that disagrees with the arithmetic is how an order sits in
+    /// receivables after it was settled.
+    public func recordPayment(order: JSONValue, amount: Double, method: String,
+                              paidAt: String, today: String) throws -> PaymentRecorded {
+        try runtime.call2(PAYMENT_SCRIPT,
+                          [order, .number(amount), .string(method), .string(paidAt), .string(today)],
+                          as: PaymentRecorded.self)
+    }
+
+    /// Undo a payment: the money was never received, or was recorded against
+    /// the wrong job.
+    public func clearPayment(order: JSONValue) throws -> PaymentRecorded {
+        try runtime.call2("(function(){var o = ARG0; var r = KhaytOrderPayment.clearPayment(o);"
+                        + " return { order: o, effects: r.effects.map(function(e){ return e.type; }) };})()",
+                          [order], as: PaymentRecorded.self)
+    }
+
     public func raw<T: Decodable>(_ script: String, as type: T.Type) throws -> T {
         let value = try runtime.evaluate("JSON.stringify(\(script))")
         guard let json = value.toString(), let data = json.data(using: .utf8) else {
@@ -373,6 +414,16 @@ public actor KhaytEngine {
         return try JSONDecoder().decode(T.self, from: data)
     }
 }
+
+/// Recording a payment, and what the order becomes.
+private let PAYMENT_SCRIPT = """
+(function () {
+  var order = ARG0, amount = ARG1, method = ARG2, paidAt = ARG3, today = ARG4;
+  var r = KhaytOrderPayment.recordPayment(order, { amount: amount, method: method, paidAt: paidAt },
+                                          { today: today });
+  return { order: order, effects: r.effects.map(function (e) { return e.type; }) };
+})()
+"""
 
 /// Moving a job, as the two shared modules do it between them.
 ///

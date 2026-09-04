@@ -19,6 +19,9 @@ struct Order: Identifiable, Decodable, Hashable, Sendable {
     let paidAmount: Double
     let costBasis: Double
     let paymentStatus: String
+    /// How the last payment arrived. Optional because an unpaid job has no
+    /// answer, and "cash" is a claim rather than a default.
+    let paymentMethod: String?
     let printTime: Double
     let priority: Bool
     let notes: String

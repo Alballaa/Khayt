@@ -207,3 +207,14 @@ public struct JobMove: Decodable, Sendable {
     public let outbound: [String]?
     public let unhandled: [String]?
 }
+
+/// An order after money was recorded against it, and what that asked for.
+///
+/// `effects` are named but not detailed, because a payment's are simpler than a
+/// move's: saving, redrawing, and the notifications a shop with integrations
+/// would send — which the caller has already refused the move over if it has
+/// any of them.
+public struct PaymentRecorded: Decodable, Sendable {
+    public let order: JSONValue
+    public let effects: [String]
+}

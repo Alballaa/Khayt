@@ -503,6 +503,85 @@ final class Shop {
         let project: String
     }
 
+    // MARK: - Money received
+
+    /// The job waiting for someone to say what was paid.
+    var pendingPayment: PendingHold?
+
+    /// The payment methods Khayt offers, in its own order.
+    ///
+    /// Not a Swift opinion about how a Saudi shop is paid: the list is
+    /// `renderer/order-flows.js`'s, and the words are Khayt's own
+    /// (`pay.method.*`), so the two apps offer one set of choices.
+    static let paymentMethods = ["cash", "mada", "transfer", "stcpay", "applepay", "visa", "other"]
+
+    /// Record what a customer has paid.
+    ///
+    /// One record changes, not three — but through the same door as a move, so
+    /// the ownership check, the atomic swap and the undo are the ones already
+    /// proven rather than a second set written for money.
+    func recordPayment(_ id: Order.ID, amount: Double, method: String, paidAt: Date) async {
+        await writeToOneOrder(id, named: words.callIt("pay.modal_title")) { order, engine, root in
+            let reaches = (try? await engine.paymentOutbound(
+                order: order, settings: Self.settings(root), clients: Self.rows(root, "clients"))) ?? []
+            if !reaches.isEmpty { throw MoveRefused(sentence: self.words.outboundRefusal(reaches)) }
+
+            return try await engine.recordPayment(
+                order: order, amount: amount, method: method,
+                paidAt: Self.localDay(paidAt), today: Self.localDay()).order
+        }
+    }
+
+    /// Undo a payment: the money was never received, or was recorded against
+    /// the wrong job. Nothing leaves the shop, so nothing is refused.
+    func clearPayment(_ id: Order.ID) async {
+        await writeToOneOrder(id, named: words.callIt("mac.clear_payment")) { order, engine, _ in
+            try await engine.clearPayment(order: order).order
+        }
+    }
+
+    /// The shape both money edits share: one order, changed by the shared rules,
+    /// written and stamped inside the same swap every other edit uses.
+    private func writeToOneOrder(_ id: Order.ID, named actionName: String,
+                                 change: @escaping (JSONValue, KhaytEngine, [String: JSONValue])
+                                 async throws -> JSONValue) async {
+        moveProblem = nil
+        moveNotices = []
+        guard let build = source.build else {
+            moveProblem = words.callIt("mac.move_sample"); return
+        }
+        guard let engine else {
+            moveProblem = words.callIt("mac.move_no_engine"); return
+        }
+
+        var undo: [ChangedRecord] = []
+        do {
+            try await StoreWriter.update(
+                storeURL: build.storeURL,
+                owns: { StoreLock.weOwnIt(build) },
+                whoHasIt: { StoreLock.describe(StoreLock.verdict(for: build)) }
+            ) { root in
+                let orders = Self.rows(root, "printLog")
+                guard let target = orders.first(where: { Self.recordId($0) == id }) else {
+                    throw MoveRefused(sentence: self.words.callIt("mac.move_gone"))
+                }
+                let changed = try await change(target, engine, root)
+                Self.write(&root, "printLog", changed: [changed], before: orders, into: &undo)
+            }
+            registerMoveUndo(undo, named: actionName)
+            await load(source)
+        } catch let refusal as MoveRefused {
+            moveProblem = refusal.sentence
+        } catch {
+            moveProblem = String(describing: error)
+        }
+    }
+
+    static func settings(_ root: [String: JSONValue]) -> [String: JSONValue] {
+        if case .object(let s)? = root["settings"] { return s }
+        return [:]
+    }
+
     /// The question this move has to ask before it can happen, if any.
     ///
     /// Two moves are not just a change of column. Putting a job on hold starts a
@@ -520,6 +599,7 @@ final class Shop {
     func clearQuestion() {
         pendingHold = nil
         pendingQC = nil
+        pendingPayment = nil
     }
 
     /// Whether a job may be moved at all: a real book, held by this app, with

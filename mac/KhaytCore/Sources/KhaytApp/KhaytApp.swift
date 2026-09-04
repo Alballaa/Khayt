@@ -125,9 +125,17 @@ final class Activator: NSObject, NSApplicationDelegate {
             await settle()
             capture(named: "01-jobs", into: dir)
 
-            shop.selection = shop.shown.first { !$0.isSettled }?.id
+            // An unsettled job for preference — the money lines are the point
+            // of this panel — but ANY job rather than none. A store whose jobs
+            // are all settled photographed an empty detail pane, which looks
+            // like an inspector that does not work.
+            shop.selection = (shop.shown.first { !$0.isSettled } ?? shop.shown.first)?.id
             await settle()
             capture(named: "02-job-selected", into: dir)
+            // The panes as well: the job inspector is where the money lines and
+            // the payment button live, and a window shot that simply does not
+            // contain it cannot tell you whether it is closed or broken.
+            capturePanes(named: "02-job-selected", into: dir)
 
             shop.shelf = .library(nil)
             await settle()
