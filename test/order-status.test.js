@@ -505,3 +505,118 @@ test('a customer is checked for a new tier, and a walk-in is not', () => {
   assert.ok(!walkIn.effects.some(e => e.type === 'export_status_page'),
     'and nobody to publish a status page for');
 });
+
+/* ── What a move reaches outside the shop's own book ───────────────────────── */
+
+const CONFIGURED = {
+  webhooks: { enabled: true },
+  eventWebhooks: { enabled: true, url: 'https://erp.example.com/hook' },
+  telegram: { botToken: 'b', chatId: 'c', notifyOnComplete: true, notifyOnHold: true },
+  emailConfig: { provider: 'smtp', triggers: ['completed', 'printing'] },
+  cloud: { enabled: true, shopId: 'shop1' },
+};
+const CLIENTS = [{ id: 'c1', email: 'someone@example.com' }, { id: 'c2' }];
+
+const channels = (order, status, settings = CONFIGURED, clients = CLIENTS) =>
+  S.outboundFor(order, status, { settings, clients }).map(x => x.channel);
+
+test('a shop with nothing configured reaches nobody', () => {
+  const order = { id: 'o1', clientId: 'c1', cloudPublished: true, trackingToken: 't' };
+  assert.deepEqual(S.outboundFor(order, 'completed', { settings: {}, clients: CLIENTS }), []);
+  assert.deepEqual(S.outboundFor(order, 'completed', {}), []);
+});
+
+test('a fully wired shop reaches everything a completion touches', () => {
+  const order = { id: 'o1', clientId: 'c1', cloudPublished: true, trackingToken: 't' };
+  assert.deepEqual(channels(order, 'completed'),
+    ['webhooks', 'event_webhook', 'telegram', 'email', 'portal']);
+});
+
+test('Telegram announces a completion and a hold, and stays quiet otherwise', () => {
+  const order = { id: 'o1' };
+  const only = { telegram: CONFIGURED.telegram };
+  assert.deepEqual(channels(order, 'completed', only), ['telegram']);
+  assert.deepEqual(channels(order, 'on_hold', only), ['telegram']);
+  assert.deepEqual(channels(order, 'printing', only), [], 'moving a job to printing reaches nobody');
+
+  const quiet = { telegram: { botToken: 'b', chatId: 'c' } };
+  assert.deepEqual(channels(order, 'completed', quiet), [],
+    'a bot that was told not to announce completions does not');
+});
+
+test('email needs a trigger for THIS status and an address on file', () => {
+  const only = { emailConfig: CONFIGURED.emailConfig };
+  assert.deepEqual(channels({ id: 'o', clientId: 'c1' }, 'completed', only), ['email']);
+  assert.deepEqual(channels({ id: 'o', clientId: 'c1' }, 'qc', only), [], 'not a triggered status');
+  assert.deepEqual(channels({ id: 'o', clientId: 'c2' }, 'completed', only), [],
+    'a customer with no email is nobody to reach');
+  assert.deepEqual(channels({ id: 'o' }, 'completed', only), [], 'and a walk-in is nobody at all');
+  assert.deepEqual(channels({ id: 'o', clientId: 'c1' }, 'completed',
+    { emailConfig: { provider: 'none', triggers: ['completed'] } }), []);
+});
+
+test('the portal only refreshes for a job that was actually published', () => {
+  const only = { cloud: CONFIGURED.cloud };
+  assert.deepEqual(channels({ id: 'o', cloudPublished: true, trackingToken: 't' }, 'printing', only), ['portal']);
+  assert.deepEqual(channels({ id: 'o', cloudPublished: true }, 'printing', only), [], 'no token, no link');
+  assert.deepEqual(channels({ id: 'o', trackingToken: 't' }, 'printing', only), [], 'never published');
+  assert.deepEqual(channels({ id: 'o', cloudPublished: true, trackingToken: 't' }, 'printing',
+    { cloud: { enabled: false, shopId: 'shop1' } }), []);
+});
+
+test('an event webhook must be enabled, https, and not switched off for status', () => {
+  const on = { eventWebhooks: { enabled: true, url: 'https://erp.example.com/hook' } };
+  assert.deepEqual(channels({ id: 'o' }, 'printing', on), ['event_webhook']);
+  assert.deepEqual(channels({ id: 'o' }, 'printing',
+    { eventWebhooks: { enabled: true, url: 'http://erp.example.com/hook' } }), [],
+    'plain http is refused there, so it is refused here');
+  assert.deepEqual(channels({ id: 'o' }, 'printing',
+    { eventWebhooks: { enabled: true, url: 'https://x/h', events: { status: false } } }), [],
+    'a shop that switched status events off is not reached by one');
+});
+
+/**
+ * outboundFor() promises that its conditions ARE the renderer's. A guard that
+ * changes in integrations.js and not here turns the promise into a guess, and
+ * the failure is silent: an app decides a move reaches nobody, performs it, and
+ * a customer's ERP never hears.
+ *
+ * This pins each guard to the source it was copied from. It fails loudly on a
+ * refactor, which is the point — the fix is to read the new guard and update
+ * outboundFor, not to loosen the pattern.
+ */
+test('the outbound conditions still match the renderer they were copied from', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const root = path.join(__dirname, '..');
+  const read = (f) => fs.readFileSync(path.join(root, f), 'utf8');
+
+  const integrations = read('renderer/integrations.js');
+  const extras = read('renderer/operations-extras.js');
+
+  const pinned = [
+    ['fireWebhook', integrations, "const wh = settings.webhooks;\n  if (!wh?.enabled) return;"],
+    ['sendTelegramForOrder', integrations,
+      "const tg = settings.telegram;\n  if (!tg || !tg.botToken || !tg.chatId) return;"],
+    ['sendTelegramForOrder completion', integrations,
+      "if (newStatus === 'completed' && tg.notifyOnComplete) {"],
+    ['sendTelegramForOrder hold', integrations,
+      "} else if (newStatus === 'on_hold' && tg.notifyOnHold) {"],
+    ['autoSendEmailNotification', integrations,
+      "const cfg = settings.emailConfig;\n  if (!cfg || cfg.provider === 'none' || !(cfg.triggers || []).includes(newStatus)) return;"],
+    ['republishPortalIfPublished', integrations,
+      "if (!order || !order.cloudPublished) return;"],
+    ['republishPortalIfPublished cloud', integrations,
+      "if (!(c.enabled && c.shopId) || !order.trackingToken) return;"],
+    ['fireOrderWebhook', extras,
+      "if (!w || !w.enabled || !/^https:\\/\\//i.test(w.url || '')) return;"],
+    ['fireOrderWebhook per-event', extras, "if (w.events && w.events[type] === false) return;"],
+  ];
+
+  for (const [name, source, guard] of pinned) {
+    assert.ok(source.includes(guard),
+      `${name}'s guard has changed. lib/order-status.js outboundFor() copied it, and an app `
+      + `uses that copy to decide whether a move it performs would reach anybody. Read the new `
+      + `guard, update outboundFor to match, then update this pin.\n\nexpected to find:\n${guard}`);
+  }
+});

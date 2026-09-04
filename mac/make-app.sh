@@ -66,6 +66,17 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>NSHighResolutionCapable</key><true/>
   <key>NSHumanReadableCopyright</key><string>Khayt</string>
   <key>NSSupportsAutomaticTermination</key><false/>
+  <!-- A job being dragged across the board. Declared so the drag is this app's
+       own: a board that accepted any dragged text would move a job because
+       someone dropped a word on it. -->
+  <key>UTExportedTypeDeclarations</key>
+  <array>
+    <dict>
+      <key>UTTypeIdentifier</key><string>app.khayt.mac.job</string>
+      <key>UTTypeDescription</key><string>Khayt job</string>
+      <key>UTTypeConformsTo</key><array><string>public.data</string></array>
+    </dict>
+  </array>
 </dict>
 </plist>
 PLIST

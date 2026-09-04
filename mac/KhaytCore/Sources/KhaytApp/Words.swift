@@ -56,6 +56,83 @@ final class Words {
         return key
     }
 
+    /// The same, with the placeholders filled.
+    ///
+    /// Khayt's strings carry `{name}` placeholders and `renderer/i18n.js`
+    /// replaces every occurrence of each. Matched here rather than approximated,
+    /// because a string that comes back still saying `{days}` is worse than one
+    /// that says nothing.
+    func callIt(_ key: String, _ params: [String: JSONValue]) -> String {
+        var out = callIt(key)
+        for (name, value) in params {
+            out = out.replacingOccurrences(of: "{\(name)}", with: Self.plain(value))
+        }
+        return out
+    }
+
+    /// A parameter as the renderer's `String(vars[k])` would render it —
+    /// including a whole number staying whole, which `"\(Double)"` does not do.
+    static func plain(_ value: JSONValue) -> String {
+        switch value {
+        case .string(let s): return s
+        case .number(let n):
+            return n == n.rounded() && abs(n) < 1e15
+                ? String(Int(n))
+                : String(n)
+        case .bool(let b): return b ? "true" : "false"
+        case .null: return "null"
+        case .array, .object:
+            let data = (try? JSONEncoder().encode(value)) ?? Data()
+            return String(data: data, encoding: .utf8) ?? ""
+        }
+    }
+
+    /// What a notice from the shared rules says, in the shop's language.
+    ///
+    /// The codes come from `lib/order-status.js` and `lib/order-deduction.js`;
+    /// the strings are Khayt's own, so a spool running low says the same
+    /// sentence here that it says there.
+    func sentence(for notice: Notice) -> String {
+        let key: String
+        switch notice.code {
+        case "due_extended":           key = "ord.due_extended"
+        case "filament_deducted":      key = "inv.deducted_summary"
+        case "filament_deducted_low":  key = "inv.deducted_summary_low"
+        case "packaging_deducted":     key = "cons.packaging_deducted"
+        case "consumable_low", "packaging_low":
+            return callIt("cons.low") + ": " + Self.plain(notice.params["name"] ?? .string(""))
+        default:
+            // A code nobody has a sentence for is shown as the code. It reads as
+            // wrong, which is the point — a notice that renders as nothing is a
+            // notice that was never delivered.
+            return notice.code
+        }
+        return callIt(key, notice.params)
+    }
+
+    /// Why the rules refused a move.
+    func gateRefusal(_ gate: StatusGate) -> String {
+        guard let block = gate.block else { return callIt("mac.move_refused") }
+        switch block.code {
+        case "production_paused":       return callIt("prod.paused_block")
+        case "wip_blocked":             return callIt("wip.limit_blocked", block.params)
+        case "assembly_not_assembled":  return callIt("asm.gate_not_assembled")
+        case "assembly_parts":          return callIt("asm.gate_parts", block.params)
+        default:                        return block.code
+        }
+    }
+
+    /// Why this app will not make a move that has to reach somebody.
+    ///
+    /// It names the channels rather than saying "an integration", because
+    /// "this sends a Telegram message" tells a shop owner what to do next and
+    /// "an integration is configured" does not.
+    func outboundRefusal(_ reaches: [Outbound]) -> String {
+        let named = reaches.map { callIt("mac.reach_" + $0.channel) }
+        let list = named.joined(separator: named.count == 2 ? " " + callIt("mac.and") + " " : "، ")
+        return callIt("mac.move_reaches") + " " + list + ". " + callIt("mac.move_in_khayt")
+    }
+
     /// The words this app needed and Khayt did not have.
     ///
     /// Every entry carries both languages. A key with only English is worse than
@@ -68,6 +145,27 @@ final class Words {
         "mac.board":         ["en": "Board",         "ar": "اللوح"],
         "mac.nothing_here":  ["en": "nothing here",  "ar": "لا شيء هنا"],
         "mac.no_jobs":       ["en": "No jobs yet",   "ar": "لا أعمال بعد"],
+        // Moving a job
+        "mac.move_action":   ["en": "Move Job",       "ar": "نقل العمل"],
+        "mac.move_refused":  ["en": "That move was refused.", "ar": "رُفض هذا النقل."],
+        "mac.move_gone":     ["en": "That job is no longer in the book.",
+                              "ar": "لم يعد هذا العمل في الدفتر."],
+        "mac.move_sample":   ["en": "The sample shop cannot be changed.",
+                              "ar": "لا يمكن تغيير المحل التجريبي."],
+        "mac.move_no_engine": ["en": "The shared rules did not start, so nothing may be moved.",
+                               "ar": "لم تبدأ القواعد المشتركة، فلا يمكن نقل شيء."],
+        "mac.move_unhandled": ["en": "This move asks for something this app does not know how to do, so nothing was changed.",
+                               "ar": "يتطلب هذا النقل أمراً لا يعرفه هذا التطبيق، فلم يتغير شيء."],
+        "mac.move_reaches":  ["en": "Finishing this here would skip",
+                              "ar": "إنهاء العمل هنا سيتخطى"],
+        "mac.move_in_khayt": ["en": "Do it in Khayt so it is sent.",
+                              "ar": "نفّذه في خيط ليُرسل."],
+        "mac.reach_webhooks":      ["en": "a webhook",        "ar": "إشعار ويب"],
+        "mac.reach_event_webhook": ["en": "an order webhook", "ar": "إشعار ويب للطلب"],
+        "mac.reach_telegram":      ["en": "a Telegram message", "ar": "رسالة تيليجرام"],
+        "mac.reach_email":         ["en": "an email to the customer", "ar": "بريداً للعميل"],
+        "mac.reach_portal":        ["en": "the customer's tracking link", "ar": "رابط متابعة العميل"],
+        "mac.and":           ["en": "and",            "ar": "و"],
         "mac.library":       ["en": "Library",       "ar": "المكتبة"],
         "mac.all_models":    ["en": "All models",    "ar": "كل المجسمات"],
         "mac.people":        ["en": "People",        "ar": "الأشخاص"],

@@ -92,6 +92,47 @@ enum StoreWriter {
         try atomicWrite(next, to: url)
     }
 
+    /// The same, for a change that has to ask the shared JavaScript what to do.
+    ///
+    /// Moving a job runs `order-status` and `order-deduction` inside the write,
+    /// and the engine is an actor — so the mutation suspends. It must still
+    /// happen between the read and the swap, because the whole reason the read
+    /// is inside the write is that a change computed from a stale copy puts the
+    /// stale copy back.
+    ///
+    /// The ownership check after the mutation therefore matters more here, not
+    /// less: the window is now a JavaScript call wide rather than a
+    /// serialisation, and it is the last thing checked before the swap.
+    /// `@MainActor` because its caller is, and because everything it does is
+    /// either file I/O the synchronous version already does on this thread or a
+    /// hop to the engine actor. Leaving it nonisolated only means handing three
+    /// closures across an isolation boundary they have no reason to cross.
+    @MainActor
+    static func update(storeURL url: URL,
+                       owns: () -> Bool,
+                       whoHasIt: () -> String?,
+                       mutate: (inout [String: JSONValue]) async throws -> Void) async throws {
+        guard owns() else {
+            throw Refusal.notOurs(whoHasIt() ?? "Another app owns this book")
+        }
+
+        let data: Data
+        do { data = try Data(contentsOf: url) }
+        catch { throw Refusal.unreadable(error.localizedDescription) }
+        guard var root = try? JSONDecoder().decode([String: JSONValue].self, from: data) else {
+            throw Refusal.unreadable("\(url.lastPathComponent) is not JSON")
+        }
+
+        try await mutate(&root)
+
+        let next = try JSONEncoder().encode(root)
+        guard next.count <= maxStoreBytes else { throw Refusal.tooLarge(next.count) }
+        guard owns() else {
+            throw Refusal.notOurs(whoHasIt() ?? "Another app took the book")
+        }
+        try atomicWrite(next, to: url)
+    }
+
     /// Temp file, fsync, then swap — the same shape as `atomicWriteStoreUnsafe`.
     ///
     /// The temp name carries our pid and a fresh UUID, so a crash can orphan a
