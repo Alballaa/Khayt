@@ -447,175 +447,180 @@ function promptActuals(order, onConfirm) {
   });
 }
 
+/* THE RULES OF A STATUS CHANGE LIVE IN lib/order-status.js.
+ *
+ * They used to live here, tangled with printLog, settings, toast() and four
+ * render() calls, which is why the Mac app's board can show where the work is
+ * piling up but could not let you move a card: the only place that knew what
+ * moving a card means was a renderer it does not run.
+ *
+ * What stayed here is everything that is not a rule — asking for the actuals,
+ * showing the toast, offering the undo, and performing the effects the module
+ * asks for. The module decides WHAT happens; this file is still the only place
+ * that knows how to do it in an Electron window.
+ */
+
+/** The module, however this file happens to be loaded. */
+let _statusRules = null;
+function StatusRules() {
+  if (_statusRules) return _statusRules;
+  if (typeof globalThis !== 'undefined' && globalThis.KhaytOrderStatus) {
+    _statusRules = globalThis.KhaytOrderStatus;
+    return _statusRules;
+  }
+  try { _statusRules = require('../lib/order-status.js'); } catch (e) { _statusRules = null; }
+  return _statusRules;
+}
+
 /* Round 12 — fire completion webhooks + ensure a survey token exists.
-   Call exactly once per completion (the early-return in updateStatus' 'completed'
-   branch otherwise made these unreachable). surveyToken generation is idempotent;
-   the webhooks are NOT, so call this once per completion path only. */
+   Call exactly once per completion. surveyToken generation is idempotent; the
+   webhooks are NOT, so call this once per completion path only. */
 function fireOrderCompletionEvents(order) {
   fireWebhook('status_changed', { orderId: order.id, project: order.project, newStatus: 'completed', client: order.client });
   fireOrderWebhook('status', order);
   fireWebhook('order_delivered', { orderId: order.id, project: order.project, client: order.client });
   if (!order.surveyToken) {
-    const bytes = new Uint8Array(12);
-    crypto.getRandomValues(bytes);
-    order.surveyToken = 'srv-' + Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+    ensureSurveyToken(order);
     saveAll();
   }
 }
 
-// Clear on-hold state when an order leaves on_hold, and — unless it's being
-// completed — push the due date out by the days it spent on hold. Shared by the
-// completion and non-completion paths so a direct hold → completed still clears
-// the hold flags (they previously persisted because the completion branch
-// returned before the cleanup ran).
+function ensureSurveyToken(order) {
+  const bytes = new Uint8Array(StatusRules().SURVEY_TOKEN_BYTES);
+  crypto.getRandomValues(bytes);
+  order.surveyToken = StatusRules().makeSurveyToken(bytes);
+}
+
+/** Clear on-hold state when an order leaves on_hold, extending the due date by
+ *  the days it waited.
+ *
+ *  The rule is the module's; what stays here is the toast and the name, which
+ *  is part of this file's exported surface and is pinned by
+ *  test/order-flows.test.js. */
 function resumeFromHold(order, prevStatus, newStatus) {
-  if (prevStatus === 'on_hold' && newStatus !== 'on_hold') {
-    if (newStatus !== 'completed' && newStatus !== 'delivered' && order.dueDate && order.heldAt) {
-      const holdDays = Math.ceil((Date.now() - new Date(order.heldAt).getTime()) / 86400000);
-      if (holdDays > 0) {
-        const d = new Date(order.dueDate + 'T00:00:00');
-        d.setDate(d.getDate() + holdDays);
-        order.dueDate = localDateStr(d);
-        toast(t('ord.due_extended', { days: holdDays, date: order.dueDate }), 'info', 4000);
-      }
+  const notices = [];
+  StatusRules().resumeFromHold(order, prevStatus, newStatus, Date.now(), notices);
+  showStatusNotices(notices);
+}
+
+/** The module names its messages; this file knows the shop's language. */
+function showStatusNotices(notices) {
+  for (const n of notices || []) {
+    if (n.code === 'due_extended') {
+      toast(t('ord.due_extended', { days: n.params.days, date: n.params.date }), 'info', 4000);
     }
-    delete order.holdReason;
-    delete order.heldAt;
-  } else if (newStatus === 'pending' && order.holdReason !== undefined) {
-    delete order.holdReason;
-    delete order.heldAt;
+  }
+}
+
+/** Say why a move was refused, or warn that it is a squeeze. */
+function reportStatusGate(decision) {
+  const w = decision.warn;
+  if (w) {
+    toast(t('wip.limit_reached', { col: w.params.col, n: w.params.n })
+      || `⚠ WIP limit (${w.params.n}) reached for "${w.params.col}" column`, 'warning', 4000);
+  }
+  const b = decision.block;
+  if (!b) return;
+  if (b.code === 'production_paused') {
+    toast(t('prod.paused_block'), 'warning');
+  } else if (b.code === 'wip_blocked') {
+    toast(t('wip.limit_blocked', { col: b.params.col, n: b.params.n })
+      || `WIP limit reached — cannot move to "${b.params.col}"`, 'error', 4000);
+  } else if (b.code === 'assembly_not_assembled') {
+    toast(t('asm.gate_not_assembled')
+      || 'All parts passed QC — mark the assembly as assembled to complete this order.', 'warning', 5000);
+  } else if (b.code === 'assembly_parts') {
+    toast(t('asm.gate_parts', { parts: b.params.parts })
+      || `Waiting on ${b.params.count} part(s): ${b.params.parts}`, 'warning', 5000);
+  }
+}
+
+/**
+ * Perform the effects lib/order-status.js asked for, in the order it asked.
+ *
+ * `undo` is offered only where the module says the move is undoable — a
+ * completion is not, because it has already deducted filament and packaging
+ * that putting the row back would not return to the shelf.
+ */
+function runStatusEffects(order, effects, { prevTier, undo } = {}) {
+  for (const e of effects) {
+    switch (e.type) {
+      case 'activity_log':
+        if (typeof logActivity === 'function') logActivity('status', e.text, order.id);
+        break;
+      case 'deduct_filament': deductFilamentForOrder(order); break;
+      case 'deduct_packaging': deductPackagingConsumables(order); break;
+      case 'save': saveAll(); break;
+      case 'tier_check': {
+        const newTier = getClientTier(order.clientId);
+        if (newTier && (!prevTier || prevTier.name !== newTier.name)) {
+          const client = clients.find(c => c.id === order.clientId);
+          const cName = client ? localName(client) : '';
+          toast(`${cName ? cName + ' ' : ''}${t('cl.new_tier') || 'reached'} ${newTier.name} tier! 🎉`, 'success', 5000);
+        }
+        break;
+      }
+      case 'render':
+        renderKanban(); renderLogs(); renderAnalytics();
+        if (e.dashboard) renderDashboard();
+        break;
+      case 'toast_updated': toast(t('toast.status_updated'), 'success'); break;
+      case 'toast_updated_undoable':
+        toast(t('toast.status_updated'), 'success', 5000, undo ? { undo } : {});
+        break;
+      case 'export_status_page': autoExportStatusPage(order); break;
+      case 'email': autoSendEmailNotification(order, e.status); break;
+      case 'telegram': sendTelegramForOrder(order, e.status); break;
+      case 'webhook':
+        fireWebhook(e.event, e.event === 'order_delivered'
+          ? { orderId: order.id, project: order.project, client: order.client }
+          : { orderId: order.id, project: order.project, newStatus: e.newStatus, client: order.client });
+        break;
+      case 'order_webhook': fireOrderWebhook(e.event, order); break;
+      case 'ensure_survey_token': ensureSurveyToken(order); saveAll(); break;
+      case 'republish_portal':
+        if (typeof republishPortalIfPublished === 'function') republishPortalIfPublished(order.id);
+        break;
+      default:
+        console.warn('[order-status] no handler for effect', e.type);
+    }
   }
 }
 
 function updateStatus(id, newStatus) {
   const order = printLog.find(o => o.id === id);
   if (!order) return;
-  const prevStatus = order.status;
-  // Feature 8 (this batch): Block new prints when production is paused
-  if (settings.productionPaused && newStatus === 'printing') {
-    toast(t('prod.paused_block'), 'warning');
-    return;
-  }
-  // WIP limit enforcement: warn or block when moving into a limited column
-  if (newStatus !== 'completed' && wouldExceedWipLimit(printLog, id, newStatus, settings.wipLimits)) {
-    if (settings.wipEnforceHardLimit) {
-      toast(t('wip.limit_blocked', { col: newStatus, n: (settings.wipLimits || {})[newStatus] }) || `WIP limit reached — cannot move to "${newStatus}"`, 'error', 4000);
-      return;
-    }
-    toast(t('wip.limit_reached', { col: newStatus, n: (settings.wipLimits || {})[newStatus] }) || `⚠ WIP limit (${(settings.wipLimits || {})[newStatus]}) reached for "${newStatus}" column`, 'warning', 4000);
-  }
-  // BOM assemblies: every printed part must pass QC and the owner must tick "Assembled"
-  // before the order can complete (spec §5). Applies ONLY to orders with components[] —
-  // plain single- and multi-part orders are unaffected.
-  if (newStatus === 'completed' && typeof KhaytAssembly !== 'undefined' && KhaytAssembly.isAssembly(order)) {
-    const gate = KhaytAssembly.canCompleteAssembly(order);
-    if (!gate.ok) {
-      const msg = gate.reason === 'not_assembled'
-        ? (t('asm.gate_not_assembled') || 'All parts passed QC — mark the assembly as assembled to complete this order.')
-        : (t('asm.gate_parts', { parts: gate.remaining.map(r => r.name || '?').join(', ') })
-           || `Waiting on ${gate.remaining.length} part(s): ${gate.remaining.map(r => r.name || '?').join(', ')}`);
-      toast(msg, 'warning', 5000);
-      return;
-    }
-  }
-  if (newStatus === 'completed') {
+
+  const decision = StatusRules().gate(order, newStatus, { orders: printLog, settings });
+  reportStatusGate(decision);
+  if (!decision.ok) return;
+
+  // Completing a job is the moment the shop learns what it really cost, so it
+  // is also the moment worth asking for the actual time and grams.
+  if (decision.needsActuals) {
     promptActuals(order, () => {
-      // Feature 8 (new 8-pack): Check loyalty tier upgrade BEFORE marking complete
+      // The OLD tier has to be read before the job is finished — afterwards
+      // there is nothing to compare the new one against.
       const prevTier = order.clientId ? getClientTier(order.clientId) : null;
-      resumeFromHold(order, prevStatus, 'completed');
-      if (!order.statusHistory) order.statusHistory = [];
-      order.statusHistory.push({ status: 'completed', at: new Date().toISOString() });
-      if (order.statusHistory.length > 200) order.statusHistory = order.statusHistory.slice(-200);
-      order.status = 'completed';
-      if (!order.completedAt) order.completedAt = new Date().toISOString();
-      deductFilamentForOrder(order);
-      if (!order.costBasis) {
-        order.costBasis = (order.parts || []).reduce((s, p) => s + (+p.baseCost || 0), 0);
-      }
-      deductPackagingConsumables(order);
-      saveAll();
-      // Check if client reached a new tier
-      const newTier = order.clientId ? getClientTier(order.clientId) : null;
-      if (newTier && (!prevTier || prevTier.name !== newTier.name)) {
-        const client = clients.find(c => c.id === order.clientId);
-        const cName = client ? localName(client) : '';
-        toast(`${cName ? cName + ' ' : ''}${t('cl.new_tier') || 'reached'} ${newTier.name} tier! 🎉`, 'success', 5000);
-      }
-      renderKanban(); renderLogs(); renderAnalytics(); renderDashboard();
-      toast(t('toast.status_updated'), 'success');
-      // Feature 8: Auto-export status page
-      if (order.clientId) autoExportStatusPage(order);
-      // Batch-2 Feature 10: Telegram on completed
-      sendTelegramForOrder(order, 'completed');
-      // Round 12 — webhooks (status_changed + order_delivered) + survey token on completion
-      fireOrderCompletionEvents(order);
-      // Keep a published customer-portal link in sync.
-      if (typeof republishPortalIfPublished === 'function') republishPortalIfPublished(order.id);
+      const out = StatusRules().apply(order, newStatus, { now: Date.now(), inventory });
+      showStatusNotices(out.notices);
+      runStatusEffects(order, out.effects, { prevTier });
     });
     return;
   }
+
   const _undoIdx = printLog.indexOf(order);
   const _undoSnap = structuredClone(order);
-  order.status = newStatus;
-  if (!order.statusHistory) order.statusHistory = [];
-  order.statusHistory.push({ status: newStatus, at: new Date().toISOString() });
-  if (order.statusHistory.length > 200) order.statusHistory = order.statusHistory.slice(-200);
-  if (typeof logActivity === 'function') logActivity('status', `${order.id} → ${newStatus}`, order.id);
-  // Re-opening a completed/delivered order: clear completion state so the print
-  // timer and material deduction behave like a fresh active job (otherwise a
-  // stale printingStartedAt skews elapsed/ETA, and the re-completion wouldn't
-  // re-deduct filament for the reprint).
-  if ((prevStatus === 'completed' || prevStatus === 'delivered') &&
-      newStatus !== 'completed' && newStatus !== 'delivered') {
-    delete order.completedAt;
-    delete order.materialDeducted;
-    delete order.printingStartedAt;
-  }
-  // Feature 3 (new batch): Detect resin orders entering post-processing
-  if (newStatus === 'post') {
-    const invItem = inventory.find(i => i.id === order.filamentId || (order.parts || []).some(p => p.filamentId === i.id));
-    if (invItem && invItem.materialType === 'resin') {
-      order.isResin = true;
-      if (!order.resinPost) {
-        order.resinPost = { washDurationMins: null, washIpaVolumeMl: null, cureDurationMins: null, curePowerW: null, inspectionNotes: '', completedAt: null };
-      }
-    }
-  }
-  // Feature 2 (this batch): QC gate — automatically redirect 'post' → 'qc' when we see it
-  // (The 'qc' status is set directly by qc-pass / qc-fail handlers)
-  // Live timer: record when printing starts, clear when it ends
-  if (newStatus === 'printing') {
-    order.timerStart = new Date().toISOString();
-    if (!order.printingStartedAt) order.printingStartedAt = new Date().toISOString();
-  } else if (order.timerStart) {
-    delete order.timerStart;
-    delete order.timerPausedAt;
-    delete order.timerPausedMs;
-  }
-  // Auto-extend due date and clear hold state when resuming from on_hold.
-  resumeFromHold(order, prevStatus, newStatus);
-  saveAll();
-  renderKanban(); renderLogs(); renderAnalytics();
-  toast(t('toast.status_updated'), 'success', 5000, _undoIdx >= 0 ? {
-    undo: () => {
+  const out = StatusRules().apply(order, newStatus, { now: Date.now(), inventory });
+  showStatusNotices(out.notices);
+  runStatusEffects(order, out.effects, {
+    undo: _undoIdx >= 0 ? () => {
       printLog[_undoIdx] = _undoSnap;
       saveAll();
       renderKanban(); renderLogs(); renderAnalytics();
       if (typeof renderDashboard === 'function') renderDashboard();
-    },
-  } : {});
-  // Feature 8: Auto-export status page
-  if (order.clientId) autoExportStatusPage(order);
-  // Feature 5 (new batch): Auto-send email notification
-  autoSendEmailNotification(order, newStatus);
-  // Batch-2 Feature 10: Telegram notification on status change
-  sendTelegramForOrder(order, newStatus);
-  // Round 12 — Webhook: status_changed (non-completion transitions; completion is
-  // handled in the 'completed' branch above via fireOrderCompletionEvents).
-  fireWebhook('status_changed', { orderId: order.id, project: order.project, newStatus, client: order.client });
-  fireOrderWebhook('status', order);
-  // Keep a published customer-portal link in sync with the new status.
-  if (typeof republishPortalIfPublished === 'function') republishPortalIfPublished(order.id);
+    } : null,
+  });
 }
 
 function holdOrder(id) {

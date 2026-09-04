@@ -131,3 +131,31 @@ public struct Kpis: Decodable, Sendable {
     public let onTimeTotal: Int
     public let outstanding: Double
 }
+
+/// Whether a job may move to a stage, as `lib/order-status.js` decides it.
+///
+/// A refusal names its reason as a CODE, never a sentence. The module does not
+/// know which language the shop reads, and the two apps have to refuse for the
+/// same reason even when they say it differently — which is the whole point of
+/// the rules living in one place.
+///
+/// `warn` survives a `block`: being told the column is full AND the assembly is
+/// unfinished is more use than being told one of the two.
+public struct StatusGate: Decodable, Sendable, Equatable {
+    /// Why a move was refused, or why it is a squeeze.
+    public struct Reason: Decodable, Sendable, Equatable {
+        /// `production_paused`, `wip_blocked`, `wip_reached`,
+        /// `assembly_not_assembled`, `assembly_parts`.
+        public let code: String
+        /// Whatever the sentence needs — the column and its limit, or the parts
+        /// still outstanding. Heterogeneous by code, so it stays untyped.
+        public let params: [String: JSONValue]
+    }
+
+    public let ok: Bool
+    public let block: Reason?
+    public let warn: Reason?
+    /// Completing a job is the moment the shop learns what it really cost, so
+    /// it is also the moment worth asking for the actual time and grams.
+    public let needsActuals: Bool
+}
