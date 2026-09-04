@@ -130,14 +130,21 @@ final class Activator: NSObject, NSApplicationDelegate {
             await settle()
             capture(named: "03-library", into: dir)
 
-            shop.fileSelection = shop.shownFiles.first?.id
+            shop.fileSelection = Set(shop.shownFiles.prefix(1).map(\.id))
             await settle()
             capture(named: "04-model-selected", into: dir)
             capturePanes(named: "04-model-selected", into: dir)
 
+            // Several selected: the shape a shop is in when it files the
+            // Kings as one collection.
+            shop.fileSelection = Set(shop.shownFiles.prefix(4).map(\.id))
+            await settle()
+            capture(named: "04b-many-selected", into: dir)
+            shop.fileSelection = Set(shop.shownFiles.prefix(1).map(\.id))
+
             if let group = shop.groups.first {
                 shop.shelf = .library(group)
-                shop.fileSelection = nil
+                shop.fileSelection = []
                 await settle()
                 capture(named: "05-group", into: dir)
             }

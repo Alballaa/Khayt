@@ -8,7 +8,9 @@ struct LibraryInspector: View {
     let shop: Shop
 
     var body: some View {
-        if let file = shop.selectedFile {
+        if shop.fileSelection.count > 1 {
+            ManyModels(shop: shop)
+        } else if let file = shop.selectedFile {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     header(file)
@@ -90,7 +92,7 @@ struct LibraryInspector: View {
                     .foregroundStyle(.orange)
                     .textSelection(.enabled)
             }
-            if let group = file.group {
+            if let group = file.groupName {
                 Label(group, systemImage: "square.stack")
                     .font(.callout)
                     .foregroundStyle(.secondary)

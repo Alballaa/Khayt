@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 /// The shop's models.
 ///
@@ -15,25 +16,39 @@ struct LibraryGrid: View {
         ScrollView {
             LazyVGrid(columns: columns, spacing: 16) {
                 ForEach(shop.shownFiles) { file in
-                    Cell(file: file,
-                         thumbnail: shop.thumbnail(for: file),
-                         selected: shop.fileSelection == file.id)
-                        .onTapGesture { shop.fileSelection = file.id }
-                        .contextMenu {
-                            ModelActions(file: file, shop: shop)
-                        } preview: {
-                            // Right-click gives the picture at a size worth
-                            // looking at. It is the fastest way to tell two
-                            // versions of the same model apart.
-                            Thumbnail(source: shop.thumbnail(for: file))
-                                .frame(width: 320, height: 320)
-                        }
+                    cell(for: file)
                 }
             }
             .padding(16)
         }
         .background(.background)
         .overlay { if shop.shownFiles.isEmpty { EmptyShelf(shop: shop) } }
+    }
+
+    /// Broken out of the grid body: the type-checker gave up on the whole
+    /// expression once the modifiers went on.
+    @ViewBuilder private func cell(for file: LibraryFile) -> some View {
+        Cell(file: file,
+             thumbnail: shop.thumbnail(for: file),
+             selected: shop.fileSelection.contains(file.id))
+            .onTapGesture {
+                // SwiftUI's tap gesture does not report modifiers, so they are
+                // read from the event that is arriving. Without this, ⌘-click
+                // does not extend a selection — and a Mac app where it does not
+                // reads as a web page however carefully it is drawn.
+                let flags = NSEvent.modifierFlags
+                let how: Shop.SelectionModifier =
+                    flags.contains(.command) ? .toggle : (flags.contains(.shift) ? .extend : .replace)
+                shop.select(file, modifiers: how)
+            }
+            .contextMenu {
+                ModelActions(file: file, shop: shop)
+            } preview: {
+                // Right-click gives the picture at a size worth looking at. It
+                // is the fastest way to tell two versions of a model apart.
+                Thumbnail(source: shop.thumbnail(for: file))
+                    .frame(width: 320, height: 320)
+            }
     }
 }
 
