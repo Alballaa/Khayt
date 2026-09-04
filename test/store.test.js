@@ -7,7 +7,7 @@ const {
   redactMachinesForExport,
   buildSnapshot,
   buildExportPayload,
-} = require('../renderer/store.js');
+} = require('../lib/store.js');
 
 test('VERSION and SECRET_MASK are stable contract tokens', () => {
   assert.equal(VERSION, 10); // v10: filamentDryLog (filament drying/storage tracker)
@@ -98,7 +98,7 @@ test('every field the UI treats as a secret is known to the redactor', () => {
     for (const m of src.matchAll(/(\w+)\s*:\s*secretInputSave/g)) names.add(m[1]);
   }
   assert.ok(names.size >= 10, `expected to find the secret-field registry, got ${names.size}`);
-  const store = fs.readFileSync(path.join(root, 'renderer/store.js'), 'utf8');
+  const store = fs.readFileSync(path.join(root, 'lib/store.js'), 'utf8');
   const body = store.slice(
     store.indexOf('function redactSettingsForExport'),
     store.indexOf('function redactMachinesForExport'),

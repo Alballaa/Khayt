@@ -29,6 +29,16 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   demand keeps the day's automatic one rather than replacing it, so both sides
   of whatever you are about to do survive.
 
+- **The Mac app exports a copy of your book.** *Book → Export a Copy* writes
+  the same `khayt-YYYY-MM-DD.json` Khayt writes, with the same redaction — API
+  keys, passwords and access codes taken out, because this is the copy that
+  leaves for an accountant or a support thread, not the backup that stays.
+
+  It also masks anything still encrypted, whatever field it is in. The
+  redaction knows the credentials it knows; that check knows what a secret
+  looks like at rest, so a setting added tomorrow leaves as
+  `__KHAYT_MASKED__` rather than as ciphertext.
+
 - **The Mac app puts a backup back.** *Book → Restore from Backup* lists what
   is on the shelf, newest first, and says which copy was taken before an
   update. It refuses a file that is not a Khayt backup and a backup that is
