@@ -490,6 +490,70 @@ final class Shop {
     /// gap.
     var pendingHold: PendingHold?
 
+    /// The job waiting for someone to say what went wrong.
+    var pendingQcFail: PendingHold?
+
+    /// The failure categories, from `lib/qc-failure.js`. A category not on this
+    /// list reaches the waste screen as a value it cannot name.
+    static let failureTypes = ["bed_adhesion", "nozzle_jam", "warping", "stringing",
+                               "operator_error", "design_issue", "power_failure",
+                               "material_quality", "other"]
+
+    /// Record a QC failure and send the job back to be printed again.
+    ///
+    /// THREE RECORDS, ONE SWAP: the fields on the order that the metrics count,
+    /// the defect the analytics table is built from, and the waste row. A book
+    /// where the job says it failed and the waste log has never heard of it is
+    /// a shop whose scrap costs are quietly understated.
+    func recordQcFailure(_ id: Order.ID, failureType: String, reason: String,
+                         weight: Double) async {
+        moveProblem = nil
+        moveNotices = []
+        guard let build = source.build else {
+            moveProblem = words.callIt("mac.move_sample"); return
+        }
+        guard let engine else {
+            moveProblem = words.callIt("mac.move_no_engine"); return
+        }
+
+        var undo: [ChangedRecord] = []
+        do {
+            try await StoreWriter.update(
+                storeURL: build.storeURL,
+                owns: { StoreLock.weOwnIt(build) },
+                whoHasIt: { StoreLock.describe(StoreLock.verdict(for: build)) }
+            ) { root in
+                let orders = Self.rows(root, "printLog")
+                guard let target = orders.first(where: { Self.recordId($0) == id }) else {
+                    throw MoveRefused(sentence: self.words.callIt("mac.move_gone"))
+                }
+                let out = try await engine.recordQcFailure(
+                    order: target, failureType: failureType, severity: "major",
+                    reason: reason, weight: weight, inspector: nil,
+                    inventory: Self.rows(root, "inventory"), now: Date(),
+                    wasteId: Self.uid("WASTE"),
+                    defaultReason: self.words.callIt("ord.qc_fail"))
+
+                Self.write(&root, "printLog", changed: [out.order], before: orders, into: &undo)
+
+                // Newest first, the way the waste screen reads it. A new row is
+                // not an edit to an existing one, so nothing is stamped.
+                var waste = Self.rows(root, "wasteLog")
+                waste.insert(out.waste, at: 0)
+                root["wasteLog"] = .array(waste)
+            }
+            registerMoveUndo(undo, named: words.callIt("ord.qc_fail"))
+            await load(source)
+            // Back to be printed again — the move Khayt and Bed Ready both make
+            // after a failure, and it carries its own gate and effects.
+            await moveJob(id, to: .pending)
+        } catch let refusal as MoveRefused {
+            moveProblem = refusal.sentence
+        } catch {
+            moveProblem = String(describing: error)
+        }
+    }
+
     /// The job waiting for someone to say it passed inspection.
     ///
     /// A job leaving QC for completed is an INSPECTION, and `qcStatusOf` reads
@@ -659,6 +723,10 @@ final class Shop {
         let subject = PendingHold(id: id, project: job.project)
         if to == .on_hold { return { self.pendingHold = subject } }
         if to == .completed && Stage.of(job) == .qc { return { self.pendingQC = subject } }
+        // A job leaving inspection for anywhere else FAILED it. Sending it back
+        // without recording that is how a shop's scrap costs go unrecorded and
+        // its pass rate is computed over the jobs that happened to pass.
+        if Stage.of(job) == .qc { return { self.pendingQcFail = subject } }
         return nil
     }
 
@@ -667,6 +735,7 @@ final class Shop {
         pendingQC = nil
         pendingPayment = nil
         pendingEdit = nil
+        pendingQcFail = nil
     }
 
     /// Whether a job may be moved at all: a real book, held by this app, with

@@ -6,6 +6,12 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Changed
 
+- **The Mac app can fail a job's inspection.** Moving a job out of QC to
+  anywhere but Completed asks what went wrong, and how much filament it cost —
+  then sends it back to be printed again. Without it, a job dragged out of QC
+  on the Mac was not counted as a failure: it was not counted at all, and the
+  shop's pass rate quietly improved.
+
 - **The Mac app can change a job's due date and how urgent it is.** ⇧⌘E. Two
   fields, because those are the two a shop floor actually adjusts — and the two
   whose changes Khayt writes into the job's edit history, so an edit made on
@@ -55,6 +61,14 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   already run out, and a re-opened job never being charged twice.
 
 ### Fixed
+
+- **A QC failure recorded in Bed Ready did not say how bad it was.** The defect
+  it wrote carried no severity and no photo reference, and never recorded who
+  inspected the job — so a failure logged there answered "how serious was
+  this?" with nothing at all. Failing a job now writes the same three records
+  everywhere it can be done: the fields the pass-rate figures count, the defect
+  the analytics table is built from, and the waste row with what the scrapped
+  print cost.
 
 - **The Mac app filed every handed-over job under Completed.** In Khayt a
   delivered job is a completed one carrying the date it was handed over — the

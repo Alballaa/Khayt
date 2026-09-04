@@ -62,6 +62,13 @@
   const orders = () => (typeof printLog !== 'undefined' && Array.isArray(printLog)) ? printLog : [];
   const conf = () => (typeof settings !== 'undefined' && settings) ? settings : {};
 
+  /** The shared QC-failure rules, if the page loaded them. */
+  function qcFailureRules() {
+    if (qcFailureRules.cached) return qcFailureRules.cached;
+    qcFailureRules.cached = (typeof globalThis !== 'undefined' && globalThis.KhaytQcFailure) || null;
+    return qcFailureRules.cached;
+  }
+
   /** The shared status rules, however this page happens to have loaded them. */
   function rules() {
     if (rules.cached) return rules.cached;
@@ -281,32 +288,24 @@
         <input type="number" id="brQcFailWeight" min="0" step="1" value="" placeholder="0">`,
       onMount(modal) { setTimeout(() => modal.querySelector('#brQcFailType')?.focus(), 40); },
       onSave(modal) {
-        const nowIso = new Date().toISOString();
         const failureType = modal.querySelector('#brQcFailType')?.value || 'other';
         const reason = String(modal.querySelector('#brQcFailReason')?.value || '').trim();
         const weight = Math.max(0, (typeof num === 'function' ? num(modal.querySelector('#brQcFailWeight')?.value, 0) : 0));
 
-        if (typeof wasteLog !== 'undefined' && Array.isArray(wasteLog)) {
-          const inv = (typeof inventory !== 'undefined' && Array.isArray(inventory))
-            ? inventory.find((i) => i && i.material === order.material) : null;
-          wasteLog.unshift({
-            id: (typeof uid === 'function') ? uid('WASTE') : 'WASTE-' + nowIso,
-            date: nowIso.split('T')[0],
-            material: order.material || '',
-            machineId: order.machineId || null,
-            weight,
-            cost: (weight > 0 && inv && inv.weight > 0) ? (inv.cost / inv.weight) * weight : 0,
-            reason: reason || T('ord.qc_fail', 'QC fail'),
-            orderId: order.id,
-            failureType,
+        // The waste row, the defect and the fields on the order are all
+        // lib/qc-failure.js's now. This used to write them here, and its
+        // defect carried no severity and no photoRef — a Bed Ready failure
+        // answered "how bad was it" with undefined, for ever.
+        const Rules = qcFailureRules();
+        if (Rules) {
+          Rules.record(order, { failureType, reason, weight }, {
+            now: Date.now(),
+            inventory: (typeof inventory !== 'undefined' ? inventory : []),
+            wasteLog: (typeof wasteLog !== 'undefined' ? wasteLog : null),
+            wasteId: (typeof uid === 'function') ? uid('WASTE') : null,
+            defaultReason: T('ord.qc_fail', 'QC fail'),
           });
         }
-
-        order.qcStatus = 'fail';
-        order.qcAt = nowIso;
-        order.qcFailedAt = nowIso;
-        if (!Array.isArray(order.defects)) order.defects = [];
-        order.defects.push({ type: failureType, note: reason || '', at: nowIso });
 
         updateStatus(id, 'pending');
         if (typeof renderWaste === 'function') { try { renderWaste(); } catch (_) {} }

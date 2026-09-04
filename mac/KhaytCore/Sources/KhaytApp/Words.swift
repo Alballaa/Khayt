@@ -269,6 +269,8 @@ final class Words {
         "mac.edit_job":      ["en": "Edit Job",       "ar": "تعديل العمل"],
         "mac.no_due_date":   ["en": "No due date",    "ar": "بلا تاريخ تسليم"],
         "mac.priority_normal": ["en": "Normal",       "ar": "عادي"],
+        "mac.what_went_wrong": ["en": "What went wrong?", "ar": "ما الذي حدث؟"],
+        "mac.wasted":        ["en": "Filament wasted (g)", "ar": "الخيط المهدور (غم)"],
         "mac.board_unplaced": ["en": "{n} job(s) are in a stage this board has no column for.",
                                "ar": "{n} من الأعمال في مرحلة لا عمود لها في هذا اللوح."],
         "mac.library":       ["en": "Library",       "ar": "المكتبة"],

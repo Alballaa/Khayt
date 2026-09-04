@@ -63,6 +63,11 @@ struct MoveJobTests {
             .deletingLastPathComponent()     // repo root
     }
 
+    static func rowValues(_ root: [String: JSONValue], _ collection: String) -> [JSONValue] {
+        guard case .array(let r)? = root[collection] else { return [] }
+        return r
+    }
+
     static func rows(_ root: [String: JSONValue], _ collection: String) -> [[String: JSONValue]] {
         guard case .array(let r)? = root[collection] else { return [] }
         return r.compactMap { if case .object(let o) = $0 { return o } else { return nil } }
@@ -693,5 +698,98 @@ struct EditJobTests {
             #expect(shop.priorityOf(job) == (try await engine.priority(of: row)),
                     "diverged for \(job.id)")
         }
+    }
+}
+
+/// A job that failed inspection.
+@MainActor
+struct QcFailureTests {
+
+    static func book() -> [String: JSONValue] {
+        var root = MoveJobTests.book()
+        guard case .array(var jobs)? = root["printLog"], case .object(var j1) = jobs[0] else { return root }
+        j1["status"] = .string("qc")
+        j1["material"] = .string("PLA")
+        jobs[0] = .object(j1)
+        root["printLog"] = .array(jobs)
+        root["inventory"] = .array([
+            .object(["id": .string("S1"), "material": .string("PLA"),
+                     "weight": .number(1000), "cost": .number(100)]),
+        ])
+        return root
+    }
+
+    @Test("a failure reaches the job, a defect and the waste log")
+    func threeRecords() async throws {
+        let engine = try KhaytEngine()
+        let root = Self.book()
+        let order = try #require(Self.asValue(MoveJobTests.row(root, "printLog", "J1")))
+
+        let out = try await engine.recordQcFailure(
+            order: order, failureType: "warping", severity: "major",
+            reason: "it lifted", weight: 40, inspector: nil,
+            inventory: MoveJobTests.rowValues(root, "inventory"),
+            now: Date(), wasteId: "WASTE-1", defaultReason: "Fail QC")
+
+        guard case .object(let after) = out.order else { Issue.record("not an order"); return }
+        #expect(MoveJobTests.string(after["qcStatus"]) == "fail")
+        #expect(MoveJobTests.string(after["qcFailedAt"])?.hasSuffix("Z") == true,
+                "or computeQcMetrics does not count it as a failure at all")
+
+        guard case .array(let defects)? = after["defects"], case .object(let defect) = defects[0] else {
+            Issue.record("no defect"); return
+        }
+        #expect(MoveJobTests.string(defect["type"]) == "warping")
+        #expect(MoveJobTests.string(defect["severity"]) == "major")
+
+        guard case .object(let waste) = out.waste else { Issue.record("no waste row"); return }
+        #expect(MoveJobTests.number(waste["weight"]) == 40)
+        #expect(MoveJobTests.number(waste["cost"]) == 4, "100 riyals per kilo, 40 grams")
+        #expect(MoveJobTests.string(waste["orderId"]) == "J1")
+        #expect(MoveJobTests.string(waste["id"]) == "WASTE-1")
+    }
+
+    @Test("a category the waste screen cannot name becomes one it can")
+    func unknownCategory() async throws {
+        let engine = try KhaytEngine()
+        let order: JSONValue = .object(["id": .string("J1"), "material": .string("PLA")])
+        let out = try await engine.recordQcFailure(
+            order: order, failureType: "exploded", severity: "catastrophic",
+            reason: "", weight: 0, inspector: nil, inventory: [], now: Date(),
+            wasteId: "W1", defaultReason: "Fail QC")
+        guard case .object(let after) = out.order,
+              case .array(let defects)? = after["defects"],
+              case .object(let defect) = defects[0] else { Issue.record("no defect"); return }
+        #expect(MoveJobTests.string(defect["type"]) == "other")
+        #expect(MoveJobTests.string(defect["severity"]) == "major")
+    }
+
+    @Test("leaving QC for anywhere but completed asks what went wrong")
+    func questionOnLeavingQC() async {
+        let shop = Shop(source: .sample)
+        await shop.load(.sample)
+        guard let inQC = shop.orders.first(where: { $0.status == "qc" }) else {
+            // The sample shop may have none; the rule is still worth stating.
+            return
+        }
+        #expect(shop.questionFor(inQC.id, moving: .pending) != nil, "a failure has to be written down")
+        #expect(shop.questionFor(inQC.id, moving: .printing) != nil)
+        #expect(shop.questionFor(inQC.id, moving: .completed) != nil, "and a pass does too")
+
+        // A job that is not in QC is not failing an inspection by moving.
+        guard let printing = shop.orders.first(where: { $0.status == "printing" }) else { return }
+        #expect(shop.questionFor(printing.id, moving: .pending) == nil)
+    }
+
+    @Test("the categories offered are the shared list, in its order")
+    func categoriesMatch() async throws {
+        let engine = try KhaytEngine()
+        let shared = try await engine.raw("KhaytQcFailure.FAILURE_TYPES", as: [String].self)
+        #expect(Shop.failureTypes == shared,
+                "a category not on the shared list reaches the waste screen unnamed")
+    }
+
+    static func asValue(_ dict: [String: JSONValue]?) -> JSONValue? {
+        dict.map(JSONValue.object)
     }
 }
