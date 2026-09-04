@@ -27,6 +27,16 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **Bed Ready's production queue now moves a job by the same rules Khayt does.**
+  It had its own, close but not identical, and the differences were the kind
+  nobody notices for months: finishing a job never fixed what it cost, so its
+  margin was recomputed later at whatever filament prices happened to be
+  current; a job sent round again could not deduct its filament a second time,
+  so the shelf reported spools it had already used; and a job resuming from
+  hold never got back the days it spent waiting, so it came back late through
+  nobody's fault. All three are fixed by there being one set of rules instead
+  of two. A finished job also stops carrying a running print timer.
+
 - **A job put on hold now remembers when, and why.** The due date a held job
   gets back is counted from the moment it stopped, and until now only Khayt's
   own "Put on hold" button recorded that moment — a job held any other way came

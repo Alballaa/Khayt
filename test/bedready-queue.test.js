@@ -19,6 +19,13 @@ const vm = require('vm');
 const ROOT = path.join(__dirname, '..');
 const SRC = fs.readFileSync(path.join(ROOT, 'renderer/bedready-queue.js'), 'utf8');
 
+/* The shared rules the queue is now a HOST for. Loaded into the same scope the
+   page loads them into, because "the module is present" is exactly the sort of
+   thing that is true in a unit test and false on the page — which is the bug
+   this file's own header is about. */
+const RULES = ['lib/assembly.js', 'lib/order-status.js']
+  .map((f) => fs.readFileSync(path.join(ROOT, f), 'utf8'));
+
 /** A renderer-ish global scope with only what Bed Ready actually provides. */
 function boot({ orders = [], settings = {} } = {}) {
   const calls = { saved: 0, filament: [], packaging: [], activity: [], toasts: [], repaints: 0 };
@@ -34,10 +41,11 @@ function boot({ orders = [], settings = {} } = {}) {
     deductFilamentForOrder: (o) => calls.filament.push(o.id),
     deductPackagingConsumables: (o) => calls.packaging.push(o.id),
     logActivity: (kind, msg, id) => calls.activity.push({ kind, msg, id }),
-    wouldExceedWipLimit: () => false,
+    inventory: [],
   };
   ctx.globalThis = ctx;
   vm.createContext(ctx);
+  for (const src of RULES) vm.runInContext(src, ctx);
   vm.runInContext(SRC, ctx);
   return { ctx, calls, order: orders[0] };
 }
@@ -49,6 +57,7 @@ test('it replaces the shim no-op rather than sitting beside it', () => {
   const ctx = { updateStatus: function () { return ''; }, printLog: [], settings: {} };
   ctx.globalThis = ctx;
   vm.createContext(ctx);
+  for (const src of RULES) vm.runInContext(src, ctx);
   vm.runInContext(SRC, ctx);
   assert.ok(!/return\s*''/.test(String(ctx.updateStatus)), 'the no-op is still installed');
 });
@@ -100,22 +109,25 @@ test('a paused shop does not start new prints, but can still finish the ones run
 });
 
 test('a hard WIP limit blocks the move; completing is never blocked', () => {
+  // A real full column rather than a stubbed predicate: the arithmetic is the
+  // shared one now, and stubbing it would test the stub.
   const over = { wipLimits: { printing: 1 }, wipEnforceHardLimit: true };
-  const a = boot({ orders: [job()], settings: over });
-  a.ctx.wouldExceedWipLimit = () => true;
+  const busy = () => job({ id: 'J0', status: 'printing' });
+  const a = boot({ orders: [job(), busy()], settings: over });
   a.ctx.updateStatus('J1', 'printing');
   assert.equal(a.order.status, 'pending', 'the limit should have stopped this');
 
-  const b = boot({ orders: [job({ status: 'qc' })], settings: over });
-  b.ctx.wouldExceedWipLimit = () => true;
+  const b = boot({ orders: [job({ status: 'qc' }), busy()], settings: over });
   b.ctx.updateStatus('J1', 'completed');
   assert.equal(b.order.status, 'completed',
     'the point of a WIP limit is to stop work starting, never to strand what is already done');
 });
 
 test('a soft WIP limit warns and lets the move through', () => {
-  const { ctx, order, calls } = boot({ orders: [job()], settings: { wipLimits: { printing: 1 } } });
-  ctx.wouldExceedWipLimit = () => true;
+  const { ctx, order, calls } = boot({
+    orders: [job(), job({ id: 'J0', status: 'printing' })],
+    settings: { wipLimits: { printing: 1 } },
+  });
   ctx.updateStatus('J1', 'printing');
   assert.equal(order.status, 'printing');
   assert.ok(calls.toasts.some((x) => x.kind === 'warning'), 'it should say so, though');
@@ -154,4 +166,81 @@ test('Khayt does not load it — its own updateStatus is the real one', () => {
   const html = fs.readFileSync(path.join(ROOT, 'renderer/index.html'), 'utf8');
   assert.ok(!html.includes('bedready-queue.js'),
     'this would replace order-flows.js updateStatus and silently drop invoicing, loyalty and webhooks');
+});
+
+/* ── The rules Bed Ready used to be missing ────────────────────────────────── */
+
+test('a job resuming from hold gets back the days it waited', () => {
+  // This was written down in this module as impossible: the function that did
+  // it lived in order-flows.js, which Bed Ready does not ship. It is shared
+  // now, so a Bed Ready job held for nine days comes back nine days later
+  // rather than nine days late.
+  const heldAt = new Date(Date.now() - 9 * 86400000 + 3600000).toISOString();
+  const { ctx, order, calls } = boot({
+    orders: [job({ status: 'on_hold', dueDate: '2099-01-20', heldAt, holdReason: 'no filament' })],
+  });
+  ctx.updateStatus('J1', 'printing');
+  assert.equal(order.dueDate, '2099-01-29');
+  assert.equal(order.heldAt, undefined, 'the hold is over');
+  assert.equal(order.holdReason, undefined);
+  assert.ok(calls.toasts.some((x) => x.kind === 'info'), 'and the maker is told the date moved');
+});
+
+test('putting a job on hold records when, so the days can be counted', () => {
+  const { ctx, order } = boot({ orders: [job({ status: 'printing', timerStart: 'x' })] });
+  ctx.updateStatus('J1', 'on_hold', { holdReason: 'nozzle clog' });
+  assert.equal(order.status, 'on_hold');
+  assert.ok(order.heldAt, 'without this the due date can never be given back');
+  assert.equal(order.holdReason, 'nozzle clog');
+  assert.ok(!order.timerStart, 'and nothing is being printed while it waits');
+});
+
+test('a completion fixes what the job cost', () => {
+  const { ctx, order } = boot({
+    orders: [job({ status: 'qc', parts: [{ baseCost: 12.5 }, { baseCost: 4 }] })],
+  });
+  ctx.updateStatus('J1', 'completed');
+  assert.equal(order.costBasis, 16.5, "or the margin is recomputed at next year's filament prices");
+});
+
+test('re-opening a finished job lets it deduct its filament again', () => {
+  const { ctx, order, calls } = boot({
+    orders: [job({
+      status: 'completed', completedAt: '2026-01-01T00:00:00Z',
+      materialDeducted: true, printingStartedAt: '2026-01-01T00:00:00Z',
+    })],
+  });
+  ctx.updateStatus('J1', 'printing');
+  assert.equal(order.materialDeducted, undefined,
+    'else the reprint consumes nothing and the shelf reports filament it has already used');
+  assert.ok(order.printingStartedAt !== '2026-01-01T00:00:00Z', 'and the new run starts now');
+
+  ctx.updateStatus('J1', 'completed');
+  assert.deepEqual(calls.filament, ['J1'], 'the second run empties the spool too');
+});
+
+test('a resin job entering post gets somewhere to record the wash and the cure', () => {
+  const { ctx, order } = boot({
+    orders: [job({ status: 'printing', filamentId: 'R1' })],
+  });
+  ctx.inventory = [{ id: 'R1', materialType: 'resin' }];
+  ctx.updateStatus('J1', 'post');
+  assert.equal(order.isResin, true);
+  assert.ok(order.resinPost, 'the fields the post-processing panel writes into');
+});
+
+test('the effects a workshop does not have are ignored, not mistaken for missing', () => {
+  // Every commercial effect — the webhooks, the email, the Telegram message,
+  // the portal refresh, the survey token, the loyalty tier — falls through the
+  // default case. What must NOT happen is the move failing because of them.
+  const { ctx, order, calls } = boot({
+    orders: [job({ status: 'qc', clientId: 'C1' })],
+    settings: {
+      telegram: { botToken: 't', chatId: 'c', notifyOnComplete: true },
+      webhooks: { enabled: true },
+    },
+  });
+  ctx.updateStatus('J1', 'completed');
+  assert.equal(order.status, 'completed', 'a workshop finishes its job either way');
+  assert.equal(calls.saved > 0, true);
 });
