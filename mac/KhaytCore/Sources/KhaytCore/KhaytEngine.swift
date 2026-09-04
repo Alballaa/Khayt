@@ -105,6 +105,13 @@ public actor KhaytEngine {
         // them to show. Not the interface language: a shop that writes only
         // Arabic must not be shown the stale English name left over from setup.
         "content-languages",
+        // The document a customer is handed, and the QR a Saudi tax invoice
+        // must carry. INVOICE-LANGUAGE FIRST: the document asks it whether to
+        // print a second language, through a global, so listing it after would
+        // give every invoice the English-only answer.
+        "invoice-language",
+        "zatca-qr",
+        "invoice-document",
     ]
 
     /// The languages whose strings are bundled.
