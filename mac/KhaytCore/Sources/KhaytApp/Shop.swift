@@ -213,6 +213,36 @@ final class Shop {
 
     // MARK: - Changing something
 
+    // MARK: - What the menus ask for
+
+    /// The menu bar acts on the selection, not on a row it was handed. These
+    /// are the same actions the context menu and the inspector use, named once
+    /// so the two can never drift into meaning different things.
+    func reload() { Task { await load(source) } }
+    func open(_ next: Source) { Task { await load(next) } }
+
+    var canEditSelection: Bool { canWrite && !fileSelection.isEmpty }
+
+    var selectionIsOnThisMac: Bool {
+        guard let one = selectedFile else { return false }
+        return modelFile(for: one) != nil
+    }
+
+    func toggleFavouriteOnSelection() {
+        guard let one = selectedFile else { return }
+        toggleFavourite(one)
+    }
+
+    func revealSelection() {
+        guard let one = selectedFile, let url = modelFile(for: one) else { return }
+        FileActions.reveal(url)
+    }
+
+    func openSelection() {
+        guard let one = selectedFile, let url = modelFile(for: one) else { return }
+        FileActions.open(url)
+    }
+
     /// Mark a model a favourite, or stop. The first thing this app ever wrote.
     func toggleFavourite(_ file: LibraryFile) {
         let wanted = !file.isFavourite
