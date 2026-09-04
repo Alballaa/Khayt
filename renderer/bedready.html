@@ -1962,6 +1962,15 @@
      mesh in a different container", and print setups for "the settings that worked". Loaded
      before it so the accessors it guards them behind find something. -->
 <script src="../lib/model-identity.js"></script>
+<!-- The other half of the same feature. model-identity was here and these
+     three were not, so Bed Ready could recognise a model and not the g-code
+     sliced from it, and its estimates never learned from its own actuals —
+     which it collects. All three are self-contained and none of them is
+     commercial: matching a print file to a model by SHAPE so it survives a
+     re-slice is the thing this app is for. -->
+<script src="../lib/gcode-geometry.js"></script>
+<script src="../lib/order-file-link.js"></script>
+<script src="../lib/estimate-calibration.js"></script>
 <script src="../lib/print-setups.js"></script>
 <script src="../lib/tags.js"></script>
 <script src="../lib/organise.js"></script>

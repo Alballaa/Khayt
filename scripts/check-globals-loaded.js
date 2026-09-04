@@ -80,13 +80,14 @@ const isFlavourOwned = (owner) => FLAVOUR_DIRS.some((d) => owner.startsWith(d));
  * exemption: everything listed here is a feature Bed Ready silently does not
  * have, and the list may only shrink. A new gap is a failure.
  *
- * It started at 32 and is 17. The twelve that went were five modules Bed Ready
+ * It started at 32 and is 12. The twelve that went were five modules Bed Ready
  * reads for and never loaded — the consumable category filter, the reorder
  * suggestions, the printer-state rule and two the theme dashboards need. Every
  * one of them was workshop logic that had simply never been given a script tag —
- * as was printer-relocate, which followed. What is left is Khayt's own three
- * themes, which Bed Ready replaces with its own, and seven business modules
- * reached from settings.js.
+ * as was printer-relocate, and the three that let an estimate learn from what
+ * the printer actually did. What is left is Khayt's own three themes, which Bed
+ * Ready replaces with its own, and six modules reached from settings.js and the
+ * customer intake — all commerce.
  *
  * `renderer/bedready.html` was outside this check until a shared module
  * (lib/order-deduction.js) was added to inventory.js without a matching script
@@ -101,19 +102,14 @@ const isFlavourOwned = (owner) => FLAVOUR_DIRS.some((d) => owner.startsWith(d));
 const KNOWN_ABSENT = {
   'renderer/bedready.html': [
     ['KhaytCloudPlans', 'renderer/settings.js'],
-    ['KhaytEstimateCalibration', 'renderer/settings.js'],
-    ['KhaytEstimateCalibration', 'renderer/wire-events.js'],
     ['KhaytFlow', 'renderer/dashboard.js'],
     ['KhaytFlowShell', 'renderer/themes.js'],
     ['KhaytForeman', 'renderer/dashboard.js'],
     ['KhaytForemanShell', 'renderer/themes.js'],
-    ['KhaytGcodeGeometry', 'renderer/wire-events.js'],
     ['KhaytIntakeView', 'renderer/wire-events.js'],
     ['KhaytMedusa', 'renderer/settings.js'],
     ['KhaytMeridian', 'renderer/dashboard.js'],
     ['KhaytMeridianShell', 'renderer/themes.js'],
-    ['KhaytOrderFileLink', 'renderer/settings.js'],
-    ['KhaytOrderFileLink', 'renderer/wire-events.js'],
     ['KhaytPortalTrial', 'renderer/settings.js'],
     ['KhaytPrivacy', 'renderer/settings.js'],
     ['KhaytTelemetryScrub', 'renderer/settings.js'],
