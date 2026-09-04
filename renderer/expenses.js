@@ -6,26 +6,19 @@ let _expReceiptPath = null;
 const EXP_CATEGORIES = ['filament','electricity','maintenance','tools','shipping','other'];
 
 (function (global) {
+/** The rule, however this file happens to be loaded — a script tag in the
+ *  window, or `require` in a test. */
+const ExpenseBook = (typeof globalThis !== 'undefined' && globalThis.KhaytExpenseBook)
+  || (() => { try { return require('../lib/expense-book.js'); } catch (e) { return null; } })();
+
+/** The rule is lib/expense-book.js; this is the name the rest of this file calls. */
 function calcNextDueDate(fromDate, recurring) {
-  if (!fromDate || !recurring) return null;
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(fromDate).trim());
-  if (!m) return null;
-  // Build, advance and read on the SAME calendar. This used to construct the
-  // date in UTC, advance it in UTC, then format it with localDateStr — and west
-  // of UTC those disagree by a day, so every cycle lost one: an expense anchored
-  // on the 15th went 14th, 13th, 12th, 11th. It compounded, and it was invisible
-  // in CI because CI runs in UTC.
-  const d = new Date(+m[1], +m[2] - 1, +m[3]);
-  if (recurring === 'monthly') d.setMonth(d.getMonth() + 1);
-  else if (recurring === 'quarterly') d.setMonth(d.getMonth() + 3);
-  else if (recurring === 'annually') d.setFullYear(d.getFullYear() + 1);
-  else return null;
-  return localDateStr(d);
+  return ExpenseBook.nextDueDate(fromDate, recurring);
 }
 
 function checkRecurringExpenses() {
   const todayStr = localDateStr();
-  const due = expenses.filter(e => e.recurring && e.nextDue && e.nextDue <= todayStr);
+  const due = ExpenseBook.due(expenses, todayStr);
   if (due.length === 0) return;
   for (const exp of due) {
     const label = `${expCatLabel(exp.category)} ${fmtPrice(exp.amount)}`;
@@ -41,15 +34,7 @@ function checkRecurringExpenses() {
     skipBtn.style.marginInlineStart = '4px';
     skipBtn.textContent = 'Skip';
     addBtn.addEventListener('click', () => {
-      expenses.unshift({
-        id: uid('EXP'),
-        date: todayStr,
-        category: exp.category,
-        amount: exp.amount,
-        note: exp.note || '',
-        recurring: null, // the new copy is not recurring
-        orderId: null,
-      });
+      expenses.unshift(ExpenseBook.recurrence(exp, { id: uid('EXP'), today: todayStr }));
       exp.nextDue = calcNextDueDate(exp.nextDue || todayStr, exp.recurring);
       saveAll();
       renderExpenses();
@@ -84,41 +69,27 @@ function expCatLabel(cat) {
 let _expReceiptPath = null;
 
 function addExpense() {
-  const amount = clampPositive($('#expAmount').value);
-  if (amount <= 0) { toast(t('exp.amount_required'), 'error'); return; }
-  const dateVal = $('#expDate').value || localDateStr();
-  const orderRef = ($('#expOrderRef')?.value || '').trim() || null;
-  const recurringVal = $('#expRecurring')?.value || null;
-  const nextDue = recurringVal ? calcNextDueDate(dateVal, recurringVal) : null;
-  const expCat = $('#expCategory').value || 'other';
-  expenses.unshift({
-    id:          uid('EXP'),
-    date:        dateVal,
-    category:    expCat,
-    amount,
-    note:        $('#expNote').value.trim(),
-    orderId:     orderRef,
-    receiptPath: _expReceiptPath || null,
-    recurring:   recurringVal || null,
-    nextDue:     nextDue,
-    locationId:  $('#exp_locationId')?.value || '',
-  });
+  // The record is lib/expense-book.js's, so the Mac writes the same one. It
+  // was built here from seven controls, which is why only this window could.
+  const made = ExpenseBook.newExpense({
+    amount:      $('#expAmount').value,
+    date:        $('#expDate').value,
+    category:    $('#expCategory').value,
+    note:        $('#expNote').value,
+    orderId:     $('#expOrderRef')?.value,
+    recurring:   $('#expRecurring')?.value,
+    receiptPath: _expReceiptPath,
+    locationId:  $('#exp_locationId')?.value,
+  }, { id: uid('EXP'), today: localDateStr() });
+  if (made.refused) { toast(t('exp.amount_required'), 'error'); return; }
+  expenses.unshift(made.expense);
   saveAll();
-  // Budget overspend check
-  const budget = (settings.expBudgets || {})[expCat] || 0;
-  if (budget > 0) {
-    // The shop's calendar month, not UTC's. Expense dates are written in local
-    // time, so comparing them against a UTC month mismatches for the first hours
-    // of the 1st east of London, and the last hours of the 31st west of it: a
-    // shop in Riyadh logging a 200 expense at 01:00 on the 1st was told it had
-    // blown a 5,000 budget, because the sum was still counting last month.
-    const curMonth = localMonthStr();
-    const monthSpent = expenses
-      .filter(e => e.category === expCat && (e.date || '').startsWith(curMonth))
-      .reduce((s, e) => s + (+e.amount || 0), 0);
-    if (monthSpent > budget) {
-      toast(t('exp.budget_exceeded', { cat: expCatLabel(expCat), spent: fmtMoney(monthSpent), budget: fmtMoney(budget) }), 'warning', 5000);
-    }
+  // Budget overspend check, AFTER the expense is in, against the shop's own
+  // calendar month — see overBudget for why not UTC's.
+  const expCat = made.expense.category;
+  const over = ExpenseBook.overBudget(expenses, expCat, localMonthStr(), settings.expBudgets);
+  if (over) {
+    toast(t('exp.budget_exceeded', { cat: expCatLabel(expCat), spent: fmtMoney(over.spent), budget: fmtMoney(over.budget) }), 'warning', 5000);
   }
   $('#expAmount').value = '';
   $('#expNote').value   = '';
