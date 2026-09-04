@@ -155,6 +155,21 @@ enum StoreWriter {
         return f.string(from: date)
     }
 
+    /// A record put back as it was, but moving forward.
+    ///
+    /// An undo restores every field EXCEPT `rev`, which carries on from where
+    /// the record is now and is then stamped. A revision that went backwards
+    /// would look to the next sync exactly like the change never happened, and
+    /// the other machine's copy would win — the undo would be undone, by a
+    /// laptop, quietly.
+    static func restoring(_ wanted: [String: JSONValue],
+                          over current: [String: JSONValue]) -> [String: JSONValue] {
+        var out = wanted
+        out["rev"] = current["rev"]
+        stamp(&out)
+        return out
+    }
+
     /// Change one record of one collection in place, stamping it.
     static func updateRecord(_ build: StoreReader.Build, collection: String, id: String,
                              change: (inout [String: JSONValue]) -> Void) throws {

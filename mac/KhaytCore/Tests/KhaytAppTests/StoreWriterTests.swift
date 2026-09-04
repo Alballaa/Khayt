@@ -182,6 +182,29 @@ struct StoreWriterTests {
         return String(data: data, encoding: .utf8) ?? ""
     }
 
+    @Test("an undo restores the values and moves the revision forward")
+    func undoDoesNotRewindTheRevision() {
+        let before: [String: JSONValue] = [
+            "id": .string("PF-1"), "favorite": .bool(false), "group": .string("Kings"),
+            "rev": .number(3), "updatedAt": .string("2026-01-01T00:00:00.000Z"),
+        ]
+        // The record after an edit: favourite set, group cleared, rev bumped.
+        let current: [String: JSONValue] = [
+            "id": .string("PF-1"), "favorite": .bool(true), "group": .string(""),
+            "rev": .number(4), "updatedAt": .string("2026-02-02T00:00:00.000Z"),
+        ]
+        let restored = StoreWriter.restoring(before, over: current)
+
+        #expect(restored["favorite"] == .bool(false), "the value must come back")
+        #expect(restored["group"] == .string("Kings"))
+        // Forward from where the record IS, not back to where it was. A rev
+        // that went backwards looks to the next sync exactly like the change
+        // never happened, and the other machine's copy wins — the undo undone,
+        // by a laptop, quietly.
+        #expect(restored["rev"] == .number(5), "got \(String(describing: restored["rev"]))")
+        #expect(restored["updatedAt"] != before["updatedAt"], "an undo is an edit and is stamped")
+    }
+
     @Test("a first stamp starts at rev 1, and later ones count on")
     func stampCounts() {
         var fresh: [String: JSONValue] = ["id": .string("X")]
