@@ -132,6 +132,51 @@ struct PrinterWatchTests {
         #expect(PrinterWatch.say(PrinterWatch.Refusal.notALanAddress("8.8.8.8")).contains("8.8.8.8"))
     }
 
+    // MARK: - What the dashboard reads
+
+    @Test("the fleet tile counts a machine that answered as live")
+    func fleetCountsLive() async throws {
+        // `dashboard-facts` reads this cache, and without it every machine is
+        // neither live nor offline — the tile said 0/1 with the machine beside
+        // it demonstrably printing.
+        let engine = try KhaytEngine()
+        let machines: [JSONValue] = [.object(["id": .string("M-1"), "name": .string("Bench")])]
+        let cache: [String: JSONValue] = ["M-1": .object(["state": .string("printing")])]
+
+        let blind = try await engine.dashboardFacts(orders: [], machines: machines, settings: [:])
+        #expect(blind.fleet.live == 0, "a fleet counted without a cache is not counted at all")
+
+        let seeing = try await engine.dashboardFacts(orders: [], machines: machines,
+                                                     settings: [:], statusCache: cache)
+        #expect(seeing.fleet.live == 1)
+        #expect(seeing.fleet.total == 1)
+    }
+
+    @Test("a machine that did not answer is offline, not absent")
+    func fleetCountsOffline() async throws {
+        // Absent means "not counted"; the shop's question is "is my printer
+        // reachable", and silence is an answer to it.
+        let watch = PrinterWatch()
+        watch.setReadingForTesting("M-1", .init(status: nil, problem: "did not answer", at: Date()))
+        let cache = watch.statusCache
+        guard case .object(let row)? = cache["M-1"] else { Issue.record("no row"); return }
+        #expect(row["state"] == .string("offline"))
+
+        let engine = try KhaytEngine()
+        let facts = try await engine.dashboardFacts(
+            orders: [], machines: [.object(["id": .string("M-1")])], settings: [:], statusCache: cache)
+        #expect(facts.fleet.live == 0)
+        #expect(facts.fleet.offline == 1)
+    }
+
+    @Test("a machine that has not been asked yet is absent from the cache")
+    func silentUntilAsked() {
+        // Neither live nor offline: nothing is known about it, and guessing
+        // either way puts a wrong figure on the screen a shop opens on.
+        let watch = PrinterWatch()
+        #expect(watch.statusCache.isEmpty)
+    }
+
     @Test("time left is rounded to something worth reading")
     func spellsTheEta() {
         // Extrapolated from progress, so it does not deserve seconds.

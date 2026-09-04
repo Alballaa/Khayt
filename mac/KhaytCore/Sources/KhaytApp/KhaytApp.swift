@@ -121,6 +121,11 @@ final class Activator: NSObject, NSApplicationDelegate {
                 FileHandle.standardError.write(Data(line.utf8))
             }
             capture(named: "00-dashboard", into: dir)
+            // Again once the printers have answered: the live strip is the one
+            // thing on this screen that is not read from the book, so a first
+            // photograph taken before the first poll cannot show it.
+            try? await Task.sleep(for: .seconds(3))
+            capture(named: "00c-dashboard-live", into: dir)
 
             guard let shop = subject else { NSApp.terminate(nil); return }
             // The sample too: a shop whose jobs are auto-logged from printer

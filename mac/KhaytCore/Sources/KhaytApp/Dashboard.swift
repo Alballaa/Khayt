@@ -32,6 +32,11 @@ struct Dashboard: View {
                 if let facts = shop.facts {
                     Work(facts: facts, shop: shop)
                 }
+                // What the machines are ACTUALLY doing, under the count of how
+                // many the book thinks are busy. The tile above is the book's
+                // answer; this is the printers'. A shop opening this app to ask
+                // "is it still going" should not have to change screens.
+                RunningNow(shop: shop)
                 if shop.facts?.showsMoney != false {
                     MoneyTiles(shop: shop)
                 }
@@ -119,6 +124,66 @@ private struct Work: View {
                      label: shop.words.callIt("mac.machines"),
                      symbol: "server.rack", tint: .secondary)
             }
+        }
+    }
+}
+
+/// What the printers are doing, in one line each.
+///
+/// Only the ones that are actually running: a list of idle machines is the
+/// machines screen, and this is the answer to "is it still going". Nothing at
+/// all when nothing is printing, because an empty section under a heading reads
+/// as a screen that failed to load.
+private struct RunningNow: View {
+    let shop: Shop
+
+    private var running: [(Machine, KhaytEngine.PrinterStatus)] {
+        shop.machines.compactMap { machine in
+            guard let status = shop.printers.readings[machine.id]?.status,
+                  status.state.lowercased() == "printing" else { return nil }
+            return (machine, status)
+        }
+    }
+
+    var body: some View {
+        if !running.isEmpty {
+            DetailSection(shop.words.callIt("mac.live")) {
+                VStack(spacing: 10) {
+                    ForEach(running, id: \.0.id) { machine, status in
+                        Line(machine: machine, status: status, shop: shop)
+                    }
+                }
+            }
+        }
+    }
+
+    private struct Line: View {
+        let machine: Machine
+        let status: KhaytEngine.PrinterStatus
+        let shop: Shop
+
+        var body: some View {
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 8) {
+                    Text(machine.name).font(.body.weight(.semibold)).lineLimit(1)
+                    if !status.filename.isEmpty {
+                        Text(status.filename)
+                            .font(.caption).foregroundStyle(.secondary)
+                            .lineLimit(1).truncationMode(.middle)
+                    }
+                    Spacer(minLength: 12)
+                    if let left = status.timeRemaining, left > 0 {
+                        Text(shop.words.callIt("mac.eta") + " " + PrinterWatch.spell(left))
+                            .font(.caption).monospacedDigit().foregroundStyle(.secondary)
+                    }
+                    Text("\(status.progress)%")
+                        .font(.callout.weight(.semibold)).monospacedDigit()
+                        .frame(width: 46, alignment: .trailing)
+                }
+                ProgressView(value: Double(status.progress) / 100)
+                    .progressViewStyle(.linear)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 }

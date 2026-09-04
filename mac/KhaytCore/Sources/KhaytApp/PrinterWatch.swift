@@ -43,6 +43,30 @@ final class PrinterWatch {
     }
 
     private(set) var readings: [Machine.ID: Reading] = [:]
+
+    /// What the printers last said, in the shape `dashboard-facts` reads —
+    /// the same `{ [machineId]: { state, … } }` main.js keeps. A machine that
+    /// has not answered is absent rather than present-and-blank, because the
+    /// module treats an absent one as "not counted" and a blank one as live.
+    var statusCache: [String: JSONValue] {
+        var out: [String: JSONValue] = [:]
+        for (id, seen) in readings {
+            if let status = seen.status {
+                out[id] = .object([
+                    "state": .string(status.state),
+                    "progress": .number(Double(status.progress)),
+                    "filename": .string(status.filename),
+                    "lastUpdated": .number(seen.at.timeIntervalSince1970 * 1000),
+                ])
+            } else if seen.problem != nil {
+                // A machine that did not answer is offline, which is a fact the
+                // fleet tile has to count — not an absence.
+                out[id] = .object(["state": .string("offline"),
+                                   "lastUpdated": .number(seen.at.timeIntervalSince1970 * 1000)])
+            }
+        }
+        return out
+    }
     private var task: Task<Void, Never>?
 
     /// How often. Khayt's own poller runs on ten seconds; a printer answers in
@@ -81,10 +105,17 @@ final class PrinterWatch {
     /// a burst of simultaneous requests to a Klipper host is a way to find out
     /// what its request queue does under load, on somebody's live print.
     private func sweep(shop: Shop) async {
+        var asked = false
         for machine in shop.machines where Self.notWatched(machine) == nil {
             if Task.isCancelled { return }
             await poll(machine, engine: shop.engine)
+            asked = true
         }
+        // The fleet tile is `dashboard-facts`'s answer and it reads this cache,
+        // so a dashboard computed before the first poll says every machine is
+        // neither live nor offline — it read 0/1 with the machine beside it
+        // demonstrably printing.
+        if asked { await shop.printersAnswered() }
     }
 
     private func poll(_ machine: Machine, engine: KhaytEngine?) async {
@@ -198,6 +229,9 @@ final class PrinterWatch {
             completionHandler(nil)   // hand back the 3xx; `get` refuses it
         }
     }
+
+    /// Put a reading in place, for a test that has no printer to ask.
+    func setReadingForTesting(_ id: Machine.ID, _ reading: Reading) { readings[id] = reading }
 
     // MARK: - Saying it
 

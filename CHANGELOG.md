@@ -19,6 +19,12 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   a toolchanger needs: the temperature is the head that is actually printing,
   and the percentage is layers rather than file position.
 
+  The dashboard carries it too — a line per running machine under the floor
+  tiles, so "is it still going" does not mean changing screens. The Machines
+  tile counts properly now as well: it reads what the printers said, and with
+  nothing to read it had been counting every machine as neither live nor
+  offline.
+
 - **The Mac app shows who the shop's best customers are, and what it is asked
   for most.** A third page beside the P&L and the receivables, over whichever
   period you pick. Customers are ranked by what they actually paid; products by

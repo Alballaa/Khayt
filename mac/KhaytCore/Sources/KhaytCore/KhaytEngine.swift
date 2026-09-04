@@ -273,11 +273,16 @@ public actor KhaytEngine {
     /// `attention` is passed IN because `dashboard-facts` is pure and refuses to
     /// reach for a global — the module says so, and honouring it here is what
     /// keeps one attention engine rather than two.
+    /// `statusCache` is what the printers last said, keyed by machine id — the
+    /// same shape `main.js` keeps. Without it every machine reads as neither
+    /// live nor offline, so the fleet tile said `0/1` while the machine beside
+    /// it was demonstrably printing.
     public func dashboardFacts(orders: [JSONValue], machines: [JSONValue],
-                               settings: [String: JSONValue]) throws -> DashboardFacts {
+                               settings: [String: JSONValue],
+                               statusCache: [String: JSONValue] = [:]) throws -> DashboardFacts {
         try runtime.call2("KhaytDashboardFacts.dashboardFacts({orders: ARG0, machines: ARG1,"
-                        + " settings: ARG2, attention: globalThis.KhaytAttention})",
-                          [.array(orders), .array(machines), .object(settings)],
+                        + " settings: ARG2, statusCache: ARG3, attention: globalThis.KhaytAttention})",
+                          [.array(orders), .array(machines), .object(settings), .object(statusCache)],
                           as: DashboardFacts.self)
     }
 
