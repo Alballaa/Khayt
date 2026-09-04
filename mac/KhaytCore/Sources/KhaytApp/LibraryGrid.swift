@@ -9,20 +9,90 @@ import AppKit
 /// a decoration — you read it rather than see it.
 struct LibraryGrid: View {
     @Bindable var shop: Shop
+    @FocusState private var focused: Bool
+    /// Which way "next" is. In a mirrored window the next model is to the left,
+    /// and a grid whose right arrow walks backwards is worse than one with no
+    /// arrow keys at all.
+    @Environment(\.layoutDirection) private var layout
 
-    private let columns = [GridItem(.adaptive(minimum: 168, maximum: 240), spacing: 16)]
+    private static let cellWidth: CGFloat = 176
+    private static let spacing: CGFloat = 16
 
     var body: some View {
-        ScrollView {
-            LazyVGrid(columns: columns, spacing: 16) {
-                ForEach(shop.shownFiles) { file in
-                    cell(for: file)
+        GeometryReader { geometry in
+            // Fixed columns rather than `.adaptive`, because the arrow keys have
+            // to know how many there are: moving down is moving forward by one
+            // row, and `.adaptive` decides the count privately.
+            let count = Self.columns(across: geometry.size.width)
+            ScrollViewReader { scroller in
+                ScrollView {
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: Self.spacing),
+                                             count: count),
+                              spacing: Self.spacing) {
+                        ForEach(shop.shownFiles) { file in
+                            cell(for: file).id(file.id)
+                        }
+                    }
+                    .padding(16)
+                }
+                .onChange(of: shop.focusedFile) { _, id in
+                    guard let id else { return }
+                    withAnimation(.easeOut(duration: 0.12)) { scroller.scrollTo(id, anchor: .center) }
                 }
             }
-            .padding(16)
+            .focusable()
+            .focused($focused)
+            // No ring around the whole pane. Finder, Photos and Music all show
+            // keyboard focus through the selection rather than by drawing a
+            // border round the content, and a blue rectangle enclosing the grid
+            // reads as an error state. Focus with nothing selected is not
+            // invisible either: the first arrow press picks an end.
+            .focusEffectDisabled()
+            .onKeyPress(keys: [.leftArrow, .rightArrow, .upArrow, .downArrow]) { press in
+                let step = Self.step(for: press.key, columns: count, layout: layout)
+                // Unhandled at the ends, so the system beep still means "there
+                // is nothing that way" rather than the app swallowing it.
+                return shop.moveSelection(by: step, extending: press.modifiers.contains(.shift))
+                    ? .handled : .ignored
+            }
+            .onKeyPress(.return) {
+                shop.openSelection()
+                return .handled
+            }
+            .onKeyPress(.escape) {
+                guard !shop.fileSelection.isEmpty else { return .ignored }
+                shop.fileSelection = []
+                return .handled
+            }
+            .onAppear { focused = true }
         }
         .background(.background)
         .overlay { if shop.shownFiles.isEmpty { EmptyShelf(shop: shop) } }
+    }
+
+    /// How far an arrow key moves, in reading order.
+    ///
+    /// Written out rather than switched on inside the handler: `case forward:`
+    /// with `forward` a local is an expression pattern, and one character's
+    /// difference from `case let forward:` turns it into a binding that matches
+    /// everything. Out here it can be tested — and the right arrow moving
+    /// backwards in a mirrored window is exactly the kind of thing nobody
+    /// notices until an Arabic shop does.
+    static func step(for key: KeyEquivalent, columns: Int, layout: LayoutDirection) -> Int {
+        let mirrored = layout == .rightToLeft
+        switch key {
+        case .upArrow: return -columns
+        case .downArrow: return columns
+        case .rightArrow: return mirrored ? -1 : 1
+        default: return mirrored ? 1 : -1     // .leftArrow
+        }
+    }
+
+    /// How many cells fit, never fewer than one.
+    static func columns(across width: CGFloat) -> Int {
+        let usable = width - 32   // the grid's own padding
+        guard usable > 0 else { return 1 }
+        return max(1, Int((usable + spacing) / (cellWidth + spacing)))
     }
 
     /// Broken out of the grid body: the type-checker gave up on the whole

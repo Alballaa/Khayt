@@ -232,6 +232,35 @@ and every screen except the book. `KhaytCore` came first because the
 alternative, screens against a half-trusted engine, is how the two apps come to
 disagree about a shop's money.
 
+### The keyboard in the library
+
+Arrow keys move the selection, ⇧ extends it, ⌘A selects everything on the shelf,
+⏎ opens, ⎋ clears. A `List` gets all of that free; a `LazyVGrid` gets none of it,
+and a grid you cannot walk with the arrow keys is the most un-Mac thing an
+otherwise native window can do.
+
+Three things it turns on:
+
+* **The columns are fixed, not `.adaptive`.** Moving down is moving forward by
+  one row, so the count has to be known — and `.adaptive` decides it privately.
+  `LibraryGrid.columns(across:)` is that count, and is tested for being
+  monotonic and never zero.
+* **The arrows follow reading order, not the screen.** In a mirrored window the
+  next model is to the LEFT. `LibraryGrid.step(for:columns:layout:)` is that
+  rule, alone and tested, because a right arrow that walks backwards is the kind
+  of thing nobody notices until an Arabic shop does. It was also written first as
+  `case forward:` inside the key handler — one character from `case let forward:`,
+  which would have matched everything.
+* **Two positions, not one.** `anchor` is where a selection run started and
+  `cursor` is where the keyboard is standing. Computing the next place from the
+  anchor — which is what it did first — means a second ⇧-arrow lands where the
+  first did and the selection never grows past two. Caught by its own test.
+
+A key at either end is left **unhandled** rather than clamped, so the system beep
+still means "there is nothing that way". And there is no focus ring around the
+pane: Finder, Photos and Music all show keyboard focus through the selection, and
+a blue rectangle enclosing the grid reads as an error state.
+
 ### Undo
 
 Every edit is reversible — ⌘Z, with the Edit menu naming what it will undo

@@ -497,20 +497,76 @@ final class Shop {
         case .replace:
             fileSelection = [file.id]
             anchor = file.id
+            cursor = file.id
         case .toggle:
             if fileSelection.contains(file.id) { fileSelection.remove(file.id) }
             else { fileSelection.insert(file.id); anchor = file.id }
+            cursor = file.id
         case .extend:
             let rows = shownFiles
             guard let end = rows.firstIndex(where: { $0.id == file.id }) else { return }
             let start = anchor.flatMap { a in rows.firstIndex { $0.id == a } } ?? end
             let range = start <= end ? start...end : end...start
             fileSelection.formUnion(rows[range].map(\.id))
+            cursor = file.id
         }
     }
 
     enum SelectionModifier { case replace, toggle, extend }
+    /// Where a selection run started, and where the keyboard is standing.
     private var anchor: LibraryFile.ID?
+    private var cursor: LibraryFile.ID?
+
+    /// Move the selection by `step` places in reading order.
+    ///
+    /// Reading order, not screen order: in a mirrored window the next model is
+    /// to the LEFT. The caller has already turned the key into a direction;
+    /// this only counts.
+    ///
+    /// TWO POSITIONS, NOT ONE. `anchor` is where a selection run started and
+    /// `cursor` is where the keyboard is standing. Computing the next place from
+    /// the anchor — which is what this did first — means a second shift-arrow
+    /// lands where the first one did and the selection never grows past two.
+    ///
+    /// Returns whether it moved, so a key at either end is left unhandled and
+    /// the system beep can do its job.
+    @discardableResult
+    func moveSelection(by step: Int, extending: Bool) -> Bool {
+        let rows = shownFiles
+        guard !rows.isEmpty else { return false }
+
+        guard let here = cursor.flatMap({ c in rows.firstIndex { $0.id == c } }) else {
+            // Nothing chosen yet: the first press picks an end rather than doing
+            // nothing, which is what a Finder window does.
+            let landing = step >= 0 ? rows.first! : rows.last!
+            fileSelection = [landing.id]
+            anchor = landing.id
+            cursor = landing.id
+            return true
+        }
+
+        let next = here + step
+        guard rows.indices.contains(next) else { return false }
+        cursor = rows[next].id
+        if extending {
+            let start = anchor.flatMap { a in rows.firstIndex { $0.id == a } } ?? here
+            let range = start <= next ? start...next : next...start
+            fileSelection = Set(rows[range].map(\.id))
+        } else {
+            fileSelection = [rows[next].id]
+            anchor = rows[next].id
+        }
+        return true
+    }
+
+    func selectAllShown() {
+        fileSelection = Set(shownFiles.map(\.id))
+        anchor = shownFiles.first?.id
+        cursor = anchor
+    }
+
+    /// The one the keyboard is standing on, for scrolling into view.
+    var focusedFile: LibraryFile.ID? { cursor ?? fileSelection.first }
 
     // MARK: - What the customers screen shows
 

@@ -69,6 +69,12 @@ struct KhaytCommands: Commands {
                 
         }
 
+        CommandGroup(after: .pasteboard) {
+            Button("Select All Models") { shop.selectAllShown() }
+                .keyboardShortcut("a")
+                .disabled(!shop.showingLibrary)
+        }
+
         CommandMenu("Model") {
             // Only ever enabled when it would do something. A greyed item that
             // says why (through its own state) beats a live one that fails.
