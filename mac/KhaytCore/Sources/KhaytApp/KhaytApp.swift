@@ -304,6 +304,17 @@ final class Activator: NSObject, NSApplicationDelegate {
             shop.shelf = .machines
             await settle()
             capture(named: "07-machines", into: dir)
+            // And the real book, because the live card only exists there: the
+            // sample's printers are somebody else's addresses on somebody
+            // else's network, so this app never knocks on them. The poll needs
+            // longer than a settle — it is a request to a machine on the wifi.
+            await shop.load(Shop.available.first(where: \.isReal) ?? .sample)
+            shop.shelf = .machines
+            await settle()
+            try? await Task.sleep(for: .seconds(3))
+            capture(named: "07b-machines-live", into: dir)
+            await shop.load(.sample)
+            await settle()
             if let machine = shop.machines.first {
                 shop.editingMachine = machine
                 await settle()

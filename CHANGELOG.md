@@ -6,6 +6,19 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Changed
 
+- **The Mac app can see what the printer is doing.** A machine card now shows
+  the live state, the file, how far along, the time left and both
+  temperatures — the one thing that needed the Electron app open. It reads
+  only: no pause, no resume, no cancel, because a command sent to the wrong
+  machine costs a print.
+
+  Klipper (Moonraker) for now, and a machine on another protocol says so rather
+  than showing an empty card. Only addresses on your own network are polled,
+  and a printer that answers with a redirect is dropped rather than followed.
+  The reading itself is the same code Khayt uses, including the two corrections
+  a toolchanger needs: the temperature is the head that is actually printing,
+  and the percentage is layers rather than file position.
+
 - **The Mac app shows who the shop's best customers are, and what it is asked
   for most.** A third page beside the P&L and the receivables, over whichever
   period you pick. Customers are ranked by what they actually paid; products by

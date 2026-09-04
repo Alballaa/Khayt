@@ -169,6 +169,16 @@ public actor KhaytEngine {
         // adding a shipping carrier does not quietly export the next one's
         // credentials — which is exactly why it is not rewritten here.
         "store",
+        // What a printer is doing. `printer-status` first: `moonraker` reaches
+        // its progress and ETA rules through a global, and without it a shop
+        // would see 0% on every machine rather than an error.
+        "printer-status",
+        "moonraker",
+        // Whether an address is a printer on the shop's own network. Not
+        // business logic — an SSRF guard — and shared for the same reason the
+        // secret list is: a second, more forgiving copy in Swift is how the two
+        // apps come to disagree about what they are willing to connect to.
+        "printer-host",
         // Who the shop's best customers are and what it is asked for most.
         // ORDER-MONEY, CONTENT-LANGUAGES, BUSINESS-SCOPE AND DATE-RANGE ARE ALL
         // ALREADY ABOVE and must be: it reaches every one of them through a
@@ -867,6 +877,72 @@ public actor KhaytEngine {
         public let name: String
         public let count: Int
         public let revenue: Double
+    }
+
+    // MARK: - What the printer is doing
+
+    /// The Moonraker objects worth asking for, as one query string.
+    public func moonrakerQuery() throws -> String {
+        try runtime.call2("KhaytMoonraker.QUERY", [], as: String.self)
+    }
+
+    /// Which extruder is printing, when it is not toolhead zero.
+    ///
+    /// Nil for a single-head machine — and nil is the answer that means "the
+    /// reading you already have is the right one", so only the machines that
+    /// need it pay for a second request.
+    public func moonrakerActiveExtruder(_ reply: [String: JSONValue]) throws -> String? {
+        // The empty string stands in for null across the bridge, because a
+        // `null` decodes as a decoding failure rather than as an absence.
+        let name = try runtime.call2("(KhaytMoonraker.activeExtruder(ARG0) || '')",
+                                     [.object(reply)], as: String.self)
+        return name.isEmpty ? nil : name
+    }
+
+    /// What a Klipper machine is doing, from its own answer.
+    ///
+    /// Four corrections live inside `lib/moonraker.js`, each found on a real
+    /// printer: layers before bytes, the live toolhead rather than head zero,
+    /// `print_duration` rather than `total_duration`, and an ETA that refuses
+    /// to extrapolate from noise. None of them is re-decided here.
+    public func moonrakerStatus(_ reply: [String: JSONValue],
+                                hot: [String: JSONValue]?, hotName: String?) throws -> PrinterStatus {
+        try runtime.call2("KhaytMoonraker.readStatus(ARG0, ARG1, ARG2)",
+                          [.object(reply),
+                           hot.map(JSONValue.object) ?? .null,
+                           hotName.map(JSONValue.string) ?? .null],
+                          as: PrinterStatus.self)
+    }
+
+    /// Is this string the address of a printer on the shop's own network?
+    ///
+    /// `lib/printer-host.js`, split out of the Electron app's host guard for
+    /// exactly this. A public address here is server-side request forgery with
+    /// a printer card as the pretext, and the numeric spellings are the sharp
+    /// part: `2130706433`, `0x7f000001`, `127.1` and `0177.0.0.1` all reach
+    /// loopback and none of them looks like a dotted quad.
+    public func printerHostAllowed(_ host: String) throws -> Bool {
+        try runtime.call2("KhaytPrinterHost.isAllowedPrinterHost(KhaytPrinterHost.sanitizePrinterHost(ARG0))",
+                          [.string(host)], as: Bool.self)
+    }
+
+    /// The host with everything that is not a hostname taken out.
+    public func printerHost(_ host: String) throws -> String {
+        try runtime.call2("KhaytPrinterHost.sanitizePrinterHost(ARG0)", [.string(host)], as: String.self)
+    }
+
+    /// What a machine is doing, as every adapter reports it.
+    public struct PrinterStatus: Decodable, Sendable, Equatable {
+        public let state: String
+        public let progress: Int
+        /// `layers` or `bytes` — which signal the percentage came from, because
+        /// bytes are not work and a shop reading an ETA deserves to know which.
+        public let progressSource: String
+        public let filename: String
+        public let timeRemaining: Double?
+        public let tempNozzle: Double?
+        public let tempBed: Double?
+        public let type: String
     }
 
     /// The shop's book as a file it can hand to somebody else.

@@ -92,6 +92,8 @@ private struct Card: View {
             }
             }
 
+            Live(machine: machine, shop: shop)
+
             if let wear, let nozzle = machine.nozzle {
                 DetailSection(shop.words.callIt("mac.nozzle_wear")) {
                     // The bar is the figure. `lib/nozzle-wear.js` weights an
@@ -216,4 +218,109 @@ struct Inventory: View {
             }
         }
     }
+}
+
+/// What the machine is doing, right now.
+///
+/// The one thing this app could not answer without the Electron app running.
+/// It reads and only reads — there is no pause, resume or cancel here, because
+/// a command sent to the wrong machine costs a shop a print and belongs behind
+/// a deliberate piece of work rather than arriving with a status card.
+private struct Live: View {
+    let machine: Machine
+    let shop: Shop
+
+    var body: some View {
+        // A machine this app cannot ask says so. A card that silently shows
+        // nothing looks broken, and a shop would go back to the other app
+        // without knowing why.
+        switch PrinterWatch.notWatched(machine) {
+        case .noConnection:
+            EmptyView()   // nothing is configured; there is nothing to report
+        case .otherProtocol(let name):
+            DetailSection(shop.words.callIt("mac.live")) {
+                Text(shop.words.callIt("mac.not_polled", ["protocol": .string(name)]))
+                    .font(.caption).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        case nil:
+            DetailSection(shop.words.callIt("mac.live")) { reading }
+        }
+    }
+
+    @ViewBuilder private var reading: some View {
+        if let seen = shop.printers.readings[machine.id] {
+            if let status = seen.status {
+                printing(status)
+            } else if let problem = seen.problem {
+                // In the vocabulary of the person who has to fix it, not the
+                // socket's. `explainPrinterHttp` exists for the same reason.
+                Text(problem)
+                    .font(.caption).foregroundStyle(.orange)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        } else {
+            Text(shop.words.callIt("mac.asking"))
+                .font(.caption).foregroundStyle(.tertiary)
+        }
+    }
+
+    @ViewBuilder private func printing(_ status: KhaytEngine.PrinterStatus) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(state(status.state)).font(.callout.weight(.semibold))
+                Spacer()
+                if let left = status.timeRemaining, left > 0 {
+                    Text(shop.words.callIt("mac.eta") + " " + PrinterWatch.spell(left))
+                        .font(.caption).monospacedDigit().foregroundStyle(.secondary)
+                }
+            }
+            if isRunning(status.state) {
+                ProgressView(value: Double(status.progress) / 100) {
+                    HStack {
+                        if !status.filename.isEmpty {
+                            Text(status.filename).lineLimit(1).truncationMode(.middle)
+                        }
+                        Spacer()
+                        Text("\(status.progress)%").monospacedDigit()
+                    }
+                    .font(.caption)
+                }
+                // WHICH SIGNAL the percentage came from, because bytes are not
+                // work: on a relief whose detail is all in its upper layers,
+                // file position read 0.7% when the job was 19% done. A shop
+                // deciding whether to wait is owed that distinction.
+                Text(shop.words.callIt(status.progressSource == "layers" ? "mac.by_layers" : "mac.by_bytes"))
+                    .font(.caption2).foregroundStyle(.tertiary)
+            }
+            HStack(spacing: 14) {
+                if let nozzle = status.tempNozzle {
+                    Label(PrinterWatch.degrees(nozzle), systemImage: "thermometer.medium")
+                        .help(shop.words.callIt("mac.nozzle_temp"))
+                }
+                if let bed = status.tempBed {
+                    Label(PrinterWatch.degrees(bed), systemImage: "rectangle.fill")
+                        .help(shop.words.callIt("mac.bed_temp"))
+                }
+            }
+            .font(.caption).monospacedDigit().foregroundStyle(.secondary)
+        }
+    }
+
+    /// Klipper's own words, in the shop's language where Khayt has one.
+    private func state(_ raw: String) -> String {
+        switch raw.lowercased() {
+        case "printing": return shop.words.callIt("mach.live_printing")
+        case "standby", "ready", "complete": return shop.words.callIt("mach.live_idle")
+        case "paused": return shop.words.callIt("rec.paused")
+        case "error": return shop.words.callIt("mach.live_error")
+        default: return raw
+        }
+    }
+
+    private func isRunning(_ raw: String) -> Bool {
+        let s = raw.lowercased()
+        return s == "printing" || s == "paused"
+    }
+
 }

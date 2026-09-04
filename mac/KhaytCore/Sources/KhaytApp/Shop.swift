@@ -288,6 +288,10 @@ final class Shop {
             taxSummary = await describeTax(root["settings"])
             await readSettingsTables(root)
             await computeDashboard(root)
+            // Ask the machines what they are doing — but never for the sample
+            // shop, whose printers are somebody else's addresses on somebody
+            // else's network.
+            if next.build != nil { printers.start(shop: self) } else { printers.stop() }
         } catch {
             orders = []
             files = []
@@ -297,6 +301,7 @@ final class Shop {
             libraryRoots = nil
             owner = nil
             facts = nil
+            printers.stop()
             problem = String(describing: error)
         }
     }
@@ -1421,6 +1426,12 @@ final class Shop {
             spendProblem = words.callIt("mac.export_failed") + " " + String(describing: error)
         }
     }
+
+    // MARK: - What the printers are doing
+
+    /// The live poll. Started when a book is opened and stopped with it, so a
+    /// window showing the sample shop is not knocking on a shop's printers.
+    let printers = PrinterWatch()
 
     // MARK: - Putting a backup back
 
