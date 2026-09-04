@@ -227,11 +227,8 @@ final class Shop {
             // nothing. When writing arrives, this is the check that gates it.
             owner = next.build.flatMap { StoreLock.describe(StoreLock.verdict(for: $0)) }
             takeOwnership(of: next.build)
-            if case .object(let settings)? = root["settings"] {
-                if case .string(let n)? = settings["shopName"], !n.isEmpty { shopName = n }
-                else { shopName = next.title }
-                if case .string(let c)? = settings["currency"] { currency = c }
-            }
+            if case .object(let settings)? = root["settings"],
+               case .string(let c)? = settings["currency"] { currency = c }
             if engine == nil { engine = try? KhaytEngine() }
             // `settings.lang` and not the system language: a Riyadh shop on an
             // English Mac still keeps its book in Arabic, and the book is what
@@ -249,11 +246,19 @@ final class Shop {
             if let forced = ProcessInfo.processInfo.environment["KHAYT_LANG"] { wanted = forced }
             await words.load(wanted, engine: engine)
             settingsValue = root["settings"] ?? .object([:])
+            // AFTER the words, because the name is read in the shop's language.
+            // It is `bizEn`/`bizAr`, the fields Khayt's own Settings page
+            // writes and every document prints — not `shopName`, which nothing
+            // in Khayt writes. Read as `shopName` for six weeks, this shop's
+            // invoice would have been issued by "Khayt".
+            shopName = await Self.shopName(from: Self.settings(root), engine: engine,
+                                           language: words.language) ?? next.title
             if case .array(let shelf)? = root["inventory"] { inventoryRows = shelf } else { inventoryRows = [] }
             if case .array(let jobs)? = root["printLog"] { orderRows = jobs } else { orderRows = [] }
             if case .array(let people)? = root["clients"] { clientRows = people } else { clientRows = [] }
             clients = Self.decodeClients(root)
             taxSummary = await describeTax(root["settings"])
+            await readSettingsTables(root)
             await computeDashboard(root)
         } catch {
             orders = []
@@ -998,9 +1003,126 @@ final class Shop {
         return profile.totalPercent
     }
 
-    /// The currency table the document formats against.
+    /// The currency table the document formats against — the shop's whole
+    /// table, from `lib/currencies.js`. It was a one-row stand-in that knew
+    /// SAR, so a shop pricing in euros would have printed "EUR" where the
+    /// document prints "€".
     var currencyTable: JSONValue {
-        .object([shopCurrency: .object(["symbol": .string(shopCurrency)])])
+        .object(currencies.mapValues {
+            .object(["symbol": .string($0.symbol), "label": .string($0.label), "pos": .string($0.pos)])
+        })
+    }
+
+    // MARK: - The shop's own settings
+
+    /// What stopped the last settings save, and what it did.
+    var settingsProblem: String?
+    var settingsNote: String?
+    /// Which pane the Settings window shows. On the shop so a snapshot run can
+    /// turn the pages.
+    var settingsPane: SettingsPane = .business
+
+    /// The tables a Settings window is built from, read once per load.
+    private(set) var currencies: [String: Currency] = [:]
+    private(set) var taxPresets: [String: TaxProfile] = [:]
+    private(set) var taxProfile: TaxProfile?
+    private(set) var contentLanguages: [String] = ["en", "ar"]
+
+    private func readSettingsTables(_ root: [String: JSONValue]) async {
+        guard let engine else { return }
+        let settings = Self.settings(root)
+        currencies = (try? await engine.currencies()) ?? [:]
+        taxPresets = (try? await engine.taxPresets()) ?? [:]
+        taxProfile = try? await engine.taxProfile(settings: settings)
+        contentLanguages = (try? await engine.contentLanguages(settings: settings)) ?? ["en", "ar"]
+    }
+
+    /// Save what one Settings pane showed.
+    ///
+    /// `form` carries only that pane's keys, and `lib/settings-edit.js` keeps
+    /// every other setting as it finds it — the Business pane saving a phone
+    /// number must not zero the WIP limits it never displayed. A country chosen
+    /// for tax rules is applied first, the way Khayt's picker applies it on the
+    /// change, so name, registration label, convention and rate arrive together.
+    ///
+    /// The whole record is re-read from disk inside the write and the window
+    /// reloads from the file afterwards: what the screen shows is what was
+    /// written, not what was hoped.
+    func saveSettings(_ form: [String: JSONValue], country: String? = nil) async {
+        settingsProblem = nil
+        settingsNote = nil
+        guard let build = source.build else {
+            settingsProblem = words.callIt("mac.settings_sample"); return
+        }
+        guard let engine else {
+            settingsProblem = words.callIt("mac.move_no_engine"); return
+        }
+        do {
+            try await StoreWriter.update(
+                storeURL: build.storeURL,
+                owns: { StoreLock.weOwnIt(build) },
+                whoHasIt: { StoreLock.describe(StoreLock.verdict(for: build)) }
+            ) { root in
+                try await Self.applySettings(to: &root, form: form, country: country, engine: engine)
+            }
+            await load(source)
+            settingsNote = words.callIt("mac.settings_saved")
+        } catch {
+            settingsProblem = String(describing: error)
+        }
+    }
+
+    /// The settings write, on a book already read: the seam the tests use.
+    static func applySettings(to root: inout [String: JSONValue], form: [String: JSONValue],
+                              country: String?, engine: KhaytEngine) async throws {
+        var settings = Self.settings(root)
+        if let country, country != Self.taxCountry(settings) {
+            settings = try await engine.chooseTaxCountry(settings, code: country)
+        }
+        settings = try await engine.applySettings(
+            settings, form: form, year: Calendar.current.component(.year, from: Date()))
+        root["settings"] = .object(settings)
+    }
+
+    /// The shop's name, as its documents print it: `biz` in the language asked
+    /// for by the shared fallback, or nil when nothing is filled in.
+    static func shopName(from settings: [String: JSONValue], engine: KhaytEngine?,
+                         language: String) async -> String? {
+        if let engine, let name = try? await engine.shopText("biz", settings: settings, language: language),
+           !name.isEmpty { return name }
+        // No engine: the two keys every existing record uses, by hand.
+        for key in ["bizEn", "bizAr"] {
+            if let v = plainString(settings[key]), !v.isEmpty { return v }
+        }
+        return nil
+    }
+
+    /// The pricing convention, read the way `profileFromSettings` reads it: the
+    /// profile's when there is one, inclusive otherwise — the only thing Khayt
+    /// ever did before there was a profile.
+    static func taxMode(_ settings: [String: JSONValue]) -> String {
+        if case .object(let tax)? = settings["tax"], let mode = plainString(tax["mode"]),
+           mode == "exclusive" || mode == "inclusive" { return mode }
+        return "inclusive"
+    }
+
+    /// The country the tax rules were chosen for, or "" for a hand-made profile.
+    static func taxCountry(_ settings: [String: JSONValue]) -> String {
+        guard case .object(let tax)? = settings["tax"] else { return "" }
+        return plainString(tax["country"]) ?? ""
+    }
+
+    static func plainNumber(_ value: JSONValue?) -> Double? {
+        switch value {
+        case .number(let n)?: return n
+        case .string(let s)?: return Double(s.trimmingCharacters(in: .whitespaces))
+        default: return nil
+        }
+    }
+
+    static func plainBool(_ value: JSONValue?) -> Bool? {
+        if case .bool(let b)? = value { return b }
+        return nil
     }
 
     private var shopCurrency: String {

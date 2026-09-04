@@ -15,7 +15,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const KhaytTax = require('../lib/tax.js');
-const { apply, DAYS, WIP_COLUMNS, DEFAULT_EXPENSE_CATEGORIES } = require('../lib/settings-edit.js');
+const { apply, chooseCountry, DAYS, WIP_COLUMNS, DEFAULT_EXPENSE_CATEGORIES } = require('../lib/settings-edit.js');
 
 // ---------------------------------------------------------------------------
 // The original, verbatim, from renderer/settings.js as of the lift (#969).
@@ -431,4 +431,44 @@ test('the tax profile is rebuilt only from the four things it is built from', ()
   const off = apply(s, { enableVat: false }, CTX);
   assert.deepEqual(off.tax.rates, [], 'switching VAT off empties the rates');
   assert.equal(off.enableVat, false);
+});
+
+// ---------------------------------------------------------------------------
+// Choosing a country
+// ---------------------------------------------------------------------------
+test('choosing a country rewrites name, rate, convention and registration label together', () => {
+  const s = { enableVat: false, vatRate: 0, phone: '050' };
+  const india = chooseCountry(s, 'in');
+  assert.equal(india.tax.country, 'IN', 'upper-cased, the way the presets are keyed');
+  assert.equal(india.tax.name, 'GST');
+  assert.equal(india.tax.registration, 'GSTIN');
+  assert.equal(india.tax.mode, 'exclusive');
+  assert.equal(india.tax.rates.length, 2, 'two rates, CGST and SGST');
+  assert.equal(india.enableVat, true, 'the legacy field is kept in step');
+  assert.equal(india.vatRate, india.tax.rates[0].percent);
+  assert.equal(india.phone, '050', 'and nothing else is touched');
+  assert.equal(s.tax, undefined, 'the input is not mutated');
+});
+
+test('a country with no rate yet switches VAT off and leaves the old rate alone', () => {
+  const out = chooseCountry({ enableVat: true, vatRate: 15 }, 'US');
+  assert.equal(out.enableVat, false);
+  assert.equal(out.vatRate, 15, 'the stored rate is not zeroed — the renderer never did either');
+  assert.deepEqual(out.tax.rates, []);
+});
+
+test('"Custom" changes nothing', () => {
+  const s = { tax: { country: 'SA', name: 'VAT', mode: 'inclusive', registration: 'VAT No.', rates: [] } };
+  assert.deepEqual(chooseCountry(s, ''), s);
+});
+
+test('a chosen country survives the save that follows it, as it does in the renderer', () => {
+  // The renderer chooses on the change and saves later; the Mac chooses and
+  // saves in one write. Both must land the same record.
+  const chosen = chooseCountry({}, 'DE');
+  const saved = apply(chosen, { taxCountry: 'DE', enableVat: true, vatRate: '19', taxMode: 'inclusive' }, CTX);
+  assert.equal(saved.tax.name, 'VAT');
+  assert.equal(saved.tax.registration, 'USt-IdNr.');
+  assert.deepEqual(saved.tax.rates, [{ id: 'vat', label: 'USt.', percent: 19 }]);
+  assert.equal(saved.tax.country, 'DE');
 });
