@@ -58,6 +58,12 @@ struct KhaytApp: App {
 /// every launch, is an app people learn to resent. So it is asked for only when
 /// there is no bundle identifier, which is exactly the `swift run` case.
 final class Activator: NSObject, NSApplicationDelegate {
+    /// Give the book back on the way out, so the next app to open does not have
+    /// to reason about a dead pid to know it is free.
+    func applicationWillTerminate(_ note: Notification) {
+        MainActor.assumeIsolated { Snapshot.subject?.relinquish() }
+    }
+
     func applicationDidFinishLaunching(_ note: Notification) {
         if Bundle.main.bundleIdentifier == nil {
             NSApp.setActivationPolicy(.regular)
@@ -108,6 +114,10 @@ final class Activator: NSObject, NSApplicationDelegate {
             // The window has to have laid out and drawn once. Two seconds is
             // generous; capturing an unlaid-out window yields a blank sheet.
             try? await Task.sleep(for: .seconds(2))
+            // Says whether this run holds the book. Ownership is the gate on
+            // every write, and a gate nobody checked is a gate that is open.
+            FileHandle.standardError.write(Data(
+                "ownership: \(shopOwnership())\n".utf8))
             capture(named: "01-jobs", into: dir)
 
             guard let shop = subject else { NSApp.terminate(nil); return }
@@ -145,6 +155,13 @@ final class Activator: NSObject, NSApplicationDelegate {
             try? await Task.sleep(for: .milliseconds(300))
             NSApp.terminate(nil)
         }
+    }
+
+    private static func shopOwnership() -> String {
+        guard let shop = subject else { return "no shop" }
+        guard shop.source.isReal else { return "sample — nothing to own" }
+        return shop.canWrite ? "held, this app may write"
+                             : "not held — \(shop.owner ?? "unknown holder")"
     }
 
     /// Let SwiftUI apply the change and AppKit redraw before photographing it.

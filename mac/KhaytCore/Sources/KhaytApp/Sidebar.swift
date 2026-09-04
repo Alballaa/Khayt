@@ -78,6 +78,15 @@ struct Sidebar: View {
 private struct Provenance: View {
     let shop: Shop
 
+    private var footerLabel: String {
+        guard shop.source.isReal else { return "Sample data" }
+        return shop.canWrite ? "This book is yours to change" : "Opened read-only"
+    }
+    private var footerSymbol: String {
+        guard shop.source.isReal else { return "theatermasks" }
+        return shop.canWrite ? "pencil" : "lock"
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Divider()
@@ -90,8 +99,7 @@ private struct Provenance: View {
                     .foregroundStyle(.orange)
                     .help(shop.skipped.prefix(8).joined(separator: "\n"))
             }
-            Label(shop.source.isReal ? "Opened read-only" : "Sample data",
-                  systemImage: shop.source.isReal ? "lock" : "theatermasks")
+            Label(footerLabel, systemImage: footerSymbol)
             // Who else has it open. Only shown when somebody does — a line that
             // says "nobody else is using this" on every ordinary launch is a
             // line people stop reading.
