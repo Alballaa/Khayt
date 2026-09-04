@@ -230,3 +230,9 @@ public struct JobEdited: Decodable, Sendable {
     public let order: JSONValue
     public let changed: Bool
 }
+
+/// A job that failed inspection, and the waste row it produced.
+public struct QcFailure: Decodable, Sendable {
+    public let order: JSONValue
+    public let waste: JSONValue
+}

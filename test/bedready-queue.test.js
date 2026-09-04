@@ -23,7 +23,7 @@ const SRC = fs.readFileSync(path.join(ROOT, 'renderer/bedready-queue.js'), 'utf8
    page loads them into, because "the module is present" is exactly the sort of
    thing that is true in a unit test and false on the page — which is the bug
    this file's own header is about. */
-const RULES = ['lib/assembly.js', 'lib/order-status.js']
+const RULES = ['lib/assembly.js', 'lib/order-status.js', 'lib/qc-failure.js']
   .map((f) => fs.readFileSync(path.join(ROOT, f), 'utf8'));
 
 /** A renderer-ish global scope with only what Bed Ready actually provides. */
@@ -258,4 +258,33 @@ test('passing QC records the inspection on the job, not just the column', () => 
   assert.equal(order.qcStatus, 'pass');
   assert.ok(order.qcPassedAt, 'the fallback qcStatusOf reads when qcStatus is absent');
   assert.equal(order.qcNotes, 'looked fine');
+});
+
+test('a Bed Ready QC failure records how bad it was', () => {
+  // It never did: the defect was written here with only a type and a note, so
+  // "how bad was it" answered undefined for ever, and the photo reference was
+  // dropped on the floor. Both come from lib/qc-failure.js now.
+  const { ctx, order } = boot({ orders: [job({ status: 'qc', material: 'PLA' })] });
+  ctx.wasteLog = [];
+  ctx.inventory = [{ material: 'PLA', cost: 100, weight: 1000 }];
+  ctx.uid = (p) => p + '-1';
+  ctx.num = (v, d) => (Number.isFinite(+v) ? +v : d);
+  ctx.openFormModal = (cfg) => {
+    cfg.onSave({
+      querySelector: (sel) => ({
+        value: sel.includes('Type') ? 'warping' : sel.includes('Weight') ? '40' : 'it lifted',
+      }),
+    });
+  };
+  ctx.qcFailOrder('J1');
+
+  assert.equal(order.qcStatus, 'fail');
+  assert.ok(order.qcFailedAt, 'or computeQcMetrics does not count it as a failure at all');
+  assert.equal(order.defects.length, 1);
+  assert.equal(order.defects[0].severity, 'major', 'this was undefined');
+  assert.equal(order.defects[0].type, 'warping');
+  assert.equal(ctx.wasteLog.length, 1);
+  assert.equal(ctx.wasteLog[0].weight, 40);
+  assert.equal(ctx.wasteLog[0].cost, 4, '100 riyals per kilo, 40 grams');
+  assert.equal(order.status, 'pending', 'and the job goes back to be printed again');
 });

@@ -87,6 +87,9 @@ public actor KhaytEngine {
         // fields are recorded because those are the ones a customer can be told
         // a different answer about later.
         "order-edit",
+        // A job that failed inspection: the fields the metrics count, the
+        // defect the analytics table is built from, and the waste row.
+        "qc-failure",
     ]
 
     /// The languages whose strings are bundled.
@@ -400,6 +403,23 @@ public actor KhaytEngine {
         try runtime.call("KhaytOrderEdit", "priorityOf", [order], as: String.self)
     }
 
+    /// Record a QC failure: the order, the defect, and the waste row.
+    ///
+    /// The waste row comes BACK rather than being pushed into a list, because
+    /// this app writes the collection itself, inside the same swap as the
+    /// order — three records that must land together or not at all.
+    public func recordQcFailure(order: JSONValue, failureType: String, severity: String,
+                                reason: String, weight: Double, inspector: String?,
+                                inventory: [JSONValue], now: Date,
+                                wasteId: String, defaultReason: String) throws -> QcFailure {
+        try runtime.call2(QC_FAILURE_SCRIPT,
+                          [order, .string(failureType), .string(severity), .string(reason),
+                           .number(weight), inspector.map(JSONValue.string) ?? .null,
+                           .array(inventory), .number(now.timeIntervalSince1970 * 1000),
+                           .string(wasteId), .string(defaultReason)],
+                          as: QcFailure.self)
+    }
+
     // MARK: - Money received
 
     /// Whether this order counts as paid, partly paid or unpaid.
@@ -449,6 +469,17 @@ public actor KhaytEngine {
         return try JSONDecoder().decode(T.self, from: data)
     }
 }
+
+/// A failed inspection, as the shared rule writes it.
+private let QC_FAILURE_SCRIPT = """
+(function () {
+  var order = ARG0;
+  var r = KhaytQcFailure.record(order, {
+    failureType: ARG1, severity: ARG2, reason: ARG3, weight: ARG4, inspector: ARG5
+  }, { inventory: ARG6, now: ARG7, wasteId: ARG8, defaultReason: ARG9 });
+  return { order: order, waste: r.waste };
+})()
+"""
 
 /// Recording a payment, and what the order becomes.
 private let PAYMENT_SCRIPT = """

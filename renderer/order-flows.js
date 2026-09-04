@@ -771,29 +771,29 @@ function qcPassOrder(orderId) {
 
 // Record a QC failure on the order: waste row (unchanged accounting), qcStatus,
 // a defect entry, inspector + timestamp. Pure of any post-decision routing.
-function recordQcFailure(order, { failureType, severity, reason, weight, inspector, photoRef }) {
-  const nowIso = new Date().toISOString();
-  const w = Math.max(0, num(weight, 0));
-  wasteLog.unshift({
-    id: uid('WASTE'),
-    date: nowIso.split('T')[0],
-    material: order.material || '',
-    machineId: order.machineId || null,
-    weight: w || 0,
-    cost: w > 0 ? (() => {
-      const inv = inventory.find(i => i.material === order.material);
-      return (inv && inv.weight > 0) ? (inv.cost / inv.weight) * w : 0;
-    })() : 0,
-    reason: reason || t('ord.qc_fail'),
-    orderId: order.id,
-    failureType,
+/** Record a QC failure on the order: waste row, qcStatus, a defect entry,
+ *  inspector + timestamp. The rule is lib/qc-failure.js's, so Bed Ready's
+ *  failures carry the same fields — its defects had no severity at all. */
+function recordQcFailure(order, failure) {
+  return QcFailureRules().record(order, failure, {
+    now: Date.now(),
+    inventory,
+    wasteLog,
+    wasteId: uid('WASTE'),
+    defaultReason: t('ord.qc_fail'),
   });
-  order.qcStatus = 'fail';
-  order.qcFailedAt = nowIso;
-  order.qcAt = nowIso;
-  order.inspector = inspector || order.inspector || null;
-  if (!Array.isArray(order.defects)) order.defects = [];
-  order.defects.push({ type: failureType, severity: severity || 'major', note: reason || '', photoRef: photoRef || null, at: nowIso });
+}
+
+/** The QC-failure rules, however this file happens to be loaded. */
+function QcFailureRules() {
+  if (QcFailureRules.cached) return QcFailureRules.cached;
+  if (typeof globalThis !== 'undefined' && globalThis.KhaytQcFailure) {
+    QcFailureRules.cached = globalThis.KhaytQcFailure;
+    return QcFailureRules.cached;
+  }
+  try { QcFailureRules.cached = require('../lib/qc-failure.js'); }
+  catch (e) { QcFailureRules.cached = null; }
+  return QcFailureRules.cached;
 }
 
 function qcFailOrder(orderId) {
