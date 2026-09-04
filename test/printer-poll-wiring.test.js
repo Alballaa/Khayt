@@ -56,12 +56,12 @@ test('OctoPrint survives the 409 it answers whenever no printer is connected', (
   );
   assert.match(octo, /status === 409/, 'and only 409 may be survived');
   assert.match(octo, /throw e/, 'every other status is still a fault');
-  // The state has to come from somewhere when there is no printer payload.
-  assert.match(octo, /job\.state/, "falls back to the job endpoint's own state string");
-  // Optional chaining on every read of the payload that may now be null.
-  for (const read of ['printer?.state', 'printer?.temperature']) {
-    assert.ok(octo.includes(read), `${read} must tolerate a null printer payload`);
-  }
+  // What is DONE with the two payloads moved to lib/octoprint.js, where it can
+  // be driven with per-endpoint bodies instead of scanned for. That the null
+  // printer payload is tolerated is asserted there, on the real function —
+  // see test/octoprint.test.js.
+  assert.match(octo, /octoprint\.readStatus\(printer, job\)/,
+    'the reading is the shared module\'s, and both payloads reach it');
 });
 
 test('Repetier asks for the call the job is actually on', () => {

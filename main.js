@@ -81,6 +81,8 @@ const moonrakerHistory = require('./lib/moonraker-history');
 // same machines. Two readings of the same JSON would be two opinions about
 // whether a shop's print is nearly done.
 const moonraker = require('./lib/moonraker');
+const octoprint = require('./lib/octoprint');
+const prusalink = require('./lib/prusalink');
 const contextMenu = require('./lib/main/context-menu');
 const { createSilhouette } = require('./lib/gcode-geometry');
 const { intake: intakeModel } = require('./lib/model-intake');
@@ -4494,16 +4496,10 @@ async function fetchPrinterStatus(machine) {
       get('/api/job'),
     ]);
     return {
-      state: printer?.state?.text || job.state || 'Unknown',
-      progress: normalizeProgress(job.progress?.completion),
-      filename: job.job?.file?.name || '',
-      timeRemaining: job.progress?.printTimeLeft || null,
-      tempNozzle: printer?.temperature?.tool0?.actual || null,
-      tempBed: printer?.temperature?.bed?.actual || null,
+      ...octoprint.readStatus(printer, job),
       // What the job has ACTUALLY used so far. Already in this payload; Khayt
       // fetched it and threw it away until now.
       actuals: extractActuals('octoprint', job, stockOptsFor(machine)),
-      type: 'octoprint'
     };
   }
   if (type === 'moonraker') {
@@ -4541,20 +4537,9 @@ async function fetchPrinterStatus(machine) {
       get('/api/v1/status'),
       get('/api/v1/job').catch(() => null),
     ]);
-    const job = data.job || {};
-    const file = jobData?.file || {};
     return {
-      state: data.printer?.state || 'Unknown',
-      progress: normalizeProgress(job.progress),
-      // display_name is the long filename; `name` is the 8.3 short form, which
-      // Prusa's own spec illustrates as "SPICE~1.gco". A shop looking at its
-      // queue needs the one it saved the file under.
-      filename: file.display_name || file.name || '',
-      timeRemaining: job.time_remaining || null,
-      tempNozzle: data.printer?.temp_nozzle || null,
-      tempBed: data.printer?.temp_bed || null,
+      ...prusalink.readStatus(data, jobData),
       actuals: extractActuals('prusalink', data, stockOptsFor(machine)),
-      type: 'prusalink'
     };
   }
   // (Bambu is handled above via MQTT before the HTTP branches.)
