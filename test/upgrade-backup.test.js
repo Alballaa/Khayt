@@ -84,3 +84,33 @@ test('malformed input is safe', () => {
   assert.equal(U.isProtectedBackup(undefined), false);
   assert.equal(U.needsPreUpgradeBackup(9, NaN), false);
 });
+
+test('an app-update backup is protected too, by rule rather than by accident', () => {
+  /* lib/updater.js copies the store aside before installing an update and names
+   * it `pre-update-v<version>-<date>.json`. Two mechanisms, two confusingly
+   * similar names, and this rule only knew the first — so an update backup was
+   * counted as rotatable.
+   *
+   * It survived by accident: rotation sorts the filenames and deletes from the
+   * front, and "pre-update-…" sorts after every "YYYY-MM-DD.json". The accident
+   * still cost a shop backups — three update backups meant twenty-seven daily
+   * ones instead of thirty — and it would have become a real deletion the
+   * moment anything changed the sort or the slice. */
+  const update = 'pre-update-v3.7.0-beta.8-2026-08-27.json';
+  assert.equal(U.isProtectedBackup(update), true);
+
+  const files = [update, 'pre-upgrade-v11-to-v12-2026-01-01.json'];
+  for (let day = 1; day <= 35; day++) files.push(`2026-01-${String(day).padStart(2, '0')}.json`);
+  const { protectedFiles, rotatable } = U.partitionForRotation(files);
+  assert.equal(protectedFiles.length, 2, 'both kinds of insurance');
+  assert.equal(rotatable.length, 35, 'and only the dailies are housekeeping\'s to count');
+  assert.ok(!rotatable.includes(update));
+});
+
+test('a file that merely mentions an update is not one', () => {
+  // The prefix, not a substring: a shop is free to name a file what it likes.
+  assert.equal(U.isProtectedBackup('2026-01-01-pre-update-notes.json'), false);
+  assert.equal(U.isProtectedBackup('pre-update-'), true);
+  assert.equal(U.isProtectedBackup(''), false);
+  assert.equal(U.isProtectedBackup(null), false);
+});

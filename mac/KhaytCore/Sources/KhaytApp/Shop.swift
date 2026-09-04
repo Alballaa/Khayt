@@ -278,6 +278,7 @@ final class Shop {
             if case .array(let jobs)? = root["printLog"] { orderRows = jobs } else { orderRows = [] }
             if case .array(let people)? = root["clients"] { clientRows = people } else { clientRows = [] }
             clients = Self.decodeClients(root)
+            await keepTheDaysBackup()
             expenses = Self.decode(root, "expenses", as: Expense.self)
             wasteLog = Self.decode(root, "wasteLog", as: WasteEntry.self)
             if case .array(let rows)? = root["expenses"] { expenseRows = rows } else { expenseRows = [] }
@@ -1311,6 +1312,42 @@ final class Shop {
         let c = Calendar.current.dateComponents([.year, .month, .day], from: now)
         return String(format: "%04d-%02d-%02d", c.year ?? 0, c.month ?? 0, c.day ?? 0)
     }
+
+    // MARK: - Keeping the shop's data
+
+    /// When the shop's last backup was taken, for the sidebar to show.
+    private(set) var lastBackup: String?
+
+    /// Take the day's backup, once, when a real book is opened.
+    ///
+    /// A shop running only this app had no backup at all — one disk failure
+    /// from losing its book. Khayt writes one a day into the same folder, so
+    /// between them the two apps keep one set of backups rather than two that
+    /// each know half the days.
+    ///
+    /// Failure is recorded and not raised: a backup that could not be written
+    /// is worth saying out loud, and is not a reason to refuse to open the
+    /// book it was protecting.
+    private func keepTheDaysBackup() async {
+        guard let build = source.build else { lastBackup = nil; return }
+        // Only the app holding the book. Two apps writing the same folder in
+        // the same second is a race for no gain, and the one that does not own
+        // the store is the one reading a copy.
+        guard StoreLock.weOwnIt(build) else {
+            lastBackup = Backups.lastBackupDay(in: Backups.directory(for: build))
+            return
+        }
+        do {
+            _ = try await Backups.writeDaily(for: build, engine: engine)
+            backupProblem = nil
+        } catch {
+            backupProblem = String(describing: error)
+        }
+        lastBackup = Backups.lastBackupDay(in: Backups.directory(for: build))
+    }
+
+    /// Why the day's backup could not be taken, when it could not.
+    private(set) var backupProblem: String?
 
     // MARK: - The shelf
 

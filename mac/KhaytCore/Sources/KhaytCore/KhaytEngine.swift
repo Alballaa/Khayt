@@ -160,6 +160,9 @@ public actor KhaytEngine {
         // through globals, and without them every order reads as unpaid at its
         // gross price.
         "receivables",
+        // Which of a shop's backups may be rotated away, and which is the
+        // insurance it would want after a schema change.
+        "upgrade-backup",
     ]
 
     /// The languages whose strings are bundled.
@@ -782,6 +785,18 @@ public actor KhaytEngine {
             [.array(orders), .object(settings), .array(clients), .object(currencies),
              .string(language), .number(now.timeIntervalSince1970 * 1000)],
             as: Receivables.self)
+    }
+
+    /// Which of a shop's backups routine housekeeping may delete.
+    ///
+    /// A pre-upgrade backup is not one: it carries a prefix and is the shop's
+    /// insurance against a schema change, and rotating it away would mean the
+    /// insurance survived exactly as long as nobody needed it. The rule is
+    /// `lib/upgrade-backup.js`'s, so both apps rotate the same folder the same
+    /// way rather than each deleting what the other was keeping.
+    public func rotatableBackups(_ filenames: [String]) throws -> [String] {
+        try runtime.call2("KhaytUpgradeBackup.partitionForRotation(ARG0).rotatable",
+                          [.array(filenames.map(JSONValue.string))], as: [String].self)
     }
 
     // MARK: - Who the shop's customers are

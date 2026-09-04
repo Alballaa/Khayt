@@ -480,6 +480,39 @@ onto records that are still there, and a deleted spool is not one — it would
 take its price history and its usage with it, and nothing else in the book can
 reconstruct them.
 
+## The shop's daily backup
+
+A shop running only this app had none at all — one disk failure from losing its
+book. Khayt writes one a day into `Application Support/<build>/backups/` and
+keeps the most recent thirty; this writes the same file, in the same place,
+with the same name and the same rotation, so between them the two apps keep ONE
+set of backups rather than two that each know half the days.
+
+**The file is a copy of the store, byte for byte.** Khayt builds its backup by
+re-encrypting the store it holds in memory, because the renderer holds those
+thirty fields decrypted. This app never decrypts — the secrets on disk are
+already `__enc__` — so copying the file produces exactly the artifact Khayt's
+own restore expects, and does it without ever holding a shop's credentials in
+memory. Verified against the real book: 981,152 bytes, `cmp`-identical.
+
+Taken once a day, when the book is opened, and only by the app that owns it.
+A failure is said in the sidebar and does not stop the book opening — a backup
+that could not be written is worth knowing about, and is not a reason to refuse
+to open the thing it was protecting. The sidebar carries the date of the last
+one, so a shop can answer "when was this last backed up" by looking rather than
+by trusting.
+
+**Two bugs came out of building it.** `lib/upgrade-backup.js` declared a
+top-level `const api`, which is harmless in a browser and fatal in the ONE
+JavaScriptCore context every module shares — the second module to declare it
+kills the runtime, silently, exactly as in *Profit and loss* above. It and
+`lib/store-secret-paths.js` are wrapped now, and
+`test/bundled-modules-are-wrapped.test.js` refuses the next one. And rotation
+protected only `pre-upgrade-` backups while `lib/updater.js` writes
+`pre-update-` ones: those survived by accident of lexicographic sort order
+rather than by rule, and still cost a shop backups by counting toward the
+thirty. Both prefixes are protected now.
+
 ## What the shop is owed
 
 The other half of the Reports screen. `lib/receivables.js` is the aged
