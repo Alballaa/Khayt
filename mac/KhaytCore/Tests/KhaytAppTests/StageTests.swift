@@ -203,3 +203,88 @@ struct StageParityTests {
         #expect(Stage.of(stillHere) == .completed)
     }
 }
+
+/// A row this app refuses to read is a job that is not on any screen.
+///
+/// `decodeOrders` counts what it could not decode and shows nothing for it, so
+/// a required field that a real record does not carry does not error — it makes
+/// jobs disappear. Every job Khayt's own calculator ever created was in that
+/// state until the fields below were defaulted.
+@MainActor
+struct OrderDecodingTests {
+
+    static func decode(_ fields: [String: JSONValue]) throws -> Order {
+        try JSONDecoder().decode(Order.self, from: JSONEncoder().encode(fields))
+    }
+
+    /// Exactly what `lib/order-new.js` produces, minus the parts of it this app
+    /// does not read. A record this shape must decode.
+    @Test("a job as Khayt's calculator writes it")
+    func khaytsOwnNewOrder() async throws {
+        let engine = try KhaytEngine()
+        let out = try await engine.newOrder(
+            ["parts": .array([.object(["name": .string("Bracket"), "material": .string("PLA"),
+                                       "printWeight": .number(180), "qty": .number(2),
+                                       "baseCost": .number(40), "printTime": .number(3)])]),
+             "project": .string("Bracket set"), "margin": .number(40)],
+            orders: [], settings: [:], now: Date(),
+            tokens: (tracking: Shop.randomBytes(16), quoteApproval: Shop.randomBytes(16)))
+
+        let job = try JSONDecoder().decode(Order.self, from: JSONEncoder().encode(out.order))
+        #expect(job.client == "", "no customer written down is not no job")
+        #expect(job.currency == "", "the shop's own currency is not a currency field")
+        #expect(job.costBasis == 0, "what it cost is settled when it is finished, not now")
+        #expect(job.parts.count == 1)
+        #expect(job.parts[0].name == "Bracket")
+    }
+
+    @Test("the three fields a new job has not got yet")
+    func lenientWhereTheDataIsLoose() throws {
+        let bare: [String: JSONValue] = [
+            "id": .string("J1"), "date": .string("2026-09-04"), "status": .string("pending"),
+            "project": .string("P"), "price": .number(100), "paidAmount": .number(0),
+            "paymentStatus": .string("unpaid"), "printTime": .number(1),
+            "priority": .bool(false), "notes": .string(""),
+        ]
+        let job = try Self.decode(bare)
+        #expect(job.client == "")
+        #expect(job.currency == "")
+        #expect(job.costBasis == 0)
+        #expect(job.parts.isEmpty)
+    }
+
+    @Test("and strict where a missing field would be a guess")
+    func strictWhereItMatters() {
+        // A row with no id, price or status is not a job with defaults — it is a
+        // row this app should refuse rather than invent an answer for.
+        for missing in ["id", "price", "status", "paymentStatus"] {
+            var fields: [String: JSONValue] = [
+                "id": .string("J1"), "date": .string("2026-09-04"), "status": .string("pending"),
+                "project": .string("P"), "price": .number(100), "paidAmount": .number(0),
+                "paymentStatus": .string("unpaid"), "printTime": .number(1),
+                "priority": .bool(false), "notes": .string(""),
+            ]
+            fields.removeValue(forKey: missing)
+            #expect((try? Self.decode(fields)) == nil, "a row with no \(missing) was accepted")
+        }
+    }
+
+    @Test("a part with no id of its own still reads")
+    func partsWithoutIds() throws {
+        var fields: [String: JSONValue] = [
+            "id": .string("J1"), "date": .string("2026-09-04"), "status": .string("pending"),
+            "project": .string("P"), "price": .number(100), "paidAmount": .number(0),
+            "paymentStatus": .string("unpaid"), "printTime": .number(1),
+            "priority": .bool(false), "notes": .string(""),
+        ]
+        fields["parts"] = .array([
+            .object(["name": .string("Bracket"), "printWeight": .number(180)]),
+            .object(["name": .string("Bracket"), "printWeight": .number(180)]),
+        ])
+        let job = try Self.decode(fields)
+        #expect(job.parts.count == 2)
+        #expect(job.parts[0].id != job.parts[1].id,
+                "two parts with the same name must not collapse into one row")
+        #expect(job.parts[0].qty == 1, "a part with no quantity is one of them")
+    }
+}

@@ -243,6 +243,7 @@ final class Shop {
             if let forced = ProcessInfo.processInfo.environment["KHAYT_LANG"] { wanted = forced }
             await words.load(wanted, engine: engine)
             settingsValue = root["settings"] ?? .object([:])
+            if case .array(let shelf)? = root["inventory"] { inventoryRows = shelf } else { inventoryRows = [] }
             taxSummary = await describeTax(root["settings"])
             await computeDashboard(root)
         } catch {
@@ -565,6 +566,194 @@ final class Shop {
     struct PendingHold: Identifiable, Sendable {
         let id: Order.ID
         let project: String
+    }
+
+    // MARK: - Taking a job
+
+    /// True while the new-job sheet is up.
+    var takingAJob = false
+
+    /// The job this app just created, so the table can select it.
+    private(set) var lastCreated: Order.ID?
+
+    /// The margin this shop quotes at, or thirty per cent.
+    ///
+    /// Its own number, not a Swift opinion about what a print shop charges —
+    /// and the same default the Electron calculator opens on.
+    var defaultMargin: Double {
+        if case .object(let s) = settingsValue, case .number(let m)? = s["defaultMargin"] { return m }
+        return 30
+    }
+
+    /// What one part costs to make, through the shared cost model.
+    ///
+    /// The spool supplies the material and what it cost — the shelf already
+    /// knows, and asking a shop to retype it is asking twice. Everything the
+    /// screen does not ask for (wear, power, labour, the failure allowance) is
+    /// the shop's own default, so a job taken here is costed exactly as the same
+    /// job typed into Electron.
+    func costOfPart(spoolId: String?, grams: Double, hours: Double, qty: Int) async -> Double {
+        guard let engine else { return 0 }
+        var part: [String: JSONValue] = [
+            "printWeight": .number(max(0, grams)),
+            "printTime": .number(max(0, hours)),
+            "qty": .number(Double(max(1, qty))),
+        ]
+        if let spoolId, let spool = spools.first(where: { $0.id == spoolId }) {
+            part["filamentId"] = .string(spool.id)
+            part["material"] = .string(spool.material)
+            part["spoolCost"] = .number(spool.cost ?? 0)
+            // At least one gram: the cost model divides by this.
+            part["spoolWeight"] = .number(max(1, spool.weight ?? 1000))
+        }
+        for (key, setting) in ["wearRate": "defaultWearRate", "powerDraw": "defaultPowerDraw",
+                               "elecRate": "defaultElecRate", "laborRate": "defaultLaborRate",
+                               "failureRate": "defaultFailureRate"] {
+            if case .object(let all) = settingsValue, case .number(let v)? = all[setting] {
+                part[key] = .number(v)
+            }
+        }
+        return (try? await engine.partCost(.object(part), inventory: inventoryRows,
+                                           settings: settingsDict)) ?? 0
+    }
+
+    /// What the cart comes to, before anything is written.
+    ///
+    /// The same `quoteTotal` the record will use, so the figure on the screen is
+    /// the figure in the book.
+    func previewQuote(baseCost: Double, margin: Double, discountPct: Double,
+                      shippingCost: Double, rush: Bool) async -> QuoteTotal? {
+        guard let engine else { return nil }
+        var input: [String: JSONValue] = [
+            "baseCost": .number(baseCost), "qty": .number(1),
+            "margin": .number(margin), "discountPct": .number(discountPct),
+            "shippingCost": .number(shippingCost),
+            "rushEnabled": .bool(rush), "business": .bool(true),
+        ]
+        // The shop's own rush percentage, or Khayt's default of twenty-five.
+        if rush {
+            var pct = 25.0
+            if case .object(let all) = settingsValue, case .number(let own)? = all["rushFeePct"] { pct = own }
+            input["rushPct"] = .number(pct)
+        }
+        return try? await engine.quoteTotal(input)
+    }
+
+    /// The cart and the money, in the shape `lib/order-new.js` takes.
+    func newJobInput(parts: [NewJobSheet.Draft], project: String, clientId: String?,
+                     margin: Double, discountPct: Double, shippingCost: Double,
+                     deposit: Double, rush: Bool, asQuote: Bool) -> [String: JSONValue] {
+        var rows: [JSONValue] = []
+        for p in parts {
+            var row: [String: JSONValue] = [
+                "name": .string(p.name.isEmpty ? words.callIt("mac.a_part") : p.name),
+                "printWeight": .number(Double(p.grams) ?? 0),
+                "printTime": .number(Double(p.hours) ?? 0),
+                "qty": .number(Double(max(1, p.qty))),
+                // What the shared cost model said, frozen: a job priced today
+                // must not re-cost itself at next year's filament prices.
+                "unitCost": .number(p.cost),
+                "baseCost": .number(p.cost * Double(max(1, p.qty))),
+            ]
+            if let spoolId = p.spoolId, let spool = spools.first(where: { $0.id == spoolId }) {
+                row["filamentId"] = .string(spool.id)
+                row["material"] = .string(spool.material)
+                row["spoolCost"] = .number(spool.cost ?? 0)
+                row["spoolWeight"] = .number(max(1, spool.weight ?? 1000))
+            }
+            rows.append(.object(row))
+        }
+        var input: [String: JSONValue] = [
+            "parts": .array(rows),
+            "project": .string(project),
+            "margin": .number(margin),
+            "discountPct": .number(discountPct),
+            "shippingCost": .number(shippingCost),
+            "depositAmount": .number(deposit),
+            "rushEnabled": .bool(rush),
+            "asQuote": .bool(asQuote),
+        ]
+        if let clientId { input["clientId"] = .string(clientId) }
+        return input
+    }
+
+    /// The shelf and the settings, as the shared modules take them.
+    ///
+    /// The RAW rows, not this app's decoded `Spool` re-encoded: the cost model
+    /// reads `materialType` to tell resin from filament, and `Spool` does not
+    /// carry it. Re-encoding would silently cost every resin part as if it were
+    /// filament.
+    private(set) var inventoryRows: [JSONValue] = []
+
+    var settingsDict: [String: JSONValue] {
+        if case .object(let s) = settingsValue { return s }
+        return [:]
+    }
+
+    /// Take a new job, or quote for one.
+    ///
+    /// THE ORDER AND THE SETTINGS ARE WRITTEN TOGETHER. Creating a job consumes
+    /// an invoice number from a counter the shop owns; saving the order without
+    /// the counter hands the same number to the next job, and saving the counter
+    /// without the order burns one for nothing. One swap, both records.
+    func createJob(_ input: [String: JSONValue]) async {
+        moveProblem = nil
+        moveNotices = []
+        guard let build = source.build else {
+            moveProblem = words.callIt("mac.move_sample"); return
+        }
+        guard let engine else {
+            moveProblem = words.callIt("mac.move_no_engine"); return
+        }
+
+        var created: String?
+        do {
+            try await StoreWriter.update(
+                storeURL: build.storeURL,
+                owns: { StoreLock.weOwnIt(build) },
+                whoHasIt: { StoreLock.describe(StoreLock.verdict(for: build)) }
+            ) { root in
+                let orders = Self.rows(root, "printLog")
+                let out = try await engine.newOrder(
+                    input, orders: orders, settings: Self.settings(root), now: Date(),
+                    tokens: (tracking: Self.randomBytes(16), quoteApproval: Self.randomBytes(16)))
+
+                guard case .object(let record) = out.order,
+                      case .string(let id)? = record["id"] else {
+                    throw MoveRefused(sentence: self.words.callIt("mac.move_refused"))
+                }
+                // Newest first, the way every screen reads the book.
+                root["printLog"] = .array([out.order] + orders)
+                root["settings"] = .object(out.settings)
+                Self.appendActivity(&root,
+                                    text: "\(id)" + (record["project"].flatMap(Self.plainString).map { $0.isEmpty ? "" : " · \($0)" } ?? ""),
+                                    ref: id, settings: out.settings, root: root,
+                                    action: Self.plainString(record["status"]) == "quote"
+                                            ? "quote_created" : "order_created")
+                created = id
+            }
+            lastCreated = created
+            await load(source)
+            // Put the person on the job they just took.
+            if let created {
+                selection = created
+                shelf = .jobs(nil)
+            }
+        } catch let refusal as MoveRefused {
+            moveProblem = refusal.sentence
+        } catch {
+            moveProblem = String(describing: error)
+        }
+    }
+
+    static func plainString(_ value: JSONValue?) -> String? {
+        if case .string(let s)? = value { return s }
+        return nil
+    }
+
+    /// Bytes for the tokens the shared rule cannot mint itself.
+    static func randomBytes(_ n: Int) -> [UInt8] {
+        (0..<n).map { _ in UInt8.random(in: 0...255) }
     }
 
     // MARK: - Money received
@@ -928,7 +1117,8 @@ final class Shop {
     /// The team's activity log — the same collection, shape and cap Khayt uses.
     static func appendActivity(_ root: inout [String: JSONValue], text: String,
                                        ref: String, settings: [String: JSONValue],
-                                       root snapshot: [String: JSONValue]) {
+                                       root snapshot: [String: JSONValue],
+                                       action: String = "status") {
         var log = rows(snapshot, "auditLog")
         var operatorId: JSONValue = .null
         var operatorName = ""
@@ -942,7 +1132,7 @@ final class Shop {
         log.append(.object([
             "id": .string(uid("AL")),
             "at": .string(StoreWriter.iso(Date())),
-            "action": .string("status"),
+            "action": .string(action),
             "detail": .string(text),
             "ref": .string(ref),
             "operatorId": operatorId,

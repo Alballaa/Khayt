@@ -34,7 +34,60 @@ struct Order: Identifiable, Decodable, Hashable, Sendable {
     let dueDate: String?
     let parts: [Part]
 
+    private enum CodingKeys: String, CodingKey {
+        case id, date, status, project, client, currency, price, paidAmount, costBasis
+        case paymentStatus, paymentMethod, printTime, priority, priorityLevel, notes
+        case machineId, completedAt, deliveredAt, dueDate, parts
+    }
+
+    /// THREE FIELDS A NEW JOB HAS NOT GOT YET.
+    ///
+    /// `client` is the customer's name denormalised onto the order, and Khayt's
+    /// own calculator never writes it — only the paths that already know the
+    /// name do. `currency` is absent when the job is in the shop's own. And
+    /// `costBasis` is not fixed until the job is COMPLETED, which is the whole
+    /// point of it: what a job cost is settled once, when it is finished.
+    ///
+    /// Decoded strictly, every job Khayt's calculator created was skipped by
+    /// this app — silently, because a row that will not decode is counted and
+    /// not shown. It never surfaced because this Mac's own book was written
+    /// entirely by Bed Ready's job creator, which does set `client`.
+    ///
+    /// So they are defaulted rather than required. Everything else stays strict:
+    /// a row missing an `id` or a `price` is a row this app should refuse rather
+    /// than guess at.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        date = try c.decode(String.self, forKey: .date)
+        status = try c.decode(String.self, forKey: .status)
+        project = try c.decode(String.self, forKey: .project)
+        client = try c.decodeIfPresent(String.self, forKey: .client) ?? ""
+        currency = try c.decodeIfPresent(String.self, forKey: .currency) ?? ""
+        price = try c.decode(Double.self, forKey: .price)
+        paidAmount = try c.decode(Double.self, forKey: .paidAmount)
+        costBasis = try c.decodeIfPresent(Double.self, forKey: .costBasis) ?? 0
+        paymentStatus = try c.decode(String.self, forKey: .paymentStatus)
+        paymentMethod = try c.decodeIfPresent(String.self, forKey: .paymentMethod)
+        printTime = try c.decode(Double.self, forKey: .printTime)
+        priority = try c.decode(Bool.self, forKey: .priority)
+        priorityLevel = try c.decodeIfPresent(String.self, forKey: .priorityLevel)
+        notes = try c.decode(String.self, forKey: .notes)
+        machineId = try c.decodeIfPresent(String.self, forKey: .machineId)
+        completedAt = try c.decodeIfPresent(String.self, forKey: .completedAt)
+        deliveredAt = try c.decodeIfPresent(String.self, forKey: .deliveredAt)
+        dueDate = try c.decodeIfPresent(String.self, forKey: .dueDate)
+        parts = try c.decodeIfPresent([Part].self, forKey: .parts) ?? []
+    }
+
     struct Part: Decodable, Hashable, Identifiable, Sendable {
+        /// A part written by Khayt's calculator HAS NO ID — `snapshotPartFromForm`
+        /// does not mint one, and only the paths that build parts some other way
+        /// do. Every part in this Mac's own book has one, which is why requiring
+        /// it never surfaced: the book was written by Bed Ready's job creator.
+        ///
+        /// Defaulted rather than required, and the list that draws them is keyed
+        /// by position so a fresh value on each read cannot churn the rows.
         let id: String
         let name: String
         let material: String
@@ -42,6 +95,21 @@ struct Order: Identifiable, Decodable, Hashable, Sendable {
         let printWeight: Double
         let unitCost: Double
         let colour: String
+
+        private enum CodingKeys: String, CodingKey {
+            case id, name, material, qty, printWeight, unitCost, colour
+        }
+
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            id = try c.decodeIfPresent(String.self, forKey: .id) ?? UUID().uuidString
+            name = try c.decodeIfPresent(String.self, forKey: .name) ?? ""
+            material = try c.decodeIfPresent(String.self, forKey: .material) ?? ""
+            qty = try c.decodeIfPresent(Int.self, forKey: .qty) ?? 1
+            printWeight = try c.decodeIfPresent(Double.self, forKey: .printWeight) ?? 0
+            unitCost = try c.decodeIfPresent(Double.self, forKey: .unitCost) ?? 0
+            colour = try c.decodeIfPresent(String.self, forKey: .colour) ?? ""
+        }
     }
 
     /// What the shop is still owed. Not a Swift opinion about money — the

@@ -431,6 +431,36 @@ public actor KhaytEngine {
                           as: QcFailure.self)
     }
 
+    // MARK: - Taking a job
+
+    /// What one part of a job costs to make.
+    ///
+    /// Material, machine wear, electricity, labour and the failure allowance —
+    /// the figure every price is built on top of, and the same function the
+    /// calculator screen and the phone's quote endpoint both call.
+    public func partCost(_ part: JSONValue, inventory: [JSONValue],
+                         settings: [String: JSONValue]) throws -> Double {
+        try runtime.call2("KhaytCalculatorCost.computePartBaseCost(ARG0, {inventory: ARG1, settings: ARG2})",
+                          [part, .array(inventory), .object(settings)], as: Double.self)
+    }
+
+    /// A new job, as the book records it.
+    ///
+    /// `settings` COMES BACK CHANGED: allocating an invoice number and a quote
+    /// sequence advances counters the shop owns, and an allocation nobody
+    /// writes down hands the same number to the next job. Write both.
+    public func newOrder(_ input: [String: JSONValue], orders: [JSONValue],
+                         settings: [String: JSONValue], now: Date,
+                         tokens: (tracking: [UInt8], quoteApproval: [UInt8])) throws -> NewOrder {
+        let bytes = { (b: [UInt8]) in JSONValue.array(b.map { .number(Double($0)) }) }
+        return try runtime.call2(NEW_ORDER_SCRIPT,
+                                 [.object(input), .array(orders), .object(settings),
+                                  .number(now.timeIntervalSince1970 * 1000),
+                                  .object(["tracking": bytes(tokens.tracking),
+                                           "quoteApproval": bytes(tokens.quoteApproval)])],
+                                 as: NewOrder.self)
+    }
+
     // MARK: - Money received
 
     /// Whether this order counts as paid, partly paid or unpaid.
@@ -480,6 +510,16 @@ public actor KhaytEngine {
         return try JSONDecoder().decode(T.self, from: data)
     }
 }
+
+/// A new job, and the counters taking it advanced.
+private let NEW_ORDER_SCRIPT = """
+(function () {
+  var settings = ARG2;
+  var order = KhaytOrderNew.newOrder(ARG0,
+    { settings: settings, orders: ARG1, now: ARG3, tokens: ARG4 });
+  return { order: order, settings: settings };
+})()
+"""
 
 /// A failed inspection, as the shared rule writes it.
 private let QC_FAILURE_SCRIPT = """

@@ -6,6 +6,13 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Changed
 
+- **The Mac app can take a job.** ⌘N: what it is, who it is for, the parts and
+  what they weigh, and the margin — and it prices them with the same arithmetic
+  the calculator uses, because it is the same arithmetic. Save it as an order
+  or as a quote. Picking a spool fills in what that filament cost, since the
+  shelf already knows. It is the last thing a shop had to open the Electron app
+  on a Mac to do.
+
 - **The Mac app can fail a job's inspection.** Moving a job out of QC to
   anywhere but Completed asks what went wrong, and how much filament it cost —
   then sends it back to be printed again. Without it, a job dragged out of QC

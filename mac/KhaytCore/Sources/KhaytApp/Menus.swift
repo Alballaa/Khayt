@@ -30,8 +30,10 @@ struct KhaytCommands: Commands {
     let shop: Shop
 
     var body: some Commands {
-        // Nothing here makes documents, so the File menu's "New" is a lie.
-        CommandGroup(replacing: .newItem) { }
+        // ⌘N takes a job. It IS the new-document gesture for this app: the
+        // thing a shop makes is an order, and the File menu is where a Mac user
+        // looks for "new".
+        CommandGroup(replacing: .newItem) { NewJobCommand().environment(shop) }
 
         CommandGroup(replacing: .appInfo) {
             Button("About Khayt") { About.show() }
@@ -105,6 +107,16 @@ private struct SortMenu: View {
             }
         }
         .disabled(!shop.showingLibrary)
+    }
+}
+
+private struct NewJobCommand: View {
+    @Environment(Shop.self) private var shop
+
+    var body: some View {
+        Button(Words.upfront("mac.new_job")) { shop.takingAJob = true }
+            .keyboardShortcut("n")
+            .disabled(!shop.canMoveJobs)
     }
 }
 
