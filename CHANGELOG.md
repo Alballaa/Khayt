@@ -29,6 +29,23 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   demand keeps the day's automatic one rather than replacing it, so both sides
   of whatever you are about to do survive.
 
+- **The Mac app puts a backup back.** *Book → Restore from Backup* lists what
+  is on the shelf, newest first, and says which copy was taken before an
+  update. It refuses a file that is not a Khayt backup and a backup that is
+  damaged, and it copies the book as it stands before replacing it — a restore
+  you cannot undo is not one.
+
+  What it carries forward is the part worth knowing about: Khayt builds its
+  daily backup from the renderer's export, and the renderer never holds the
+  shop's credentials (it sees `__KHAYT_MASKED__`) or the printer completion
+  history (the main process owns it). Copying such a file over the book would
+  have written the mask over every printer API key, LAN access code, the
+  Telegram token and the cloud token, and deleted the completion history — with
+  no symptom but printers that stopped answering. The restore merges them back
+  from the book it is replacing, exactly as Khayt's own save path does, and it
+  clears the retained cloud view so the next sync is a cold pull rather than a
+  push of rolled-back records.
+
 - **The Mac app keeps your daily backup.** Same folder, same names and same
   thirty-day history as Khayt's, so the two apps keep one set of backups
   between them — and a shop running only the Mac app is no longer one disk

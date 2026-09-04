@@ -30,7 +30,7 @@ const path = require('node:path');
 const ROOT = path.join(__dirname, '..');
 const src = (f) => fs.readFileSync(path.join(ROOT, 'renderer', f), 'utf8');
 
-require(path.join(ROOT, 'renderer/store-validate.js'));
+require(path.join(ROOT, 'lib/store-validate.js'));
 const V = global.KhaytStoreValidate;
 
 /**

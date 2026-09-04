@@ -39,7 +39,7 @@ STEPS.sort((a, b) => a.to - b.to);                 // ordered, no gaps, strictly
 const TARGET_VERSION = STEPS[STEPS.length - 1].to; // === KhaytStore.VERSION
 ```
 
-`STORE_VERSION` in `renderer/store.js`, `renderer/store-validate.js`, and `lib/store-validate.js` is **derived from / asserted equal to** `TARGET_VERSION` — a unit test fails the build if they drift (§7).
+`STORE_VERSION` in `renderer/store.js` and `lib/store-validate.js` is **derived from / asserted equal to** `TARGET_VERSION` — a unit test fails the build if they drift (§7).
 
 ### 2.2 run-on-load
 ```js

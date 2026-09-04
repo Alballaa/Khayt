@@ -1385,6 +1385,40 @@ final class Shop {
             }.isEmpty ? [directory] : [directory.appending(path: Backups.filename())])
     }
 
+    // MARK: - Putting a backup back
+
+    /// The backup a shop has chosen and not yet confirmed.
+    var restoring: Restore.Candidate?
+
+    /// Every backup on the shelf, newest first — empty for the sample shop.
+    var restorable: [Restore.Candidate] {
+        guard let build = source.build else { return [] }
+        return Restore.list(in: Backups.directory(for: build))
+    }
+
+    /// Replace the book with a backup.
+    ///
+    /// Destructive, and the only write in this app that is. Everything that
+    /// makes it safe is in `Restore`: it refuses a file that is not a Khayt
+    /// store, refuses a damaged one, copies the book before replacing it, and
+    /// carries forward the credentials and the completion history a backup
+    /// cannot contain. What is left here is saying which of those happened.
+    func restore(_ candidate: Restore.Candidate) async {
+        spendProblem = nil
+        spendNote = nil
+        guard let build = source.build else {
+            spendProblem = words.callIt("mac.move_sample"); return
+        }
+        do {
+            try await Restore.restore(candidate.filename, for: build, engine: engine)
+            lastBackup = Backups.lastBackupDay(in: Backups.directory(for: build))
+            spendNote = words.callIt("mac.restored") + " " + candidate.filename
+            await load(source)
+        } catch {
+            spendProblem = words.callIt("mac.restore_failed") + " " + String(describing: error)
+        }
+    }
+
     // MARK: - The shelf
 
     /// The spool being written down, or corrected.

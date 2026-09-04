@@ -621,7 +621,7 @@ into the save choke point, and covered by tests. It was previously mis-recorded 
 - [x] CSP hardening: drop `script-src 'unsafe-inline'` in Electron CSP
 - [x] Locale files per language (`renderer/locales/*.js` + `npm run i18n:extract`)
 - [x] E2E smoke test (`npm run test:e2e`)
-- [x] Typed store contract validated on load (`renderer/store-validate.js`)
+- [x] Typed store contract validated on load (`lib/store-validate.js`)
 - [x] LAN tunnel: confirm dialog + risk acknowledgement before `localtunnel`
 
 ## Versioning reminder

@@ -715,7 +715,7 @@ test('updateStoreOnDisk: the mutator sees decrypted secrets, not ciphertext', as
 
 /** The save path as hub:save-store runs it: normalise, merge from disk, write. */
 async function rendererSave(io, snapshot) {
-  const { normalizeStoreSnapshot } = require('../renderer/store-validate.js');
+  const { normalizeStoreSnapshot } = require('../lib/store-validate.js');
   const { normalized } = normalizeStoreSnapshot(snapshot);
   await io.writeStoreToDisk(io.mergeStoreSecretsFromDisk(normalized));
 }
@@ -746,7 +746,7 @@ test('every main-owned key is one normalize would otherwise drop', () => {
   // If a key ever joins ARRAY_COLLECTIONS, it stops needing this rescue, and
   // leaving it here would pin a stale disk copy over the renderer's.
   const { MAIN_OWNED_KEYS } = require('../lib/store-io.js');
-  const { ARRAY_COLLECTIONS } = require('../renderer/store-validate.js');
+  const { ARRAY_COLLECTIONS } = require('../lib/store-validate.js');
   assert.ok(MAIN_OWNED_KEYS.length > 0);
   for (const k of MAIN_OWNED_KEYS) {
     assert.ok(!ARRAY_COLLECTIONS.includes(k), `${k} is a normal collection now — take it off MAIN_OWNED_KEYS`);
