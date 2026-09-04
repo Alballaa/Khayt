@@ -64,6 +64,16 @@ private struct BookMenu: View {
             .keyboardShortcut("r")
             
         Divider()
+        // A backup is taken once a day on its own; this is for the shop that
+        // is about to do something it might want to undo.
+        Button(Words.upfront("mac.back_up_now")) {
+            Task { await shop.backUpNow() }
+        }
+        .disabled(!shop.canMoveJobs)
+        Button(Words.upfront("mac.reveal_backups")) { shop.revealBackups() }
+            .disabled(shop.source.build == nil)
+
+        Divider()
         Picker(Words.upfront("mac.open_book"), selection: Binding(get: { shop.source }, set: { shop.open($0) })) {
             ForEach(Shop.available) { Text($0.title).tag($0) }
         }

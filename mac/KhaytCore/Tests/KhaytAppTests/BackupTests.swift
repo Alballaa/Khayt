@@ -116,6 +116,33 @@ struct BackupTests {
         #expect(Backups.lastBackupDay(in: dir) == "2026-03-09")
     }
 
+    @Test("a backup taken on demand keeps the day's automatic one")
+    func onDemand() async throws {
+        // The automatic copy was taken before whatever the shop did this
+        // morning; a shop asking for one now wants BOTH sides of that.
+        let dir = try Self.tempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let store = dir.appending(path: "khayt-store.json")
+        try Data(#"{"printLog":[]}"#.utf8).write(to: store)
+
+        let backups = dir.appending(path: "backups")
+        try FileManager.default.createDirectory(at: backups, withIntermediateDirectories: true)
+        let day = Backups.filename()
+        try Data(#"{"the":"morning copy"}"#.utf8).write(to: backups.appending(path: day))
+
+        let now = Calendar.current.date(from: DateComponents(year: 2026, month: 9, day: 4,
+                                                             hour: 14, minute: 35))!
+        let stamped = Shop.today(now) + "-1435.json"
+        try Data(#"{"printLog":[]}"#.utf8).write(to: backups.appending(path: stamped))
+
+        #expect(Backups.all(in: backups).contains(day), "the morning's copy is still there")
+        #expect(Backups.all(in: backups).contains(stamped))
+        // A time-stamped file is not a day, so it does not become the answer to
+        // "when was the last backup" — that stays the date.
+        #expect(Backups.dated(in: backups) == [day])
+        #expect(Backups.lastBackupDay(in: backups) == String(day.dropLast(5)))
+    }
+
     @Test("the sample shop is not backed up")
     func sampleNotBackedUp() async throws {
         // It is not a book anybody would want back.

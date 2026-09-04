@@ -502,6 +502,18 @@ to open the thing it was protecting. The sidebar carries the date of the last
 one, so a shop can answer "when was this last backed up" by looking rather than
 by trusting.
 
+The Book menu carries **Back Up Now** and **Reveal Backups**. On demand writes
+a SECOND file for the day, stamped with the time, rather than overwriting: the
+automatic copy was taken before whatever the shop did this morning, and a shop
+asking for one now wants both sides of that. A time-stamped file is not a day,
+so it never becomes the answer to "when was the last backup".
+
+There is deliberately **no export-to-share yet**. A copy of the store carries
+the shop's credentials encrypted-at-rest, which is right for a backup and wrong
+for a file somebody emails an accountant; Khayt redacts for that, through
+`renderer/store.js`, and that redaction has not been lifted. Doing it hastily is
+how credentials leak, so the menu offers the backup and not the export.
+
 **Two bugs came out of building it.** `lib/upgrade-backup.js` declared a
 top-level `const api`, which is harmless in a browser and fatal in the ONE
 JavaScriptCore context every module shares — the second module to declare it

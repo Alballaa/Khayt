@@ -403,6 +403,9 @@ final class Words {
         "mac.telegram_sent":   ["en": "Telegram message sent.", "ar": "أُرسلت رسالة تيليجرام."],
         "mac.telegram_failed": ["en": "The job was saved, but the Telegram message did not go out:",
                                 "ar": "حُفظ العمل، لكن لم تُرسل رسالة تيليجرام:"],
+        "mac.back_up_now":   ["en": "Back Up Now",   "ar": "نسخ احتياطي الآن"],
+        "mac.reveal_backups": ["en": "Reveal Backups", "ar": "إظهار النسخ الاحتياطية"],
+        "mac.backed_up":     ["en": "Backed up as",   "ar": "حُفظت النسخة باسم"],
         "mac.backup_failed": ["en": "Today's backup could not be written:",
                               "ar": "تعذّرت كتابة نسخة اليوم الاحتياطية:"],
         // Settings

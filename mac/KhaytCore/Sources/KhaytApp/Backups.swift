@@ -84,6 +84,24 @@ enum Backups {
         return target
     }
 
+    /// Take a backup right now, whatever is already there for today.
+    ///
+    /// Named `YYYY-MM-DD-HHMM.json` rather than overwriting the day's file:
+    /// the automatic copy was taken before whatever the shop did this morning,
+    /// and a shop asking for one now wants to keep BOTH sides of that.
+    @discardableResult
+    static func writeNow(for build: StoreReader.Build, engine: KhaytEngine?,
+                         now: Date = Date(), keep: Int = 30) async throws -> URL {
+        let directory = Self.directory(for: build)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let stamp = DateFormatter()
+        stamp.dateFormat = "HHmm"
+        let target = directory.appending(path: Shop.today(now) + "-" + stamp.string(from: now) + ".json")
+        try Data(contentsOf: build.storeURL).write(to: target, options: .atomic)
+        try await rotate(directory: directory, engine: engine, keep: keep)
+        return target
+    }
+
     /// Delete all but the most recent `keep` dated backups.
     ///
     /// A shop that opens the app on thirty consecutive days would otherwise
