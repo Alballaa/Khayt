@@ -793,3 +793,199 @@ struct QcFailureTests {
         dict.map(JSONValue.object)
     }
 }
+
+/// The same write, against a COPY OF THIS MAC'S REAL BOOK.
+///
+/// Every other test builds the book it needs, which means every other test
+/// knows what is in it. A real store has orders with no parts, orders with no
+/// customer, orders whose material is not on the shelf, forty-field rows this
+/// app decodes only some of, and a `printFiles` collection twenty times the
+/// size of everything else. None of that is exotic; it is simply what a shop's
+/// book looks like after a year.
+///
+/// Nothing here asserts a figure — the numbers belong to whichever book this
+/// runs against. It asserts that the chain COMPLETES, writes what it said it
+/// would, leaves everything it did not name exactly as it was, and comes back
+/// when undone.
+@MainActor
+struct MoveOnARealBookTests {
+
+    /// This Mac's book if there is one, the sample otherwise. Copied, never
+    /// touched in place: a write path tried on a live book has not been tested,
+    /// it has been risked.
+    static func copyOfARealBook() throws -> URL? {
+        let data: Data
+        if let build = StoreReader.Build.allCases.first(where: \.exists) {
+            data = try Data(contentsOf: build.storeURL)
+        } else if let url = Bundle.module.url(forResource: "sample-shop", withExtension: "json") {
+            data = try Data(contentsOf: url)
+        } else {
+            return nil
+        }
+        let dir = FileManager.default.temporaryDirectory
+            .appending(path: "khayt-realbook-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let url = dir.appending(path: "khayt-store.json")
+        try data.write(to: url)
+        return url
+    }
+
+    static func read(_ url: URL) throws -> [String: JSONValue] {
+        try JSONDecoder().decode([String: JSONValue].self, from: Data(contentsOf: url))
+    }
+
+    /// A job the rules will accept, so the test measures the write and not the
+    /// gate — MAKING one if the book has none.
+    ///
+    /// The first version of this looked for a pending job and returned nil when
+    /// there was none, and this Mac's development book has forty completed jobs
+    /// and nothing else. All three tests passed in twenty milliseconds by doing
+    /// nothing at all, which is the shape of a test that will go on passing
+    /// after the thing it covers is broken. The book is a copy; setting one row
+    /// to `pending` costs nothing and guarantees the path is walked.
+    static func aJobToMove(in url: URL) throws -> (id: String, to: Stage)? {
+        var root = try read(url)
+        guard case .array(var rows)? = root["printLog"], !rows.isEmpty else { return nil }
+        for row in rows {
+            if case .object(let o) = row, case .string(let id)? = o["id"],
+               case .string("pending")? = o["status"] {
+                // pending → printing is the least consequential real move there
+                // is: no deduction, no inspection, no handover.
+                return (id, .printing)
+            }
+        }
+        guard case .object(var first) = rows[0], case .string(let id)? = first["id"] else { return nil }
+        first["status"] = .string("pending")
+        rows[0] = .object(first)
+        root["printLog"] = .array(rows)
+        try JSONEncoder().encode(root).write(to: url)
+        return (id, .printing)
+    }
+
+    @Test("a move completes on a real book and changes only what it named")
+    func movesOnARealBook() async throws {
+        guard let url = try Self.copyOfARealBook() else { return }
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+
+        guard let job = try Self.aJobToMove(in: url) else { return }   // an empty book
+        let before = try Self.read(url)
+
+        let engine = try KhaytEngine()
+        let words = Words()
+        await words.load("en", engine: engine)
+        var undo: [Shop.ChangedRecord] = []
+
+        try await StoreWriter.update(storeURL: url, owns: { true }, whoHasIt: { nil }) { root in
+            (undo, _) = try await Shop.applyMove(to: &root, id: job.id, stage: job.to,
+                                                 engine: engine, words: words)
+        }
+
+        let after = try Self.read(url)
+        #expect(MoveJobTests.string(MoveJobTests.row(after, "printLog", job.id)?["status"])
+                == job.to.rawValue)
+
+        // EVERY OTHER COLLECTION IS UNTOUCHED, bar the two this move is allowed
+        // to write. A move that quietly rewrites the library or the customers is
+        // the failure a synthetic fixture cannot show, because a synthetic
+        // fixture does not have them.
+        //
+        // `auditLog` gains one line — this move IS a status change, and the one
+        // a shop most often has to explain later. `inventory` and `consumables`
+        // are named because a completion empties them; this move is not one, so
+        // they are checked here too and must be identical.
+        let allowed: Set<String> = ["printLog", "auditLog"]
+        for (key, value) in before where !allowed.contains(key) {
+            #expect(after[key] == value, "\(key) changed, and this move never named it")
+        }
+        let logBefore = MoveJobTests.rows(before, "auditLog").count
+        let logAfter = MoveJobTests.rows(after, "auditLog")
+        #expect(logAfter.count == logBefore + 1, "one line, not none and not two")
+        #expect(MoveJobTests.string(logAfter.last?["detail"]) == "\(job.id) → \(job.to.rawValue)")
+        #expect(MoveJobTests.string(logAfter.last?["id"])?.hasPrefix("AL-") == true)
+
+        // And every other ORDER, too: only the one row.
+        let changedIds = Set(undo.map(\.id))
+        #expect(changedIds == [job.id], "and exactly one row was written")
+        for row in MoveJobTests.rows(before, "printLog") {
+            guard case .string(let id)? = row["id"], id != job.id else { continue }
+            #expect(MoveJobTests.row(after, "printLog", id) == row, "order \(id) was not part of this")
+        }
+    }
+
+    @Test("undoing it puts the real book back")
+    func undoOnARealBook() async throws {
+        guard let url = try Self.copyOfARealBook() else { return }
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+
+        guard let job = try Self.aJobToMove(in: url) else { return }
+        let before = try Self.read(url)
+
+        let engine = try KhaytEngine()
+        let words = Words()
+        await words.load("en", engine: engine)
+        var undo: [Shop.ChangedRecord] = []
+
+        try await StoreWriter.update(storeURL: url, owns: { true }, whoHasIt: { nil }) { root in
+            (undo, _) = try await Shop.applyMove(to: &root, id: job.id, stage: job.to,
+                                                 engine: engine, words: words)
+        }
+        #expect(!undo.isEmpty, "the move wrote nothing, so the undo proves nothing")
+        try await StoreWriter.update(storeURL: url, owns: { true }, whoHasIt: { nil }) { root in
+            for record in undo {
+                guard case .array(var rows)? = root[record.collection] else { continue }
+                for i in rows.indices {
+                    guard case .object(let current) = rows[i],
+                          case .string(let id)? = current["id"], id == record.id else { continue }
+                    rows[i] = .object(StoreWriter.restoring(record.was, over: current))
+                }
+                root[record.collection] = .array(rows)
+            }
+        }
+
+        let after = try Self.read(url)
+        guard case .object(let restored)? = MoveJobTests.row(after, "printLog", job.id).map(JSONValue.object),
+              case .object(let original)? = MoveJobTests.row(before, "printLog", job.id).map(JSONValue.object)
+        else { Issue.record("the job vanished"); return }
+
+        for (key, value) in original where key != "rev" && key != "updatedAt" {
+            #expect(restored[key] == value, "\(key) did not come back")
+        }
+        // The revision goes FORWARD through an undo: a record that went
+        // backwards would look to the next sync like the change never happened,
+        // and the other machine's copy would win.
+        if case .number(let was)? = original["rev"], case .number(let now)? = restored["rev"] {
+            #expect(now > was)
+        }
+    }
+
+    @Test("the whole book still decodes after a move")
+    func stillDecodes() async throws {
+        guard let url = try Self.copyOfARealBook() else { return }
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+
+        guard let job = try Self.aJobToMove(in: url) else { return }
+        let before = try Self.read(url)
+
+        let engine = try KhaytEngine()
+        let words = Words()
+        await words.load("en", engine: engine)
+        try await StoreWriter.update(storeURL: url, owns: { true }, whoHasIt: { nil }) { root in
+            _ = try await Shop.applyMove(to: &root, id: job.id, stage: job.to,
+                                         engine: engine, words: words)
+        }
+
+        // Written by this app, read back by this app's decoder — the same one
+        // the screens use. A row this app writes and cannot read is a job that
+        // disappears from the table after being moved.
+        let after = try Self.read(url)
+        let encoder = JSONEncoder(), decoder = JSONDecoder()
+        var decoded = 0
+        for row in MoveJobTests.rows(after, "printLog") {
+            if (try? decoder.decode(Order.self, from: encoder.encode(row))) != nil { decoded += 1 }
+        }
+        let couldDecodeBefore = MoveJobTests.rows(before, "printLog").filter {
+            (try? decoder.decode(Order.self, from: encoder.encode($0))) != nil
+        }.count
+        #expect(decoded == couldDecodeBefore, "a move must not make a row unreadable")
+    }
+}
