@@ -174,6 +174,12 @@ public actor KhaytEngine {
         // would see 0% on every machine rather than an error.
         "printer-status",
         "moonraker",
+        // What the machine itself remembers. The nozzle-wear counter reads
+        // completed ORDERS, so a machine that has extruded twelve kilos while
+        // nineteen of its jobs were customer orders reports a fraction of its
+        // real wear — and the replacement warning fires late, in the direction
+        // that ruins parts.
+        "moonraker-history",
         // What has just gone wrong with a printer: the thresholds, the
         // cooldowns and the stall clock. Pure, and already wrapped.
         "printer-alerts",
@@ -1007,6 +1013,37 @@ public actor KhaytEngine {
             public let filename: String
             public let progress: Double
         }
+    }
+
+    // MARK: - What the printer itself remembers
+
+    /// The machine's own job history, mapped.
+    ///
+    /// `lib/moonraker-history.js`, and the mapping is where the corrections
+    /// are: a toolchanger reports `filament_type` once per TOOL, quoted, so a
+    /// four-head job reads as a material nobody stocks and the abrasiveness
+    /// match misses it entirely. The slicer's thumbnails are dropped here too —
+    /// a hundred base64 previews in a store file that syncs is not a history.
+    public func printerHistoryJobs(_ raw: [String: JSONValue]) throws -> [JSONValue] {
+        try runtime.call2("KhaytMoonrakerHistory.mapJobs(ARG0)", [.object(raw)], as: [JSONValue].self)
+    }
+
+    /// Old jobs and new, by job id, newest first. Importing twice adds nothing.
+    public func mergePrinterHistory(_ existing: [JSONValue], _ incoming: [JSONValue]) throws -> [JSONValue] {
+        try runtime.call2("KhaytMoonrakerHistory.merge(ARG0, ARG1)",
+                          [.array(existing), .array(incoming)], as: [JSONValue].self)
+    }
+
+    /// What has gone through the machine since a date. `""` means all of it.
+    public func printerHistoryTotals(_ jobs: [JSONValue], since: String) throws -> HistoryTotals {
+        try runtime.call2("KhaytMoonrakerHistory.totalsSince(ARG0, ARG1)",
+                          [.array(jobs), .string(since)], as: HistoryTotals.self)
+    }
+
+    public struct HistoryTotals: Decodable, Sendable {
+        public let grams: Double
+        public let hours: Double
+        public let jobs: Int
     }
 
     /// The shop's book as a file it can hand to somebody else.

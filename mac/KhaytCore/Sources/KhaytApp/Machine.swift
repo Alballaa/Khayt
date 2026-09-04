@@ -43,6 +43,20 @@ struct Machine: Identifiable, Decodable, Hashable, Sendable {
         let port: Int?
     }
 
+    /// Has the machine's own job history been read into the book?
+    ///
+    /// It is not decoded — five hundred jobs are a wear figure, not something a
+    /// screen shows — but whether it is THERE changes what the nozzle counter
+    /// means, and a shop is owed that.
+    let printerHistory: History?
+
+    struct History: Decodable, Hashable, Sendable {
+        let source: String?
+        let importedAt: String?
+    }
+
+    var hasPrinterHistory: Bool { printerHistory?.importedAt?.isEmpty == false }
+
     var model: String { printerModelName ?? vendor ?? "" }
 
     /// `270 × 270 × 270 mm`, or nothing when the record does not say.

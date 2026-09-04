@@ -255,10 +255,11 @@ final class PrinterWatch {
     /// A misconfigured or compromised printer host must not be able to 302 this
     /// off the address that was checked and onto loopback or a metadata
     /// endpoint — the check above would then have guarded nothing.
-    static func get(_ base: URL, path: String) async throws -> [String: JSONValue] {
+    static func get(_ base: URL, path: String,
+                    timeout seconds: TimeInterval = timeout) async throws -> [String: JSONValue] {
         guard let url = URL(string: base.absoluteString + path) else { throw Refusal.noHost }
         var request = URLRequest(url: url)
-        request.timeoutInterval = timeout
+        request.timeoutInterval = seconds
         request.httpMethod = "GET"
         let (data, response) = try await Self.session.data(for: request)
         if let http = response as? HTTPURLResponse {
@@ -298,6 +299,31 @@ final class PrinterWatch {
 
     /// Put a reading in place, for a test that has no printer to ask.
     func setReadingForTesting(_ id: Machine.ID, _ reading: Reading) { readings[id] = reading }
+
+    // MARK: - What the machine itself remembers
+
+    /// How many of its own jobs to ask a printer for.
+    ///
+    /// The same 500 Khayt asks for. It is a history, not a feed: 133 jobs is
+    /// what the machine on this bench has, and a shop that has run more than
+    /// five hundred wants the recent ones.
+    static let historyLimit = 500
+
+    /// The machine's own job history, mapped by the shared module.
+    ///
+    /// A LONGER TIMEOUT than a status poll. Five hundred jobs with their
+    /// metadata is a real reply, and a printer that is also printing builds it
+    /// slowly — Khayt allows thirty seconds for the same request.
+    static func history(_ machine: Machine, engine: KhaytEngine) async throws -> [JSONValue] {
+        guard notWatched(machine) == nil else {
+            throw Refusal.notALanAddress(machine.printerApi?.host ?? "")
+        }
+        let base = try await baseURL(machine, engine: engine)
+        let raw = try await get(base, path: "/server/history/list?limit=\(historyLimit)",
+                                timeout: 30)
+        guard case .object(let result)? = raw["result"] else { throw Refusal.notJSON }
+        return try await engine.printerHistoryJobs(result)
+    }
 
     // MARK: - Saying it
 

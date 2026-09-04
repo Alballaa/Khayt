@@ -6,6 +6,14 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Changed
 
+- **The Mac app can read the printer's own job history.** Right-click a Klipper
+  machine → *Read the printer's history*. The nozzle counter reads completed
+  orders, and a machine runs far more than it sells — test prints, reprints,
+  calibration. On the printer here that is the difference between nothing and
+  6.4 kg since the nozzle went in, and the replacement warning was going to fire
+  late, in the direction that ruins parts. The card now says where the figure
+  came from.
+
 - **The Mac app tells you when a print goes wrong.** A printer that faults or
   stops answering raises a macOS notification — the reason an app like this is
   worth leaving open. Khayt sends these to Telegram, email or a webhook, for
