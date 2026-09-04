@@ -354,6 +354,12 @@ exactly what it took. That matters when the assigned spool ran out and the rest
 spilled onto a sibling; a row that remembered only "which spool" would put the
 whole lot back on one. Rows written before `drawn` still restore the old way.
 
+**Grams the spool switch already took are not charged again.** Switching spools
+mid-print deducts there and then and records the amount on the part; the weight
+a shop types for a failed print is the WHOLE print, so the switch's grams come
+off that figure before it is drawn. Without it a job that switched 50 g and
+failed at 120 g takes 120 more off the shelf — 170 charged for 120 used.
+
 **On the Mac the figure is typed**, because reading it needs the poller, which
 lives in Khayt. The sheet says so, and says the grams come off the shelf.
 

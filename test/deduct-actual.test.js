@@ -238,3 +238,40 @@ test('a job\'s waste with no material is refused, and takes nothing', () => {
   assert.deepEqual(out, { refused: 'material' });
   assert.equal(inv[0].weight, 800);
 });
+
+test('grams the spool switch already took are not charged again', () => {
+  /* Switching spools mid-print deducts there and then — the filament left that
+   * roll when it was loaded — and records the amount on the part. The weight a
+   * shop types for a failed print is the WHOLE print, so the switch's grams
+   * have to come off that figure before it is drawn.
+   *
+   * Without this, a job that switched 50 g and then failed at 120 g takes 120
+   * more off the shelf: 170 charged for 120 used. */
+  const inv = [
+    { id: 'S1', material: 'PLA', weight: 1000 },
+    { id: 'S2', material: 'PLA', weight: 950 },   // 50 g already gone, at the switch
+  ];
+  const order = {
+    id: 'J1',
+    parts: [{ filamentId: 'S1', printWeight: 200, qty: 1, additionalSpools: [{ spoolId: 'S2', weight: 50 }] }],
+  };
+  const out = D.deductActual(order, 120, { settings: {}, inventory: inv, today: 'd' });
+  assert.equal(out.deducted, 70, '120 used, 50 of it already off the shelf');
+  assert.deepEqual(inv.map((s) => s.weight), [930, 950]);
+  assert.equal(1000 + 1000 - inv[0].weight - inv[1].weight, 120,
+    'and 120 grams have left the shelf in total, which is what the print used');
+});
+
+test('a failure that used less than the switch already took draws nothing more', () => {
+  const inv = [
+    { id: 'S1', material: 'PLA', weight: 1000 },
+    { id: 'S2', material: 'PLA', weight: 950 },
+  ];
+  const order = {
+    id: 'J1',
+    parts: [{ filamentId: 'S1', printWeight: 200, qty: 1, additionalSpools: [{ spoolId: 'S2', weight: 50 }] }],
+  };
+  const out = D.deductActual(order, 30, { settings: {}, inventory: inv, today: 'd' });
+  assert.equal(out.deducted, 0, 'the shelf is not credited back — the filament is still gone');
+  assert.deepEqual(inv.map((s) => s.weight), [1000, 950]);
+});
