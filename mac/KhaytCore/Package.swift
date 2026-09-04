@@ -24,9 +24,10 @@ let package = Package(
     ],
     targets: [
         .target(name: "KhaytCore", resources: [.copy("JS")]),
-        // The interface. Read-only for now — it can open a shop's store and
-        // compute from it, and it has no code that writes. That is deliberate:
-        // the design direction gets settled while nothing can be lost.
+        // The interface. It writes now — jobs, customers, payments, moves —
+        // through `StoreWriter`, which reads the book from disk inside every
+        // write and swaps the file atomically. `Resources` carries the sample
+        // shop and the invoice's stylesheet, synced from the renderer.
         .executableTarget(name: "KhaytApp", dependencies: ["KhaytCore"],
                           resources: [.process("Resources")]),
         .testTarget(name: "KhaytCoreTests", dependencies: ["KhaytCore"]),

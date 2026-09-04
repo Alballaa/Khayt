@@ -23,6 +23,7 @@ const PARTS = [
   { name: 'Lid', qty: 1, printWeight: 40, unitCost: 25, material: 'PETG' },
 ];
 
+/** A customer the book holds, for the one case that bills a job to one. */
 const ORDER = {
   id: 'INV-2026-0021', invoiceNumber: 'INV-2026-0021',
   date: '2026-09-04', timestamp: '2026-09-04T09:15:00.000Z',
@@ -86,6 +87,19 @@ const CASES = [
       }),
     },
     money: { total: '1252.06', vatAmount: '102.06', subtotal: '1150.00', vatRate: 8.875 },
+  },
+  {
+    // A job billed to a customer the book actually holds. Every other case
+    // here is a walk-in, so the contact line under the bill-to name — the
+    // document's own rule since the Mac app started printing these — rendered
+    // in no fixture at all.
+    name: 'linked-customer',
+    order: Object.assign({}, ORDER, { clientId: 'C1' }),
+    opts: {
+      settings: SHOP,
+      clients: [{ id: 'C1', name: 'Acme Prototyping',
+                  phone: '+966 50 123 4567', email: 'shop@acme.example' }],
+    },
   },
   {
     name: 'no-parts',

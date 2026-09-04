@@ -62,21 +62,15 @@
    * The Hijri formatter in app-helpers.js is also deliberately left alone: it
    * pins the Umm al-Qura calendar, which is the point of it.
    */
-  const LOCALE_TAGS = {
-    en: 'en-US',
-    ar: 'ar-SA-u-nu-latn',
-    de: 'de-DE',
-    es: 'es-ES',
-    fr: 'fr-FR',
-    ja: 'ja-JP',
-    tr: 'tr-TR',
-    zh: 'zh-CN',
-    'pt-BR': 'pt-BR',
-  };
+  // The table lives in lib/print-date.js, because the invoice's own date
+  // formatter needs it and the Mac app has no renderer to read it from.
+  const DATES = (typeof globalThis !== 'undefined' && globalThis.KhaytPrintDate)
+    || (() => { try { return require('../lib/print-date.js'); } catch (e) { return null; } })();
+  const LOCALE_TAGS = DATES ? DATES.LOCALE_TAGS : { en: 'en-US' };
 
   function localeTag() {
     const lang = (typeof i18n !== 'undefined' && i18n && i18n.current) || 'en';
-    return LOCALE_TAGS[lang] || 'en-US';
+    return DATES ? DATES.localeTagFor(lang) : 'en-US';
   }
 
   const api = { num, clampPositive, fmtMoney, fmtCount, computeUnitPrice, csvFormulaNeutralize, localeTag, LOCALE_TAGS };

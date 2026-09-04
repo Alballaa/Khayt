@@ -24,8 +24,33 @@
  */
 (function (global) {
 
+  /**
+   * The date formatter, however this file happens to be loaded. Both hosts
+   * assign `KhaytPrintDate` onto the global before this module runs; `require`
+   * is the Node path, and there is no `require` under JavaScriptCore.
+   */
+  const dates = (typeof global.KhaytPrintDate !== 'undefined')
+    ? global.KhaytPrintDate
+    : (function () {
+        try { return require('./print-date.js'); } catch (e) { return null; }
+      })();
+  const printDate = dates ? dates.printDate : ((d) => String(d || ''));
+  const localeTagFor = dates ? dates.localeTagFor : (() => 'en-US');
+
   /** The elements whose digits become Arabic-Indic when a shop asks for it. */
   const NUMERAL_SELECTOR = '.amount, .v, .qty, td.center, td.amount, .biz-meta, .meta';
+
+/**
+ * Phone and email, under the name a job is billed to.
+ *
+ * Both are optional and a customer with neither gets no line at all — an empty
+ * strip under the name reads as a detail that failed to load.
+ */
+function contactLine(client, escape) {
+  const bits = [client && client.phone, client && client.email].filter(Boolean).join(' \u00b7 ');
+  if (!bits) return '';
+  return `<div class="name-sub">${escape(bits)}</div>`;
+}
 
 function invoiceHtml(order, ctx) {
   const {
@@ -37,9 +62,16 @@ function invoiceHtml(order, ctx) {
     t = (k) => k,
     escapeHtml = (s) => String(s == null ? '' : s),
     fmtMoney = (n) => String(n),
-    formatPrintDate = (d) => String(d || ''),
+    // Defaulted to the shared formatter, for the same reason as the contact
+    // line below: a host that forgets it prints an ISO timestamp on a document
+    // a customer reads.
+    formatPrintDate = (d) => printDate(d, localeTagFor(i18n && i18n.current)),
     shopField = () => '', safeBizLogo = () => '', safeCssColor = (v, f) => f,
-    renderClientSub = () => '', BRAND_MARK_SVG = '',
+    // Defaulted to the real thing, not to nothing. A host that forgets to pass
+    // it gets an invoice with the customer's contact line missing and no sign
+    // that anything is absent — which is how the Mac app printed six invoices
+    // with a blank under the bill-to name.
+    renderClientSub = (c) => contactLine(c, escapeHtml), BRAND_MARK_SVG = '',
     orderCurrency = null, clientCurrency = () => '',
     payStatus = (o) => o.paymentStatus || 'unpaid',
     hijriDate = () => '', toArabicNumerals = (s) => String(s),
@@ -467,7 +499,7 @@ function invoiceHtml(order, ctx) {
   return { html, arabicNumerals: !!(isAr && settings.useArabicNumerals),
            selector: NUMERAL_SELECTOR };
 }
-const api = { invoiceHtml, NUMERAL_SELECTOR };
+const api = { invoiceHtml, contactLine, NUMERAL_SELECTOR };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 global.KhaytInvoiceDocument = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

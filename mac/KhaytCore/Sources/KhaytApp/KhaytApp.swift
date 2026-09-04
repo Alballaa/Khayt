@@ -207,6 +207,27 @@ final class Activator: NSObject, NSApplicationDelegate {
             shop.editingCustomer = nil
             await settle()
 
+            // The document itself. It is built by the runtime and drawn by
+            // WebKit AFTER the sheet appears, so it gets longer than a settle:
+            // photographed too early this is a spinner, which is exactly what
+            // a broken invoice would also look like.
+            if let job = shop.orders.first(where: { !$0.parts.isEmpty }) ?? shop.orders.first {
+                shop.showInvoice(job.id)
+                // Straight away, before the runtime has built anything: this is
+                // the sheet's own chrome with no web view under it, and it is
+                // the only shot in which that chrome is visible. `cacheDisplay`
+                // does not draw SwiftUI's layers once a WKWebView is in the
+                // hierarchy — the document comes through and the title and the
+                // buttons around it do not. Two pictures, because one of them
+                // would otherwise look like a header that never drew.
+                await settle()
+                captureSheet(named: "16-invoice-building", into: dir)
+                try? await Task.sleep(for: .seconds(2))
+                captureSheet(named: "16-invoice", into: dir)
+                shop.clearQuestion()
+                await settle()
+            }
+
             shop.shelf = .machines
             await settle()
             capture(named: "07-machines", into: dir)
@@ -324,6 +345,16 @@ final class Activator: NSObject, NSApplicationDelegate {
             FileHandle.standardError.write(Data("no sheet to capture for \(name)\n".utf8))
             return
         }
+        // `cacheDisplay` asks each view to draw itself, and SwiftUI does not
+        // draw itself — so every sheet here comes back with its AppKit-backed
+        // controls (fields, pickers, the default button) present and its
+        // SwiftUI labels, headings and explanations MISSING. Rendering the
+        // layer tree instead was tried and gets the same text back: nothing,
+        // upside down. Capturing the words needs either a screen-recording
+        // grant this process does not have or `ImageRenderer`, which cannot
+        // host a WKWebView — so the shots below show a sheet's LAYOUT, and
+        // `SnapshotTests` renders the same views through `ImageRenderer` to
+        // show its words.
         view.cacheDisplay(in: view.bounds, to: rep)
         guard let png = rep.representation(using: .png, properties: [:]) else { return }
         try? png.write(to: dir.appending(path: name + ".png"))

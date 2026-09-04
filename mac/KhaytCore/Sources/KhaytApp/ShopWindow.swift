@@ -85,6 +85,7 @@ struct ShopWindow: View {
         .sheet(item: $shop.pendingQcFail) { QcFailSheet(shop: shop, subject: $0) }
         .sheet(isPresented: $shop.takingAJob) { NewJobSheet(shop: shop) }
         .sheet(item: $shop.editingCustomer) { CustomerSheet(shop: shop, existing: $0) }
+        .sheet(item: $shop.pendingInvoice) { InvoiceSheet(shop: shop, subject: $0) }
         .toolbar {
             ToolbarItem(placement: .navigation) {
                 // Which book is open, always visible. Mistaking the sample for

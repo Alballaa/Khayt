@@ -220,17 +220,55 @@ blame — check the layout first.
   placeholder for `NavigationSplitView`, `Table` and the toolbar alike — which
   is to say for everything that makes this a Mac window rather than a page.
 
+**Sheets photograph without their words.** `cacheDisplay` asks each view to
+draw itself, and SwiftUI does not draw itself: every `10-…`–`16-…` sheet shot
+shows the AppKit-backed controls (fields, pickers, the default button) and none
+of the labels around them. Rendering the layer tree instead was tried and gets
+the same text back — none of it, upside down. So `SnapshotTests` renders the
+same sheets through `ImageRenderer` as `20-…`–`24-…-words.png`, which shows the
+words and blanks the controls. Between the two there is a picture of each.
+
 The window frame is restored from the `Khayt` defaults domain, so `.defaultSize`
 applies on a first run and never again. `defaults delete Khayt` to see what a
 new shop sees. (That domain belongs to this binary; the Electron app's is
 `app.khayt.hub`, and deleting one does not touch the other.)
 
+## The invoice
+
+⌘P on a job, or *Invoice* beside the money in the inspector. The document is
+`lib/invoice-document.js` — the same four hundred lines the Electron window
+prints — drawn in a `WKWebView` with `renderer/invoice.css`, which
+`sync-js.sh` copies into `KhaytApp/Resources` beside the modules. Two
+stylesheets would be two documents that agree until one is edited.
+
+What is assembled in Swift, and why each piece is not in the module:
+
+* **The money** — `Shop.taxSplit` applies the shop's inclusive-or-exclusive
+  rule and the document is handed the answer, not the setting.
+* **The ZATCA QR** — the TLV payload is `lib/zatca-qr.js`; only the pixels are
+  CoreImage. A shop missing a required field gets the refusal printed in words
+  rather than an empty box.
+* **The PDF** — `printOperation(with:)`, not `createPDF`. `createPDF`
+  photographs the view at whatever width the sheet happens to be, and the first
+  export was one endless 480-point strip with the totals off the edge. Printing
+  renders in print media — `@page { size: A4 }`, the margins — and MUST be run
+  with `runModal(for:…)`: WebKit lays the pages out in the web process, and
+  `run()` waits for them on the run loop they need. It hung a test for ten
+  minutes before the documentation was read.
+
+Two shared rules moved into the document while building this, because the Mac
+had no copy of either and printed six invoices without them: the contact line
+under the bill-to name (`contactLine`) and the printed date (`lib/print-date.js`,
+which also now owns `LOCALE_TAGS`). Both default inside the module now, so a
+host that forgets to pass them gets the right document rather than a blank.
+
 ## Not yet built
 
-Writing, the platform layer — store-io, the printer protocols, the LAN server —
-and every screen except the book. `KhaytCore` came first because the
-alternative, screens against a half-trusted engine, is how the two apps come to
-disagree about a shop's money.
+Settings, expenses, waste, analytics, the catalog, gift cards, the portfolio,
+the colour studio, the converter, the cloud portal, the LAN server, and the
+printer protocols. `KhaytCore` came first because the alternative, screens
+against a half-trusted engine, is how the two apps come to disagree about a
+shop's money.
 
 ### The dashboard
 

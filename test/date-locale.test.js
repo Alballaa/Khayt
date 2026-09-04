@@ -4,8 +4,9 @@ const fs = require('fs');
 const path = require('path');
 
 const RENDERER = path.join(__dirname, '..', 'renderer');
+const LIB = path.join(__dirname, '..', 'lib');
 
-function rendererFiles() {
+function jsFilesUnder(root) {
   const out = [];
   (function walk(d) {
     for (const e of fs.readdirSync(d, { withFileTypes: true })) {
@@ -14,9 +15,18 @@ function rendererFiles() {
       if (e.isDirectory()) walk(p);
       else if (e.name.endsWith('.js')) out.push(p);
     }
-  })(RENDERER);
+  })(root);
   return out;
 }
+
+function rendererFiles() { return jsFilesUnder(RENDERER); }
+
+/**
+ * The shared rules too, since the Mac app renders documents from them and has
+ * no renderer to borrow a formatter from. A date formatted in lib/ reaches
+ * BOTH apps, so a wrong one there is wrong twice.
+ */
+function sharedFiles() { return jsFilesUnder(LIB); }
 
 /**
  * Every date and time the user sees must be formatted in the language they
@@ -45,9 +55,21 @@ test('every date and time follows the chosen language', () => {
   // than the UI language:
   //   app-helpers.js — pins the Umm al-Qura Hijri calendar; that IS the feature
   const ALLOWED_OTHER_TAG = /islamic-umalqura/;
+  // lib/print-date.js takes the tag as an ARGUMENT — it is the one place in
+  // lib/ that formats a date, and the callers pass localeTag() into it.
+  const ALLOWED_ARGUMENT = /^tag\b/;
+  // Two shared modules format a date with no locale at all, so both follow the
+  // machine rather than the shop. Written down rather than fixed here because
+  // neither is on a document a customer is handed — a LAN page's clock and the
+  // date in a release note — and both predate this guard reaching lib/. NOTHING
+  // MAY BE ADDED TO THIS LIST.
+  const KNOWN_UNLOCALISED = new Set([
+    'lib/lan-server.js',
+    'lib/release-notes.js',
+  ]);
 
   const offenders = [];
-  for (const f of rendererFiles()) {
+  for (const f of [...rendererFiles(), ...sharedFiles()]) {
     const src = fs.readFileSync(f, 'utf8');
     const rel = path.relative(path.join(__dirname, '..'), f);
     // Match the call and just enough of its argument list to see arg one.
@@ -56,6 +78,8 @@ test('every date and time follows the chosen language', () => {
       const arg = m[1].trim();
       if (arg === 'localeTag()') continue;
       if (ALLOWED_OTHER_TAG.test(arg)) continue;
+      if (ALLOWED_ARGUMENT.test(arg)) continue;
+      if (KNOWN_UNLOCALISED.has(rel)) continue;
       const line = src.slice(0, m.index).split('\n').length;
       offenders.push(`${rel}:${line} → ${arg || '(no locale argument)'}`);
     }
@@ -67,9 +91,16 @@ test('every date and time follows the chosen language', () => {
 test('localeTag maps every shipped language to a real locale', () => {
   // A tag that Intl does not recognise is silently ignored rather than throwing,
   // so a typo here looks like it works and quietly serves English.
-  const src = fs.readFileSync(path.join(RENDERER, 'format.js'), 'utf8');
+  // The table moved to lib/ when the Mac app started printing invoices: the
+  // document's own date formatter needs it and there is no renderer there.
+  const src = fs.readFileSync(path.join(__dirname, '..', 'lib', 'print-date.js'), 'utf8');
   const block = src.match(/const LOCALE_TAGS = \{([\s\S]*?)\};/);
-  assert.ok(block, 'LOCALE_TAGS table not found in format.js');
+  assert.ok(block, 'LOCALE_TAGS table not found in lib/print-date.js');
+
+  const renderer = fs.readFileSync(path.join(RENDERER, 'format.js'), 'utf8');
+  assert.ok(!/const LOCALE_TAGS = \{[^}]*en:/.test(renderer),
+    'renderer/format.js must not grow its own table back — two tables would be '
+    + 'two answers to which locale a language formats in');
 
   const tags = [...block[1].matchAll(/'?([a-zA-Z-]+)'?\s*:\s*'([^']+)'/g)]
     .map((m) => ({ lang: m[1], tag: m[2] }));
@@ -92,7 +123,7 @@ test('localeTag maps every shipped language to a real locale', () => {
 test('Arabic keeps Western digits while its words localise', () => {
   // The same decision fmtCount documents: live Saudi products use Western
   // digits, so the numerals stay Latin even though the month name is Arabic.
-  const src = fs.readFileSync(path.join(RENDERER, 'format.js'), 'utf8');
+  const src = fs.readFileSync(path.join(__dirname, '..', 'lib', 'print-date.js'), 'utf8');
   const tag = src.match(/ar:\s*'([^']+)'/)?.[1];
   assert.ok(tag?.includes('nu-latn'), 'the Arabic tag must pin Latin numerals');
 
