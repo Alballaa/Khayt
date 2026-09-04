@@ -11,6 +11,11 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   A registered shop gets its ZATCA QR; a shop missing a field the QR needs is
   told which, on the paper, rather than handed an empty box.
 
+- **The Mac app sends the Telegram message.** A shop whose only integration is
+  a Telegram bot can now finish a job on the Mac — before, the move was refused
+  whole because the message could not be sent. It goes after the job is saved,
+  and if it does not go out the shop is told rather than left to find out.
+
 - **The Mac app can add and correct a printer.** Name it, pick a model to fill
   in its bed, colours, power and what its nozzle is made of, and record a
   nozzle change. Its connection settings and webcam are left to Khayt and

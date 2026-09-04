@@ -1567,21 +1567,15 @@ function getCarrierTrackingUrl(courierName, trackingNumber) {
 /* ── Feature 10: Telegram Notification Settings ─────────────── */
 
 function sendTelegramForOrder(order, newStatus) {
-  const tg = settings.telegram;
-  if (!tg || !tg.botToken || !tg.chatId) return;
-  let shouldSend = false;
-  let message = '';
-  // tgSafe: strip control chars and truncate to prevent message manipulation
-  const tgSafe = s => String(s ?? '').replace(/[\r\n\t]/g, ' ').slice(0, 200);
-  if (newStatus === 'completed' && tg.notifyOnComplete) {
-    shouldSend = true;
-    message = `✅ Order completed: ${tgSafe(order.project || order.id)} (${fmtPrice(order.price)})`;
-  } else if (newStatus === 'on_hold' && tg.notifyOnHold) {
-    shouldSend = true;
-    message = `⏸ Order on hold: ${tgSafe(order.project || order.id)}${order.holdReason ? ' — ' + tgSafe(order.holdReason) : ''}`;
-  }
-  if (!shouldSend) return;
-  window.hubAPI?.sendTelegram?.({ botToken: tg.botToken, chatId: tg.chatId, message })
+  // The message is lib/telegram-message.js's, so the Mac app says the same
+  // thing — it had no way to, which is why it refused to finish a job for any
+  // shop with a bot configured.
+  const TG = (typeof globalThis !== 'undefined' && globalThis.KhaytTelegramMessage)
+    || (() => { try { return require('../lib/telegram-message.js'); } catch (e) { return null; } })();
+  if (!TG) return;
+  const out = TG.forStatus(order, newStatus, { settings, fmtPrice });
+  if (!out) return;
+  window.hubAPI?.sendTelegram?.(out)
     .catch(e => console.warn('Telegram notify failed:', e));
 }
 
