@@ -339,17 +339,25 @@ public actor KhaytEngine {
     /// when it is. Nil means "say nothing about it"; an empty string means "no
     /// reason given", which is a different thing from the last hold's reason
     /// being left behind.
+    ///
+    /// `qcNotes` records a PASS on a job leaving inspection. Nil means the
+    /// completion was not an inspection and the QC fields are left alone —
+    /// pretending otherwise would make a shop's pass rate a fiction.
     public func moveJob(order: JSONValue, to status: String,
                         orders: [JSONValue], settings: [String: JSONValue],
                         inventory: [JSONValue], consumables: [JSONValue],
                         machines: [JSONValue],
                         now: Date, today: String,
-                        holdReason: String? = nil) throws -> JobMove {
-        try runtime.call2(MOVE_SCRIPT,
+                        holdReason: String? = nil,
+                        qcNotes: String? = nil) throws -> JobMove {
+        let qc: JSONValue = qcNotes.map {
+            .object(["outcome": .string("pass"), "notes": .string($0)])
+        } ?? .null
+        return try runtime.call2(MOVE_SCRIPT,
                           [order, .string(status), .array(orders), .object(settings),
                            .array(inventory), .array(consumables), .array(machines),
                            .number(now.timeIntervalSince1970 * 1000), .string(today),
-                           holdReason.map(JSONValue.string) ?? .null],
+                           holdReason.map(JSONValue.string) ?? .null, qc],
                           as: JobMove.self)
     }
 
@@ -385,7 +393,7 @@ private let MOVE_SCRIPT = """
 (function () {
   var order = ARG0, status = ARG1, orders = ARG2, settings = ARG3;
   var inventory = ARG4, consumables = ARG5, machines = ARG6, now = ARG7, today = ARG8;
-  var holdReason = ARG9;
+  var holdReason = ARG9, qc = ARG10;
 
   var gate = KhaytOrderStatus.gate(order, status, { orders: orders, settings: settings });
   if (!gate.ok) return { ok: false, gate: gate };
@@ -394,6 +402,9 @@ private let MOVE_SCRIPT = """
   // Present only when there is something to say, because the rules distinguish
   // "no reason given" from "nobody mentioned the reason".
   if (holdReason !== null) moveCtx.holdReason = holdReason;
+  // Only a pass reaches here. A failure is a waste entry and a decision about
+  // scrapping or reprinting, and it does not end in `completed`.
+  if (qc !== null) moveCtx.qc = qc;
   var moved = KhaytOrderStatus.apply(order, status, moveCtx);
   var notices = moved.notices.slice();
   var performed = [], cosmetic = [], outbound = [], unhandled = [], activity = null;

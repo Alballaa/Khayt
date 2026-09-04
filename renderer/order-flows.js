@@ -699,6 +699,25 @@ function qcInspectorFieldHtml(selectedId) {
     </select>`;
 }
 
+/**
+ * Passed inspection → done.
+ *
+ * This used to write the completion itself — status, completedAt, history,
+ * both deductions, the cost basis, the webhooks — which made it a second
+ * implementation of the one in `updateStatus`, and it had drifted: a job
+ * completed through QC never sent the Telegram message that a job completed
+ * through the column button does, and never reached the activity log.
+ *
+ * It goes through the shared rules now and passes the QC record along with the
+ * move. What stays here is the inspector roster (a shop thing, not a rule), the
+ * QC-specific toast, and the ORDER of the actuals prompt.
+ *
+ * THE PROMPT COMES AFTER, AND THAT IS THE POINT. `updateStatus` asks for the
+ * actuals first and completes on confirmation; here the job is already known to
+ * be finished, so it is completed and deducted immediately and the figures are
+ * asked for afterwards. Cancelling the dialog then cannot leave a completed
+ * order with nothing deducted.
+ */
 function qcPassOrder(orderId) {
   const order = printLog.find(o => o.id === orderId);
   if (!order) return;
@@ -719,35 +738,24 @@ function qcPassOrder(orderId) {
         toast(t('qc.inspector_required') || 'Select an inspector', 'warning');
         return false;
       }
-      const nowIso = new Date().toISOString();
-      order.status = 'completed';
-      order.qcStatus = 'pass';
-      order.inspector = inspector;
-      order.qcAt = nowIso;
-      order.qcNotes = notes || null;
-      order.qcPassedAt = nowIso;
-      if (!order.completedAt) order.completedAt = new Date().toISOString();
-      if (!order.statusHistory) order.statusHistory = [];
-      order.statusHistory.push({ status: 'completed', at: new Date().toISOString() });
-      if (order.statusHistory.length > 200) order.statusHistory = order.statusHistory.slice(-200);
-      // Deduct stock eagerly so cancelling the actuals modal can't leave a completed
-      // order with no deduction (Bug B). Both deduct fns are idempotent (guard on
-      // order.materialDeducted / order.packagingDeducted), so the repeat call inside
-      // the actuals callback below is a harmless no-op.
-      deductFilamentForOrder(order);
-      if (!order.costBasis) {
-        order.costBasis = (order.parts || []).reduce((s, p) => s + (+p.baseCost || 0), 0);
-      }
-      deductPackagingConsumables(order);
-      // Persist completion immediately so it's not lost if actuals modal is cancelled
-      saveAll();
-      renderKanban(); renderLogs(); renderInventory();
-      toast(t('ord.qc_passed'), 'success');
-      // Round 12 — fire completion webhooks + survey token now (once), since the
-      // actuals modal below may be cancelled. Not fired in the actuals callback to
-      // avoid double-firing the (non-idempotent) webhooks.
-      fireOrderCompletionEvents(order);
-      // Prompt for actuals after QC modal closes (records actuals; deduction already done)
+
+      const decision = StatusRules().gate(order, 'completed', { orders: printLog, settings });
+      reportStatusGate(decision);
+      if (!decision.ok) return true;   // the dialog closes; the job did not move
+
+      const prevTier = order.clientId ? getClientTier(order.clientId) : null;
+      const out = StatusRules().apply(order, 'completed', {
+        now: Date.now(), inventory,
+        qc: { outcome: 'pass', notes, inspector },
+      });
+      showStatusNotices(out.notices);
+      runStatusEffects(order, out.effects, {
+        prevTier,
+        toastText: t('ord.qc_passed'),
+      });
+
+      // Asked for once the QC dialog is out of the way. Everything above is
+      // already saved, so a cancelled prompt costs the shop nothing.
       setTimeout(() => promptActuals(order, () => {
         deductFilamentForOrder(order);
         deductPackagingConsumables(order);
@@ -756,7 +764,7 @@ function qcPassOrder(orderId) {
         if (order.clientId) autoExportStatusPage(order);
       }), 0);
       return true;
-    }
+    },
   });
 }
 

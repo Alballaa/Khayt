@@ -81,7 +81,7 @@
    * @param {string} id         order id
    * @param {string} newStatus  pending | on_hold | printing | post | qc | completed
    */
-  function updateStatus(id, newStatus, { holdReason } = {}) {
+  function updateStatus(id, newStatus, { holdReason, qc } = {}) {
     const order = orders().find((o) => o && o.id === id);
     if (!order || !newStatus || order.status === newStatus) return;
     const Rules = rules();
@@ -111,6 +111,7 @@
 
     const ctx = { now: Date.now(), inventory: (typeof inventory !== 'undefined' ? inventory : []) };
     if (holdReason !== undefined) ctx.holdReason = holdReason;
+    if (qc !== undefined) ctx.qc = qc;
     const out = Rules.apply(order, newStatus, ctx);
 
     for (const n of out.notices) {
@@ -214,10 +215,10 @@
   /**
    * Passed inspection → done.
    *
-   * The QC fields are stamped BEFORE the transition so that a completion, its
-   * stock deduction and its inspection record all land in the same save. The
-   * business version asks for an inspector from `operators[]`; Bed Ready is one
-   * person at one bench, so it asks only what a maker would actually write down.
+   * The QC record travels with the transition, so a completion, its stock
+   * deduction and its inspection record all land in the same save. The business
+   * version asks for an inspector from `operators[]`; Bed Ready is one person at
+   * one bench, so it asks only what a maker would actually write down.
    */
   function qcPassOrder(id) {
     const order = find(id);
@@ -231,12 +232,15 @@
         <textarea id="brQcNotes" rows="3" style="resize:vertical;" placeholder="${esc(T('common.optional', 'Optional'))}"></textarea>`,
       onMount(modal) { setTimeout(() => modal.querySelector('#brQcNotes')?.focus(), 40); },
       onSave(modal) {
-        const nowIso = new Date().toISOString();
-        order.qcStatus = 'pass';
-        order.qcAt = nowIso;
-        order.qcPassedAt = nowIso;
-        order.qcNotes = String(modal.querySelector('#brQcNotes')?.value || '').trim() || null;
-        updateStatus(id, 'completed');
+        // The QC record travels WITH the move now rather than being written
+        // just before it, so one set of rules stamps it and every app that
+        // reads qcStatus sees the same shape.
+        updateStatus(id, 'completed', {
+          qc: {
+            outcome: 'pass',
+            notes: String(modal.querySelector('#brQcNotes')?.value || '').trim(),
+          },
+        });
         return true;
       },
     });

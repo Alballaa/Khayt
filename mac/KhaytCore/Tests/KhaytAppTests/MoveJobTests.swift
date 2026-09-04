@@ -83,7 +83,7 @@ struct MoveJobTests {
     }
 
     static func move(_ root: inout [String: JSONValue], _ id: String, _ stage: Stage,
-                     holdReason: String? = nil)
+                     holdReason: String? = nil, qcNotes: String? = nil)
     async throws -> (undo: [Shop.ChangedRecord], notices: [String]) {
         let engine = try KhaytEngine()
         // Words loaded, not bare: a notice is only useful if it comes back as a
@@ -92,7 +92,7 @@ struct MoveJobTests {
         let words = Words()
         await words.load("en", engine: engine)
         return try await Shop.applyMove(to: &root, id: id, stage: stage, engine: engine,
-                                        words: words, holdReason: holdReason)
+                                        words: words, holdReason: holdReason, qcNotes: qcNotes)
     }
 
     // MARK: -
@@ -291,6 +291,57 @@ struct MoveJobTests {
         #expect(notices.contains { $0.contains("2099-01-29") }, "and the shop is told: \(notices)")
     }
 
+    /// A completion out of QC that left no record was not counted as a failure.
+    /// It was not counted at all — `computeQcMetrics` only counts the orders
+    /// `qcStatusOf` can answer for — so a shop's pass rate would have been
+    /// computed over a shrinking subset of its own work.
+    @Test("a job finished out of inspection records that it passed")
+    func qcPassIsRecorded() async throws {
+        var root = Self.book()
+        guard case .array(var jobs)? = root["printLog"], case .object(var j1) = jobs[0] else {
+            Issue.record("fixture changed"); return
+        }
+        j1["status"] = .string("qc")
+        jobs[0] = .object(j1)
+        root["printLog"] = .array(jobs)
+
+        _ = try await Self.move(&root, "J1", .completed, qcNotes: "surface is clean")
+
+        let job = try #require(Self.row(root, "printLog", "J1"))
+        #expect(Self.string(job["status"]) == "completed")
+        #expect(Self.string(job["qcStatus"]) == "pass")
+        #expect(Self.string(job["qcPassedAt"])?.hasSuffix("Z") == true)
+        #expect(Self.string(job["qcNotes"]) == "surface is clean")
+        #expect(job["inspector"] == .null, "nobody was named, and nobody is recorded")
+    }
+
+    @Test("a completion that was not an inspection claims nothing about one")
+    func completionWithoutQC() async throws {
+        var root = Self.book()   // J1 is printing, not in QC
+        _ = try await Self.move(&root, "J1", .completed)
+        let job = try #require(Self.row(root, "printLog", "J1"))
+        #expect(job["qcStatus"] == nil, "or every completion would count as a pass")
+        #expect(job["qcPassedAt"] == nil)
+    }
+
+    @Test("the two moves that ask a question first, and only those")
+    func questionsAsked() async {
+        let shop = Shop(source: .sample)
+        await shop.load(.sample)
+        guard let inQC = shop.orders.first(where: { $0.status == "qc" })
+                ?? shop.orders.first(where: { $0.status == "printing" }) else { return }
+
+        // A hold always asks; every ordinary move asks nothing.
+        #expect(shop.questionFor(inQC.id, moving: .on_hold) != nil)
+        #expect(shop.questionFor(inQC.id, moving: .printing) == nil)
+        #expect(shop.questionFor(inQC.id, moving: .post) == nil)
+
+        // Completing asks only when the job is leaving inspection.
+        let asks = shop.questionFor(inQC.id, moving: .completed) != nil
+        #expect(asks == (Stage.of(inQC) == .qc),
+                "finishing a job that was in QC is an inspection; finishing one that was printing is not")
+    }
+
     @Test("the ids this app mints are the ids Khayt mints")
     func idFormats() {
         let id = Shop.uid("AL")
@@ -352,5 +403,96 @@ struct MoveJobTests {
         #expect(day.count == 10 && day.dropFirst(4).first == "-")
         let c = Calendar(identifier: .gregorian).dateComponents([.year, .month, .day], from: Date())
         #expect(Shop.localDay() == String(format: "%04d-%02d-%02d", c.year!, c.month!, c.day!))
+    }
+}
+
+/// The whole write, against a real file.
+///
+/// Everything above works on a `root` dictionary in memory. This runs the path
+/// the app actually runs — read from disk inside the write, ask the shared
+/// rules, serialise, swap — against a COPY of a real store in a temp directory.
+/// A write path whose only trial run was on a dictionary has not been tested
+/// where it can lose anything.
+@MainActor
+struct MoveJobOnDiskTests {
+
+    static func freshCopy(_ root: [String: JSONValue]) throws -> URL {
+        let dir = FileManager.default.temporaryDirectory
+            .appending(path: "khayt-move-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let url = dir.appending(path: "khayt-store.json")
+        try JSONEncoder().encode(root).write(to: url)
+        return url
+    }
+
+    static func read(_ url: URL) throws -> [String: JSONValue] {
+        try JSONDecoder().decode([String: JSONValue].self, from: Data(contentsOf: url))
+    }
+
+    @Test("a move is written to the file, all three collections at once")
+    func writesThroughToDisk() async throws {
+        let url = try Self.freshCopy(MoveJobTests.book())
+        let engine = try KhaytEngine()
+        let words = Words()
+        await words.load("en", engine: engine)
+
+        try await StoreWriter.update(storeURL: url, owns: { true }, whoHasIt: { nil }) { root in
+            _ = try await Shop.applyMove(to: &root, id: "J1", stage: .completed,
+                                         engine: engine, words: words)
+        }
+
+        let after = try Self.read(url)
+        #expect(MoveJobTests.string(MoveJobTests.row(after, "printLog", "J1")?["status"]) == "completed")
+        #expect(MoveJobTests.number(MoveJobTests.row(after, "inventory", "S1")?["weight"]) == 0)
+        #expect(MoveJobTests.number(MoveJobTests.row(after, "consumables", "C2")?["stock"]) == 4)
+        #expect(MoveJobTests.rows(after, "auditLog").count == 0, "a completion is not an activity-log move")
+
+        // The rollback copy the recovery path reaches for when the primary will
+        // not parse.
+        #expect(FileManager.default.fileExists(atPath: url.appendingPathExtension("prev").path))
+    }
+
+    @Test("a book that changed hands mid-move is not written to")
+    func refusedWhenNotOurs() async throws {
+        let url = try Self.freshCopy(MoveJobTests.book())
+        let before = try Self.read(url)
+        let engine = try KhaytEngine()
+        let words = Words()
+        await words.load("en", engine: engine)
+
+        // Ours for the read, somebody else's by the time the swap comes round —
+        // which is the window the second ownership check exists to close, and
+        // it is a JavaScript call wide now rather than a serialisation.
+        var asked = 0
+        await #expect(throws: StoreWriter.Refusal.self) {
+            try await StoreWriter.update(storeURL: url,
+                                         owns: { asked += 1; return asked == 1 },
+                                         whoHasIt: { "Khayt on this Mac" }) { root in
+                _ = try await Shop.applyMove(to: &root, id: "J1", stage: .completed,
+                                             engine: engine, words: words)
+            }
+        }
+        #expect(try Self.read(url) == before, "not one byte")
+    }
+
+    @Test("a move the rules refuse leaves the file untouched")
+    func refusedRulesLeaveTheFile() async throws {
+        var book = MoveJobTests.book(settings: ["autoDeduct": .bool(true),
+                                                "productionPaused": .bool(true)])
+        // J2 is pending; starting a print in a paused shop is refused.
+        book["settings"] = .object(["autoDeduct": .bool(true), "productionPaused": .bool(true)])
+        let url = try Self.freshCopy(book)
+        let before = try Self.read(url)
+        let engine = try KhaytEngine()
+        let words = Words()
+        await words.load("en", engine: engine)
+
+        await #expect(throws: Shop.MoveRefused.self) {
+            try await StoreWriter.update(storeURL: url, owns: { true }, whoHasIt: { nil }) { root in
+                _ = try await Shop.applyMove(to: &root, id: "J2", stage: .printing,
+                                             engine: engine, words: words)
+            }
+        }
+        #expect(try Self.read(url) == before)
     }
 }
