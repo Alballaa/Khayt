@@ -29,15 +29,7 @@ struct KhaytApp: App {
         // below it. It is most of the difference between a Mac window and a web
         // page with a grey bar at the top.
         .windowToolbarStyle(.unified)
-                // `_ = shop.…` is not decoration. Reading these in the SCENE's body is
-        // what makes SwiftUI rebuild the menu bar when the shelf or the
-        // selection changes — a `Commands` body does not re-run on its own for
-        // an `@Observable` it read, so without this the items keep whatever
-        // enabled state they had when the app started.
-        .commands {
-            let _ = (shop.showingLibrary, shop.canEditSelection, shop.selectionIsOnThisMac)
-            KhaytCommands(shop: shop)
-        }
+                .commands { KhaytCommands(shop: shop) }
     }
 }
 
@@ -163,17 +155,23 @@ final class Activator: NSObject, NSApplicationDelegate {
         }
     }
 
+    /// The menu bar as AppKit built it: what is there, and what key reaches it.
+    ///
+    /// DELIBERATELY DOES NOT REPORT ENABLED STATE. It used to, and it cost two
+    /// afternoons: AppKit validates items against the responder chain when a
+    /// menu is about to open, and a snapshot run never establishes one — so
+    /// every item reads as disabled, including Cut, Copy and Paste. That looks
+    /// exactly like a broken focused value and is nothing of the kind.
+    ///
+    /// What IS trustworthy here is structure. The Book menu's picker is built
+    /// inside an `if let shop`, so its presence says the shop reached the menu;
+    /// its absence says it did not.
     private static func menuTree() -> String {
         guard let main = NSApp.mainMenu else { return "none" }
         return main.items.compactMap { top -> String? in
             guard let sub = top.submenu else { return top.title }
-            // AppKit validates menu items when a menu is about to open, not
-            // continuously. Reading `isEnabled` without this reports every item
-            // as disabled and looks exactly like a broken focused value.
-            sub.update()
             let items = sub.items.filter { !$0.isSeparatorItem }.map { item -> String in
-                let key = item.keyEquivalent.isEmpty ? "" : "[\(shortcut(item))]"
-                return item.title + key + (item.isEnabled ? "" : "(off)")
+                item.title + (item.keyEquivalent.isEmpty ? "" : "[\(shortcut(item))]")
             }
             return "\(top.title){\(items.joined(separator: ", "))}"
         }.joined(separator: " | ")

@@ -7,30 +7,27 @@ import SwiftUI
 /// menu bar is the one surface where a person can go looking for what an app
 /// does without having to guess which thing is right-clickable.
 ///
-/// ── HOW THE SHOP GETS HERE, AND THE TWO ROUTES THAT DO NOT WORK ─────────────
+/// ── THE ITEMS ARE VIEWS, AND THE SHOP IS HANDED TO THEM ─────────────────────
 ///
-/// `focusedSceneValue` is the documented way and is what a multi-window app
-/// needs. It delivers nil here — with the window key, main and the app active,
-/// and with the value declared both by `@Entry` and by an explicit
-/// `FocusedValueKey`. Every item then validates as disabled, which looks exactly
-/// like a bug in the menu rather than in the plumbing.
+/// Two problems, and the fix for the second is what fixes the first.
 ///
-/// Handing this struct the `Shop` as a plain `let` delivers it and then never
-/// updates: a `Commands` body does not re-run when an `@Observable` it read
-/// changes, so items keep whatever enabled state they had when the menu bar was
-/// first built.
+/// A `Commands` body does not re-run when an `@Observable` it read changes, so
+/// items built straight into `Commands` freeze in whatever enabled state they
+/// had at launch. The developer forums' answer is to put the items in a `View`,
+/// and that is right: a View body does re-run.
 ///
-/// So the App reads the flags in ITS body — where observation does track — and
-/// passes them in as values. Ugly in that the conditions live one level up from
-/// the items they govern; honest in that the menu is right, and provably so:
-/// the snapshot run prints the menu bar as AppKit validated it.
+/// `focusedSceneValue` / `@FocusedValue` is the documented way to tell those
+/// views WHICH shop to act on, and it delivers nil here. Tried under `Window`
+/// and under `WindowGroup`, declared with `@Entry` and with an explicit
+/// `FocusedValueKey`, read from a `Commands` type and from a `View`. Nil every
+/// time — visible structurally, because the Book menu's picker is inside an
+/// `if let shop` and simply is not built.
+///
+/// So the shop is handed down. This app has one window and one book; the
+/// indirection would start paying for itself at the second window, and can be
+/// put back then.
 struct KhaytCommands: Commands {
-    @Bindable var shop: Shop
-
-    /// A model is selected, the library is showing, and the book is ours.
-    private var canEditModel: Bool { shop.showingLibrary && shop.canEditSelection }
-    /// …and its file is on this Mac.
-    private var canReachFile: Bool { shop.showingLibrary && shop.selectionIsOnThisMac }
+    let shop: Shop
 
     var body: some Commands {
         // Nothing here makes documents, so the File menu's "New" is a lie.
@@ -40,60 +37,68 @@ struct KhaytCommands: Commands {
             Button("About Khayt") { About.show() }
         }
 
-        CommandMenu("Book") {
-            Button("Reload from Disk") { shop.reload() }
-                .keyboardShortcut("r")
-                
-            Divider()
-            Picker("Open", selection: Binding(
-                get: { shop.source },
-                set: { shop.open($0) }
-            )) {
-                ForEach(Shop.available) { Text($0.title).tag($0) }
-            }
-        }
+        CommandMenu("Book") { BookMenu(shop: shop) }
+        CommandMenu("Go") { GoMenu(shop: shop) }
+        CommandMenu("Model") { ModelMenu(shop: shop) }
+    }
+}
 
-        CommandMenu("Go") {
-            // Disabled per item rather than per menu: `Commands` has no
-            // `disabled` — Apple's own `focusedSceneValue` example shows one,
-            // and it does not exist. A whole greyed menu would be tidier; a
-            // menu of greyed items is what the framework actually offers.
-            Button("Jobs") { shop.shelf = .jobs(nil) }
-                .keyboardShortcut("1", modifiers: .command)
-                
-            Button("Customers") { shop.shelf = .customers }
-                .keyboardShortcut("2", modifiers: .command)
-                
-            Button("Library") { shop.shelf = .library(nil) }
-                .keyboardShortcut("3", modifiers: .command)
-                
-        }
+/// Each menu's items, as a View so the focused value arrives and the enabled
+/// state keeps up. See the note on `KhaytCommands`.
+private struct BookMenu: View {
+    @Bindable var shop: Shop
 
-        CommandGroup(after: .pasteboard) {
-            Button("Select All Models") { shop.selectAllShown() }
-                .keyboardShortcut("a")
-                .disabled(!shop.showingLibrary)
-        }
-
-        CommandMenu("Model") {
-            // Only ever enabled when it would do something. A greyed item that
-            // says why (through its own state) beats a live one that fails.
-            Button(favouriteTitle) { shop.toggleFavouriteOnSelection() }
-                .keyboardShortcut("d")
-                .disabled(!canEditModel)
-            Divider()
-            Button("Reveal in Finder") { shop.revealSelection() }
-                .keyboardShortcut("r", modifiers: [.command, .shift])
-                .disabled(!canReachFile)
-            Button("Open") { shop.openSelection() }
-                .keyboardShortcut("o")
-                .disabled(!canReachFile)
+    var body: some View {
+        Button("Reload from Disk") { shop.reload() }
+            .keyboardShortcut("r")
+            
+        Divider()
+        Picker("Open", selection: Binding(get: { shop.source }, set: { shop.open($0) })) {
+            ForEach(Shop.available) { Text($0.title).tag($0) }
         }
     }
+}
+
+private struct GoMenu: View {
+    @Bindable var shop: Shop
+
+    var body: some View {
+        Button("Jobs") { shop.shelf = .jobs(nil) }
+            .keyboardShortcut("1", modifiers: .command)
+            
+        Button("Customers") { shop.shelf = .customers }
+            .keyboardShortcut("2", modifiers: .command)
+            
+        Button("Library") { shop.shelf = .library(nil) }
+            .keyboardShortcut("3", modifiers: .command)
+            
+    }
+}
+
+private struct ModelMenu: View {
+    @Bindable var shop: Shop
+
+    /// A model is selected, the library is showing, and the book is ours.
+    private var canEdit: Bool { shop.showingLibrary && shop.canEditSelection }
+    /// …and its file is on this Mac.
+    private var canReach: Bool { shop.showingLibrary && shop.selectionIsOnThisMac }
 
     private var favouriteTitle: String {
         guard let one = shop.selectedFile else { return "Favourite" }
         return one.isFavourite ? "Remove from Favourites" : "Add to Favourites"
+    }
+
+    var body: some View {
+        Button(favouriteTitle) { shop.toggleFavouriteOnSelection() }
+            .keyboardShortcut("d")
+            .disabled(!canEdit)
+        Divider()
+        Button("Reveal in Finder") { shop.revealSelection() }
+            .keyboardShortcut("r", modifiers: [.command, .shift])
+            .disabled(!canReach)
+        Button("Open") { shop.openSelection() }
+            .keyboardShortcut("o")
+            .disabled(!canReach)
     }
 }
 

@@ -283,34 +283,46 @@ one record touched, only `rev` and `updatedAt` left different, rev 3 → 5 (the
 edit and the undo, both forward), secrets byte-identical, store restored
 afterwards.
 
-## The menu bar, and what a Commands body does not do
+## The menu bar
 
 Everything the app can do is in the menu bar with a key for it — ⌘1/2/3 for the
-three shelves, ⌘R to reload, ⌘D to favourite, ⇧⌘R to reveal, ⌘O to open. A menu
-you have to know is there is a feature for the person who wrote it.
+three shelves, ⌘R reload, ⌘D favourite, ⇧⌘R reveal, ⌘O open. A menu you have to
+know is there is a feature for the person who wrote it.
 
-Two routes were tried before the one that is in the file:
+**The items are Views, and the shop is handed to them.** Two problems, and the
+fix for the second is what fixes the first:
 
-* **`focusedSceneValue` + `@FocusedValue`** is the documented way and is what a
-  multi-window app needs. It delivers **nil** here — with the window key, main
-  and the app active, declared both with `@Entry` and with an explicit
-  `FocusedValueKey`. Every item then validates as disabled, which reads as a bug
-  in the menu rather than in the plumbing.
-* **Passing the `Shop` in as a plain `let`** delivers it and then never updates:
-  a `Commands` body does not re-run when an `@Observable` it read changes.
+* A `Commands` body does not re-run when an `@Observable` it read changes, so
+  items built straight into `Commands` freeze in the state they had at launch.
+  The developer forums' answer — put the items in a `View` — is right, because a
+  View body does re-run.
+* `focusedSceneValue` / `@FocusedValue` is the documented way to tell those views
+  which shop to act on, and it **delivers nil here**. Tried under `Window` and
+  `WindowGroup`, declared with `@Entry` and with an explicit `FocusedValueKey`,
+  read from a `Commands` type and from a `View`. So the shop is handed down; the
+  indirection starts paying for itself at the second window.
 
-What works is reading the flags in the **Scene's** body — `let _ = (shop.…)` —
-which is what makes SwiftUI rebuild the menu bar, with `@Bindable var shop`
-inside `KhaytCommands` for the values themselves. The `let _` is load-bearing;
-deleting it freezes every item in the state it had at launch.
+**⌘A is the system's.** Adding a rival "Select All Models" to the Edit menu
+simply loses — SwiftUI drops the shortcut on the second claimant, and the item
+ends up with no key at all. The grid handles the standard command when it has
+focus, which is how a Finder window does it.
 
-`KHAYT_SNAPSHOT_DIR` runs print the menu bar as AppKit built it, titles and
-shortcuts and all, because a `Commands` block that compiles proves nothing about
-what a person can reach.
+### Reading the menu bar in a snapshot run
 
-**No `Settings` scene yet**, so ⌘, does nothing. That is a gap, and an empty
-preferences window would be a worse one — there is no setting this app owns that
-is not either the shop's (which lives in the book) or the Book menu's.
+`KHAYT_SNAPSHOT_DIR` runs print the menu bar as AppKit built it — titles and
+shortcuts.
+
+**They deliberately do not print enabled state, and that cost two afternoons.**
+AppKit validates items against the responder chain when a menu is about to open,
+and a snapshot run never establishes one, so every item reads as disabled —
+including Cut, Copy and Paste. That looks exactly like a broken focused value and
+is nothing of the kind. Both times, the thing that was actually true came from
+STRUCTURE: the Book menu's picker is built inside an `if let shop`, so its
+presence says the shop reached the menu and its absence says it did not.
+
+**No `Settings` scene yet**, so ⌘, does nothing. An empty preferences window
+would be worse — there is no setting this app owns that is not either the shop's
+(which lives in the book) or the Book menu's.
 
 ## Who owns the store
 
