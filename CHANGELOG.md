@@ -6,6 +6,12 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Changed
 
+- **The sample shop has customers and a catalogue.** It always said who each
+  job was for and what it was, in free-text fields — but with no customer or
+  product records behind them, the Customers screen and the new Best page
+  photographed empty and could not be judged. Thirty-one customers and twenty
+  products, taken from the names the sample already carried.
+
 - **The Mac app can read the printer's own job history.** Right-click a Klipper
   machine → *Read the printer's history*. The nozzle counter reads completed
   orders, and a machine runs far more than it sells — test prints, reprints,
