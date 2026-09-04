@@ -1447,6 +1447,78 @@ final class Shop {
 
     // MARK: - What the printers are doing
 
+    /// Read the machine's own job history and keep it, for the nozzle counter.
+    ///
+    /// THE PRINTER IS THE GROUND TRUTH FOR WEAR, and the order log is a sample
+    /// of it. `nozzle-wear` counts completed ORDERS, so the U1 on this bench —
+    /// which has extruded twelve kilos across a hundred and thirty-three jobs
+    /// while nineteen of them were customer orders — reported a fraction of its
+    /// real wear, and the replacement warning would fire late, in the direction
+    /// that ruins parts.
+    ///
+    /// It REPLACES the order log for wear specifically and is ignored
+    /// everywhere else; mixing the two would double-count every job that is
+    /// both an order and a print. That rule is `lib/moonraker-history.js`'s and
+    /// is not restated here.
+    func importPrinterHistory(_ machine: Machine) async {
+        spendProblem = nil
+        spendNote = nil
+        guard let build = source.build else {
+            spendProblem = words.callIt("mac.move_sample"); return
+        }
+        guard let engine else {
+            spendProblem = words.callIt("mac.move_no_engine"); return
+        }
+        importingHistory = machine.id
+        defer { importingHistory = nil }
+        do {
+            let incoming = try await PrinterWatch.history(machine, engine: engine)
+            var kept = 0
+            var added = 0
+            try await StoreWriter.update(
+                storeURL: build.storeURL,
+                owns: { StoreLock.weOwnIt(build) },
+                whoHasIt: { StoreLock.describe(StoreLock.verdict(for: build)) }
+            ) { root in
+                var floor = Self.rows(root, "machines")
+                guard let at = floor.firstIndex(where: { Self.recordId($0) == machine.id }),
+                      case .object(var fields) = floor[at] else {
+                    throw MoveRefused(sentence: self.words.callIt("mac.move_gone"))
+                }
+                var before: [JSONValue] = []
+                if case .object(let held)? = fields["printerHistory"],
+                   case .array(let jobs)? = held["jobs"] { before = jobs }
+                let merged = try await engine.mergePrinterHistory(before, incoming)
+                kept = merged.count
+                added = merged.count - before.count
+                fields["printerHistory"] = .object([
+                    "source": .string("moonraker"),
+                    "importedAt": .string(StoreWriter.iso(Date())),
+                    "jobs": .array(merged),
+                ])
+                StoreWriter.stamp(&fields)
+                floor[at] = .object(fields)
+                root["machines"] = .array(floor)
+            }
+            await load(source)
+            // What it actually found, in the shop's own units. "Imported" alone
+            // says nothing about whether the number that matters moved.
+            let totals = try? await engine.printerHistoryTotals(incoming, since: "")
+            var line = words.callIt("mac.history_read") + " \(kept)"
+            if added > 0 { line += " (+\(added))" }
+            if let totals {
+                line += " · \(Int(totals.grams)) g · \(Int(totals.hours)) h"
+            }
+            spendNote = line
+        } catch {
+            spendProblem = words.callIt("mac.history_failed") + " " + PrinterWatch.say(error)
+        }
+    }
+
+    /// The machine whose history is being read, for the button to say so.
+    var importingHistory: Machine.ID?
+
+
     /// The live poll. Started when a book is opened and stopped with it, so a
     /// window showing the sample shop is not knocking on a shop's printers.
     let printers = PrinterWatch()

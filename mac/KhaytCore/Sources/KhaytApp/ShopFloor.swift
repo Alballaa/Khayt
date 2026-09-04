@@ -47,6 +47,16 @@ private struct Card: View {
             .contextMenu {
                 if shop.canMoveJobs {
                     Button(shop.words.callIt("mach.edit")) { shop.editingMachine = machine }
+                    // Only where there is a history to read. Klipper keeps one;
+                    // the other six protocols do not expose one Khayt can read,
+                    // and a menu item that always answers "not this printer" is
+                    // an item that teaches people to ignore the menu.
+                    if PrinterWatch.notWatched(machine) == nil {
+                        Button(shop.words.callIt("mac.read_history")) {
+                            Task { await shop.importPrinterHistory(machine) }
+                        }
+                        .disabled(shop.importingHistory != nil)
+                    }
                 }
             }
     }
@@ -119,6 +129,15 @@ private struct Card: View {
                     }
                     if let material = nozzle.material {
                         DetailLine(shop.words.callIt("plib.material"), material, dim: true)
+                    }
+                    // WHERE THE FIGURE CAME FROM. The counter reads completed
+                    // orders unless the machine's own history has been read,
+                    // and the two answers can differ by a factor of six — this
+                    // printer has run 133 jobs and sold nineteen. A number
+                    // whose source is not stated is a number nobody can check.
+                    if machine.hasPrinterHistory {
+                        Text(shop.words.callIt("mac.wear_from_printer"))
+                            .font(.caption2).foregroundStyle(.tertiary)
                     }
                 }
             }

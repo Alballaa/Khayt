@@ -461,6 +461,15 @@ final class Words {
         "mac.alert_offline": ["en": "{machine} stopped answering", "ar": "{machine} توقفت عن الرد"],
         "mac.alert_stalled": ["en": "{machine} has stopped moving", "ar": "{machine} توقفت عن التقدم"],
         "mac.printer_trouble": ["en": "Printer trouble", "ar": "مشاكل الطابعة"],
+        // The machine's own memory of what it has printed.
+        "mac.read_history":  ["en": "Read the printer\u{2019}s history",
+                              "ar": "قراءة سجل الطابعة"],
+        "mac.reading_history": ["en": "Reading\u{2026}", "ar": "جارٍ القراءة\u{2026}"],
+        "mac.history_read":  ["en": "Jobs read from the printer:", "ar": "أعمال قُرئت من الطابعة:"],
+        "mac.history_failed": ["en": "Could not read the printer\u{2019}s history:",
+                               "ar": "تعذّرت قراءة سجل الطابعة:"],
+        "mac.wear_from_printer": ["en": "counted from the printer\u{2019}s own history",
+                                  "ar": "محسوب من سجل الطابعة نفسها"],
         // Settings
         "mac.revert":        ["en": "Revert",       "ar": "تراجع"],
         "mac.settings_saved": ["en": "Saved.",      "ar": "حُفظ."],
