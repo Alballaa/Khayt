@@ -3912,6 +3912,7 @@
   "an.export_report_title": "Raporu PDF olarak dışa aktar",
   "an.accounting_title": "Muhasebe fişini dışa aktar (CSV)",
   "an.accounting_btn": "Muhasebe",
+  "an.aged_none": "Bekleyen alacak yok.",
   "an.aged_receivables": "Yaşlandırılmış alacaklar",
   "an.nps_title": "Müşteri Memnuniyeti (NPS)",
   "an.aged_bucket_days": "{label} gün",

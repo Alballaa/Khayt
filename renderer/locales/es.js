@@ -3912,6 +3912,7 @@
   "an.export_report_title": "Exportar informe como PDF",
   "an.accounting_title": "Exportar asiento contable (CSV)",
   "an.accounting_btn": "Contabilidad",
+  "an.aged_none": "Nada pendiente.",
   "an.aged_receivables": "Antigüedad de saldos",
   "an.nps_title": "Satisfacción del cliente (NPS)",
   "an.aged_bucket_days": "{label} días",

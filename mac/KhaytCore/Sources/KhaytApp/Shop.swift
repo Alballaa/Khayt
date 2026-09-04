@@ -1526,6 +1526,8 @@ final class Shop {
     /// Which pane the Settings window shows. On the shop so a snapshot run can
     /// turn the pages.
     var settingsPane: SettingsPane = .business
+    /// Which half of the Reports screen is showing.
+    var reportPage: ReportPage = .profit
 
     /// The tables a Settings window is built from, read once per load.
     private(set) var currencies: [String: Currency] = [:]

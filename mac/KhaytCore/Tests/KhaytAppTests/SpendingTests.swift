@@ -267,3 +267,76 @@ struct SpendingTests {
         try JSONDecoder().decode([String: JSONValue].self, from: Data(contentsOf: url))
     }
 }
+
+/// What the shop is owed, aged.
+///
+/// The RULE is `lib/receivables.js`, tested where it lives against the renderer
+/// it was lifted from. What is tested here is that this app asks for it with
+/// what it needs — the shop's currency table and the language it writes names
+/// in — and gets rows a screen can act on.
+@MainActor
+struct ReceivablesTests {
+
+    static let orders: [JSONValue] = [
+        .object(["id": .string("NEW"), "date": .string("2026-09-01"), "project": .string("Bracket"),
+                 "price": .number(500), "paidAmount": .number(0), "clientId": .string("C1")]),
+        .object(["id": .string("OLD"), "date": .string("2025-01-01"), "project": .string("Rig"),
+                 "price": .number(900), "paidAmount": .number(100)]),
+        .object(["id": .string("VOID"), "date": .string("2025-01-01"), "price": .number(900),
+                 "paidAmount": .number(0), "voidedAt": .string("2025-02-01")]),
+        .object(["id": .string("PAID"), "date": .string("2026-08-01"), "price": .number(300),
+                 "paidAmount": .number(300)]),
+    ]
+
+    @Test("the rows are what is still owed, oldest first, and a voided invoice is not one")
+    func aged() async throws {
+        let engine = try KhaytEngine()
+        let now = Calendar.current.date(from: DateComponents(year: 2026, month: 9, day: 6))!
+        let out = try await engine.receivables(
+            orders: Self.orders, settings: ["currency": .string("SAR")],
+            clients: [.object(["id": .string("C1"), "nameEn": .string("Acme")])],
+            currencies: [:], language: "en", now: now)
+
+        #expect(out.rows.map(\.id) == ["OLD", "NEW"], "oldest first — that is what a shop chases")
+        #expect(out.total == 1300, "800 still owed on OLD and 500 on NEW")
+        #expect(out.rows[0].bucket == "90+")
+        #expect(out.rows[0].days > 500)
+        #expect(out.rows[1].client == "Acme", "the customer's name, from their record")
+        #expect(!out.rows.contains { $0.id == "VOID" }, "a cancelled invoice is not a receivable")
+        #expect(!out.rows.contains { $0.id == "PAID" })
+    }
+
+    @Test("the four buckets always come back, so a screen can draw them all")
+    func buckets() async throws {
+        let engine = try KhaytEngine()
+        let out = try await engine.receivables(orders: [], settings: [:], clients: [],
+                                               currencies: [:], language: "en", now: Date())
+        #expect(out.buckets.map(\.label) == ["0-30", "31-60", "61-90", "90+"])
+        #expect(out.buckets.allSatisfy { $0.count == 0 && $0.total == 0 })
+        #expect(out.rows.isEmpty)
+        #expect(out.total == 0)
+    }
+
+    @Test("an instalment is aged by its own due date, and shows only its own amount")
+    func instalments() async throws {
+        let engine = try KhaytEngine()
+        let now = Calendar.current.date(from: DateComponents(year: 2026, month: 9, day: 6))!
+        // A plan agreed in January with a payment due in August is not eight
+        // months overdue; it is seventeen days overdue.
+        let order: JSONValue = .object([
+            "id": .string("P1"), "date": .string("2026-01-01"), "price": .number(1000),
+            "paidAmount": .number(0),
+            "instalments": .array([
+                .object(["amount": .number(400), "dueDate": .string("2026-06-01"), "paid": .bool(true)]),
+                .object(["amount": .number(600), "dueDate": .string("2026-08-20")]),
+            ]),
+        ])
+        let out = try await engine.receivables(orders: [order], settings: [:], clients: [],
+                                               currencies: [:], language: "en", now: now)
+        #expect(out.rows.count == 1, "the paid instalment is not owed")
+        #expect(out.rows[0].owed == 600)
+        #expect(out.rows[0].days == 17)
+        #expect(out.rows[0].instalment)
+        #expect(out.rows[0].bucket == "0-30", "not 90+, which ageing by the order's date would give")
+    }
+}

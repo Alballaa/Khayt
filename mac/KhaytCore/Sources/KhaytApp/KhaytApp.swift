@@ -276,6 +276,13 @@ final class Activator: NSObject, NSApplicationDelegate {
             // "no data yet" placeholder, which is what a broken one looks like.
             try? await Task.sleep(for: .seconds(1))
             capture(named: "20-reports", into: dir)
+            // The other half of the screen: what the shop is still owed.
+            shop.reportPage = .owing
+            await settle()
+            try? await Task.sleep(for: .milliseconds(600))
+            capture(named: "20b-owing", into: dir)
+            shop.reportPage = .profit
+            await settle()
 
             shop.shelf = .machines
             await settle()

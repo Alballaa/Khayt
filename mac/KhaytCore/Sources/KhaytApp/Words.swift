@@ -440,6 +440,8 @@ final class Words {
         // The shelf
         "inv.colour_variant", "inv.lot", "inv.material_ph", "inv.opened_on", "inv.price_history", "inv.reorder_point",
         // Reports
+        "an.aged_receivables",
+        "an.aged_bucket_days", "an.aged_col_client", "an.aged_col_days", "an.aged_col_order", "an.aged_col_owed", "an.aged_col_project", "an.aged_none", "an.aged_orders_n",
         "an.pnl_empty", "an.pnl_expenses", "an.pnl_net", "an.pnl_orders", "an.pnl_period", "an.pnl_title", "an.pnl_vat", "an.revenue",
         // Expenses and waste
         "common.cancel", "common.delete", "exp.add_btn", "exp.add_title", "exp.amount",

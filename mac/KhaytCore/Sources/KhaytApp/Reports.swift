@@ -15,13 +15,25 @@ import KhaytCore
 struct Reports: View {
     @Bindable var shop: Shop
     @State private var rows: [PnlPeriod] = []
+    @State private var owed: Receivables?
     @State private var order: [KeyPathComparator<PnlPeriod>] = [.init(\.period, order: .reverse)]
     @SceneStorage("reports.columns") private var columns: TableColumnCustomization<PnlPeriod>
 
     var body: some View {
-        Group {
-            if rows.isEmpty {
+        VStack(spacing: 0) {
+            Picker("", selection: $shop.reportPage) {
+                ForEach(ReportPage.allCases) { p in Text(shop.words.callIt(p.key)).tag(p) }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .fixedSize()
+            .padding(.vertical, 8)
+
+            if shop.reportPage == .owing {
+                Owing(shop: shop, owed: owed)
+            } else if rows.isEmpty {
                 ContentUnavailableView(shop.words.callIt("an.pnl_empty"), systemImage: "chart.bar.doc.horizontal")
+                    .frame(maxHeight: .infinity)
             } else {
                 HSplitView {
                     table
@@ -84,11 +96,100 @@ struct Reports: View {
     }
 
     private func recompute() async {
-        guard let engine = shop.engine else { rows = []; return }
+        guard let engine = shop.engine else { rows = []; owed = nil; return }
         rows = (try? await engine.pnlByPeriod(
             orders: shop.orderRows, expenses: shop.expenseRows,
             settings: shop.settingsDict, clients: shop.clientRows,
             currencies: Invoice.currencyTable(shop), now: Date())) ?? []
+        owed = try? await engine.receivables(
+            orders: shop.orderRows, settings: shop.settingsDict, clients: shop.clientRows,
+            currencies: Invoice.currencyTable(shop), language: shop.words.language, now: Date())
+    }
+
+    /// What the shop is still owed, and since when.
+    ///
+    /// Oldest first, because what a shop chases is the top of this list — and
+    /// the four ages across the top, because "how much of this is really old"
+    /// is the question the totals cannot answer.
+    private struct Owing: View {
+        let shop: Shop
+        let owed: Receivables?
+        @State private var order: [KeyPathComparator<Receivables.Row>] = [.init(\.days, order: .reverse)]
+
+        var body: some View {
+            if let owed, !owed.rows.isEmpty {
+                VStack(spacing: 0) {
+                    HStack(spacing: 10) {
+                        ForEach(owed.buckets) { bucket in
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(shop.words.callIt("an.aged_bucket_days", ["label": .string(bucket.label)]))
+                                    .font(.caption).foregroundStyle(.secondary)
+                                Text(Money.text(bucket.total, shop.currency))
+                                    .font(.title3.weight(.semibold)).monospacedDigit()
+                                    .foregroundStyle(Self.tint(bucket.label))
+                                Text(shop.words.callIt("an.aged_orders_n", ["n": .number(Double(bucket.count))]))
+                                    .font(.caption2).foregroundStyle(.tertiary)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(10)
+                            .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 8))
+                        }
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.bottom, 8)
+
+                    Table(owed.rows.sorted(using: order), sortOrder: $order) {
+                        TableColumn(shop.words.callIt("an.aged_col_order"), value: \.id) { row in
+                            Text(row.id).monospacedDigit().foregroundStyle(.secondary)
+                        }
+                        .width(min: 90, ideal: 120)
+                        TableColumn(shop.words.callIt("an.aged_col_project"), value: \.project) { row in
+                            HStack(spacing: 5) {
+                                Text(row.project.isEmpty ? "—" : row.project).lineLimit(1)
+                                // An instalment is one payment of a plan, not
+                                // the whole order — the row is aged by its own
+                                // due date and shows only its own amount.
+                                if row.instalment {
+                                    Image(systemName: "calendar.badge.clock")
+                                        .font(.caption).foregroundStyle(.tertiary)
+                                }
+                            }
+                        }
+                        .width(min: 120, ideal: 200)
+                        TableColumn(shop.words.callIt("an.aged_col_client"), value: \.client) { row in
+                            Text(row.client.isEmpty ? "—" : row.client)
+                                .foregroundStyle(row.client.isEmpty ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.primary))
+                                .lineLimit(1)
+                        }
+                        .width(min: 110, ideal: 170)
+                        TableColumn(shop.words.callIt("an.aged_col_owed"), value: \.owed) { row in
+                            Text(Money.text(row.owed, shop.currency))
+                                .monospacedDigit().foregroundStyle(.orange)
+                        }
+                        .width(min: 100, ideal: 130)
+                        TableColumn(shop.words.callIt("an.aged_col_days"), value: \.days) { row in
+                            Text("\(row.days)").monospacedDigit()
+                                .foregroundStyle(Self.tint(row.bucket))
+                        }
+                        .width(min: 60, ideal: 80)
+                    }
+                }
+            } else {
+                ContentUnavailableView(shop.words.callIt("an.aged_none"),
+                                       systemImage: "checkmark.circle")
+                    .frame(maxHeight: .infinity)
+            }
+        }
+
+        /// Older is louder. The oldest bucket is the one a shop acts on.
+        static func tint(_ bucket: String) -> AnyShapeStyle {
+            switch bucket {
+            case "90+": AnyShapeStyle(.red)
+            case "61-90": AnyShapeStyle(.orange)
+            case "31-60": AnyShapeStyle(.yellow)
+            default: AnyShapeStyle(.secondary)
+            }
+        }
     }
 
     /// Every quarter added up, and the last one on its own.

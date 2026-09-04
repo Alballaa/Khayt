@@ -3913,6 +3913,7 @@
   "an.export_report_title": "Exportar relatório em PDF",
   "an.accounting_title": "Exportar lançamento contábil (CSV)",
   "an.accounting_btn": "Contabilidade",
+  "an.aged_none": "Nada em aberto.",
   "an.aged_receivables": "Contas a receber por idade",
   "an.nps_title": "Satisfação do cliente (NPS)",
   "an.aged_bucket_days": "{label} dias",

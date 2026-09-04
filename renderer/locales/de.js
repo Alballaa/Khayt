@@ -3912,6 +3912,7 @@
   "an.export_report_title": "Bericht als PDF exportieren",
   "an.accounting_title": "Buchungsjournal exportieren (CSV)",
   "an.accounting_btn": "Buchhaltung",
+  "an.aged_none": "Nichts offen.",
   "an.aged_receivables": "Offene Posten nach Alter",
   "an.nps_title": "Kundenzufriedenheit (NPS)",
   "an.aged_bucket_days": "{label} Tage",

@@ -25,6 +25,11 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   print ran long, change a price — with the price it used to be kept, so a
   supplier's invoice can be checked. Deleting one is undoable.
 
+- **The Mac app shows what the shop is owed, and since when.** Aged
+  receivables beside the P&L: the four ages across the top, oldest first
+  below. An instalment plan is aged by each payment's own due date, so a plan
+  agreed months ago is not read as months overdue.
+
 - **The Mac app shows profit and loss by quarter.** What each quarter earned,
   what it spent, the tax collected and what the shop kept — by the same rules
   the Khayt analytics screen uses, which now come from one place.

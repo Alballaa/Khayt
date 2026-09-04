@@ -90,3 +90,13 @@ enum Period: String, CaseIterable, Identifiable {
     /// Khayt's own label for it.
     var key: String { "an.range." + rawValue }
 }
+
+
+/// The two things a shop reads at the end of a month: what it made, and what
+/// it is still owed. On the Shop rather than the view, so a snapshot run can
+/// turn the page — the same reason the period and the settings pane are.
+enum ReportPage: String, CaseIterable, Identifiable {
+    case profit, owing
+    var id: String { rawValue }
+    var key: String { self == .profit ? "an.pnl_title" : "an.aged_receivables" }
+}
