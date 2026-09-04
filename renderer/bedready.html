@@ -1890,6 +1890,12 @@
 <script src="../lib/consumable-categories.js"></script>
 <script src="../lib/consumable-reorder.js"></script>
 <script src="../lib/theme-capabilities.js"></script>
+<!-- A printer that changed address is not a printer that went away. Bed Ready
+     has printer discovery — hubAPI.discoverPrinters is in the shared preload
+     with no flavour gate — and had no rule for matching a rediscovered machine
+     back to a configured one, so a DHCP lease expiring overnight read as
+     "offline", which is what it also says when a printer is switched off. -->
+<script src="../lib/printer-relocate.js"></script>
 <script src="../lib/payment-plan.js"></script>
 <script src="../lib/campaigns.js"></script>
 <script src="../lib/labels.js"></script>
