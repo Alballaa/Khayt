@@ -64,11 +64,30 @@ struct LibraryInspector: View {
                 .frame(height: 210)
                 .clipShape(RoundedRectangle(cornerRadius: 8))
             HStack(spacing: 6) {
-                if file.isFavourite {
+                // A control only when it would do something. While the Electron
+                // app has the book this is a star that reports, not a button
+                // that lies — a disabled toggle invites people to keep pressing.
+                if shop.canWrite {
+                    Button {
+                        shop.toggleFavourite(file)
+                    } label: {
+                        Image(systemName: file.isFavourite ? "star.fill" : "star")
+                            .foregroundStyle(file.isFavourite ? AnyShapeStyle(.yellow)
+                                                             : AnyShapeStyle(.tertiary))
+                    }
+                    .buttonStyle(.plain)
+                    .help(file.isFavourite ? "Stop marking this a favourite" : "Mark a favourite")
+                } else if file.isFavourite {
                     Image(systemName: "star.fill").foregroundStyle(.yellow)
                 }
                 Text(file.title)
                     .font(.title3.weight(.semibold))
+                    .textSelection(.enabled)
+            }
+            if let problem = shop.writeProblem {
+                Label(problem, systemImage: "exclamationmark.triangle")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
                     .textSelection(.enabled)
             }
             if let group = file.group {

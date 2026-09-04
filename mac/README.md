@@ -138,6 +138,11 @@ Two things the bundle changes:
   bundle identifier. An app that shoves itself in front of your work on every
   launch is one people learn to resent.
 
+It can now change one thing — a model's favourite star — and only while it owns
+the book. See **Who owns the store**; the star is a control when this app holds
+ownership and a plain mark when the Electron app does, because a disabled toggle
+invites people to keep pressing it.
+
 Three shelves off one sidebar: the pipeline as a real `Table` of jobs, the
 customers derived from those jobs, and the print library as a grid of models with
 the shop's groups beneath it. Each has an inspector. It opens on the shop's own
@@ -256,6 +261,35 @@ rather than by reading either:
 cases through Node and Swift and compares; and the E2E smoke asserts the running
 app actually wrote a record naming its own live process — delete
 `acquireStoreOwnership()` from main.js and that fails.
+
+### Writing
+
+`StoreWriter` is the only code in this app that can lose a shop's data, so it is
+built around three rules:
+
+* **It never decrypts.** The secrets on disk are already `__enc__` strings, so an
+  edit to another field carries them through untouched and `SafeStorage` is never
+  involved — decrypting to re-encrypt would put a working credential one bad round
+  trip away from unreadable, for nothing. The price is that the whole store goes
+  through a JSON decode and encode, so `StoreRoundTripTests` proves a real store
+  survives that value for value. If it did not, every record's fingerprint would
+  move and `stampChanges` would push the entire book to the cloud as changes
+  nobody made.
+* **It reads from disk, inside the write** — never from anything already held.
+  `updateStoreOnDisk` learned that one the hard way.
+* **It writes only while it owns the book**, checked before the read and again
+  immediately before the swap, so the window in which Electron could take over is
+  one serialisation wide rather than a whole edit.
+
+It stamps `rev` and `updatedAt` the way `renderer/sync.js` does. That is not
+politeness: the renderer's sync baseline is an in-memory index seeded from the
+store on load, so an unstamped edit would look to the next Electron launch
+exactly like the state the book had always been in, and would never reach the
+cloud.
+
+Verified on a copy of a real store, and once on the real one with a backup: of 34
+collections only `printFiles` changed, of its records only the one named, and of
+its fields only `favorite`, `rev` and `updatedAt`. Secrets byte-identical.
 
 ## The one hard constraint
 

@@ -45,6 +45,17 @@ final class Shop {
     /// Who has this book open, when that is somebody else. Nil when nothing
     /// claims it — which is the ordinary case, and says nothing on screen.
     private(set) var owner: String?
+    /// The ownership record this app holds, when the book was free to take.
+    /// Nil means read-only: somebody else has it, or this is the sample.
+    private(set) var ownership: StoreLock.Record?
+    private var heartbeat: Task<Void, Never>?
+
+    /// May this app change anything? False for the sample, and false whenever
+    /// the Electron app has the book.
+    var canWrite: Bool { ownership != nil }
+    /// The last refusal, for the screen to say out loud. A write that fails
+    /// silently is worse than one that never ran.
+    var writeProblem: String?
     private(set) var shopName = "Khayt"
     private(set) var currency = "SAR"
     private(set) var skipped: [String] = []
@@ -127,6 +138,7 @@ final class Shop {
             // claimed ownership would lock a shop out of its own app for
             // nothing. When writing arrives, this is the check that gates it.
             owner = next.build.flatMap { StoreLock.describe(StoreLock.verdict(for: $0)) }
+            takeOwnership(of: next.build)
             if case .object(let settings)? = root["settings"] {
                 if case .string(let n)? = settings["shopName"], !n.isEmpty { shopName = n }
                 else { shopName = next.title }
@@ -145,6 +157,61 @@ final class Shop {
     }
 
     enum Failure: Error { case missingSample }
+
+    /// Claim the book if nothing else has it.
+    ///
+    /// Symmetrical with Electron's own claim, and deliberately weaker: Electron
+    /// takes ownership whatever it finds, because refusing to open a shop's own
+    /// app is worse than the collision. This app defers — it is the newcomer,
+    /// and it has somewhere to fall back to, which is reading.
+    private func takeOwnership(of build: StoreReader.Build?) {
+        heartbeat?.cancel()
+        heartbeat = nil
+        StoreLock.release(ownership, for: previousBuild)
+        ownership = nil
+        previousBuild = build
+        guard let build else { return }
+        guard let record = StoreLock.take(for: build) else { return }
+        ownership = record
+        heartbeat = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(30))
+                guard !Task.isCancelled, let self, let held = self.ownership else { return }
+                self.ownership = StoreLock.beat(held, for: build)
+            }
+        }
+    }
+
+    private var previousBuild: StoreReader.Build?
+
+    /// Hand the book back on the way out. A crash skips this and leaves a record
+    /// whose pid is dead, which the next reader resolves on its own.
+    func relinquish() {
+        heartbeat?.cancel()
+        heartbeat = nil
+        StoreLock.release(ownership, for: previousBuild)
+        ownership = nil
+    }
+
+    // MARK: - Changing something
+
+    /// Mark a model a favourite, or stop. The first thing this app ever wrote.
+    func toggleFavourite(_ file: LibraryFile) {
+        guard let build = source.build else { return }
+        let wanted = !file.isFavourite
+        do {
+            try StoreWriter.updateRecord(build, collection: "printFiles", id: file.id) { record in
+                record["favorite"] = .bool(wanted)
+            }
+            writeProblem = nil
+            // Read the whole book back rather than patching what is on screen.
+            // The screen must show what is on disk, not what this app believes
+            // it just put there.
+            Task { await load(source) }
+        } catch {
+            writeProblem = String(describing: error)
+        }
+    }
 
     private static func decodeOrders(_ root: [String: JSONValue]) throws -> (items: [Order], skipped: [String]) {
         guard case .array(let rows)? = root["printLog"] else { return ([], []) }

@@ -122,6 +122,43 @@ enum StoreLock {
                       host: host, now: Date().timeIntervalSince1970 * 1000, alive: alive)
     }
 
+    /// Take ownership, if it is free. Returns the record we wrote, or nil when
+    /// somebody else has it — in which case this app stays a reader.
+    @discardableResult
+    static func take(for build: StoreReader.Build, appName: String = "Khayt for Mac") -> Record? {
+        guard verdict(for: build).action != .held else { return nil }
+        let now = Date().timeIntervalSince1970 * 1000
+        let record = Record(app: appName,
+                            pid: Int(ProcessInfo.processInfo.processIdentifier),
+                            host: ProcessInfo.processInfo.hostName,
+                            takenAt: now, heartbeat: now)
+        guard let data = try? JSONEncoder().encode(record) else { return nil }
+        try? data.write(to: lockURL(for: build))
+        return record
+    }
+
+    static func beat(_ record: Record, for build: StoreReader.Build) -> Record {
+        var next = record
+        next.heartbeat = Date().timeIntervalSince1970 * 1000
+        if let data = try? JSONEncoder().encode(next) { try? data.write(to: lockURL(for: build)) }
+        return next
+    }
+
+    /// Give it up. Only ever removes a record that is ours — Electron takes
+    /// ownership unconditionally on startup, and deleting its claim on our way
+    /// out would leave the book looking unowned while it is being written to.
+    static func release(_ record: Record?, for build: StoreReader.Build?) {
+        guard let record, let build, let current = read(for: build) else { return }
+        guard current.pid == record.pid,
+              host(current.host) == host(record.host) else { return }
+        try? FileManager.default.removeItem(at: lockURL(for: build))
+    }
+
+    /// Do we hold it right now? Asked again immediately before a write lands.
+    static func weOwnIt(_ build: StoreReader.Build) -> Bool {
+        verdict(for: build).action == .own
+    }
+
     /// A sentence for a person. Never a pid: what matters is which application,
     /// and — when it is elsewhere — which machine.
     static func describe(_ verdict: Verdict, selfHost: String = ProcessInfo.processInfo.hostName) -> String? {
