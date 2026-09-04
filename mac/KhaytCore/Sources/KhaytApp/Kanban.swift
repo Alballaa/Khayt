@@ -23,17 +23,11 @@ import KhaytCore
 struct Kanban: View {
     @Bindable var shop: Shop
 
-    /// Every stage work actually passes through, in the order it passes.
-    ///
-    /// Delivered and cancelled are off the board on purpose: they are where work
-    /// goes to stop being work, and a column of two hundred delivered jobs
-    /// buries the four that need doing.
-    ///
-    /// The other seven are all here, which they were not. A job in QC or on hold
-    /// had no column and therefore no card — it did not move to the end of the
-    /// board, it vanished from it, and a board that silently omits the jobs
-    /// somebody is waiting on is worse than no board.
-    private var columns: [Stage] { [.quote, .pending, .on_hold, .printing, .post, .qc, .completed] }
+    /// Seven columns, and all seven are here — which they were not. A job in QC
+    /// or on hold had no column and therefore no card: it did not move to the
+    /// end of the board, it vanished from it, and a board that silently omits
+    /// the jobs somebody is waiting on is worse than no board.
+    private var columns: [Stage] { Stage.boardColumns }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -67,10 +61,12 @@ struct Kanban: View {
         .overlay {
             if shop.orders.isEmpty {
                 ContentUnavailableView(shop.words.callIt("mac.no_jobs"), systemImage: "rectangle.split.3x1")
+            } else if shop.matching(shop.orders).isEmpty {
+                // Seven columns all saying "nothing here" is a board that looks
+                // broken. It is a search that matched nothing, and it should say
+                // which search.
+                ContentUnavailableView.search(text: shop.search)
             }
-        }
-        .sheet(item: $shop.pendingHold) { held in
-            HoldReason(shop: shop, held: held)
         }
     }
 }
@@ -80,7 +76,7 @@ struct Kanban: View {
 /// Optional, and the sheet says so: a shop that just needs a job out of the way
 /// should not have to invent a reason, and a required field would be answered
 /// with a full stop. Return puts it on hold; Escape leaves it where it is.
-private struct HoldReason: View {
+struct HoldReason: View {
     let shop: Shop
     let held: Shop.PendingHold
     @State private var reason = ""

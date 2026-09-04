@@ -6,6 +6,12 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Changed
 
+- **A job can be moved from the Mac app's jobs table, not only by dragging it
+  on the board.** A new Job menu moves whatever is selected to any stage, and
+  ⇧⌘H puts it on hold and asks why. The search box now filters the board too —
+  it filtered every other screen, so typing a customer's name on the one screen
+  where you are most likely to be hunting for a job did nothing at all.
+
 - **The native Mac app's board can move a job.** Drag a card from one column to
   another and the job moves — stamping the completion, taking the filament and
   the packaging off the shelf, clearing a hold and pushing the due date out by
@@ -26,6 +32,15 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   already run out, and a re-opened job never being charged twice.
 
 ### Fixed
+
+- **The Mac app's menu bar was half in English for an Arabic shop, and one of
+  its items had never said what it does.** Every menu is now in the shop's own
+  language, including the menu names themselves. The Model menu's first item
+  had been written to read "Add to Favourites" or "Remove from Favourites"
+  depending on what was selected, and had in fact read "Favourite" — its
+  no-selection placeholder — since the day it was added, because a menu item's
+  text is fixed when the menu bar is built and cannot be changed afterwards. It
+  says "Favourite" on purpose now, which is what it does.
 
 - **Bed Ready's production queue now moves a job by the same rules Khayt does.**
   It had its own, close but not identical, and the differences were the kind
