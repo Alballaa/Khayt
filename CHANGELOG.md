@@ -70,6 +70,12 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   behind a guard, so the feature was simply not there. All five are workshop
   logic that had never been given a script tag.
 
+- **Bed Ready could not tell a printer that had moved from one that was off.**
+  It scans the network for printers like Khayt does, and had no rule for
+  matching a rediscovered machine back to a configured one — so a DHCP lease
+  expiring overnight read as "offline", which is what it also says when a
+  printer is switched off, and the two have completely different fixes.
+
 - **A QC failure recorded in Bed Ready did not say how bad it was.** The defect
   it wrote carried no severity and no photo reference, and never recorded who
   inspected the job — so a failure logged there answered "how serious was

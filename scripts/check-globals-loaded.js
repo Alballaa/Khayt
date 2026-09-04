@@ -80,10 +80,13 @@ const isFlavourOwned = (owner) => FLAVOUR_DIRS.some((d) => owner.startsWith(d));
  * exemption: everything listed here is a feature Bed Ready silently does not
  * have, and the list may only shrink. A new gap is a failure.
  *
- * It started at 32 and is 20. The twelve that went were five modules Bed Ready
+ * It started at 32 and is 17. The twelve that went were five modules Bed Ready
  * reads for and never loaded — the consumable category filter, the reorder
  * suggestions, the printer-state rule and two the theme dashboards need. Every
- * one of them was workshop logic that had simply never been given a script tag.
+ * one of them was workshop logic that had simply never been given a script tag —
+ * as was printer-relocate, which followed. What is left is Khayt's own three
+ * themes, which Bed Ready replaces with its own, and seven business modules
+ * reached from settings.js.
  *
  * `renderer/bedready.html` was outside this check until a shared module
  * (lib/order-deduction.js) was added to inventory.js without a matching script
@@ -112,9 +115,6 @@ const KNOWN_ABSENT = {
     ['KhaytOrderFileLink', 'renderer/settings.js'],
     ['KhaytOrderFileLink', 'renderer/wire-events.js'],
     ['KhaytPortalTrial', 'renderer/settings.js'],
-    ['KhaytPrinterRelocate', 'renderer/dashboard.js'],
-    ['KhaytPrinterRelocate', 'renderer/kanban.js'],
-    ['KhaytPrinterRelocate', 'renderer/machines.js'],
     ['KhaytPrivacy', 'renderer/settings.js'],
     ['KhaytTelemetryScrub', 'renderer/settings.js'],
   ],
