@@ -3912,6 +3912,7 @@
   "an.export_report_title": "Exporter le rapport en PDF",
   "an.accounting_title": "Exporter le journal comptable (CSV)",
   "an.accounting_btn": "Comptabilité",
+  "an.aged_none": "Rien en attente.",
   "an.aged_receivables": "Balance âgée",
   "an.nps_title": "Satisfaction client (NPS)",
   "an.aged_bucket_days": "{label} jours",

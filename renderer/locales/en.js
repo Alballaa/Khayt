@@ -3913,6 +3913,7 @@
   "an.export_report_title": "Export report as PDF",
   "an.accounting_title": "Export accounting journal (CSV)",
   "an.accounting_btn": "Accounting",
+  "an.aged_none": "Nothing outstanding.",
   "an.aged_receivables": "Aged Receivables",
   "an.nps_title": "Customer Satisfaction (NPS)",
   "an.aged_bucket_days": "{label} days",

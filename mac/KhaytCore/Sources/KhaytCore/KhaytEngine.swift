@@ -155,6 +155,11 @@ public actor KhaytEngine {
         // it does not raise — it reports every order at its gross price and no
         // tax collected at all.
         "pnl-report",
+        // Who owes the shop money and how long they have owed it. ORDER-MONEY
+        // AND ORDER-PAYMENT ARE ALREADY ABOVE and must be: it reaches both
+        // through globals, and without them every order reads as unpaid at its
+        // gross price.
+        "receivables",
     ]
 
     /// The languages whose strings are bundled.
@@ -765,6 +770,18 @@ public actor KhaytEngine {
           + " fmtPrice: function (n) { return (+n || 0).toFixed(2) + ' ' + ARG3; }})",
             [order, .string(newStatus), .object(settings), .string(currency)],
             as: TelegramMessage?.self)
+    }
+
+    /// Who owes the shop money, and how long they have owed it.
+    public func receivables(orders: [JSONValue], settings: [String: JSONValue],
+                            clients: [JSONValue], currencies: [String: JSONValue],
+                            language: String, now: Date) throws -> Receivables {
+        try runtime.call2(
+            "KhaytReceivables.aged(ARG0, {settings: ARG1, clients: ARG2, currencies: ARG3,"
+          + " language: ARG4, now: new Date(ARG5)})",
+            [.array(orders), .object(settings), .array(clients), .object(currencies),
+             .string(language), .number(now.timeIntervalSince1970 * 1000)],
+            as: Receivables.self)
     }
 
     // MARK: - Who the shop's customers are

@@ -3912,6 +3912,7 @@
   "an.export_report_title": "تصدير التقرير بصيغة PDF",
   "an.accounting_title": "تصدير قيود المحاسبة (CSV)",
   "an.accounting_btn": "المحاسبة",
+  "an.aged_none": "لا مستحقات.",
   "an.aged_receivables": "أعمار الذمم المدينة",
   "an.nps_title": "رضا العملاء (NPS)",
   "an.aged_bucket_days": "{label} يومًا",

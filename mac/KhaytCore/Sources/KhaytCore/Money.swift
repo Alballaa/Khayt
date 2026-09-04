@@ -309,6 +309,35 @@ public struct SpoolEdited: Decodable, Sendable {
     public let colourAdded: String?
 }
 
+/// What the shop is owed, aged.
+public struct Receivables: Decodable, Sendable, Equatable {
+    public let rows: [Row]
+    public let buckets: [Bucket]
+    public let total: Double
+
+    /// One unpaid amount: a whole order, or one instalment of a plan.
+    public struct Row: Decodable, Sendable, Equatable, Identifiable {
+        public let id: String
+        public let project: String
+        public let client: String
+        public let owed: Double
+        /// Whole days outstanding — from the instalment's own due date where
+        /// there is one, so a plan is not read as overdue since the order.
+        public let days: Int
+        public let bucket: String
+        public let payStatus: String
+        public let instalment: Bool
+    }
+
+    /// One of the four ages a shop reads.
+    public struct Bucket: Decodable, Sendable, Equatable, Identifiable {
+        public let label: String
+        public let count: Int
+        public let total: Double
+        public var id: String { label }
+    }
+}
+
 /// One quarter of the shop's P&L.
 public struct PnlPeriod: Decodable, Sendable, Identifiable, Equatable {
     /// "2026-Q3".

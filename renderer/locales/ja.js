@@ -3912,6 +3912,7 @@
   "an.export_report_title": "レポートを PDF で書き出す",
   "an.accounting_title": "仕訳データを書き出す (CSV)",
   "an.accounting_btn": "会計",
+  "an.aged_none": "未回収はありません。",
   "an.aged_receivables": "売掛金年齢表",
   "an.nps_title": "顧客満足度 (NPS)",
   "an.aged_bucket_days": "{label} 日",

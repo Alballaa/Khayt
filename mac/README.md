@@ -480,6 +480,30 @@ onto records that are still there, and a deleted spool is not one — it would
 take its price history and its usage with it, and nothing else in the book can
 reconstruct them.
 
+## What the shop is owed
+
+The other half of the Reports screen. `lib/receivables.js` is the aged
+receivables computation, lifted out of `renderAgedReceivables` where it was
+inline — so this app could show what a shop was owed in TOTAL and not who, or
+since when, which is the half it acts on.
+
+Three rules, each of which was a decision in the original. A VOIDED invoice is
+not a receivable — dunning a customer for a cancelled invoice is the worst
+thing this screen could cause. An order on an INSTALMENT PLAN is aged by each
+unpaid instalment's own due date, not the order's: a plan agreed in January
+with a payment due in August is seventeen days overdue in September, not eight
+months. And the amount is `orderOwedBase` — price less credit notes less what
+has been paid, in the shop's own currency — so a foreign order is comparable.
+
+Rows come oldest first, because what a shop chases is the top of the list, and
+the four ages sit across the top because "how much of this is really old" is
+the question a total cannot answer.
+
+The customer's name goes through `KhaytContentLanguages.read`, not
+`nameEn || nameAr` — which the repo's own guard caught on the first run, and
+which would have been blank for a shop that writes Turkish. The name is the
+only thing on that row a person can act on.
+
 ## Profit and loss
 
 The shop's quarters, from `lib/pnl-report.js`'s `pnlByPeriod` — lifted out of

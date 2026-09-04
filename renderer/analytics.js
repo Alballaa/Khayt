@@ -3202,55 +3202,24 @@ function renderCapacityGauge() {
 function renderAgedReceivables() {
   const el = $('#agedReceivablesSection');
   if (!el) return;
-  const today = new Date(); today.setHours(0,0,0,0);
 
-  const unpaid = printLog.filter(o => {
-    if (o.voidedAt) return false;
-    const ps = payStatus(o);
-    return ps === 'unpaid' || ps === 'partial';
-  });
-
-  if (unpaid.length === 0) {
-    el.innerHTML = `<p style="color:var(--success);margin:0;">✅ No outstanding receivables.</p>`;
+  // The ageing is lib/receivables.js's — which orders count, how an instalment
+  // plan is aged by each payment's own due date, and what is owed in the shop's
+  // own currency. It was all inline here, so the Mac app could show what a shop
+  // was owed in total and not who, or since when, which is the half it acts on.
+  const Rec = (typeof globalThis !== 'undefined' && globalThis.KhaytReceivables)
+    || require('../lib/receivables.js');
+  const aged = Rec.aged(printLog, { settings, clients, currencies: CURRENCIES, now: new Date() });
+  if (aged.rows.length === 0) {
+    el.innerHTML = `<p style="color:var(--success);margin:0;">✅ ${escapeHtml(t('an.aged_none'))}</p>`;
     return;
   }
-
-  const buckets = { '0–30': [], '31–60': [], '61–90': [], '90+': [] };
-  function addToBucket(entry) {
-    if      (entry.days <= 30) buckets['0–30'].push(entry);
-    else if (entry.days <= 60) buckets['31–60'].push(entry);
-    else if (entry.days <= 90) buckets['61–90'].push(entry);
-    else                       buckets['90+'].push(entry);
-  }
-  unpaid.forEach(o => {
-    const arClient = o.clientId ? clients.find(c => c.id === o.clientId) : null;
-    const arClientName = arClient ? localName(arClient) : (o.client || '');
-
-    if (o.instalments && o.instalments.length > 0) {
-      // Age each unpaid instalment separately by its own dueDate
-      o.instalments.forEach(ins => {
-        if (ins.paid) return;
-        const owed = Math.max(0, +ins.amount || 0);
-        if (owed <= 0) return;
-        const refDate = ins.dueDate || o.date;
-        const instDate = new Date(refDate + 'T00:00:00');
-        const days = Math.max(0, Math.floor((today - instDate) / 86400000));
-        addToBucket({ id: o.id, project: o.project, client: arClientName, owed, days, payStatus: payStatus(o) });
-      });
-    } else {
-      const orderDate = new Date((o.date || o.timestamp || today.toISOString()).split('T')[0] + 'T00:00:00');
-      const days = Math.max(0, Math.floor((today - orderDate) / 86400000));
-      const owed = orderOwedBase(o);
-      if (owed > 0) addToBucket({ id: o.id, project: o.project, client: arClientName, owed, days, payStatus: payStatus(o) });
-    }
-  });
-
-  const totalOwed = unpaid.reduce((s, o) => {
-    if (o.instalments && o.instalments.length > 0) {
-      return s + o.instalments.filter(ins => !ins.paid).reduce((si, ins) => si + Math.max(0, +ins.amount || 0), 0);
-    }
-    return s + orderOwedBase(o);
-  }, 0);
+  // The screen's own labels keep their en dash; the module's are ASCII because
+  // they cross a JSON bridge into the Mac app.
+  const LABEL = { '0-30': '0–30', '31-60': '31–60', '61-90': '61–90', '90+': '90+' };
+  const buckets = {};
+  for (const b of aged.buckets) buckets[LABEL[b.label]] = aged.rows.filter(r => r.bucket === b.label);
+  const totalOwed = aged.total;
 
   const bucketColors = { '0–30': 'var(--success)', '31–60': 'var(--warning)', '61–90': '#f97316', '90+': 'var(--danger)' };
 

@@ -3912,6 +3912,7 @@
   "an.export_report_title": "导出报表为 PDF",
   "an.accounting_title": "导出记账凭证 (CSV)",
   "an.accounting_btn": "会计",
+  "an.aged_none": "没有未收款项。",
   "an.aged_receivables": "应收账款账龄",
   "an.nps_title": "客户满意度 (NPS)",
   "an.aged_bucket_days": "{label} 天",
