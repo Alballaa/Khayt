@@ -6,6 +6,13 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Changed
 
+- **The Mac app can change a job's due date and how urgent it is.** ⇧⌘E. Two
+  fields, because those are the two a shop floor actually adjusts — and the two
+  whose changes Khayt writes into the job's edit history, so an edit made on
+  the Mac leaves the same trace as one made in Khayt. "No due date" is an
+  answer the sheet can give. Every other field the order editor writes is left
+  exactly as it was.
+
 - **The Mac app can record a payment.** ⇧⌘P, or the link under the money lines
   in the job panel: what was paid, how, and when. It cannot be more than the
   price — an overpayment is a credit note — and whether the job ends up paid,

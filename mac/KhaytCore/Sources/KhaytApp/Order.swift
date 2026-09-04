@@ -24,6 +24,9 @@ struct Order: Identifiable, Decodable, Hashable, Sendable {
     let paymentMethod: String?
     let printTime: Double
     let priority: Bool
+    /// 'normal' | 'high' | 'urgent'. Optional because an older record carries
+    /// only the boolean above — `Shop.priorityOf` reads the pair.
+    let priorityLevel: String?
     let notes: String
     let machineId: String?
     let completedAt: String?

@@ -534,6 +534,40 @@ final class Shop {
         }
     }
 
+    /// The job being edited.
+    var pendingEdit: PendingHold?
+
+    /// The priority a job is at, however old its record is.
+    ///
+    /// Read through the shared rule rather than off `order.priority`, because
+    /// an older record carries only the boolean and a newer one only the level.
+    func priorityOf(_ job: Order?) -> String {
+        guard let job else { return "normal" }
+        if let level = job.priorityLevel, Self.priorityLevels.contains(level) { return level }
+        return job.priority ? "high" : "normal"
+    }
+
+    /// The priority levels, in the order a shop escalates.
+    static let priorityLevels = ["normal", "high", "urgent"]
+
+    /// Change a job's due date and priority.
+    ///
+    /// Two fields, not thirty: the ones a shop floor actually adjusts. Every
+    /// other field the order editor writes is left exactly as it was, which the
+    /// shared rule guarantees rather than this app promising it.
+    func editJob(_ id: Order.ID, dueDate: Date?, priorityLevel: String) async {
+        await writeToOneOrder(id, named: words.callIt("mac.edit_job")) { order, engine, _ in
+            let out = try await engine.editJob(
+                order: order,
+                dueDate: dueDate.map(Self.localDay),
+                priorityLevel: priorityLevel,
+                now: Date(), editId: Self.uid("edit"))
+            // Nothing moved: return the order untouched so the write path finds
+            // no change, stamps nothing and syncs nothing.
+            return OneOrderEdit(order: out.order)
+        }
+    }
+
     /// Hand a finished job over.
     ///
     /// Not a status change: a delivered job stays `completed` and carries a
@@ -632,6 +666,7 @@ final class Shop {
         pendingHold = nil
         pendingQC = nil
         pendingPayment = nil
+        pendingEdit = nil
     }
 
     /// Whether a job may be moved at all: a real book, held by this app, with

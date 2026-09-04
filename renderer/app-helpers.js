@@ -116,10 +116,9 @@ function getAllTags() {
 /** Feature 2: Return normalised priority level for an order.
  *  Supports both legacy boolean and new string values. */
 function getPriorityLevel(order) {
-  if (order.priorityLevel === 'urgent') return 'urgent';
-  if (order.priorityLevel === 'high')   return 'high';
-  if (order.priority === true && !order.priorityLevel) return 'high';
-  return 'normal';
+  const rules = (typeof globalThis !== 'undefined' && globalThis.KhaytOrderEdit)
+    || (() => { try { return require('../lib/order-edit.js'); } catch (e) { return null; } })();
+  return rules ? rules.priorityOf(order) : 'normal';
 }
 /** Feature 2: Sort comparator — urgent > high > normal, then by queuePos */
 function prioritySortValue(order) {

@@ -612,3 +612,86 @@ struct PaymentTests {
         #expect(Shop.paymentMethods == ["cash", "mada", "transfer", "stcpay", "applepay", "visa", "other"])
     }
 }
+
+/// Changing a job's due date and how urgent it is.
+@MainActor
+struct EditJobTests {
+
+    @Test("an edit writes both priority fields and remembers what changed")
+    func editsAndRecords() async throws {
+        let engine = try KhaytEngine()
+        let order: JSONValue = .object([
+            "id": .string("J1"), "dueDate": .string("2026-09-20"),
+            "priority": .bool(false), "priorityLevel": .string("normal"),
+            "discountPct": .number(15),
+        ])
+        let out = try await engine.editJob(order: order, dueDate: "2026-09-25",
+                                           priorityLevel: "urgent",
+                                           now: Date(), editId: "edit-1")
+        #expect(out.changed)
+        guard case .object(let after) = out.order else { Issue.record("not an order"); return }
+        #expect(MoveJobTests.string(after["dueDate"]) == "2026-09-25")
+        #expect(after["priority"] == .bool(true), "or the card shows no flag on an urgent job")
+        #expect(MoveJobTests.string(after["priorityLevel"]) == "urgent")
+        #expect(MoveJobTests.number(after["discountPct"]) == 15,
+                "a sheet offering two fields must not blank the other three")
+
+        guard case .array(let history)? = after["editHistory"], case .object(let entry) = history[0] else {
+            Issue.record("nothing was written down"); return
+        }
+        #expect(MoveJobTests.string(entry["id"]) == "edit-1")
+        #expect(MoveJobTests.string(entry["at"])?.hasSuffix("Z") == true)
+    }
+
+    @Test("a due date can be cleared, because no due date is a real answer")
+    func clearsTheDueDate() async throws {
+        let engine = try KhaytEngine()
+        let order: JSONValue = .object(["id": .string("J1"), "dueDate": .string("2026-09-20")])
+        let out = try await engine.editJob(order: order, dueDate: nil, priorityLevel: "normal",
+                                           now: Date(), editId: "e1")
+        guard case .object(let after) = out.order else { Issue.record("not an order"); return }
+        #expect(after["dueDate"] == .null)
+        #expect(out.changed)
+    }
+
+    @Test("an editor opened and closed again writes no revision")
+    func noChangeNoWrite() async throws {
+        let engine = try KhaytEngine()
+        let order: JSONValue = .object([
+            "id": .string("J1"), "dueDate": .string("2026-09-20"),
+            "priority": .bool(false), "priorityLevel": .string("normal"),
+        ])
+        let out = try await engine.editJob(order: order, dueDate: "2026-09-20",
+                                           priorityLevel: "normal", now: Date(), editId: "e1")
+        #expect(!out.changed, "else every open-and-close syncs the record to the cloud")
+        #expect(out.order == order, "and the row is byte-identical, so nothing is stamped")
+    }
+
+    @Test("the priority is read from whichever field the record carries")
+    func priorityOfOldAndNewRecords() async throws {
+        let engine = try KhaytEngine()
+        #expect(try await engine.priority(of: .object(["priority": .bool(true)])) == "high")
+        #expect(try await engine.priority(of: .object(["priorityLevel": .string("urgent")])) == "urgent")
+        #expect(try await engine.priority(of: .object([
+            "priority": .bool(true), "priorityLevel": .string("normal")])) == "normal",
+            "an explicit normal beats the legacy flag")
+        #expect(try await engine.priority(of: .object([:])) == "normal")
+    }
+
+    /// The Swift reading must not drift from the shared one — it is used per
+    /// cell and mirrored for that reason, the way `Stage.of` is.
+    @Test("Swift and the shared rule read the same priority")
+    func priorityMirrorAgrees() async throws {
+        let engine = try KhaytEngine()
+        let shop = Shop(source: .sample)
+        await shop.load(.sample)
+        for job in shop.orders {
+            let row: JSONValue = .object([
+                "priority": .bool(job.priority),
+                "priorityLevel": job.priorityLevel.map(JSONValue.string) ?? .null,
+            ])
+            #expect(shop.priorityOf(job) == (try await engine.priority(of: row)),
+                    "diverged for \(job.id)")
+        }
+    }
+}
