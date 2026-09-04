@@ -544,7 +544,7 @@ function reportStatusGate(decision) {
  * completion is not, because it has already deducted filament and packaging
  * that putting the row back would not return to the shelf.
  */
-function runStatusEffects(order, effects, { prevTier, undo } = {}) {
+function runStatusEffects(order, effects, { prevTier, undo, toastText } = {}) {
   for (const e of effects) {
     switch (e.type) {
       case 'activity_log':
@@ -566,9 +566,9 @@ function runStatusEffects(order, effects, { prevTier, undo } = {}) {
         renderKanban(); renderLogs(); renderAnalytics();
         if (e.dashboard) renderDashboard();
         break;
-      case 'toast_updated': toast(t('toast.status_updated'), 'success'); break;
+      case 'toast_updated': toast(toastText || t('toast.status_updated'), 'success'); break;
       case 'toast_updated_undoable':
-        toast(t('toast.status_updated'), 'success', 5000, undo ? { undo } : {});
+        toast(toastText || t('toast.status_updated'), 'success', 5000, undo ? { undo } : {});
         break;
       case 'export_status_page': autoExportStatusPage(order); break;
       case 'email': autoSendEmailNotification(order, e.status); break;
@@ -625,6 +625,22 @@ function updateStatus(id, newStatus) {
   });
 }
 
+/**
+ * Put a job on hold, with a reason.
+ *
+ * This used to set the four fields itself and never call `updateStatus`, which
+ * meant a hold skipped everything a status change does. Three of those mattered:
+ *
+ *   - the print timer kept running, so a job held for a week reported a week of
+ *     machine time nobody spent on it;
+ *   - `settings.telegram.notifyOnHold` never fired, from the one button in the
+ *     app that puts a job on hold;
+ *   - nothing was written to the team's activity log, so the one status change
+ *     a shop most often has to explain later was the one with no record.
+ *
+ * It goes through the rules now like every other move. The reason and the
+ * moment are the module's business too — see `apply()`.
+ */
 function holdOrder(id) {
   const order = printLog.find(o => o.id === id);
   if (!order) return;
@@ -638,18 +654,30 @@ function holdOrder(id) {
     `,
     onMount(modal) { setTimeout(() => modal.querySelector('#holdReasonInput')?.focus(), 40); },
     onSave(modal) {
-      const reason = modal.querySelector('#holdReasonInput').value.trim();
-      order.status = 'on_hold';
-      order.holdReason = reason || null;
-      order.heldAt = new Date().toISOString();
-      if (!order.statusHistory) order.statusHistory = [];
-      order.statusHistory.push({ status: 'on_hold', at: new Date().toISOString() });
-      if (order.statusHistory.length > 200) order.statusHistory = order.statusHistory.slice(-200);
-      saveAll();
-      renderKanban(); renderLogs();
-      toast(t('ord.on_hold'), 'info');
+      const holdReason = modal.querySelector('#holdReasonInput').value.trim();
+      const decision = StatusRules().gate(order, 'on_hold', { orders: printLog, settings });
+      reportStatusGate(decision);
+      if (!decision.ok) return true;   // the dialog closes; the job did not move
+
+      const _undoIdx = printLog.indexOf(order);
+      const _undoSnap = structuredClone(order);
+      const out = StatusRules().apply(order, 'on_hold', {
+        now: Date.now(), inventory, holdReason,
+      });
+      showStatusNotices(out.notices);
+      runStatusEffects(order, out.effects, {
+        undo: _undoIdx >= 0 ? () => {
+          printLog[_undoIdx] = _undoSnap;
+          saveAll();
+          renderKanban(); renderLogs(); renderAnalytics();
+          if (typeof renderDashboard === 'function') renderDashboard();
+        } : null,
+        // "On hold" says what happened; "Status updated" does not, and this is
+        // the one move a shop starts from a dialog rather than a column.
+        toastText: t('ord.on_hold'),
+      });
       return true;
-    }
+    },
   });
 }
 

@@ -160,6 +160,18 @@ function originalUpdateStatus(g, id, newStatus) {
       }
     }
   }
+  // NOT IN THE ORIGINAL. Entering on_hold now records WHEN, because the due
+  // date a job gets back is computed from it and there was no path that set it
+  // except Khayt's own hold dialog — so a job put on hold any other way came
+  // back late with nothing to explain why. Added to BOTH sides so the
+  // comparison below still proves everything else is unchanged; the change
+  // itself is asserted by its own tests further down.
+  if (newStatus === 'on_hold') {
+    if (!order.heldAt) order.heldAt = NOW_ISO;
+    if (Object.prototype.hasOwnProperty.call(g, 'holdReason')) {
+      order.holdReason = g.holdReason || null;
+    }
+  }
   if (newStatus === 'printing') {
     order.timerStart = NOW_ISO;
     if (!order.printingStartedAt) order.printingStartedAt = NOW_ISO;
@@ -199,7 +211,9 @@ function liftedUpdateStatus(g, id, newStatus) {
     return;
   }
 
-  const out = S.apply(order, newStatus, { now: NOW_MS, inventory });
+  const ctx = { now: NOW_MS, inventory };
+  if (Object.prototype.hasOwnProperty.call(g, 'holdReason')) ctx.holdReason = g.holdReason;
+  const out = S.apply(order, newStatus, ctx);
   for (const n of out.notices) notices.push(n);
   for (const e of out.effects) {
     switch (e.type) {
@@ -619,4 +633,52 @@ test('the outbound conditions still match the renderer they were copied from', (
       + `uses that copy to decide whether a move it performs would reach anybody. Read the new `
       + `guard, update outboundFor to match, then update this pin.\n\nexpected to find:\n${guard}`);
   }
+});
+
+/* ── Putting a job on hold ─────────────────────────────────────────────────── */
+
+test('a job put on hold records when, so it can be given the days back', () => {
+  const order = { id: 'o1', status: 'printing', dueDate: '2026-09-20' };
+  S.apply(order, 'on_hold', { now: NOW_MS });
+  assert.equal(order.heldAt, NOW_ISO);
+
+  // Nine days later it resumes, and the due date moves by nine.
+  const later = NOW_MS + 9 * 86400000;
+  const out = S.apply(order, 'printing', { now: later });
+  assert.equal(order.dueDate, '2026-09-29');
+  assert.equal(order.heldAt, undefined);
+  assert.deepEqual(out.notices, [{ code: 'due_extended', params: { days: 9, date: '2026-09-29' } }]);
+});
+
+test('a caller that recorded the hold itself keeps its own moment', () => {
+  const order = { id: 'o1', status: 'printing', heldAt: '2026-08-01T00:00:00.000Z' };
+  S.apply(order, 'on_hold', { now: NOW_MS });
+  assert.equal(order.heldAt, '2026-08-01T00:00:00.000Z');
+});
+
+test('a reason is optional, and "none given" is stored as none', () => {
+  const withReason = { id: 'o1', status: 'printing' };
+  S.apply(withReason, 'on_hold', { now: NOW_MS, holdReason: 'waiting on filament' });
+  assert.equal(withReason.holdReason, 'waiting on filament');
+
+  // Held again after resuming, this time with nothing typed: the old reason
+  // must not survive as an explanation for a different hold.
+  S.apply(withReason, 'pending', { now: NOW_MS });
+  S.apply(withReason, 'on_hold', { now: NOW_MS, holdReason: '' });
+  assert.equal(withReason.holdReason, null);
+
+  // A caller that says nothing about the reason changes nothing about it.
+  const quiet = { id: 'o2', status: 'printing', holdReason: 'kept' };
+  S.apply(quiet, 'on_hold', { now: NOW_MS });
+  assert.equal(quiet.holdReason, 'kept');
+});
+
+test('holding a printing job stops its timer', () => {
+  const order = {
+    id: 'o1', status: 'printing',
+    timerStart: '2026-09-04T08:00:00.000Z', printingStartedAt: '2026-09-03T00:00:00.000Z',
+  };
+  S.apply(order, 'on_hold', { now: NOW_MS });
+  assert.equal(order.timerStart, undefined, 'elapsed time must not accrue while nobody is working on it');
+  assert.equal(order.printingStartedAt, '2026-09-03T00:00:00.000Z');
 });

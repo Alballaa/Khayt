@@ -465,6 +465,20 @@ final class Shop {
 
     // MARK: - Moving a job
 
+    /// The job waiting for someone to say why it is being held.
+    ///
+    /// A hold is the one move that asks a question first. The answer is
+    /// optional — a shop that just needs the job out of the way should not have
+    /// to invent a reason — but the question is worth asking, because "waiting
+    /// on filament" three weeks later is the difference between a record and a
+    /// gap.
+    var pendingHold: PendingHold?
+
+    struct PendingHold: Identifiable, Sendable {
+        let id: Order.ID
+        let project: String
+    }
+
     /// Whether a job may be moved at all: a real book, held by this app, with
     /// the shared rules running. The sample shop is for looking at.
     var canMoveJobs: Bool { source.isReal && ownership != nil }
@@ -483,7 +497,7 @@ final class Shop {
     /// has told the shop it has stock it has already used.
     ///
     /// Read `Kanban` for what a person sees; this is what happens.
-    func moveJob(_ id: Order.ID, to stage: Stage) async {
+    func moveJob(_ id: Order.ID, to stage: Stage, holdReason: String? = nil) async {
         moveProblem = nil
         moveNotices = []
         guard let build = source.build else {
@@ -504,7 +518,8 @@ final class Shop {
                 whoHasIt: { StoreLock.describe(StoreLock.verdict(for: build)) }
             ) { root in
                 (undoSnapshot, said) = try await Self.applyMove(
-                    to: &root, id: id, stage: stage, engine: engine, words: self.words)
+                    to: &root, id: id, stage: stage, engine: engine, words: self.words,
+                    holdReason: holdReason)
             }
             // Only once the swap has happened. The last ownership check is after
             // the mutation, so a book that changed hands mid-move throws here —
@@ -543,7 +558,8 @@ final class Shop {
     /// the file, not what this app last drew on screen.
     static func applyMove(to root: inout [String: JSONValue],
                                   id: Order.ID, stage: Stage,
-                                  engine: KhaytEngine, words: Words)
+                                  engine: KhaytEngine, words: Words,
+                                  holdReason: String? = nil)
     async throws -> (undo: [ChangedRecord], notices: [String]) {
 
         let orders = rows(root, "printLog")
@@ -571,7 +587,7 @@ final class Shop {
         let move = try await engine.moveJob(
             order: target, to: stage.rawValue, orders: orders, settings: settings,
             inventory: inventory, consumables: consumables, machines: machines,
-            now: Date(), today: localDay())
+            now: Date(), today: localDay(), holdReason: holdReason)
 
         guard move.ok else {
             throw MoveRefused(sentence: words.gateRefusal(move.gate))
