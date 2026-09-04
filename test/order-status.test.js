@@ -112,6 +112,17 @@ function originalUpdateStatus(g, id, newStatus) {
       return;
     }
   }
+  // NOT IN THE ORIGINAL, and the THIRD of three deliberate divergences (see
+  // the on_hold stamp and the completion timer below). `quoteAcceptedAt` was
+  // written by exactly one path — the Approve button in the invoicing screen —
+  // so a quote won by dragging its card counted as a quote never accepted, and
+  // the conversion rate a shop reads only ever fell. Added to BOTH sides so
+  // the comparison still proves the rest; tested on its own in
+  // test/quote-accepted.test.js.
+  if (prevStatus === 'quote' && newStatus !== 'quote' && newStatus !== 'cancelled'
+      && !order.quoteAcceptedAt) {
+    order.quoteAcceptedAt = NOW_ISO.split('T')[0];
+  }
   if (newStatus === 'completed') {
     promptActuals(order, () => {
       const prevTier = order.clientId ? getClientTier(order.clientId) : null;

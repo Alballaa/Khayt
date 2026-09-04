@@ -101,6 +101,12 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **A quote you win by dragging its card now counts as won.** The acceptance
+  date was written only by the Approve button, so a shop that moves a quote to
+  Pending on the board — or on the Mac app — converted it without recording
+  that it had, and the quote conversion rate on the analytics screen only ever
+  fell. Both apps stamp it now, and a date already there is never overwritten.
+
 - **Deleting a failed print you logged by hand now puts the filament back.**
   The waste form took the wasted grams off the spool, and the delete button
   read which spool to restore from a field the form never wrote — so every
