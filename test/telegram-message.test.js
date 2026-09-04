@@ -106,20 +106,49 @@ test('a bot token is checked for a shape Telegram could accept', () => {
   assert.ok(!TG.isBotToken('123456:has space'));
 });
 
-test('a chat id keeps only what a chat id can be', () => {
-  assert.equal(TG.chatId(' -100123456 '), '-100123456', 'a group id, spaces taken off');
-  assert.equal(TG.chatId('123; rm -rf /'), '123-', 'and nothing that is not a chat id survives');
-  /* A @USERNAME DOES NOT SURVIVE, AND THAT IS KHAYT'S BEHAVIOUR, NOT A CHOICE
-   * MADE HERE. The Electron main process has always stripped chat ids with
-   * `[^0-9@-]`, which keeps the @ and throws the name away — so a shop that
-   * typed "@khaytshop" has been sending to "@" and getting nothing, in Khayt,
-   * for as long as the feature has existed.
+test('a chat id is one of the two shapes Telegram documents, or nothing', () => {
+  /* THE BUG THIS FIXES. Khayt stripped every chat id with `[^0-9@-]`, which
+   * keeps the @ and THROWS THE NAME AWAY — so a shop that typed "@khaytshop"
+   * was sending to "@", getting a 400 back, and being told nothing. That had
+   * been true for as long as the feature existed.
    *
-   * Copied unchanged because a lift whose job is to change nothing does not
-   * quietly fix a bug on the way past: fixing it is a separate change, with
-   * its own test, that a shop can be told about. Written down here so it is
-   * not mistaken for an accident of the lift. */
-  assert.equal(TG.chatId('@khaytshop'), '@', 'a @username is NOT usable — see the comment');
+   * Telegram's `chat_id` is a numeric id (negative for a group or channel) or
+   * a public @username. Anything else is refused rather than mangled into
+   * something that cannot work: a refusal a shop can see beats a silent send
+   * to nowhere. */
+  assert.equal(TG.chatId('@khaytshop'), '@khaytshop', 'the whole username, which used to be lost');
+  assert.equal(TG.chatId('khaytshop'), '@khaytshop', 'and the @ is added when it is left off');
+  assert.equal(TG.chatId(' @Khayt_Shop '), '@Khayt_Shop', 'trimmed, and case is kept — usernames have it');
+  assert.equal(TG.chatId('-100123456'), '-100123456', 'a group id, negative');
+  assert.equal(TG.chatId('123456'), '123456');
+
+  for (const bad of ['', '   ', '123; rm -rf /', '@my-shop', '@abc', 'a'.repeat(40), null, undefined]) {
+    assert.equal(TG.chatId(bad), null, JSON.stringify(bad));
+    assert.equal(TG.isChatId(bad), false, JSON.stringify(bad));
+  }
+  // A username must contain a letter — "12345678" is a numeric id, not a name.
+  assert.equal(TG.chatId('12345678'), '12345678');
+  assert.ok(TG.isChatId('@khaytshop'));
+});
+
+test('a chat id Telegram cannot use is refused where the shop can see it', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const root = path.join(__dirname, '..');
+  // The main process refuses before sending, rather than mangling and getting
+  // an unexplained 400 back.
+  const main = fs.readFileSync(path.join(root, 'main.js'), 'utf8');
+  assert.match(main, /const chatIdStr = telegramChatId\(chatId\);/);
+  assert.match(main, /if \(!chatIdStr\) return \{ ok: false, error:/);
+  // Comments stripped first: the code that replaced the mangling strip QUOTES
+  // it, so that it is obvious what changed and why, and a source pin that
+  // cannot tell code from prose would fail on the explanation.
+  const code = main.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+  assert.doesNotMatch(code, /replace\(\/\[\^0-9@-\]\/g, ''\)/,
+    'the mangling strip must be gone, not merely bypassed');
+  // And the settings page refuses it at the point it is typed.
+  const settings = fs.readFileSync(path.join(root, 'renderer', 'settings.js'), 'utf8');
+  assert.match(settings, /TG\.isChatId\(chatId\)/);
 });
 
 test('the renderer builds no message of its own any more', () => {

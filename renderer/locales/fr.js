@@ -587,6 +587,8 @@
   "slp.name_required": "Saisissez un nom pour le profil",
   "store.unreadable": "⚠ Votre fichier de données n’a pas pu être lu, Khayt a donc démarré vide. L’ancien fichier a été conservé — vérifiez vos sauvegardes.",
   "tg.error": "Erreur Telegram",
+  "tg.bad_chat_id": "Telegram ne peut pas livrer à cet identifiant de discussion. Utilisez un identifiant numérique ou le @nom d’une chaîne publique.",
+  "tg.chat_id_hint": "Un identifiant numérique pour un groupe, ou le @nom d’une chaîne publique.",
   "tg.need_credentials": "Saisissez d’abord le jeton du bot et l’identifiant de discussion",
   "tg.settings_saved": "Paramètres Telegram enregistrés",
   "tg.test_sent": "Message de test envoyé",

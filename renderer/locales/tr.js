@@ -587,6 +587,8 @@
   "slp.name_required": "Profil için bir ad girin",
   "store.unreadable": "⚠ Veri dosyanız okunamadı, bu yüzden Khayt boş başladı. Eski dosya saklandı — yedeklerinizi kontrol edin.",
   "tg.error": "Telegram hatası",
+  "tg.bad_chat_id": "Telegram bu sohbet kimliğine iletemez. Sayısal bir kimlik veya herkese açık bir kanalın @kullanıcıadı’nı kullanın.",
+  "tg.chat_id_hint": "Bir grup için sayısal kimlik ya da herkese açık bir kanalın @kullanıcıadı.",
   "tg.need_credentials": "Önce bot jetonunu ve sohbet kimliğini girin",
   "tg.settings_saved": "Telegram ayarları kaydedildi",
   "tg.test_sent": "Test mesajı gönderildi",

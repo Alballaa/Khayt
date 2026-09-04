@@ -106,6 +106,13 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **Telegram notifications to a public channel now work.** A chat ID typed as
+  `@yourchannel` had its name stripped away and the message went nowhere, with
+  nothing said — for as long as the feature has existed. Both shapes Telegram
+  accepts work now, a group's numeric ID and a channel's @username, and an ID
+  that cannot work is refused when you type it instead of failing silently
+  later.
+
 - **A failed print now takes its filament off the shelf.** The waste log
   recorded the grams and their cost, and the stock was left untouched — so
   every failed print left the shelf reading higher than it really was, and the

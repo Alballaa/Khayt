@@ -1771,6 +1771,7 @@ final class Shop {
     static func describe(_ failure: Telegram.Failure) -> String {
         switch failure {
         case .badToken: return "The bot token in Settings is not a Telegram token."
+        case .badChatId: return "The chat ID in Settings is not one Telegram can deliver to."
         case .refused(let status, let why): return why.isEmpty ? "HTTP \(status)" : why
         case .unreachable(let why): return why
         }

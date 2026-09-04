@@ -587,6 +587,8 @@
   "slp.name_required": "プロファイル名を入力してください",
   "store.unreadable": "⚠ データファイルを読み込めなかったため、Khayt は空の状態で起動しました。古いファイルは保存してあります — バックアップをご確認ください。",
   "tg.error": "Telegram エラー",
+  "tg.bad_chat_id": "その chat ID には Telegram が配信できません。数値の ID か、公開チャンネルの @ユーザー名 を使ってください。",
+  "tg.chat_id_hint": "グループの数値 ID、または公開チャンネルの @ユーザー名。",
   "tg.need_credentials": "先にボットトークンとチャット ID を入力してください",
   "tg.settings_saved": "Telegram の設定を保存しました",
   "tg.test_sent": "テストメッセージを送信しました",
