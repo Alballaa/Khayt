@@ -476,12 +476,15 @@ public actor KhaytEngine {
     public func recordQcFailure(order: JSONValue, failureType: String, severity: String,
                                 reason: String, weight: Double, inspector: String?,
                                 inventory: [JSONValue], now: Date,
-                                wasteId: String, defaultReason: String) throws -> QcFailure {
+                                wasteId: String, defaultReason: String,
+                                settings: [String: JSONValue] = [:],
+                                machines: [JSONValue] = [], today: String = "") throws -> QcFailure {
         try runtime.call2(QC_FAILURE_SCRIPT,
                           [order, .string(failureType), .string(severity), .string(reason),
                            .number(weight), inspector.map(JSONValue.string) ?? .null,
                            .array(inventory), .number(now.timeIntervalSince1970 * 1000),
-                           .string(wasteId), .string(defaultReason)],
+                           .string(wasteId), .string(defaultReason),
+                           .object(settings), .array(machines), .string(today)],
                           as: QcFailure.self)
     }
 
@@ -953,11 +956,19 @@ private let NEW_ORDER_SCRIPT = """
 /// A failed inspection, as the shared rule writes it.
 private let QC_FAILURE_SCRIPT = """
 (function () {
-  var order = ARG0;
+  var order = ARG0, inventory = ARG6;
   var r = KhaytQcFailure.record(order, {
     failureType: ARG1, severity: ARG2, reason: ARG3, weight: ARG4, inspector: ARG5
-  }, { inventory: ARG6, now: ARG7, wasteId: ARG8, defaultReason: ARG9 });
-  return { order: order, waste: r.waste };
+  }, { inventory: inventory, now: ARG7, wasteId: ARG8, defaultReason: ARG9,
+       settings: ARG10, machines: ARG11, today: ARG12 });
+  // THE SHELF COMES BACK. A failed print takes its filament off the spools it
+  // was printing from, and the rule mutates the array it is handed — which is
+  // a copy on this side of the bridge. Returning the order and the waste row
+  // and dropping the inventory would deduct inside JavaScriptCore and throw
+  // the result away, which is exactly how the shelf came to overstate stock in
+  // the first place.
+  return { order: order, waste: r.waste, inventory: inventory,
+           deducted: r.deducted, spools: r.spools };
 })()
 """
 

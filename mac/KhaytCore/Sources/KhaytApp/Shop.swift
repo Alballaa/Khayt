@@ -567,12 +567,15 @@ final class Shop {
                 guard let target = orders.first(where: { Self.recordId($0) == id }) else {
                     throw MoveRefused(sentence: self.words.callIt("mac.move_gone"))
                 }
+                let shelfBefore = Self.rows(root, "inventory")
                 let out = try await engine.recordQcFailure(
                     order: target, failureType: failureType, severity: "major",
                     reason: reason, weight: weight, inspector: nil,
-                    inventory: Self.rows(root, "inventory"), now: Date(),
+                    inventory: shelfBefore, now: Date(),
                     wasteId: Self.uid("WASTE"),
-                    defaultReason: self.words.callIt("ord.qc_fail"))
+                    defaultReason: self.words.callIt("ord.qc_fail"),
+                    settings: Self.settings(root), machines: Self.rows(root, "machines"),
+                    today: Self.today())
 
                 Self.write(&root, "printLog", changed: [out.order], before: orders, into: &undo)
 
@@ -581,6 +584,15 @@ final class Shop {
                 var waste = Self.rows(root, "wasteLog")
                 waste.insert(out.waste, at: 0)
                 root["wasteLog"] = .array(waste)
+
+                // THE SHELF, in the same swap. A failed print takes its
+                // filament off the spools it was printing from — a book saying
+                // a print failed and wasted 200g while the spool still holds
+                // them has told the shop it has filament it has already burned.
+                // Only the spools it actually touched are stamped, and they go
+                // into the undo so putting the failure back puts the grams back.
+                Self.write(&root, "inventory", changed: out.inventory,
+                           before: shelfBefore, into: &undo)
             }
             registerMoveUndo(undo, named: words.callIt("ord.qc_fail"))
             await load(source)

@@ -2781,6 +2781,8 @@
   "qc.inspector": "Denetçi",
   "qc.inspector_none": "—",
   "qc.inspector_required": "Bir denetçi seçin",
+  "qc.weight_measured": "{source} tarafından ölçüldü — durmadan önce harcadığı miktar.",
+  "qc.weight_typed": "Bu baskıyı hiçbir şey ölçmedi; harcanan miktarı yazın. Filament stoktan düşülür.",
   "qc.severity": "Önem",
   "qc.sev.major": "Ciddi",
   "qc.sev.minor": "Küçük",

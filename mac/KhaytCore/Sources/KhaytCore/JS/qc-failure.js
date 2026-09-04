@@ -68,10 +68,27 @@
    * Record a QC failure against a job.
    *
    * `failure`: `{ failureType, severity, reason, weight, inspector, photoRef }`.
-   * `ctx`: `{ now, inventory, wasteLog, wasteId, defaultReason }`.
+   * `ctx`: `{ now, inventory, wasteLog, wasteId, defaultReason, settings,
+   *           machines, today }`.
    *
    * The waste row is unshifted onto `ctx.wasteLog` when one is supplied — newest
    * first, the way the waste screen reads it. The order is mutated in place.
+   *
+   * A FAILED PRINT TAKES ITS FILAMENT OFF THE SHELF.
+   *
+   * It did not use to. The waste row recorded the grams and their cost and the
+   * inventory was left alone — "unchanged accounting" — while the reprint later
+   * deducted only its own. So the filament a failed attempt really burned
+   * through never left the shelf, and a shop's stock read high by the grams of
+   * every failure it had ever had.
+   *
+   * The grams come off the SAME spools a completion would have used, in the
+   * same proportions, because that is what the printer was printing from. The
+   * job is NOT marked `materialDeducted` — it is not done, and the reprint must
+   * still deduct its own.
+   *
+   * `deducted` in the result says what actually came off, and `spools` which
+   * ones, so a host that lets a shop undo the failure can put it back.
    */
   function record(order, failure, ctx) {
     const f = failure || {};
@@ -96,6 +113,22 @@
     const log = c.wasteLog;
     if (Array.isArray(log)) log.unshift(waste);
 
+    // The grams the failed attempt burned through, off the spools it was
+    // printing from. `weight` is what the printer measured where a printer
+    // measured it, and what the shop typed where it did not.
+    const D = deduction();
+    const taken = (D && weight > 0)
+      ? D.deductActual(order, weight, {
+          settings: c.settings, inventory: c.inventory, machines: c.machines,
+          today: waste.date,
+        })
+      : { deducted: 0, spools: [], nowLow: [] };
+    // Which spool it came off, so a host that undoes the failure can put the
+    // filament back — the manual waste form records the same thing for the
+    // same reason.
+    if (taken.spools.length === 1) waste.spoolId = taken.spools[0];
+    if (taken.spools.length > 1) waste.spoolIds = taken.spools.slice();
+
     order.qcStatus = 'fail';
     order.qcFailedAt = nowIso;
     order.qcAt = nowIso;
@@ -114,12 +147,21 @@
 
     return {
       waste,
+      deducted: taken.deducted,
+      spools: taken.spools,
+      nowLow: taken.nowLow,
       effects: [
         { type: 'save' },
         { type: 'render_waste' },
         { type: 'render_inventory' },
       ],
     };
+  }
+
+  /** The shelf rules, however this file happens to be loaded. */
+  function deduction() {
+    if (typeof global.KhaytOrderDeduction !== 'undefined') return global.KhaytOrderDeduction;
+    try { return require('./order-deduction.js'); } catch (e) { return null; }
   }
 
   const api = { FAILURE_TYPES, SEVERITIES, wasteCost, record };

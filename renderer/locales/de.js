@@ -2781,6 +2781,8 @@
   "qc.inspector": "Prüfer",
   "qc.inspector_none": "—",
   "qc.inspector_required": "Prüfer auswählen",
+  "qc.weight_measured": "Von {source} gemessen — was bis zum Abbruch verbraucht wurde.",
+  "qc.weight_typed": "Für diesen Druck wurde nichts gemessen. Tragen Sie den Verbrauch ein — das Filament wird vom Bestand abgezogen.",
   "qc.severity": "Schweregrad",
   "qc.sev.major": "Schwer",
   "qc.sev.minor": "Gering",

@@ -53,6 +53,18 @@ struct QcFailSheet: View {
                 }
             }
 
+            // THE GRAMS COME OFF THE SHELF. They did not use to — the waste row
+            // recorded them and the inventory was left alone — so a shop's
+            // stock read high by every failure it had ever had. Said here
+            // because it is now a number that changes what the shop owns.
+            //
+            // Nothing pre-fills it on this app: reading what the printer got
+            // through needs the poller, which lives in Khayt. A shop watching a
+            // print fail knows roughly what was on the plate.
+            Text(shop.words.callIt("qc.weight_typed"))
+                .font(.callout).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
             HStack {
                 Spacer()
                 Button(shop.words.callIt("common.cancel")) { shop.clearQuestion() }

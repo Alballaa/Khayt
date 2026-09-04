@@ -106,6 +106,14 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **A failed print now takes its filament off the shelf.** The waste log
+  recorded the grams and their cost, and the stock was left untouched — so
+  every failed print left the shelf reading higher than it really was, and the
+  gap grew with every failure. The grams come off the spools the job was
+  printing from, and the reprint still pays for its own. Where a printer
+  measures what it got through before it stopped, that is the figure used;
+  where none does, the shop types it, and the field now says so.
+
 - **A quote you win by dragging its card now counts as won.** The acceptance
   date was written only by the Approve button, so a shop that moves a quote to
   Pending on the board — or on the Mac app — converted it without recording

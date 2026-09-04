@@ -688,7 +688,45 @@ function recordQcFailure(order, failure) {
     wasteLog,
     wasteId: uid('WASTE'),
     defaultReason: t('ord.qc_fail'),
+    // The failed print's filament comes off the shelf, so the rule needs what
+    // the shelf rules need: which branch the job belongs to, and the low-stock
+    // threshold to warn against.
+    settings: typeof settings !== 'undefined' ? settings : {},
+    machines: typeof machines !== 'undefined' ? machines : [],
+    today: typeof localDateStr === 'function' ? localDateStr() : '',
   });
+}
+
+/**
+ * The grams the printer measured for a job that did not finish, if any.
+ *
+ * The reading is whatever the poller last captured for that job's machine;
+ * `lib/printer-actuals.js` decides whether it is a measurement or a slicer's
+ * prediction wearing its clothes, which is a distinction three of the five
+ * supported printers get wrong in their own APIs.
+ */
+function measuredWasteFor(order) {
+  try {
+    const PA = (typeof globalThis !== 'undefined' && globalThis.KhaytPrinterActuals)
+      || require('../lib/printer-actuals.js');
+    if (!PA || !order || !order.machineId) return null;
+    // The poll cache, which both entry points fill from the same IPC. Read
+    // here rather than through Bed Ready's helper, because Khayt's window does
+    // not load that file — and a guarded read of a global that is never there
+    // is a feature that is silently absent.
+    const cache = (typeof machineStatusCache === 'object' && machineStatusCache) || null;
+    const completion = (cache && cache[order.machineId] && cache[order.machineId].lastCompleted) || null;
+    if (!completion) return null;
+    const weightG = (order.parts || []).reduce(
+      (s, p) => s + (+p.printWeight || 0) * (+p.qty || 1), 0);
+    return PA.measuredSoFar({
+      estimate: { printTime: +order.printTime || 0, weightG },
+      completion,
+      now: Date.now(),
+    });
+  } catch (e) {
+    return null;
+  }
 }
 
 /** The QC-failure rules, however this file happens to be loaded. */
@@ -707,6 +745,15 @@ function qcFailOrder(orderId) {
   const order = printLog.find(o => o.id === orderId);
   if (!order) return;
   const qcCfg = (settings && settings.qc) || {};
+  /* WHAT THE PRINTER SAYS IT GOT THROUGH.
+   *
+   * A print that stopped halfway did not use what it was quoted, and the
+   * printer is the only thing that knows how far it got. Pre-filled where a
+   * printer measured it, and left EMPTY where none did — offering the estimate
+   * as the default for a failure invites a shop to confirm a figure that is
+   * certainly too big, and the grams come off the shelf now.
+   */
+  const measured = measuredWasteFor(order);
   openFormModal({
     title: t('ord.qc_fail'),
     sizeLg: false,
@@ -733,7 +780,14 @@ function qcFailOrder(orderId) {
       <label>${escapeHtml(t('waste.reason'))}</label>
       <input type="text" id="qcFailReason" placeholder="${escapeHtml(t('waste.reason_ph'))}" style="width:100%;">
       <label style="margin-top:12px;">${escapeHtml(t('waste.weight'))} (g)</label>
-      <input type="number" id="qcFailWeight" min="0" step="1" value="" placeholder="0">`,
+      <input type="number" id="qcFailWeight" min="0" step="1" value="${measured ? measured.grams : ''}" placeholder="0">
+      ${measured
+        ? `<div style="font-size:11px;color:var(--text-muted);margin-top:3px;">${escapeHtml(
+            t('qc.weight_measured', { source: measured.source || 'printer' })
+            || `Measured by ${measured.source || 'your printer'} — what it got through before it stopped.`)}</div>`
+        : `<div style="font-size:11px;color:var(--text-muted);margin-top:3px;">${escapeHtml(
+            t('qc.weight_typed')
+            || 'Nothing measured this print, so type what it got through. The filament comes off the shelf.')}</div>`}`,
     onMount(modal) { setTimeout(() => modal.querySelector('#qcFailType')?.focus(), 40); },
     onSave(modal) {
       const failureType = modal.querySelector('#qcFailType').value;

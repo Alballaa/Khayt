@@ -318,6 +318,43 @@ sizing tried; a `Menu` with a bare `Text` label works. And a toolbar `Menu`
 draws a `Label` as its icon alone, which `.labelStyle(.titleAndIcon)` does not
 change.
 
+## Every print pays for its filament
+
+A print takes its filament off the shelf whatever the result, and it takes what
+it ACTUALLY used.
+
+**A failed print deducts.** `lib/qc-failure.js` draws the wasted grams off the
+spools the job was printing from — the same claims a completion would settle,
+in the same proportions — and records which spool on the waste row so a host
+that lets a shop undo the failure can put them back. The job is NOT marked
+`materialDeducted`: it is not done, and the reprint still deducts its own. So a
+job that fails once and then succeeds costs the shelf both attempts, which is
+what actually left the spool.
+
+**The amount can come from the printer.** A print that stopped at 40% did not
+use what it was quoted, and the printer is the only thing that knows how far it
+got. `deductForOrder` takes an optional `actualGrams` and scales every part's
+claim by it, so each spool is still charged its own share rather than one lump
+coming off the first one. Absent — which is every job Khayt has ever deducted
+for — the estimate stands exactly as before.
+
+`printerActuals.measuredSoFar` is what a failure asks. It is deliberately NOT
+`prefillActuals`: that falls back to the estimate, which is right for a
+completion and exactly wrong for a failure, where offering the whole-job figure
+as the default invites a shop to confirm a number that is certainly too big.
+Measured grams or nothing. Only Moonraker and Duet report cumulative extrusion;
+OctoPrint, PrusaLink and Bambu report time and a slicer prediction dressed as a
+measurement, which `lib/printer-actuals.js` explains at length and refuses.
+
+**On the Mac the figure is typed**, because reading it needs the poller, which
+lives in Khayt. The sheet says so, and says the grams come off the shelf.
+
+**The bridge had to change.** `recordQcFailure` returned the order and the
+waste row and dropped the inventory — the rule mutates the array it is handed,
+which is a copy on the Swift side, so the deduction would have happened inside
+JavaScriptCore and been thrown away. The shelf comes back now, and is written
+in the same swap.
+
 ## Telling the customer
 
 A move that would reach outside the shop is refused whole — a job cannot be
@@ -362,15 +399,12 @@ end. A book where every write is correct on its own and the collections
 disagree with each other is exactly the failure a shop finds at the end of a
 month, and no single-write test can see it.
 
-**It found one thing, and it is not fixed here.** A QC failure writes a waste
-row with the grams and their cost and does NOT take those grams off the shelf —
-`lib/qc-failure.js` leaves the inventory alone, which `renderer/order-flows.js`
-calls "unchanged accounting" and does deliberately. The reprint deducts its own
-filament when it completes, so the failed attempt's grams are recorded as waste
-and never leave the shelf: **the shelf overstates stock by every failed
-inspection's grams**, in both apps equally. The behaviour is pinned by the test
-and written down here. Changing it is a decision about a shop's money, not a
-tidy-up, so it is the shop's to make.
+**It found one thing, and it is now fixed.** A QC failure used to write a waste
+row with the grams and their cost and leave the inventory alone — so the
+filament a failed attempt burned through never left the shelf, and a shop's
+stock read high by the grams of every failure it had ever had. A failed print
+now deducts, off the same spools a completion would have used, in the same
+proportions. See *Every print pays for its filament*.
 
 ## The floor
 

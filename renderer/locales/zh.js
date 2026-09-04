@@ -2781,6 +2781,8 @@
   "qc.inspector": "检验员",
   "qc.inspector_none": "—",
   "qc.inspector_required": "请选择检验员",
+  "qc.weight_measured": "由 {source} 实测 — 停止前实际用掉的量。",
+  "qc.weight_typed": "这次打印没有实测数据，请填写实际用量。耗材会从库存中扣除。",
   "qc.severity": "严重程度",
   "qc.sev.major": "严重",
   "qc.sev.minor": "轻微",

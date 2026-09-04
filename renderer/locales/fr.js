@@ -2781,6 +2781,8 @@
   "qc.inspector": "Inspecteur",
   "qc.inspector_none": "—",
   "qc.inspector_required": "Sélectionnez un inspecteur",
+  "qc.weight_measured": "Mesuré par {source} — ce qu’il a consommé avant de s’arrêter.",
+  "qc.weight_typed": "Rien n’a mesuré cette impression : saisissez ce qu’elle a consommé. Le filament est déduit du stock.",
   "qc.severity": "Gravité",
   "qc.sev.major": "Majeur",
   "qc.sev.minor": "Mineur",

@@ -2813,6 +2813,8 @@
   "qc.inspector": "المفتِّش",
   "qc.inspector_none": "—",
   "qc.inspector_required": "اختر المفتِّش",
+  "qc.weight_measured": "قاسها {source} — ما استهلكه قبل التوقف.",
+  "qc.weight_typed": "لم يُقس هذا الطبع، فاكتب ما استهلكه. يُخصم الخيط من المخزون.",
   "qc.severity": "الخطورة",
   "qc.sev.major": "جسيم",
   "qc.sev.minor": "طفيف",
