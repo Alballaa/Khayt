@@ -101,6 +101,10 @@ public actor KhaytEngine {
         "working-week",
         "calculator-cost",
         "order-new",
+        // Which language a shop writes its customers' names in, and which of
+        // them to show. Not the interface language: a shop that writes only
+        // Arabic must not be shown the stale English name left over from setup.
+        "content-languages",
     ]
 
     /// The languages whose strings are bundled.
@@ -429,6 +433,29 @@ public actor KhaytEngine {
                            .array(inventory), .number(now.timeIntervalSince1970 * 1000),
                            .string(wasteId), .string(defaultReason)],
                           as: QcFailure.self)
+    }
+
+    // MARK: - Who the shop's customers are
+
+    /// A customer's name, in the language the shop writes.
+    ///
+    /// Not the interface language. `read` tries the language asked for ONLY if
+    /// the shop writes in it, then the shop's own languages, then anything
+    /// filled in at all — so an English interface shows a Turkish shop its
+    /// Turkish name rather than the stale `nameEn` from setup.
+    public func customerName(_ client: JSONValue, language: String,
+                             settings: [String: JSONValue]) throws -> String {
+        try runtime.call2("(KhaytContentLanguages.read(ARG0, 'name', ARG1, ARG2) || '')",
+                          [client, .string(language), .object(settings)], as: String.self)
+    }
+
+    /// The other language's name, for the second line. Empty for a
+    /// single-language shop, and empty when that field was left blank — where
+    /// repeating the primary name would just look like a bug.
+    public func customerAltName(_ client: JSONValue, language: String,
+                                settings: [String: JSONValue]) throws -> String {
+        try runtime.call2("(KhaytContentLanguages.readAlt(ARG0, 'name', ARG1, ARG2) || '')",
+                          [client, .string(language), .object(settings)], as: String.self)
     }
 
     // MARK: - Taking a job

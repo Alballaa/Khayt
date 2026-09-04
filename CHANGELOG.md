@@ -69,6 +69,12 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **The Mac app did not know who your customers were.** It worked them out from
+  the names written on jobs, so a customer you had entered but not yet given
+  work to did not appear at all, and nobody's phone number, email or VAT number
+  was shown anywhere. It reads your customer list now, shows what you recorded
+  about each of them, and ⇧⌘N writes down a new one.
+
 - **Five things Bed Ready was quietly missing.** The consumable list had no
   category filter and no reorder suggestions; a printer's live state was worked
   out by looking for the word "print" in whatever the machine reported, rather

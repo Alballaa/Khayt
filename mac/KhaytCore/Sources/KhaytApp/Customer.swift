@@ -34,9 +34,51 @@ struct Customer: Identifiable, Hashable, Sendable {
         }
     }
 
-    static func from(_ orders: [Order]) -> [Customer] {
+    /// The customer's row in the `clients` collection, when they have one.
+    ///
+    /// Nil for someone who exists only as a name denormalised onto old orders.
+    /// EVERYTHING THAT FOLLOWS A CUSTOMER THROUGH THE APP reads `clientId`, so
+    /// a job created against a customer with no record must carry no id at all
+    /// rather than one invented from their name.
+    let clientId: String?
+
+    /// The shop's own record of them: phone, email, VAT. Nil where there is none.
+    let record: Client?
+
+    /// Everyone the shop knows: the ones written down, and the ones who exist
+    /// only as a name on a job.
+    ///
+    /// The written-down ones come first and keep their id, because that id is
+    /// what a new job will point at. A name-only customer is still shown —
+    /// dropping them would hide most of the history of a shop that has never
+    /// used the customer screen — but has no id to give.
+    static func from(_ orders: [Order], clients: [Client] = []) -> [Customer] {
+        var out: [Customer] = []
+        var claimed = Set<String>()          // order ids already attributed
+
+        for client in clients {
+            let name = client.anyName
+            let byId = orders.filter { $0.clientId == client.id }
+            // A shop that has never linked a job to a client record still has
+            // the name on the order, so match on that too rather than showing
+            // an established customer with no history.
+            // Already-claimed jobs are skipped, so two records sharing a name
+            // do not each count the same job — which would report a shop twice
+            // the customers and twice the revenue it has. The first record in
+            // the collection wins, which is stable because the collection is.
+            let byName = orders.filter {
+                $0.clientId == nil && !name.isEmpty && !claimed.contains($0.id)
+                    && $0.client.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                        == name.lowercased()
+            }
+            let mine = byId + byName
+            claimed.formUnion(mine.map(\.id))
+            out.append(Customer(id: client.id, name: name, orders: mine,
+                                clientId: client.id, record: client))
+        }
+
         var buckets: [String: (name: String, orders: [Order])] = [:]
-        for order in orders {
+        for order in orders where !claimed.contains(order.id) {
             let name = order.client.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !name.isEmpty else { continue }
             let key = name.lowercased()
@@ -44,6 +86,10 @@ struct Customer: Identifiable, Hashable, Sendable {
             // not change what it calls someone as jobs are added.
             buckets[key, default: (name, [])].orders.append(order)
         }
-        return buckets.map { Customer(id: $0.key, name: $0.value.name, orders: $0.value.orders) }
+        out += buckets.map {
+            Customer(id: $0.key, name: $0.value.name, orders: $0.value.orders,
+                     clientId: nil, record: nil)
+        }
+        return out
     }
 }

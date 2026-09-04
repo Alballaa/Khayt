@@ -104,8 +104,13 @@ struct NewJobSheet: View {
                     // A walk-in is a real answer, and the commonest one for a
                     // shop that has not written the customer down yet.
                     Text(shop.words.callIt("mac.walk_in")).tag(String?.none)
-                    ForEach(shop.customers) { c in
-                        Text(c.name).tag(String?.some(c.id))
+                    // ONLY the customers with a record of their own. `id` on a
+                    // name-only customer is their name lowercased, and a job
+                    // carrying that as its clientId points at nothing — which
+                    // is worse than a job with no customer, because it looks
+                    // linked and is not.
+                    ForEach(shop.customers.filter { $0.clientId != nil }) { c in
+                        Text(c.name).tag(c.clientId)
                     }
                 }
                 .labelsHidden()

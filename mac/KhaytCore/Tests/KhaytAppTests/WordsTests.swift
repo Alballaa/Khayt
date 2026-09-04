@@ -110,7 +110,7 @@ struct MenuWordsTests {
         "mac.dashboard", "mac.all_jobs", "mac.board", "mac.customers",
         "mac.library", "mac.machines", "mac.inventory",
         "mac.favourite", "mac.reveal_in_finder", "mac.open",
-        "mac.sort_by", "ord.hold_btn", "pay.modal_title", "queue.delivered", "mac.edit_job", "mac.new_job",
+        "mac.sort_by", "ord.hold_btn", "pay.modal_title", "queue.delivered", "mac.edit_job", "mac.new_job", "mac.new_customer",
     ]
 
     @Test("every menu word exists in both languages, warm or not")

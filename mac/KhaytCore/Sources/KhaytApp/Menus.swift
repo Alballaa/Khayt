@@ -117,6 +117,9 @@ private struct NewJobCommand: View {
         Button(Words.upfront("mac.new_job")) { shop.takingAJob = true }
             .keyboardShortcut("n")
             .disabled(!shop.canMoveJobs)
+        Button(Words.upfront("mac.new_customer")) { shop.editingCustomer = Shop.newCustomer() }
+            .keyboardShortcut("n", modifiers: [.command, .shift])
+            .disabled(!shop.canMoveJobs)
     }
 }
 
