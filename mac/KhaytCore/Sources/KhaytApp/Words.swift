@@ -262,6 +262,8 @@ final class Words {
         "mac.favourite":     ["en": "Favourite",      "ar": "مفضّلة"],
         "mac.reveal_in_finder": ["en": "Reveal in Finder", "ar": "إظهار في الباحث"],
         "mac.open_book":     ["en": "Open",           "ar": "فتح دفتر"],
+        // Khayt clears a payment from a button with no label of its own.
+        "mac.clear_payment": ["en": "Clear payment",  "ar": "مسح الدفعة"],
         "mac.board_unplaced": ["en": "{n} job(s) are in a stage this board has no column for.",
                                "ar": "{n} من الأعمال في مرحلة لا عمود لها في هذا اللوح."],
         "mac.library":       ["en": "Library",       "ar": "المكتبة"],

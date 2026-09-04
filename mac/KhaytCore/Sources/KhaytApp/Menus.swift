@@ -147,6 +147,12 @@ private struct JobMenu: View {
             .disabled(!canMove || Stage.of(job!) == stage)
         }
         Divider()
+        Button(Words.upfront("pay.modal_title")) {
+            guard let one = job else { return }
+            shop.pendingPayment = Shop.PendingHold(id: one.id, project: one.project)
+        }
+        .keyboardShortcut("p", modifiers: [.command, .shift])
+        .disabled(!canMove)
         Button(Words.upfront("ord.hold_btn")) {
             guard let one = job else { return }
             shop.pendingHold = Shop.PendingHold(id: one.id, project: one.project)

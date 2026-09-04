@@ -83,6 +83,17 @@ private struct Detail: View {
             }
             DetailLine(shop.words.callIt("flow.paid"), Money.text(job.paidAmount, job.currency))
             DetailLine(shop.words.callIt("flow.owed"), Money.text(job.owed, job.currency), strong: !job.isSettled)
+            if shop.canMoveJobs {
+                // Where somebody is already reading what is owed. ⇧⌘P does the
+                // same thing from anywhere; this is the one place the question
+                // "has this been paid" is actually being asked.
+                Button(shop.words.callIt("pay.modal_title")) {
+                    shop.pendingPayment = Shop.PendingHold(id: job.id, project: job.project)
+                }
+                .buttonStyle(.link)
+                .font(.callout)
+                .padding(.top, 2)
+            }
             if let due = Order.day(job.dueDate) {
                 DetailLine(shop.words.callIt("doc.due"), due.formatted(date: .abbreviated, time: .omitted),
                      warn: job.isOverdue())

@@ -496,3 +496,92 @@ struct MoveJobOnDiskTests {
         #expect(try Self.read(url) == before)
     }
 }
+
+/// Recording money against a job.
+///
+/// One record changes rather than three, but through the same door: the
+/// ownership check, the atomic swap and the undo are the ones the moves already
+/// proved, not a second set written for money.
+@MainActor
+struct PaymentTests {
+
+    static func engineAndWords() async throws -> (KhaytEngine, Words) {
+        let engine = try KhaytEngine()
+        let words = Words()
+        await words.load("en", engine: engine)
+        return (engine, words)
+    }
+
+    @Test("what is written is what the reports will read back")
+    func statusIsDerived() async throws {
+        let (engine, _) = try await Self.engineAndWords()
+        // SAR 1,000 job, SAR 600 credited back, SAR 400 paid: settled. The
+        // dialog used to write "partial" here and every report read "paid".
+        let order: JSONValue = .object([
+            "id": .string("J1"), "price": .number(1000),
+            "creditNotes": .array([.object(["amount": .number(600)])]),
+        ])
+        let out = try await engine.recordPayment(order: order, amount: 400, method: "mada",
+                                                 paidAt: "2026-09-04", today: "2026-09-04")
+        guard case .object(let after) = out.order else { Issue.record("not an order"); return }
+        #expect(MoveJobTests.string(after["paymentStatus"]) == "paid")
+        #expect(MoveJobTests.number(after["paidAmount"]) == 400)
+        #expect(MoveJobTests.string(after["paymentMethod"]) == "mada")
+        #expect(try await engine.paymentStatus(of: out.order) == "paid",
+                "written and read must agree, which is the whole point")
+    }
+
+    @Test("a payment cannot exceed the price")
+    func clamped() async throws {
+        let (engine, _) = try await Self.engineAndWords()
+        let order: JSONValue = .object(["id": .string("J1"), "price": .number(100)])
+        let out = try await engine.recordPayment(order: order, amount: 5000, method: "cash",
+                                                 paidAt: "2026-09-04", today: "2026-09-04")
+        guard case .object(let after) = out.order else { Issue.record("not an order"); return }
+        #expect(MoveJobTests.number(after["paidAmount"]) == 100,
+                "an overpayment is a credit note, not a bigger paidAmount")
+    }
+
+    @Test("clearing a payment leaves the order owed, whatever else is on it")
+    func cleared() async throws {
+        let (engine, _) = try await Self.engineAndWords()
+        let order: JSONValue = .object([
+            "id": .string("J1"), "price": .number(100), "paidAmount": .number(100),
+            "giftCardDiscount": .number(100), "paymentMethod": .string("cash"),
+        ])
+        let out = try await engine.clearPayment(order: order)
+        guard case .object(let after) = out.order else { Issue.record("not an order"); return }
+        #expect(MoveJobTests.number(after["paidAmount"]) == 0)
+        #expect(MoveJobTests.string(after["paymentStatus"]) == "unpaid",
+                "somebody clearing a payment means the order is owed")
+        #expect(after["paymentMethod"] == .null)
+    }
+
+    @Test("a payment that would reach somebody is refused whole")
+    func refusedForOutbound() async throws {
+        let (engine, _) = try await Self.engineAndWords()
+        let order: JSONValue = .object(["id": .string("J1"), "price": .number(100),
+                                        "clientId": .string("C1")])
+        let quiet = try await engine.paymentOutbound(order: order, settings: [:], clients: [])
+        #expect(quiet.isEmpty, "a shop with nothing configured records a payment and reaches nobody")
+
+        let wired = try await engine.paymentOutbound(
+            order: order,
+            settings: ["emailConfig": .object(["provider": .string("smtp"),
+                                               "triggers": .array([.string("payment_received")])])],
+            clients: [.object(["id": .string("C1"), "email": .string("a@b.c")])])
+        #expect(wired.map(\.channel) == ["email"])
+    }
+
+    @Test("the methods offered are Khayt's own, in Khayt's order")
+    func methodsMatchKhayt() throws {
+        let source = try String(contentsOf: MoveJobTests.repoRoot.appending(path: "renderer/order-flows.js"),
+                                encoding: .utf8)
+        // Pinned to the list the Electron dialog offers. Inventing a method here
+        // would put a value in paymentMethod that Khayt's own dialog cannot show.
+        let expected = "const methodOptions = ['cash','mada','transfer','stcpay','applepay','visa','other']"
+        #expect(source.contains(expected),
+                "renderer/order-flows.js's payment methods have changed; Shop.paymentMethods must follow")
+        #expect(Shop.paymentMethods == ["cash", "mada", "transfer", "stcpay", "applepay", "visa", "other"])
+    }
+}
