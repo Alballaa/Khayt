@@ -129,6 +129,11 @@ public actor KhaytEngine {
         "date-range",
         "expense-book",
         "waste-entry",
+        // A spool, as the shelf records it, and what correcting one means.
+        // The two writers were inline in renderer/inventory.js, so only the
+        // Electron window could add a spool or fix a weight — and a shop's
+        // shelf drifts every day.
+        "spool-edit",
         // The shop's quarters. ORDER-MONEY AND TAX ARE ALREADY ABOVE, and both
         // must be: this consults them through their globals, and without them
         // it does not raise — it reports every order at its gross price and no
@@ -642,6 +647,36 @@ public actor KhaytEngine {
             [.array(orders), .array(expenses), .object(settings), .array(clients),
              .object(currencies), .number(now.timeIntervalSince1970 * 1000)],
             as: [PnlPeriod].self)
+    }
+
+    // MARK: - The shelf
+
+    /// A new spool, as the shelf records it. `refused` is `material` when it
+    /// has none — a spool no job can be matched to.
+    public func newSpool(_ input: [String: JSONValue], id: String, today: String) throws -> SpoolWritten {
+        try runtime.call2("KhaytSpoolEdit.newSpool(ARG0, {id: ARG1, today: ARG2})",
+                          [.object(input), .string(id), .string(today)], as: SpoolWritten.self)
+    }
+
+    /// Correct a spool.
+    ///
+    /// BOTH COME BACK CHANGED. The spool is corrected, and the shop's colour
+    /// library — a setting — learns any colour variant that was named. Write
+    /// them together, or the next editor offers a list that has forgotten what
+    /// was just typed.
+    public func editSpool(_ spool: JSONValue, input: [String: JSONValue],
+                          settings: [String: JSONValue], today: String) throws -> SpoolEdited {
+        try runtime.call2(
+            "(function(){var s = ARG0, set = ARG2;"
+          + " var out = KhaytSpoolEdit.applyEdit(s, ARG1, {today: ARG3, settings: set});"
+          + " return {spool: s, settings: set, refused: out.refused, colourAdded: out.colourAdded};})()",
+            [spool, .object(input), .object(settings), .string(today)], as: SpoolEdited.self)
+    }
+
+    /// The colour variants a shop has named for a material.
+    public func spoolColours(settings: [String: JSONValue], material: String) throws -> [String] {
+        try runtime.call2("KhaytSpoolEdit.coloursFor(ARG0, ARG1)",
+                          [.object(settings), .string(material)], as: [String].self)
     }
 
     // MARK: - Who the shop's customers are

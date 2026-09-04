@@ -256,6 +256,20 @@ public struct NewOrder: Decodable, Sendable {
     public let settings: [String: JSONValue]
 }
 
+/// A new spool, or the reason there is not one.
+public struct SpoolWritten: Decodable, Sendable {
+    public let spool: JSONValue?
+    public let refused: String?
+}
+
+/// A corrected spool, and the settings as its colour library left them.
+public struct SpoolEdited: Decodable, Sendable {
+    public let spool: JSONValue
+    public let settings: [String: JSONValue]
+    public let refused: String?
+    public let colourAdded: String?
+}
+
 /// One quarter of the shop's P&L.
 public struct PnlPeriod: Decodable, Sendable, Identifiable, Equatable {
     /// "2026-Q3".

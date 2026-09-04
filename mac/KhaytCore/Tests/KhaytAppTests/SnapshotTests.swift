@@ -89,5 +89,11 @@ import AppKit
                    "23-new-job-words", size: CGSize(width: 560, height: 478))
         try render(CustomerSheet(shop: shop, existing: Shop.newCustomer()),
                    "24-new-customer-words", size: CGSize(width: 420, height: 350))
+        try render(ExpenseSheet(shop: shop),
+                   "26-expense-words", size: CGSize(width: 420, height: 380))
+        try render(WasteSheet(shop: shop),
+                   "27-waste-words", size: CGSize(width: 460, height: 460))
+        try render(SpoolSheet(shop: shop, existing: shop.spools.first),
+                   "28-spool-words", size: CGSize(width: 440, height: 520))
     }
 }

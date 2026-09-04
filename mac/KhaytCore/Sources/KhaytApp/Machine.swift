@@ -69,6 +69,27 @@ struct Spool: Identifiable, Decodable, Hashable, Sendable {
     let weight: Double?
     let openedAt: String?
     let storage: String?
+    /// What the shop calls this particular colour — "Matte Black" — as opposed
+    /// to `color`, which is the swatch a screen draws.
+    let colourVariant: String?
+    let color: String?
+    let materialType: String?
+    let lot: String?
+    let purchasedAt: String?
+    /// Warn below this many grams; reorder this many.
+    let reorderPoint: Double?
+    let reorderQty: Double?
+    let printTemp: Double?
+    let bedTemp: Double?
+    let maxSpeed: Double?
+    /// What this spool cost before, and when it changed. Written by the editor
+    /// whenever the price moves, so a shop can check a supplier's invoice.
+    let priceHistory: [PriceChange]?
+
+    struct PriceChange: Decodable, Hashable, Sendable {
+        let cost: Double
+        let date: String
+    }
 
     /// How a shop picks this spool out of a list: what it is, and where — the
     /// two things that tell one 1kg PLA apart from another on the same shelf.

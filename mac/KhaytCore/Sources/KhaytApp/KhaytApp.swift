@@ -283,6 +283,14 @@ final class Activator: NSObject, NSApplicationDelegate {
             shop.shelf = .inventory
             await settle()
             capture(named: "08-inventory", into: dir)
+            // Correcting a spool, which is what a shelf screen is for.
+            if let spool = shop.spools.first {
+                shop.editingSpool = spool
+                await settle()
+                captureSheet(named: "21-spool", into: dir)
+                shop.editingSpool = nil
+                await settle()
+            }
 
             shop.shelf = .customers
             shop.customerSelection = shop.shownCustomers.max { $0.owed < $1.owed }?.id

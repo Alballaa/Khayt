@@ -136,9 +136,10 @@ private struct Card: View {
 struct Inventory: View {
     @Bindable var shop: Shop
     @SceneStorage("inventory.columns") private var columns: TableColumnCustomization<Spool>
+    @State private var selection: Spool.ID?
 
     var body: some View {
-        Table(shop.spools, columnCustomization: $columns) {
+        Table(shop.spools, selection: $selection, columnCustomization: $columns) {
             TableColumn(shop.words.callIt("plib.material")) { spool in
                 Text(spool.material.isEmpty ? "—" : spool.material).lineLimit(1)
             }
@@ -167,11 +168,31 @@ struct Inventory: View {
             .alignment(.trailing)
         }
         .tableStyle(.inset(alternatesRowBackgrounds: true))
+        // Double-click opens it, the way a Mac table opens anything.
+        .contextMenu(forSelectionType: Spool.ID.self) { ids in
+            if let id = ids.first, let spool = shop.spools.first(where: { $0.id == id }), shop.canMoveJobs {
+                Button(shop.words.callIt("mac.edit_spool")) { shop.editingSpool = spool }
+                Button(shop.words.callIt("common.delete"), role: .destructive) {
+                    Task { await shop.deleteSpool(id) }
+                }
+            }
+        } primaryAction: { ids in
+            guard shop.canMoveJobs, let id = ids.first else { return }
+            shop.editingSpool = shop.spools.first { $0.id == id }
+        }
         .overlay {
             if shop.spools.isEmpty {
                 ContentUnavailableView(shop.words.callIt("mac.no_stock"),
                                        systemImage: "shippingbox",
                                        description: Text(shop.words.callIt("mac.no_stock_hint")))
+            }
+        }
+        .toolbar {
+            ToolbarItem {
+                Button(shop.words.callIt("mac.new_spool"), systemImage: "plus") {
+                    shop.addingSpool = true
+                }
+                .disabled(!shop.canMoveJobs)
             }
         }
     }
