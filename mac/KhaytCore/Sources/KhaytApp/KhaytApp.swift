@@ -107,9 +107,20 @@ final class Activator: NSObject, NSApplicationDelegate {
             // The menu bar as AppKit actually built it. A Commands block that
             // compiles proves nothing about what a person can reach.
             FileHandle.standardError.write(Data("menus: \(menuTree())\n".utf8))
-            capture(named: "01-jobs", into: dir)
+            capture(named: "00-dashboard", into: dir)
 
             guard let shop = subject else { NSApp.terminate(nil); return }
+            // The sample too: a shop whose jobs are auto-logged from printer
+            // history has no prices, and a dashboard of zeros shows nothing
+            // about the design.
+            await shop.load(.sample)
+            await settle()
+            capture(named: "00b-dashboard-sample", into: dir)
+            await shop.load(Shop.available.first(where: \.isReal) ?? .sample)
+            await settle()
+            shop.shelf = .jobs(nil)
+            await settle()
+            capture(named: "01-jobs", into: dir)
 
             shop.selection = shop.shown.first { !$0.isSettled }?.id
             await settle()

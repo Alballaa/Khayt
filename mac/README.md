@@ -232,6 +232,28 @@ and every screen except the book. `KhaytCore` came first because the
 alternative, screens against a half-trusted engine, is how the two apps come to
 disagree about a shop's money.
 
+### The dashboard
+
+The screen the app opens on. `lib/attention.js` and `lib/dashboard-facts.js` are
+bundled and run, so what counts as late here is what counts as late in the shop's
+other app — both pure, zero requires, already assigning onto `globalThis`.
+
+**`lib/kpi.js` is deliberately NOT bundled.** It takes rows a caller has already
+scoped to a date range, converted to base currency and marked completed and
+on-time; `renderer/analytics.js` does that in a private `rowsFor(range)`. Handed
+`{orders, settings}` it compiles, runs, and returns **every figure as zero** —
+which is how this screen briefly showed "0 SAR revenue" beside a toolbar reading
+52,691.57. Revenue and margin wait until that normalising is lifted into `lib/`
+where both apps can share it. A bridge method that quietly answers zero is worse
+than no bridge method.
+
+So the money section shows the one figure this app computes itself — what is
+owed, `price - paid` over the open jobs, the same arithmetic the toolbar uses, so
+the two cannot disagree. There is also no second "Late" tile: the floor already
+has one from the attention engine, and the money section's counted something
+subtly different (unpaid *and* overdue). Two tiles with the same label and
+different numbers is the same fault as the zeros.
+
 ### How the library is ordered
 
 **The default is not "by name".** `renderer/printfiles.js` sorts favourites

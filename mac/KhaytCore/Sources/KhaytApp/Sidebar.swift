@@ -11,6 +11,11 @@ struct Sidebar: View {
     var body: some View {
         List(selection: $shop.shelf) {
             Section {
+                // First, and above the pipeline: it is the screen a shop opens
+                // the app to look at.
+                Row(title: shop.words.callIt("mac.dashboard"), symbol: "square.grid.2x2.fill",
+                    count: shop.attention?.count ?? 0, selected: shop.shelf == .dashboard)
+                    .tag(Shop.Shelf.dashboard)
                 Row(title: shop.words.callIt("mac.all_jobs"), symbol: "tray.full", count: shop.orders.count,
                     selected: shop.shelf == .jobs(nil))
                     .tag(Shop.Shelf.jobs(nil))

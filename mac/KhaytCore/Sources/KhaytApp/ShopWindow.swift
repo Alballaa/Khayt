@@ -17,7 +17,9 @@ struct ShopWindow: View {
             Sidebar(shop: shop)
                 .navigationSplitViewColumnWidth(min: 190, ideal: 215, max: 280)
         } detail: {
-            if shop.showingLibrary {
+            if shop.showingDashboard {
+                Dashboard(shop: shop)
+            } else if shop.showingLibrary {
                 LibraryGrid(shop: shop)
             } else if shop.showingCustomers {
                 CustomersTable(shop: shop)
@@ -30,7 +32,14 @@ struct ShopWindow: View {
         // width is not taken off — so a Table stretches its columns across a
         // width it does not have and the right-hand ones are clipped away
         // rather than compressed. The Owed column disappeared twice that way.
-        .inspector(isPresented: $showInspector) {
+        // Closed on the dashboard, not filled with a placeholder: that screen is
+        // already a summary, and a panel beside it has nothing to say. The
+        // binding is read-only there so the toolbar button cannot open an empty
+        // one either.
+        .inspector(isPresented: Binding(
+            get: { showInspector && !shop.showingDashboard },
+            set: { showInspector = $0 }
+        )) {
             Group {
                 if shop.showingLibrary {
                     LibraryInspector(shop: shop)
@@ -114,6 +123,7 @@ struct ShopWindow: View {
             let n = shop.shownCustomers.count
             return "\(n) \(shop.words.callIt("mac.customers_count")) · \(provenance)"
         }
+        if shop.showingDashboard { return provenance }
         return provenance
     }
 
@@ -169,6 +179,7 @@ private struct OwedSummary: View {
         case .jobs(nil): "jobs"
         case .jobs(let stage?): "jobs:\(stage.rawValue)"
         case .customers: "customers"
+        case .dashboard: "dashboard"
         case .library(nil): "library"
         case .library(let group?): "library:\(group)"
         }
@@ -183,6 +194,8 @@ private struct OwedSummary: View {
             return Stage(rawValue: parts[1]).map(Shop.Shelf.jobs)
         case "customers":
             return .customers
+        case "dashboard":
+            return .dashboard
         case "library":
             guard parts.count == 2 else { return .library(nil) }
             // Only if it is still a group this shop has.

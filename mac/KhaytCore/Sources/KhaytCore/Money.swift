@@ -57,3 +57,44 @@ public struct QuoteTotal: Codable, Sendable, Equatable {
     public let rushFee: Double
     public let total: Double
 }
+
+
+// MARK: - The dashboard
+
+/// What `lib/dashboard-facts.js` says about a shop right now.
+///
+/// Decoded loosely on purpose: this module answers six different themes and
+/// carries fields the Mac app has no screen for. A stricter decoder would fail
+/// the whole dashboard over a key it never reads.
+public struct DashboardFacts: Decodable, Sendable {
+    public let showsMoney: Bool
+    public let activeCount: Int
+    public let printingCount: Int
+    public let lateCount: Int
+    public let owed: Double?
+    public let fleet: Fleet
+    public let attn: Attention
+
+    public struct Fleet: Decodable, Sendable {
+        public let total: Int
+        public let live: Int
+        public let offline: Int
+        public let idle: Int
+    }
+
+    public struct Attention: Decodable, Sendable {
+        public let count: Int
+        public let items: [Item]
+    }
+
+    /// One thing that needs looking at. `kind` is `order`, `machine` or
+    /// `nozzle`; `severity` is the module's word, not a colour chosen here.
+    public struct Item: Decodable, Sendable, Identifiable, Hashable {
+        public let severity: String
+        public let kind: String
+        public let id: String
+        public let name: String?
+        public let dueDate: String?
+        public let daysLate: Int?
+    }
+}

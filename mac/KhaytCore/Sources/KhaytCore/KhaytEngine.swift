@@ -22,6 +22,12 @@ public actor KhaytEngine {
         "business-scope",
         "order-progress",
         "loyalty",
+        // What needs a shop's attention, and the figures on the dashboard.
+        // Pure, zero requires, and already assigning onto globalThis — so the
+        // screen a shop opens on is the same arithmetic the Electron app shows,
+        // not a Swift opinion about which orders are late.
+        "attention",
+        "dashboard-facts",
         // Groups and categories. Pure, and bundled rather than ported because
         // the rule that matters is not the reading — it is that a name matching
         // one already in use IS that name and adopts its spelling. "Saudi Kings"
@@ -107,6 +113,34 @@ public actor KhaytEngine {
     public func quoteTotal(_ input: [String: JSONValue]) throws -> QuoteTotal {
         try runtime.call("KhaytPricing", "quoteTotal", [input], as: QuoteTotal.self)
     }
+
+    // MARK: - The dashboard
+
+    /// What a shop needs to look at, and the state of the fleet.
+    ///
+    /// `attention` is passed IN because `dashboard-facts` is pure and refuses to
+    /// reach for a global — the module says so, and honouring it here is what
+    /// keeps one attention engine rather than two.
+    public func dashboardFacts(orders: [JSONValue], machines: [JSONValue],
+                               settings: [String: JSONValue]) throws -> DashboardFacts {
+        try runtime.call2("KhaytDashboardFacts.dashboardFacts({orders: ARG0, machines: ARG1,"
+                        + " settings: ARG2, attention: globalThis.KhaytAttention})",
+                          [.array(orders), .array(machines), .object(settings)],
+                          as: DashboardFacts.self)
+    }
+
+    // `KhaytKpi.computeKpis` is deliberately NOT exposed.
+    //
+    // It takes rows a caller has already scoped to a date range, converted to
+    // base currency and marked completed/on-time — `renderer/analytics.js` does
+    // that in `rowsFor(range)`, which is private to the renderer. Handing it
+    // `{orders, settings}` compiles, runs, and returns every figure as ZERO,
+    // which is how this app briefly showed a shop "0 SAR revenue" beside a
+    // toolbar reading 52,691.57.
+    //
+    // Revenue and margin wait until that normalising is lifted into `lib/`
+    // where both apps can share it. A bridge method that quietly answers zero
+    // is worse than no bridge method.
 
     // MARK: - Groups
 
