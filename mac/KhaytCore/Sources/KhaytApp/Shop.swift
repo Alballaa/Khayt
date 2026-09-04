@@ -526,9 +526,27 @@ final class Shop {
                 order: order, settings: Self.settings(root), clients: Self.rows(root, "clients"))) ?? []
             if !reaches.isEmpty { throw MoveRefused(sentence: self.words.outboundRefusal(reaches)) }
 
-            return try await engine.recordPayment(
+            // A payment is not a status change and Khayt writes no log line for
+            // one, so neither does this.
+            return OneOrderEdit(order: try await engine.recordPayment(
                 order: order, amount: amount, method: method,
-                paidAt: Self.localDay(paidAt), today: Self.localDay()).order
+                paidAt: Self.localDay(paidAt), today: Self.localDay()).order)
+        }
+    }
+
+    /// Hand a finished job over.
+    ///
+    /// Not a status change: a delivered job stays `completed` and carries a
+    /// `deliveredAt`. Setting a status here would take it out of the very
+    /// column the action feeds — see `KhaytOrderStatus.stageOf`.
+    func markDelivered(_ id: Order.ID) async {
+        await writeToOneOrder(id, named: words.callIt("queue.delivered")) { order, engine, _ in
+            let out = try await engine.markDelivered(order: order, now: Date())
+            guard out.ok, let changed = out.order else {
+                throw MoveRefused(sentence: self.words.callIt("mac.not_finished_yet"))
+            }
+            // The same line Khayt and Bed Ready write.
+            return OneOrderEdit(order: changed, activity: "\(id) → delivered")
         }
     }
 
@@ -536,7 +554,7 @@ final class Shop {
     /// the wrong job. Nothing leaves the shop, so nothing is refused.
     func clearPayment(_ id: Order.ID) async {
         await writeToOneOrder(id, named: words.callIt("mac.clear_payment")) { order, engine, _ in
-            try await engine.clearPayment(order: order).order
+            OneOrderEdit(order: try await engine.clearPayment(order: order).order)
         }
     }
 
@@ -544,7 +562,7 @@ final class Shop {
     /// written and stamped inside the same swap every other edit uses.
     private func writeToOneOrder(_ id: Order.ID, named actionName: String,
                                  change: @escaping (JSONValue, KhaytEngine, [String: JSONValue])
-                                 async throws -> JSONValue) async {
+                                 async throws -> OneOrderEdit) async {
         moveProblem = nil
         moveNotices = []
         guard let build = source.build else {
@@ -565,8 +583,16 @@ final class Shop {
                 guard let target = orders.first(where: { Self.recordId($0) == id }) else {
                     throw MoveRefused(sentence: self.words.callIt("mac.move_gone"))
                 }
-                let changed = try await change(target, engine, root)
-                Self.write(&root, "printLog", changed: [changed], before: orders, into: &undo)
+                let edit = try await change(target, engine, root)
+                Self.write(&root, "printLog", changed: [edit.order], before: orders, into: &undo)
+                // The shared rules ask for this and it is the app's to write. A
+                // handover that reached the book but not the log would be the
+                // one status change a shop most often has to explain later,
+                // recorded nowhere.
+                if let text = edit.activity {
+                    Self.appendActivity(&root, text: text, ref: id,
+                                        settings: Self.settings(root), root: root)
+                }
             }
             registerMoveUndo(undo, named: actionName)
             await load(source)
@@ -575,6 +601,12 @@ final class Shop {
         } catch {
             moveProblem = String(describing: error)
         }
+    }
+
+    /// One order after a rule changed it, and the line it asked for in the log.
+    struct OneOrderEdit {
+        let order: JSONValue
+        var activity: String? = nil
     }
 
     static func settings(_ root: [String: JSONValue]) -> [String: JSONValue] {

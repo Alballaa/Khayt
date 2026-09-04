@@ -264,6 +264,8 @@ final class Words {
         "mac.open_book":     ["en": "Open",           "ar": "فتح دفتر"],
         // Khayt clears a payment from a button with no label of its own.
         "mac.clear_payment": ["en": "Clear payment",  "ar": "مسح الدفعة"],
+        "mac.not_finished_yet": ["en": "A job is handed over after it is finished.",
+                                 "ar": "يُسلَّم العمل بعد إتمامه."],
         "mac.board_unplaced": ["en": "{n} job(s) are in a stage this board has no column for.",
                                "ar": "{n} من الأعمال في مرحلة لا عمود لها في هذا اللوح."],
         "mac.library":       ["en": "Library",       "ar": "المكتبة"],

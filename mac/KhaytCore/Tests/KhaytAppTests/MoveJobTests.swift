@@ -382,7 +382,11 @@ struct MoveJobTests {
         let performed: Set<String> = ["deduct_filament", "deduct_packaging", "activity_log",
                                       "save", "ensure_survey_token"]
         let cosmetic: Set<String> = ["render", "toast_updated", "toast_updated_undoable",
-                                     "tier_check", "export_status_page"]
+                                     "tier_check", "export_status_page",
+                                     // markDelivered's, not apply's: the app has
+                                     // its own sentence for a handover and the
+                                     // record is the deliveredAt stamp.
+                                     "toast_delivered"]
         let outbound: Set<String> = ["webhook", "order_webhook", "telegram", "email", "republish_portal"]
         let classified = performed.union(cosmetic).union(outbound)
 
@@ -571,6 +575,29 @@ struct PaymentTests {
                                                "triggers": .array([.string("payment_received")])])],
             clients: [.object(["id": .string("C1"), "email": .string("a@b.c")])])
         #expect(wired.map(\.channel) == ["email"])
+    }
+
+    @Test("handing a job over stamps the date and leaves the status alone")
+    func handover() async throws {
+        let (engine, _) = try await Self.engineAndWords()
+        let order: JSONValue = .object(["id": .string("J1"), "status": .string("completed")])
+        let out = try await engine.markDelivered(order: order, now: Date())
+        #expect(out.ok)
+        guard case .object(let after)? = out.order else { Issue.record("not an order"); return }
+        #expect(MoveJobTests.string(after["status"]) == "completed",
+                "moving it would empty the very column the action feeds")
+        #expect(MoveJobTests.string(after["deliveredAt"])?.hasSuffix("Z") == true)
+    }
+
+    @Test("a job cannot be handed over before it is made")
+    func handoverNeedsCompletion() async throws {
+        let (engine, _) = try await Self.engineAndWords()
+        for status in ["pending", "printing", "qc", "on_hold", "quote"] {
+            let order: JSONValue = .object(["id": .string("J1"), "status": .string(status)])
+            let out = try await engine.markDelivered(order: order, now: Date())
+            #expect(!out.ok, "\(status) is not ready to be delivered")
+            #expect(out.order == nil, "and nothing comes back to write")
+        }
     }
 
     @Test("the methods offered are Khayt's own, in Khayt's order")

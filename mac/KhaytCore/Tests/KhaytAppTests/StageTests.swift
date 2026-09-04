@@ -140,3 +140,66 @@ struct BoardSearchTests {
         #expect(shop.unplaced.isEmpty, "including the ones with no column")
     }
 }
+
+/// The Mac's `Stage.of` mirrors `KhaytOrderStatus.stageOf`, so it is checked
+/// against it rather than trusted.
+///
+/// The rule it mirrors — a delivered job is a COMPLETED job carrying a
+/// `deliveredAt` — lived only inside Khayt's kanban grouping loop, and reading
+/// `status` alone filed every handed-over job under Completed here.
+@MainActor
+struct StageParityTests {
+
+    static func decode(_ fields: [String: JSONValue]) throws -> Order {
+        var row = fields
+        // Everything Order requires, so a case can name only what it is about.
+        for (k, v) in ["id": JSONValue.string("J1"), "date": .string("2026-09-01"),
+                       "project": .string("P"), "client": .string("C"),
+                       "currency": .string("SAR"), "price": .number(0),
+                       "paidAmount": .number(0), "costBasis": .number(0),
+                       "paymentStatus": .string("unpaid"), "printTime": .number(0),
+                       "priority": .bool(false), "notes": .string(""),
+                       "parts": .array([])] where row[k] == nil {
+            row[k] = v
+        }
+        return try JSONDecoder().decode(Order.self, from: JSONEncoder().encode(row))
+    }
+
+    @Test("Swift and the shared rule place a job in the same column")
+    func agreesWithTheSharedRule() async throws {
+        let engine = try KhaytEngine()
+        let cases: [[String: JSONValue]] = [
+            ["status": .string("completed")],
+            ["status": .string("completed"), "deliveredAt": .string("2026-09-01T00:00:00.000Z")],
+            ["status": .string("delivered")],
+            ["status": .string("printing")],
+            ["status": .string("printing"), "deliveredAt": .string("2026-09-01T00:00:00.000Z")],
+            ["status": .string("on_hold")],
+            ["status": .string("qc")],
+            ["status": .string("split")],
+        ]
+        for fields in cases {
+            let shared = try await engine.raw(
+                "KhaytOrderStatus.stageOf(\(String(data: try JSONEncoder().encode(fields), encoding: .utf8)!))",
+                as: String?.self)
+            let mine = Stage.of(try Self.decode(fields))?.rawValue
+            // `split` has no column here on purpose — the shared rule returns it
+            // as itself so the caller decides, and this caller counts it as
+            // unplaced rather than filing it somewhere convenient.
+            let expected = shared == "split" ? nil : shared
+            #expect(mine == expected, "diverged for \(fields): shared said \(shared ?? "nil")")
+        }
+    }
+
+    @Test("a delivered job is off the board, not sitting in Completed")
+    func deliveredLeavesTheBoard() async throws {
+        let handedOver = try Self.decode(["status": .string("completed"),
+                                          "deliveredAt": .string("2026-09-01T00:00:00.000Z")])
+        #expect(Stage.of(handedOver) == .delivered)
+        #expect(!Stage.boardColumns.contains(.delivered),
+                "delivered is where work goes to stop being work")
+
+        let stillHere = try Self.decode(["status": .string("completed")])
+        #expect(Stage.of(stillHere) == .completed)
+    }
+}

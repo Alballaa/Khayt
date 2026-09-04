@@ -49,6 +49,14 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **The Mac app filed every handed-over job under Completed.** In Khayt a
+  delivered job is a completed one carrying the date it was handed over — the
+  status deliberately does not move, because moving it would empty the very
+  column the button feeds. That rule lived inside the board's own grouping loop,
+  so nothing else could read it. It is shared now: the Mac app's board shows a
+  delivered job as delivered, which is to say it leaves the board, and the Job
+  menu can hand one over the way Khayt does.
+
 - **Recording a payment could write a status the next screen disagreed with.**
   Whether an order counts as paid, partly paid or unpaid was worked out in
   three different places, and the one inside the payment dialog was the only

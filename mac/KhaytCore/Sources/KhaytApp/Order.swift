@@ -138,9 +138,19 @@ enum Stage: String, CaseIterable, Identifiable, Sendable {
 
     /// The stage a job is in, or nil for a status this app has no column for.
     ///
+    /// DELIVERED IS NOT A STATUS. A handed-over job stays `completed` and
+    /// carries a `deliveredAt`; that pair is what Khayt's own board reads, and
+    /// reading `status` alone filed every delivered job under Completed here.
+    /// The rule is `KhaytOrderStatus.stageOf` — mirrored rather than called
+    /// because it is two comparisons on a decoded row and this runs per cell,
+    /// and `StageParityTests` runs the shared one against it.
+    ///
     /// Nil is not "no stage" — it is a job that will not appear on the board, so
     /// every caller has to decide what to do about it rather than filtering it
     /// away. `split` reaches here: a parent order replaced by the sub-orders
     /// that carry its price between them.
-    static func of(_ order: Order) -> Stage? { Stage(rawValue: order.status) }
+    static func of(_ order: Order) -> Stage? {
+        if order.status == "completed", order.deliveredAt != nil { return .delivered }
+        return Stage(rawValue: order.status)
+    }
 }

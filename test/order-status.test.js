@@ -740,3 +740,43 @@ test('only a pass is recorded here — a failure does not end in completed', () 
   S.apply(order, 'completed', { now: NOW_MS, qc: { outcome: 'fail', notes: 'warped' } });
   assert.equal(order.qcStatus, undefined, 'a failure is a waste entry and a decision, not a completion');
 });
+
+/* ── Delivered is a handover, not a status ─────────────────────────────────── */
+
+test('a handed-over job is a completed job that carries the date', () => {
+  assert.equal(S.stageOf({ status: 'completed' }), 'completed');
+  assert.equal(S.stageOf({ status: 'completed', deliveredAt: '2026-09-01T00:00:00.000Z' }), 'delivered');
+  assert.equal(S.stageOf({ status: 'printing' }), 'printing');
+  assert.equal(S.stageOf({ status: 'printing', deliveredAt: 'x' }), 'printing',
+    'a date on an unfinished job says nothing — the pair is the rule');
+  assert.equal(S.stageOf({ status: 'split' }), 'split', 'returned as itself, for the caller to place');
+  assert.equal(S.stageOf(null), null);
+});
+
+test('marking delivered does not move the status, and that is the whole rule', () => {
+  // Moving it would empty the very column the button feeds: the Delivered
+  // column IS completed-jobs-with-a-date.
+  const order = { id: 'o1', status: 'completed' };
+  const out = S.markDelivered(order, { now: NOW_MS });
+  assert.equal(out.ok, true);
+  assert.equal(order.status, 'completed');
+  assert.equal(order.deliveredAt, NOW_ISO);
+  assert.equal(S.stageOf(order), 'delivered');
+  assert.deepEqual(order.statusHistory, [{ status: 'delivered', at: NOW_ISO }]);
+});
+
+test('a job cannot be delivered before it is made', () => {
+  for (const status of ['quote', 'pending', 'printing', 'post', 'qc', 'on_hold']) {
+    const order = { id: 'o1', status };
+    const out = S.markDelivered(order, { now: NOW_MS });
+    assert.equal(out.ok, false, `${status} should not be deliverable`);
+    assert.equal(out.block.code, 'not_completed');
+    assert.equal(order.deliveredAt, undefined, 'and nothing is written');
+  }
+});
+
+test('the handover reaches the activity log and the dashboard', () => {
+  const order = { id: 'o1', status: 'completed' };
+  const types = S.markDelivered(order, { now: NOW_MS }).effects.map(e => e.type);
+  assert.deepEqual(types, ['activity_log', 'save', 'render', 'toast_delivered']);
+});
