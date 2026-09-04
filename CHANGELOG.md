@@ -11,6 +11,10 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   A registered shop gets its ZATCA QR; a shop missing a field the QR needs is
   told which, on the paper, rather than handed an empty box.
 
+- **The Mac app can correct the shelf.** Add a spool, fix a weight after a
+  print ran long, change a price — with the price it used to be kept, so a
+  supplier's invoice can be checked. Deleting one is undoable.
+
 - **The Mac app shows profit and loss by quarter.** What each quarter earned,
   what it spent, the tax collected and what the shop kept — by the same rules
   the Khayt analytics screen uses, which now come from one place.

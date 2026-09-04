@@ -318,6 +318,29 @@ sizing tried; a `Menu` with a bare `Text` label works. And a toolbar `Menu`
 draws a `Label` as its icon alone, which `.labelStyle(.titleAndIcon)` does not
 change.
 
+## The shelf
+
+⌘-click or double-click a spool to correct it, ＋ to add one. The record and
+the correction are `lib/spool-edit.js`, lifted from `addInventoryItem` and the
+spool editor's `onSave` and proved against both. What the rule settles: a blank
+optional field is ABSENT rather than empty; a spool weighs at least a gram (one
+weighing nothing divides into every cost-per-gram in the app); zero for a print
+temperature means "not set", not "print at zero"; **an edit changes only what
+it was given**, which is what lets a smaller editor exist without wiping the
+fields it never showed; and a COST CHANGE IS REMEMBERED, because "what did this
+material cost last time" is the question a shop asks when a supplier's invoice
+looks wrong.
+
+Two things come back from an edit: the spool, and the settings — the shop's
+colour library is a setting, and naming a variant adds to it. They are written
+in one swap, or the next editor offers a list that has forgotten what was just
+typed. An edit is stamped; a new record is not.
+
+Deleting is undoable through its own path: `registerMoveUndo` restores fields
+onto records that are still there, and a deleted spool is not one — it would
+take its price history and its usage with it, and nothing else in the book can
+reconstruct them.
+
 ## Profit and loss
 
 The shop's quarters, from `lib/pnl-report.js`'s `pnlByPeriod` — lifted out of

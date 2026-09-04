@@ -35,6 +35,10 @@ if (typeof fetch === 'function' && typeof document !== 'undefined') {
 }
 
 (function (global) {
+/** The shelf's rules, however this file happens to be loaded. */
+const SpoolEdit = (typeof globalThis !== 'undefined' && globalThis.KhaytSpoolEdit)
+  || (() => { try { return require('../lib/spool-edit.js'); } catch (e) { return null; } })();
+
 /**
  * Single source of truth for the low-stock test. An item is low when its
  * remaining weight is at or below its reorder point, falling back to the
@@ -950,24 +954,31 @@ async function openFilamentScanner() {
 }
 
 function addInventoryItem() {
-  const material = $('#invMaterial').value.trim();
-  const cost = clampPositive($('#invCost').value);
-  const weight = Math.max(1, num($('#invWeight').value, 1000));
-  const color = $('#invColor').value || '#888888';
-  if (!material) { toast(t('inv.material_ph'), 'error'); return; }
-  const today = localDateStr();
-  const invMaterialType = $('#invMaterialType')?.value || 'fdm';
-  const lot = ($('#invLot')?.value || '').trim() || undefined;
-  // Per-location: tag the spool with the chosen branch (default to active filter).
-  const activeLoc = (typeof activeLocation !== 'undefined') ? activeLocation : null;
-  const locationId = ($('#invLocation')?.value || activeLoc || '') || undefined;
-  inventory.push({ id: uid('INV'), material, cost, weight, color, purchasedAt: today, materialType: invMaterialType, lot, locationId });
+  // The record is lib/spool-edit.js's, so the Mac app writes the same one.
+  const made = SpoolEdit.newSpool({
+    material:     $('#invMaterial').value,
+    cost:         $('#invCost').value,
+    weight:       $('#invWeight').value,
+    color:        $('#invColor').value,
+    materialType: $('#invMaterialType')?.value,
+    lot:          $('#invLot')?.value,
+    locationId:   $('#invLocation')?.value,
+  }, {
+    id: uid('INV'),
+    today: localDateStr(),
+    // Per-location: tag the spool with the branch being looked at when the
+    // form did not name one.
+    activeLocation: (typeof activeLocation !== 'undefined') ? activeLocation : null,
+  });
+  if (made.refused) { toast(t('inv.material_ph'), 'error'); return; }
+  inventory.push(made.spool);
   saveAll();
   renderInventory();
   $('#invMaterial').value = '';
   if ($('#invLot')) $('#invLot').value = '';
   toast(t('inv.added'), 'success');
 }
+
 
 async function deleteInventoryItem(id) {
   const item = inventory.find(i => i.id === id);
@@ -1100,47 +1111,29 @@ function openInventoryEditor(id) {
     saveLabel: t('common.save'),
     bodyHtml,
     onSave() {
-      const material = document.getElementById('ieMatInput').value.trim();
-      if (!material) { toast(t('inv.material_ph'), 'error'); return false; }
-      item.material = material;
-      item.color    = document.getElementById('ieColorInput').value || '#888888';
-      // Feature 7: Material type
-      item.materialType = document.getElementById('ieMaterialType')?.value || 'fdm';
-      // Feature 5: Colour variant — save to item and to settings.filamentColours library
-      const colourVariant = (document.getElementById('ieColourInput')?.value || '').trim();
-      item.colourVariant = colourVariant || undefined;
-      if (colourVariant) {
-        if (!settings.filamentColours) settings.filamentColours = {};
-        if (!settings.filamentColours[material]) settings.filamentColours[material] = [];
-        if (!settings.filamentColours[material].includes(colourVariant)) {
-          settings.filamentColours[material].push(colourVariant);
-        }
-      }
-      const newCost = clampPositive(document.getElementById('ieCostInput').value);
-      // Track price history when cost changes
-      if (newCost !== item.cost) {
-        if (!item.priceHistory) item.priceHistory = [];
-        item.priceHistory.push({ cost: item.cost, date: localDateStr() });
-      }
-      item.cost        = newCost;
-      item.weight      = Math.max(0, num(document.getElementById('ieWeightInput').value, 0));
-      item.purchasedAt = document.getElementById('iePurchasedAt').value || undefined;
-      item.openedAt    = document.getElementById('ieOpenedAt').value || undefined;
-      item.lot         = (document.getElementById('ieLot')?.value || '').trim() || undefined;
-      // Per-location: branch assignment (empty = unassigned/shared)
-      item.locationId  = (document.getElementById('ieLocation')?.value || '') || undefined;
-      // Feature 4: Print settings
-      const pt = num(document.getElementById('iePrintTemp').value, 0);
-      const bt = num(document.getElementById('ieBedTemp').value, 0);
-      const ms = num(document.getElementById('ieMaxSpeed').value, 0);
-      item.printTemp = pt > 0 ? pt : undefined;
-      item.bedTemp   = bt > 0 ? bt : undefined;
-      item.maxSpeed  = ms > 0 ? ms : undefined;
-      // New Feature 5: Per-spool reorder thresholds
-      const rp = num(document.getElementById('ieReorderPoint')?.value, 200);
-      const rq = num(document.getElementById('ieReorderQty')?.value, 1000);
-      item.reorderPoint = rp >= 0 ? rp : 200;
-      item.reorderQty   = rq >= 0 ? rq : 1000;
+      // The rule is lib/spool-edit.js: the same clamps, the same "a blank
+      // optional field is absent", the same price history when the cost moves,
+      // and the same colour added to the shop's library. It was fifty lines
+      // here, which is why only this window could correct a spool.
+      const el = (id) => document.getElementById(id);
+      const out = SpoolEdit.applyEdit(item, {
+        material:     el('ieMatInput').value,
+        color:        el('ieColorInput').value,
+        materialType: el('ieMaterialType')?.value,
+        colourVariant: el('ieColourInput')?.value,
+        cost:         el('ieCostInput').value,
+        weight:       el('ieWeightInput').value,
+        purchasedAt:  el('iePurchasedAt').value,
+        openedAt:     el('ieOpenedAt').value,
+        lot:          el('ieLot')?.value,
+        locationId:   el('ieLocation')?.value,
+        printTemp:    el('iePrintTemp').value,
+        bedTemp:      el('ieBedTemp').value,
+        maxSpeed:     el('ieMaxSpeed').value,
+        reorderPoint: el('ieReorderPoint')?.value,
+        reorderQty:   el('ieReorderQty')?.value,
+      }, { today: localDateStr(), settings });
+      if (out.refused) { toast(t('inv.material_ph'), 'error'); return false; }
       saveAll();
       renderInventory();
       toast(t('inv.updated'), 'success');

@@ -397,6 +397,9 @@ final class Words {
         "mac.of_which_fixed": ["en": "incl. overhead", "ar": "منها التكاليف الثابتة"],
         "mac.quarter_in_progress": ["en": "This quarter is still running, so its overhead is charged for the days elapsed.",
                                     "ar": "هذا الربع لم ينتهِ، فتُحتسب تكاليفه الثابتة بحسب الأيام المنقضية."],
+        "mac.edit_spool":    ["en": "Edit spool",   "ar": "تعديل البكرة"],
+        "mac.new_spool":     ["en": "New Spool",    "ar": "بكرة جديدة"],
+        "mac.swatch":        ["en": "Swatch",       "ar": "اللون"],
         // Settings
         "mac.revert":        ["en": "Revert",       "ar": "تراجع"],
         "mac.settings_saved": ["en": "Saved.",      "ar": "حُفظ."],
@@ -424,6 +427,8 @@ final class Words {
         "plib.material", "plib.tags_short", "plib.group_ph", "set.store_size",
         "tab.clients", "doc.invoice", "doc.quotation", "common.close",
         "inv.qr_failed",
+        // The shelf
+        "inv.colour_variant", "inv.lot", "inv.material_ph", "inv.opened_on", "inv.price_history", "inv.reorder_point",
         // Reports
         "an.pnl_empty", "an.pnl_expenses", "an.pnl_net", "an.pnl_orders", "an.pnl_period", "an.pnl_title", "an.pnl_vat", "an.revenue",
         // Expenses and waste

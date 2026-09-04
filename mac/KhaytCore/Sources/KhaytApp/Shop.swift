@@ -1300,6 +1300,125 @@ final class Shop {
         return String(format: "%04d-%02d-%02d", c.year ?? 0, c.month ?? 0, c.day ?? 0)
     }
 
+    // MARK: - The shelf
+
+    /// The spool being written down, or corrected.
+    var editingSpool: Spool?
+    /// True while the sheet is for a spool that is not on the shelf yet.
+    var addingSpool = false
+
+    /// Put a spool on the shelf, or correct one that is already there.
+    ///
+    /// A NEW spool is a new record and is not stamped; an edit is stamped like
+    /// every other, because the cloud's sync baseline reads the stamp. The
+    /// settings go with it when a colour variant taught the shop's library
+    /// something — one swap, or the library forgets what was just typed.
+    func saveSpool(_ input: [String: JSONValue], id: Spool.ID?) async {
+        spendProblem = nil
+        spendNote = nil
+        guard let build = source.build else {
+            spendProblem = words.callIt("mac.move_sample"); return
+        }
+        guard let engine else {
+            spendProblem = words.callIt("mac.move_no_engine"); return
+        }
+        var undo: [ChangedRecord] = []
+        do {
+            try await StoreWriter.update(
+                storeURL: build.storeURL,
+                owns: { StoreLock.weOwnIt(build) },
+                whoHasIt: { StoreLock.describe(StoreLock.verdict(for: build)) }
+            ) { root in
+                var shelf = Self.rows(root, "inventory")
+                if let id {
+                    guard let at = shelf.firstIndex(where: { Self.recordId($0) == id }),
+                          case .object(let was) = shelf[at] else {
+                        throw MoveRefused(sentence: self.words.callIt("mac.move_gone"))
+                    }
+                    let out = try await engine.editSpool(shelf[at], input: input,
+                                                         settings: Self.settings(root),
+                                                         today: Self.today())
+                    if out.refused != nil {
+                        throw MoveRefused(sentence: self.words.callIt("inv.material_ph"))
+                    }
+                    guard case .object(var record) = out.spool else { return }
+                    undo.append(ChangedRecord(collection: "inventory", id: id, was: was))
+                    StoreWriter.stamp(&record)
+                    shelf[at] = .object(record)
+                    root["settings"] = .object(out.settings)
+                } else {
+                    let made = try await engine.newSpool(input, id: Self.uid("INV"), today: Self.today())
+                    guard let record = made.spool else {
+                        throw MoveRefused(sentence: self.words.callIt("inv.material_ph"))
+                    }
+                    shelf.append(record)
+                }
+                root["inventory"] = .array(shelf)
+            }
+            if !undo.isEmpty { registerMoveUndo(undo, named: words.callIt("mac.edit_spool")) }
+            editingSpool = nil
+            addingSpool = false
+            await load(source)
+            spendNote = words.callIt(id == nil ? "inv.added" : "inv.updated")
+        } catch let refusal as MoveRefused {
+            spendProblem = refusal.sentence
+        } catch {
+            spendProblem = String(describing: error)
+        }
+    }
+
+    /// Take a spool off the shelf.
+    ///
+    /// Undoable, because it is a whole record: a spool deleted by mistake takes
+    /// its price history and its usage with it, and nothing else in the book
+    /// can reconstruct them.
+    func deleteSpool(_ id: Spool.ID) async {
+        spendProblem = nil
+        spendNote = nil
+        guard let build = source.build else {
+            spendProblem = words.callIt("mac.move_sample"); return
+        }
+        var removed: [String: JSONValue]?
+        do {
+            try StoreWriter.update(build) { root in
+                var shelf = Self.rows(root, "inventory")
+                guard let at = shelf.firstIndex(where: { Self.recordId($0) == id }),
+                      case .object(let was) = shelf[at] else { return }
+                removed = was
+                shelf.remove(at: at)
+                root["inventory"] = .array(shelf)
+            }
+            if let removed { registerSpoolUndo(removed) }
+            await load(source)
+            spendNote = words.callIt("inv.removed")
+        } catch {
+            spendProblem = String(describing: error)
+        }
+    }
+
+    /// Put a deleted spool back, and make THAT undoable.
+    ///
+    /// `registerMoveUndo` restores fields onto records that are still there; a
+    /// deleted spool is not, so it needs its own path.
+    private func registerSpoolUndo(_ record: [String: JSONValue]) {
+        guard let undoManager, let build = source.build,
+              case .string(let id)? = record["id"] else { return }
+        undoManager.setActionName(words.callIt("inv.removed"))
+        undoManager.registerUndo(withTarget: self) { shop in
+            do {
+                try StoreWriter.update(build) { root in
+                    var shelf = Self.rows(root, "inventory")
+                    guard !shelf.contains(where: { Self.recordId($0) == id }) else { return }
+                    shelf.append(.object(record))
+                    root["inventory"] = .array(shelf)
+                }
+                Task { await shop.deleteSpool(id) }
+            } catch {
+                shop.spendProblem = String(describing: error)
+            }
+        }
+    }
+
     // MARK: - The shop's own settings
 
     /// What stopped the last settings save, and what it did.
