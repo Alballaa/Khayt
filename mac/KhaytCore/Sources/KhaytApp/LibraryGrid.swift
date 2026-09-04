@@ -55,6 +55,16 @@ struct LibraryGrid: View {
                 return shop.moveSelection(by: step, extending: press.modifiers.contains(.shift))
                     ? .handled : .ignored
             }
+            // ⌘A is the SYSTEM's Select All, and adding a rival item to the
+            // Edit menu simply loses: SwiftUI drops the shortcut on the second
+            // claimant and the custom item ends up with no key at all. Handled
+            // here instead, where the standard command lands when the grid has
+            // focus — which is also how a Finder window does it.
+            .onKeyPress(.init("a"), phases: .down) { press in
+                guard press.modifiers.contains(.command) else { return .ignored }
+                shop.selectAllShown()
+                return .handled
+            }
             .onKeyPress(.return) {
                 shop.openSelection()
                 return .handled
