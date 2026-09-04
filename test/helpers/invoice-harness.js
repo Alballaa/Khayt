@@ -106,19 +106,22 @@ function context({ settings = {}, clients = [], language = 'en' } = {}) {
     payStatus: (o) => o.paymentStatus || 'unpaid',
     hijriDate: () => '1448/03/12',
     toArabicNumerals: (s) => String(s).replace(/[0-9]/g, (d) => '٠١٢٣٤٥٦٧٨٩'[+d]),
-    formatPrintDate: (d) => String(d || ''),
     qcStatusOf: () => null,
     safeBizLogo: () => '',
     safeCssColor: (v, fallback) => (/^#[0-9a-fA-F]{3,8}$/.test(String(v || '')) ? String(v) : fallback),
     BRAND_MARK_SVG: '<svg id="brand"></svg>',
-    renderClientSub: () => '',
+    // renderClientSub is NOT passed, for the same reason the renderer stopped
+    // passing it: the contact line is the document's own rule, and a harness
+    // that overrides it would render a document neither app prints.
     window: {},
   };
   ctx.globalThis = ctx;
   ctx.global = ctx;
   vm.createContext(ctx);
+  // print-date before invoice-document: the document's date formatter reaches
+  // it through the global, exactly as it does in a window and on the Mac.
   for (const f of ['lib/tax.js', 'lib/invoice-language.js', 'lib/content-languages.js',
-                   'lib/invoice-document.js']) {
+                   'lib/print-date.js', 'lib/invoice-document.js']) {
     vm.runInContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), ctx);
   }
   vm.runInContext(fs.readFileSync(path.join(ROOT, 'renderer/invoicing.js'), 'utf8'), ctx);

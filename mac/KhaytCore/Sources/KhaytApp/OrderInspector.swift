@@ -94,6 +94,12 @@ private struct Detail: View {
                 .font(.callout)
                 .padding(.top, 2)
             }
+            // Beside the figures it states. Not behind `canMoveJobs`: showing
+            // the document writes nothing, and the sample shop is the one book
+            // most people will look at an invoice in first.
+            Button(shop.words.callIt("doc.invoice")) { shop.showInvoice(job.id) }
+                .buttonStyle(.link)
+                .font(.callout)
             if let due = Order.day(job.dueDate) {
                 DetailLine(shop.words.callIt("doc.due"), due.formatted(date: .abbreviated, time: .omitted),
                      warn: job.isOverdue())

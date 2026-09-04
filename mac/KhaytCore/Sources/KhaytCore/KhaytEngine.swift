@@ -111,6 +111,10 @@ public actor KhaytEngine {
         // give every invoice the English-only answer.
         "invoice-language",
         "zatca-qr",
+        // PRINT-DATE FIRST: the document's own date formatter reaches it
+        // through a global, and without it every invoice this app printed
+        // showed the raw ISO timestamp under DATE.
+        "print-date",
         "invoice-document",
     ]
 
@@ -442,6 +446,51 @@ public actor KhaytEngine {
                           as: QcFailure.self)
     }
 
+    // MARK: - The document a customer is handed
+
+    /// May a ZATCA QR be drawn for this shop, and if not, which field is missing?
+    ///
+    /// A QR missing a required tag SCANS and is invalid, which is worse than no
+    /// QR at all: a code that reads invites no question.
+    public func zatcaReadiness(settings: [String: JSONValue],
+                               sellerName: String) throws -> StatusGate.Reason? {
+        struct Readiness: Decodable { let ok: Bool; let missing: [String] }
+        let r = try runtime.call2("KhaytZatcaQr.readiness(ARG0, ARG1)",
+                                  [.object(settings), .string(sellerName)], as: Readiness.self)
+        guard !r.ok else { return nil }
+        return StatusGate.Reason(code: "zatca_not_ready",
+                                 params: ["missing": .array(r.missing.map(JSONValue.string))])
+    }
+
+    /// The QR payload: five BER-TLV tags, base64'd.
+    public func zatcaPayload(sellerName: String, vatNumber: String, timestamp: String,
+                             total: String, vatAmount: String) throws -> String {
+        try runtime.call2(
+            "KhaytZatcaQr.buildTLV({sellerName: ARG0, vatNumber: ARG1, timestamp: ARG2,"
+          + " total: ARG3, vatAmount: ARG4}, {})",
+            [.string(sellerName), .string(vatNumber), .string(timestamp),
+             .string(total), .string(vatAmount)], as: String.self)
+    }
+
+    /// The invoice, as HTML.
+    ///
+    /// The same four hundred lines the Electron window prints.
+    ///
+    /// The document takes FUNCTIONS — how to escape, how to format money, what
+    /// a label is called — and a function cannot cross a JSON bridge. So they
+    /// are built in JavaScript, from the locale catalogue this runtime already
+    /// has loaded, and only the DATA comes from Swift. See `INVOICE_SCRIPT`.
+    public func invoiceHtml(order: JSONValue, settings: [String: JSONValue],
+                            clients: [JSONValue], currencies: [String: JSONValue],
+                            language: String, money: [String: JSONValue],
+                            sellerName: String, sellerAddress: String) throws -> InvoiceDocument {
+        try runtime.call2(INVOICE_SCRIPT,
+                          [order, .object(settings), .array(clients), .object(currencies),
+                           .string(language), .object(money),
+                           .string(sellerName), .string(sellerAddress)],
+                          as: InvoiceDocument.self)
+    }
+
     // MARK: - Who the shop's customers are
 
     /// A customer's name, in the language the shop writes.
@@ -544,6 +593,79 @@ public actor KhaytEngine {
         return try JSONDecoder().decode(T.self, from: data)
     }
 }
+
+/// The invoice, and the vocabulary it is written in.
+///
+/// Every helper here is the smallest honest version of the renderer's: `t`
+/// reads the catalogue this runtime already loaded, `escapeHtml` escapes the
+/// five characters that matter in an attribute, and money is two decimals.
+///
+/// `shopField` answers with what Swift resolved through the content languages,
+/// because which language a shop writes in is the app's question and it has
+/// already asked it.
+///
+/// `safeCssColor` and `safeBizLogo` REFUSE rather than pass through: a document
+/// that goes to a customer must not carry an arbitrary URL or an unvalidated
+/// colour out of the settings file.
+private let INVOICE_SCRIPT = """
+(function () {
+  var order = ARG0, settings = ARG1, clients = ARG2, currencies = ARG3;
+  var language = ARG4, money = ARG5, sellerName = ARG6, sellerAddress = ARG7;
+
+  var ARABIC_DIGITS = '\u{0660}\u{0661}\u{0662}\u{0663}\u{0664}\u{0665}\u{0666}\u{0667}\u{0668}\u{0669}';
+  var locales = globalThis.KhaytLocales || {};
+  function say(lang, key, vars) {
+    var table = locales[lang] || locales.en || {};
+    var s = table[key] || (locales.en || {})[key] || key;
+    if (vars) for (var k in vars) s = s.split('{' + k + '}').join(String(vars[k]));
+    return s;
+  }
+
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+  function money2(n) {
+    var v = +n;
+    return (isFinite(v) ? v : 0).toFixed(2);
+  }
+
+  var ctx = {
+    settings: settings, clients: clients, CURRENCIES: currencies,
+    i18n: { current: language, tIn: function (l, k, v) { return say(l, k, v); } },
+    t: function (k, v) { return say(language, k, v); },
+    escapeHtml: esc,
+    fmtMoney: money2,
+    // formatPrintDate is NOT overridden: turning an ISO string into a date a
+    // customer reads is the document's own rule, and this app printed
+    // "2026-07-02T14:32:00.000Z" under DATE for as long as it had its own.
+    shopField: function (base) { return base === 'addr' ? sellerAddress : sellerName; },
+    // Refused rather than passed through: this document goes to a customer.
+    safeBizLogo: function () { return ''; },
+    safeCssColor: function (v, fallback) {
+      return /^#[0-9a-fA-F]{3,8}$/.test(String(v || '')) ? String(v) : fallback;
+    },
+    // renderClientSub is NOT overridden: the contact line under the bill-to
+    // name is the document's own rule, and a host that supplies its own prints
+    // a different invoice. Khayt stopped passing one for the same reason.
+    BRAND_MARK_SVG: '',
+    orderCurrency: function (o) { return o.currency || settings.currency || 'SAR'; },
+    clientCurrency: function () { return settings.currency || 'SAR'; },
+    payStatus: function (o) {
+      return globalThis.KhaytOrderPayment
+        ? globalThis.KhaytOrderPayment.statusOf(o)
+        : (o.paymentStatus || 'unpaid');
+    },
+    hijriDate: function () { return ''; },
+    toArabicNumerals: function (s) {
+      return String(s).replace(/[0-9]/g, function (d) { return ARABIC_DIGITS[+d]; });
+    },
+  };
+  for (var key in money) ctx[key] = money[key];
+  return KhaytInvoiceDocument.invoiceHtml(order, ctx);
+})()
+"""
 
 /// A new job, and the counters taking it advanced.
 private let NEW_ORDER_SCRIPT = """

@@ -9,6 +9,8 @@
 const { test, beforeEach, afterEach } = require('node:test');
 const assert = require('node:assert/strict');
 const { setupDom } = require('./helpers/dom.js');
+const fs = require('node:fs');
+const path = require('node:path');
 
 let dom;
 beforeEach(() => { dom = setupDom(); });
@@ -126,7 +128,7 @@ function loadBuilders() {
   require('../lib/tax.js');          // sets globalThis.KhaytTax — money paths need it
   require('../renderer/app-helpers.js'); // renderTagChips
   require('../renderer/expenses.js');    // renderAttachedFiles
-  require('../renderer/invoicing.js');   // renderClientSub
+  require('../renderer/invoicing.js');   // renderInvoice
   require('../renderer/order-flows.js'); // renderOeExtraLinesHtml
 }
 
@@ -150,12 +152,25 @@ test('renderAttachedFiles: empty → placeholder, escapes file names', () => {
   assert.ok(html.includes('2 KB'), 'file size is formatted');
 });
 
-test('renderClientSub: joins phone · email, empty → ""', () => {
-  loadBuilders();
-  assert.equal(renderClientSub({}), '');
-  const html = renderClientSub({ phone: '050', email: 'a@b.c' });
+test('contactLine: joins phone · email, empty → ""', () => {
+  // The document's own rule now, not the renderer's. It moved because the Mac
+  // app renders the same invoice and had no copy of it, so every invoice it
+  // printed had a blank where the customer's phone and email belong.
+  const { contactLine } = require('../lib/invoice-document.js');
+  const esc = (x) => String(x);
+  assert.equal(contactLine({}, esc), '');
+  assert.equal(contactLine(null, esc), '', 'a job with no customer has no line');
+  const html = contactLine({ phone: '050', email: 'a@b.c' }, esc);
   assert.ok(html.includes('050') && html.includes('a@b.c'));
   assert.ok(html.includes('·'), 'phone and email are separated by a middot');
+});
+
+test('the renderer has not grown its own copy of the contact line back', () => {
+  const src = fs.readFileSync(path.join(__dirname, '..', 'renderer', 'invoicing.js'), 'utf8');
+  assert.ok(!/function renderClientSub/.test(src),
+    'renderer/invoicing.js must not define renderClientSub — lib/invoice-document.js does');
+  assert.ok(!/renderClientSub:/.test(src),
+    'and it must not pass one in, or the Mac app and Khayt print different documents');
 });
 
 test('renderOeExtraLinesHtml: empty/null → "", renders label + amount', () => {

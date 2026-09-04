@@ -246,3 +246,22 @@ public struct NewOrder: Decodable, Sendable {
     public let order: JSONValue
     public let settings: [String: JSONValue]
 }
+
+/// An invoice, ready to be shown or printed.
+public struct InvoiceDocument: Decodable, Sendable {
+    public let html: String
+    /// True when the shop reads Arabic-Indic digits. A string cannot rewrite
+    /// the text of elements that have not been laid out yet, so the app does it
+    /// once the document is in a view.
+    public let arabicNumerals: Bool
+    /// The elements that pass applies to.
+    public let selector: String
+
+    /// Memberwise, so a test can hand `page` a document without running the
+    /// whole rule set to get one — the wrapping is its own question.
+    public init(html: String, arabicNumerals: Bool, selector: String) {
+        self.html = html
+        self.arabicNumerals = arabicNumerals
+        self.selector = selector
+    }
+}

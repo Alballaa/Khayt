@@ -1432,8 +1432,12 @@ function renderInvoice(order, money) {
   if (!area) return;
   const D = InvoiceDocument();
   const out = D.invoiceHtml(order, Object.assign({}, money, {
-    settings, clients, CURRENCIES, i18n, t, escapeHtml, fmtMoney, formatPrintDate,
-    shopField, safeBizLogo, safeCssColor, renderClientSub, BRAND_MARK_SVG,
+    settings, clients, CURRENCIES, i18n, t, escapeHtml, fmtMoney,
+    // Neither the printed date nor the contact line under the bill-to name is
+    // passed in: both are the document's own rules now, so this window and the
+    // Mac app print the same invoice. `formatPrintDate` below is still the way
+    // in for the other documents — delivery notes, credit notes, work orders.
+    shopField, safeBizLogo, safeCssColor, BRAND_MARK_SVG,
     orderCurrency: (typeof orderCurrency === 'function') ? orderCurrency : null,
     clientCurrency, payStatus, hijriDate, toArabicNumerals,
   }));
@@ -1457,20 +1461,13 @@ function InvoiceDocument() {
   return InvoiceDocument.cached;
 }
 
-// Sub-line of contact info beneath the bill-to name (when client is linked)
-function renderClientSub(c) {
-  const bits = [c.phone, c.email].filter(Boolean).join(' · ');
-  if (!bits) return '';
-  return `<div class="name-sub">${escapeHtml(bits)}</div>`;
-}
-
-// Pretty date for invoice headers — e.g. "21 May 2026"
+// Pretty date for invoice headers — e.g. "21 May 2026". The rule is in
+// lib/print-date.js so the Mac app prints the same one; this is the renderer's
+// way in, kept because a dozen documents call it by this name.
 function formatPrintDate(isoDate) {
-  if (!isoDate) return '';
-  try {
-    const d = new Date(isoDate);
-    return d.toLocaleDateString(localeTag(), { day: '2-digit', month: 'short', year: 'numeric' });
-  } catch { return isoDate; }
+  const dates = (typeof globalThis !== 'undefined' && globalThis.KhaytPrintDate)
+    || require('../lib/print-date.js');
+  return dates.printDate(isoDate, localeTag());
 }
 
 // The Layered Tuwaiq mark, inlined for the invoice header (Strata palette)
@@ -1514,7 +1511,6 @@ const BRAND_MARK_SVG = `
     generateDeliveryNote,
     generateMilestoneInvoice,
     renderInvoice,
-    renderClientSub,
     formatPrintDate,
   };
 

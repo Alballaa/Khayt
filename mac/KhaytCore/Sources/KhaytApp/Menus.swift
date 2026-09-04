@@ -191,6 +191,16 @@ private struct JobMenu: View {
         }
         .keyboardShortcut("h", modifiers: [.command, .shift])
         .disabled(!canMove || job?.status == "on_hold")
+
+        Divider()
+        // The one item here that does not need the book to be ours: showing a
+        // shop what it would hand a customer changes nothing, and refusing to
+        // draw the sample's invoice would hide the thing this app is for.
+        Button(Words.upfront("doc.invoice")) {
+            if let one = job { shop.showInvoice(one.id) }
+        }
+        .keyboardShortcut("p")
+        .disabled(job == nil)
     }
 }
 

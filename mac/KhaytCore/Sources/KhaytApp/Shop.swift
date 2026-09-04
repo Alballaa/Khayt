@@ -185,7 +185,9 @@ final class Shop {
     /// The shared business logic, started once. Building a JSContext and
     /// loading eight modules takes a few milliseconds — trivial once, wasteful
     /// per row, and this is the object rows ask about money.
-    private var engine: KhaytEngine?
+    /// The shared business logic. Not private: the invoice is assembled in
+    /// `Invoice`, which needs to ask it the same questions the screens do.
+    private(set) var engine: KhaytEngine?
 
     init(source: Source = .sample) {
         self.source = source
@@ -248,6 +250,8 @@ final class Shop {
             await words.load(wanted, engine: engine)
             settingsValue = root["settings"] ?? .object([:])
             if case .array(let shelf)? = root["inventory"] { inventoryRows = shelf } else { inventoryRows = [] }
+            if case .array(let jobs)? = root["printLog"] { orderRows = jobs } else { orderRows = [] }
+            if case .array(let people)? = root["clients"] { clientRows = people } else { clientRows = [] }
             clients = Self.decodeClients(root)
             taxSummary = await describeTax(root["settings"])
             await computeDashboard(root)
@@ -958,6 +962,52 @@ final class Shop {
         var activity: String? = nil
     }
 
+    /// One order as the book holds it, rather than as this app decoded it.
+    ///
+    /// The invoice document reads fields this app has no use for on screen —
+    /// the extra lines, the rush fee, the discount it was given — so it is
+    /// handed the row, not the `Order`.
+    private(set) var orderRows: [JSONValue] = []
+
+    func orderRow(_ id: Order.ID) -> JSONValue? {
+        orderRows.first { Self.recordId($0) == id }
+    }
+
+    /// The customers, as the book holds them.
+    ///
+    /// The RAW rows, not this app's decoded `Client` re-encoded: the invoice
+    /// reads fields this app has no use for on screen, and a customer's
+    /// registration number vanishing from a tax document because a Swift struct
+    /// did not name it is exactly the kind of loss this avoids.
+    private(set) var clientRows: [JSONValue] = []
+
+    /// The shop's address, resolved the way its name already is.
+    var shopAddress: String { shopFieldValue("addr") }
+
+    private func shopFieldValue(_ base: String) -> String {
+        for key in ["\(base)En", "\(base)Ar"] {
+            if case .string(let v)? = settingsDict[key], !v.isEmpty { return v }
+        }
+        return ""
+    }
+
+    /// The combined tax percentage, or zero for a shop that is not registered.
+    func taxPercent() async -> Double {
+        guard let engine, case .object(let dict) = settingsValue,
+              let profile = try? await engine.taxProfile(settings: dict) else { return 0 }
+        return profile.totalPercent
+    }
+
+    /// The currency table the document formats against.
+    var currencyTable: JSONValue {
+        .object([shopCurrency: .object(["symbol": .string(shopCurrency)])])
+    }
+
+    private var shopCurrency: String {
+        if case .string(let c)? = settingsDict["currency"], !c.isEmpty { return c }
+        return "SAR"
+    }
+
     static func settings(_ root: [String: JSONValue]) -> [String: JSONValue] {
         if case .object(let s)? = root["settings"] { return s }
         return [:]
@@ -981,12 +1031,26 @@ final class Shop {
         return nil
     }
 
+    /// The job whose invoice is on screen.
+    ///
+    /// Not a question the way the others are — nothing waits on the answer and
+    /// nothing is written — but it is a sheet over the same window, and it is
+    /// dismissed by the same call, so it lives with them.
+    var pendingInvoice: PendingHold?
+
+    /// Show a job's invoice.
+    func showInvoice(_ id: Order.ID) {
+        guard let job = orders.first(where: { $0.id == id }) else { return }
+        pendingInvoice = PendingHold(id: id, project: job.project)
+    }
+
     func clearQuestion() {
         pendingHold = nil
         pendingQC = nil
         pendingPayment = nil
         pendingEdit = nil
         pendingQcFail = nil
+        pendingInvoice = nil
     }
 
     /// Whether a job may be moved at all: a real book, held by this app, with

@@ -12,6 +12,11 @@ import AppKit
 ///
 /// Writes to KHAYT_SNAPSHOT_DIR when set, and does nothing otherwise, so it
 /// costs nothing on a normal run.
+///
+/// WITH the directory set, the process crashes on the way out — "no current
+/// update to enqueue action to", from inside SwiftUI, after every test has
+/// passed and every picture is written. It predates the sheet renders below
+/// and CI never sets the variable. Read the PNGs, not the exit code.
 @Suite @MainActor struct SnapshotTests {
 
     static var outputDir: URL? {
@@ -57,5 +62,32 @@ import AppKit
         #expect(shop.ungroupedCount > 0, "so must the ungrouped one")
         shop.shelf = .library(nil)
         #expect(shop.shownFiles.count == shop.files.count)
+    }
+
+    /// The sheets, with their words in them.
+    ///
+    /// `ImageRenderer` renders SwiftUI properly; the running app's own capture
+    /// cannot (see `Snapshot.captureSheet`), so every sheet photographed from
+    /// the app is missing every label on it. What `ImageRenderer` CANNOT do is
+    /// host a WKWebView, so the invoice's paper comes out blank here and is
+    /// photographed from the app instead. Between the two there is a picture of
+    /// the whole of each sheet.
+    @Test("the sheets render, with their words")
+    func sheets() async throws {
+        let shop = Shop()
+        await shop.load(.sample)
+        let job = try #require(shop.orders.first { !$0.parts.isEmpty } ?? shop.orders.first)
+        let subject = Shop.PendingHold(id: job.id, project: job.project)
+
+        try render(PaymentSheet(shop: shop, subject: subject),
+                   "20-payment-words", size: CGSize(width: 380, height: 281))
+        try render(EditJobSheet(shop: shop, subject: subject),
+                   "21-edit-job-words", size: CGSize(width: 360, height: 276))
+        try render(QcFailSheet(shop: shop, subject: subject),
+                   "22-qc-fail-words", size: CGSize(width: 380, height: 228))
+        try render(NewJobSheet(shop: shop),
+                   "23-new-job-words", size: CGSize(width: 560, height: 478))
+        try render(CustomerSheet(shop: shop, existing: Shop.newCustomer()),
+                   "24-new-customer-words", size: CGSize(width: 420, height: 350))
     }
 }

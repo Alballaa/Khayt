@@ -26,4 +26,9 @@ for l in $LOCALES; do
   echo "  synced locale $l"
 done
 
+# The invoice's stylesheet. The html is a bundled module; this is what it looks
+# like, and two copies would be two documents that agree until one is edited.
+cp renderer/invoice.css "mac/KhaytCore/Sources/KhaytApp/Resources/invoice.css"
+echo "  synced invoice.css"
+
 echo "$(echo "$MODULES" | wc -w | tr -d ' ') modules and $(echo "$LOCALES" | wc -w | tr -d ' ') locales synced"

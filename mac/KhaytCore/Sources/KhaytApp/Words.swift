@@ -196,6 +196,18 @@ final class Words {
         }
     }
 
+    /// Why no ZATCA QR was drawn.
+    ///
+    /// It names the fields, because "not compliant" tells a shop nothing and
+    /// "no VAT registration number" tells them what to go and type.
+    func zatcaRefusal(_ reason: StatusGate.Reason) -> String {
+        guard case .array(let missing)? = reason.params["missing"] else {
+            return callIt("inv.qr_failed")
+        }
+        return missing.compactMap { if case .string(let key) = $0 { return callIt(key) } else { return nil } }
+            .joined(separator: " · ")
+    }
+
     /// Why this app will not make a move that has to reach somebody.
     ///
     /// It names the channels rather than saying "an integration", because
@@ -379,6 +391,11 @@ final class Words {
         "mac.no_customer_hint": ["en": "Pick a row to see their jobs and their balance.", "ar": "اختر صفاً لعرض أعماله ورصيده."],
         "mac.models_count": ["en": "models", "ar": "مجسمات"],
         "mac.customers_count": ["en": "customers", "ar": "عملاء"],
+        // The document a customer is handed
+        "mac.save_pdf":      ["en": "Save PDF",     "ar": "حفظ PDF"],
+        "mac.saved_to":      ["en": "Saved as",     "ar": "حُفظ باسم"],
+        "mac.no_document":   ["en": "This job's invoice could not be built.",
+                              "ar": "تعذّر إنشاء فاتورة هذا العمل."],
     ]
 
     /// The Khayt keys this app leans on. Listed so a test can prove every one of
@@ -392,6 +409,7 @@ final class Words {
         "an.range.all",
         "flow.owed", "flow.paid", "plib.group", "plib.unfiled", "plib.favorite",
         "plib.material", "plib.tags_short", "plib.group_ph", "set.store_size",
-        "tab.clients",
+        "tab.clients", "doc.invoice", "doc.quotation", "common.close",
+        "inv.qr_failed",
     ]
 }
