@@ -11,7 +11,7 @@ struct CustomersTable: View {
 
     var body: some View {
         Table(rows, selection: $shop.customerSelection, sortOrder: $order) {
-            TableColumn("Customer", value: \.name) { person in
+            TableColumn(shop.words.callIt("doc.client"), value: \.name) { person in
                 HStack(spacing: 6) {
                     if person.overdueCount > 0 {
                         Image(systemName: "exclamationmark.triangle.fill")
@@ -33,9 +33,9 @@ struct CustomersTable: View {
             // first. Columns that stop short leave trailing space instead.
             .width(min: 140, ideal: 210, max: 300)
 
-            TableColumn("Owed", value: \.owed) { person in
+            TableColumn(shop.words.callIt("flow.owed"), value: \.owed) { person in
                 if person.isSettled {
-                    Text("settled")
+                    Text(shop.words.callIt("mac.settled"))
                         .font(.caption)
                         .foregroundStyle(.tertiary)
                         .frame(maxWidth: .infinity, alignment: .trailing)
@@ -48,13 +48,13 @@ struct CustomersTable: View {
             }
             .width(min: 96, ideal: 120, max: 150)
             .alignment(.trailing)
-            TableColumn("Jobs", value: \.jobCount) { person in
+            TableColumn(shop.words.callIt("mac.jobs_count"), value: \.jobCount) { person in
                 Text("\(person.jobCount)").moneyStyle()
             }
             .width(min: 48, ideal: 58, max: 70)
             .alignment(.trailing)
 
-            TableColumn("Open", value: \.openCount) { person in
+            TableColumn(shop.words.callIt("mac.open_count"), value: \.openCount) { person in
                 // Zero is a full stop, not a number to read past. Dimming it
                 // leaves the column scannable for the ones that are not zero.
                 Text(person.openCount == 0 ? "—" : "\(person.openCount)")
@@ -65,7 +65,7 @@ struct CustomersTable: View {
             .width(min: 48, ideal: 60, max: 70)
             .alignment(.trailing)
 
-            TableColumn("Last job", value: \.lastJobSort) { person in
+            TableColumn(shop.words.callIt("mac.last_job"), value: \.lastJobSort) { person in
                 if let day = person.lastJob {
                     Text(day, format: .dateTime.day().month(.abbreviated).year())
                         .monospacedDigit()
@@ -114,24 +114,24 @@ struct CustomerInspector: View {
                             .foregroundStyle(.secondary)
                     }
                     Divider()
-                    DetailSection("Money") {
-                        DetailLine("Billed", Money.text(person.billed, shop.currency))
-                        DetailLine("Paid", Money.text(person.paid, shop.currency), dim: true)
-                        DetailLine("Owed", Money.text(person.owed, shop.currency),
+                    DetailSection(shop.words.callIt("mac.money")) {
+                        DetailLine(shop.words.callIt("mac.billed"), Money.text(person.billed, shop.currency))
+                        DetailLine(shop.words.callIt("flow.paid"), Money.text(person.paid, shop.currency), dim: true)
+                        DetailLine(shop.words.callIt("flow.owed"), Money.text(person.owed, shop.currency),
                                    strong: !person.isSettled, warn: person.overdueCount > 0)
                         if person.overdueCount > 0 {
                             DetailLine("Past due", "\(person.overdueCount)", warn: true)
                         }
                     }
                     Divider()
-                    DetailSection("Jobs") {
+                    DetailSection(shop.words.callIt("mac.jobs_count")) {
                         ForEach(person.orders.sorted { ($0.day ?? .distantPast) > ($1.day ?? .distantPast) }) { job in
                             HStack(alignment: .firstTextBaseline) {
                                 VStack(alignment: .leading, spacing: 1) {
                                     Text(job.project).lineLimit(1)
                                     HStack(spacing: 4) {
                                         if let stage = Stage.of(job) {
-                                            Text(stage.title)
+                                            Text(shop.words.callIt(stage.key))
                                         }
                                         Text("·")
                                         Text(job.id)
@@ -153,8 +153,8 @@ struct CustomerInspector: View {
                 .padding(16)
             }
         } else {
-            ContentUnavailableView("No customer selected", systemImage: "person",
-                                   description: Text("Pick a row to see their jobs and their balance."))
+            ContentUnavailableView(shop.words.callIt("mac.no_customer"), systemImage: "person",
+                                   description: Text(shop.words.callIt("mac.no_customer_hint")))
         }
     }
 }

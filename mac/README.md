@@ -318,6 +318,44 @@ the copy to the original, and caught two things I had wrong:
 A third was in the test rather than the code: it restated the rule instead of
 calling it, and so agreed with the mistake. It calls `LibraryFile.groupName` now.
 
+## Words
+
+The app speaks Khayt's own vocabulary. `renderer/locales/en.js` and `ar.js` are
+bundled and run in JavaScriptCore alongside the logic modules, so a stage this
+app calls "قيد الطباعة" is called that because the Electron app calls it that. An
+app that invents its own word for "Owed" has given one shop two vocabularies, and
+the person reading the second has to work out that it means the first.
+
+`Words.own` holds the handful of things Khayt has never needed a word for — "On
+this Mac", "Opened read-only". They are kept there rather than added to the
+shared catalogue because that one is nine languages wide and guarded for
+completeness: adding a key there means adding it in nine, and an English value
+sitting in `ar.js` is exactly what `test/locale-quality.test.js` exists to catch.
+`WordsTests` proves every borrowed key exists in both bundled languages, every
+own key carries both, and that neither catalogue shadows the other.
+
+Language comes from `settings.lang`. Not the system: a Riyadh shop on an English
+Mac still keeps its book in Arabic, and the book is what this window shows. (The
+Electron app keeps the live choice in `localStorage`, which nothing outside it
+can read; `settings.lang` is the copy that travels with the store.)
+`KHAYT_LANG=ar` forces one run, which is the only way to photograph a language
+the shop does not use.
+
+### Right-to-left is NOT done, and that is deliberate
+
+The words are Arabic; the layout is not mirrored. One line would do it —
+`.environment(\.layoutDirection, .rightToLeft)` on the window — and that line
+sends SwiftUI's `NavigationSplitView` into an unbounded layout loop on macOS 26:
+`SplitViewChildController.hostingView(_:didUpdateMinSize:maxSize:)` re-invalidates
+on every pass, the window grows (3380pt measured), and AppKit aborts with *"more
+Update Constraints in Window passes than there are views in the window"*.
+
+Bisected: the Arabic strings alone are fine, and it is not the sidebar's or the
+inspector's width constraint — removing either changes nothing. So the words ship
+and the mirroring waits. Text inside each label is already ordered correctly;
+Unicode does that without being asked. What is missing is the sidebar moving to
+the right edge and the table's columns reversing.
+
 ## The one hard constraint
 
 **Only one app may own the store at a time.** Khayt's write serialisation is

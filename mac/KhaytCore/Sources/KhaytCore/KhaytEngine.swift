@@ -34,8 +34,33 @@ public actor KhaytEngine {
         "store-secret-paths",
     ]
 
+    /// The languages whose strings are bundled.
+    ///
+    /// Two, not nine: these are 200KB each and the app only shows one at a time.
+    /// English because it is the fallback, Arabic because it is the language the
+    /// other half of this shop's customers read — and because right-to-left is a
+    /// layout property, not a translation, so it has to be exercised now rather
+    /// than retrofitted across a dozen finished screens.
+    static let locales = ["en", "ar"]
+
     public init(bundle: Bundle? = nil) throws {
-        runtime = try JSRuntime(modules: Self.modules, bundle: bundle)
+        runtime = try JSRuntime(modules: Self.modules, locales: Self.locales, bundle: bundle)
+    }
+
+    // MARK: - Words
+
+    /// Khayt's own translation of a key, or nil when it has none.
+    ///
+    /// Never invents. A key this app needs and Khayt does not have belongs in the
+    /// Mac app's own small catalogue, where it is visibly the app's own word
+    /// rather than something silently diverging from the Electron build's.
+    /// Every string Khayt has in a language.
+    ///
+    /// Fetched whole and once, rather than a key at a time: this crosses the
+    /// bridge with four thousand strings, which is cheap once and absurd per
+    /// label. The caller holds the result for the life of the language.
+    public func translations(language: String) throws -> [String: String] {
+        try raw("(globalThis.KhaytLocales||{})['\(language)']||{}", as: [String: String].self)
     }
 
     // MARK: - Tax

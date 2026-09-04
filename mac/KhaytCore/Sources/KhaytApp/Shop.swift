@@ -48,6 +48,9 @@ final class Shop {
     /// The ownership record this app holds, when the book was free to take.
     /// Nil means read-only: somebody else has it, or this is the sample.
     private(set) var ownership: StoreLock.Record?
+    /// What this shop calls things. Loaded with the book, because the language
+    /// is a property of the shop rather than of the Mac.
+    let words = Words()
     private var heartbeat: Task<Void, Never>?
 
     /// May this app change anything? False for the sample, and false whenever
@@ -145,6 +148,21 @@ final class Shop {
                 if case .string(let c)? = settings["currency"] { currency = c }
             }
             if engine == nil { engine = try? KhaytEngine() }
+            // `settings.lang` and not the system language: a Riyadh shop on an
+            // English Mac still keeps its book in Arabic, and the book is what
+            // this window shows. (The Electron app keeps the live choice in
+            // localStorage, which nothing outside it can read — settings.lang is
+            // the copy that travels with the store.)
+            var wanted: String?
+            if case .object(let settings)? = root["settings"], case .string(let l)? = settings["lang"] {
+                wanted = l
+            }
+            // KHAYT_LANG forces a language for one run. There is no other way to
+            // photograph the Arabic layout from a shop whose book is in English,
+            // and a right-to-left screen that nobody has looked at is a
+            // right-to-left screen that is wrong.
+            if let forced = ProcessInfo.processInfo.environment["KHAYT_LANG"] { wanted = forced }
+            await words.load(wanted, engine: engine)
             settingsValue = root["settings"] ?? .object([:])
             taxSummary = await describeTax(root["settings"])
         } catch {

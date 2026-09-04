@@ -81,14 +81,17 @@ enum Stage: String, CaseIterable, Identifiable, Sendable {
 
     var id: String { rawValue }
 
-    var title: String {
+    /// Khayt's own word for each stage, so the two apps call one thing one
+    /// thing. `cancelled` is the exception: the shared catalogue has no word for
+    /// it, so the Mac app's own is used and marked as such in `Words.own`.
+    var key: String {
         switch self {
-        case .quote: "Quotes"
-        case .pending: "Waiting"
-        case .printing: "On the printer"
-        case .completed: "Done"
-        case .delivered: "Delivered"
-        case .cancelled: "Cancelled"
+        case .quote: "queue.quote"
+        case .pending: "queue.pending"
+        case .printing: "queue.printing"
+        case .completed: "queue.completed"
+        case .delivered: "queue.delivered"
+        case .cancelled: "mac.cancelled"
         }
     }
 

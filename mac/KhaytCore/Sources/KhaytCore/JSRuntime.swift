@@ -34,7 +34,15 @@ public final class JSRuntime {
     ///
     /// `bundle` is optional rather than defaulted to `.module`: SPM generates
     /// that accessor as internal, so it cannot appear in a public signature.
-    public init(modules: [String], bundle: Bundle? = nil) throws {
+    /// Load `modules`, then `locales`, from `bundle`'s `JS` resource directory.
+    ///
+    /// Locale files are loaded separately because they break the naming rule
+    /// every other module follows: nine files all assign onto one global,
+    /// `KhaytLocales`, keyed by language. They are Khayt's own translations,
+    /// bundled rather than retyped so the two apps call the same thing by the
+    /// same name — an app that invents its own word for "Owed" has invented a
+    /// second vocabulary for one shop.
+    public init(modules: [String], locales: [String] = [], bundle: Bundle? = nil) throws {
         let bundle = bundle ?? .module
         guard let context = JSContext() else {
             throw KhaytJSError.evaluationFailed("could not create a JavaScript context")
@@ -59,6 +67,23 @@ public final class JSRuntime {
             // confusing "undefined is not an object" from a call site.
             guard context.objectForKeyedSubscript(Self.globalName(for: module))?.isUndefined == false else {
                 throw KhaytJSError.moduleMissing("\(module).js loaded but defined no global")
+            }
+        }
+
+        for language in locales {
+            let name = "locale-\(language)"
+            guard let url = bundle.url(forResource: name, withExtension: "js", subdirectory: "JS") else {
+                throw KhaytJSError.moduleMissing("\(name).js")
+            }
+            let source = try String(contentsOf: url, encoding: .utf8)
+            lastException = nil
+            context.evaluateScript(source, withSourceURL: url)
+            if let problem = lastException {
+                throw KhaytJSError.evaluationFailed("loading \(name).js: \(problem)")
+            }
+            guard let all = context.objectForKeyedSubscript("KhaytLocales"),
+                  all.objectForKeyedSubscript(language)?.isUndefined == false else {
+                throw KhaytJSError.moduleMissing("\(name).js loaded but defined no strings for \(language)")
             }
         }
     }

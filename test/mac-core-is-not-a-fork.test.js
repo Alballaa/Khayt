@@ -36,6 +36,32 @@ function declaredModules() {
   return [...block.matchAll(/"([a-z-]+)"/g)].map((m) => m[1]);
 }
 
+/** The languages listed in KhaytEngine.locales. */
+function bundledLocales() {
+  const src = fs.readFileSync(path.join(ROOT, 'mac/KhaytCore/Sources/KhaytCore/KhaytEngine.swift'), 'utf8');
+  const at = src.indexOf('static let locales = [');
+  assert.ok(at > 0, 'KhaytEngine.locales is gone');
+  const block = src.slice(at, src.indexOf(']', at));
+  return [...block.matchAll(/"([a-zA-Z-]+)"/g)].map((m) => m[1]);
+}
+
+test("every locale the Mac app bundles is identical to the renderer's", () => {
+  // Same argument as the modules, with a sharper edge: a stale copy here does
+  // not compute the wrong number, it shows a shop a word its other app stopped
+  // using. Translations are corrected far more often than tax rules.
+  const locales = bundledLocales();
+  assert.ok(locales.length > 0, 'no locales listed');
+  for (const lang of locales) {
+    const source = path.join(ROOT, 'renderer/locales', `${lang}.js`);
+    const copy = path.join(JS_DIR, `locale-${lang}.js`);
+    assert.ok(fs.existsSync(copy), `mac/…/JS/locale-${lang}.js is missing — run mac/sync-js.sh`);
+    assert.equal(
+      fs.readFileSync(copy, 'utf8'), fs.readFileSync(source, 'utf8'),
+      `locale-${lang}.js has drifted from renderer/locales/${lang}.js — run mac/sync-js.sh`
+    );
+  }
+});
+
 test('every module the Mac app bundles is identical to lib/', () => {
   for (const m of declaredModules()) {
     const original = fs.readFileSync(path.join(ROOT, 'lib', `${m}.js`));
@@ -48,7 +74,8 @@ test('every module the Mac app bundles is identical to lib/', () => {
 
 test('the Swift list and the bundled folder agree', () => {
   const onDisk = fs.readdirSync(JS_DIR).filter((f) => f.endsWith('.js')).map((f) => f.slice(0, -3)).sort();
-  assert.deepEqual(onDisk, declaredModules().sort(),
+  const expected = [...declaredModules(), ...bundledLocales().map((l) => `locale-${l}`)].sort();
+  assert.deepEqual(onDisk, expected,
     'a bundled file nobody loads is dead weight; a listed module with no file fails at startup');
 });
 

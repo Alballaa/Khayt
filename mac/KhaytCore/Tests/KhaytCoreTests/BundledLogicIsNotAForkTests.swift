@@ -58,6 +58,21 @@ struct BundledLogicIsNotAForkTests {
         }
     }
 
+    @Test("every bundled locale is identical to the renderer's")
+    func localesAreNotAFork() throws {
+        // Same argument as the modules, with a sharper edge: a stale copy here
+        // does not compute a wrong number, it shows a shop a word its other app
+        // stopped using. Translations are corrected far more often than tax
+        // rules, so this drifts sooner.
+        for language in KhaytEngine.locales {
+            let source = Self.repoRoot.appending(path: "renderer/locales/\(language).js")
+            let copy = Self.repoRoot.appending(path: "mac/KhaytCore/Sources/KhaytCore/JS/locale-\(language).js")
+            let a = try String(contentsOf: source, encoding: .utf8)
+            let b = try String(contentsOf: copy, encoding: .utf8)
+            #expect(a == b, "locale-\(language).js has drifted from renderer/locales — run mac/sync-js.sh")
+        }
+    }
+
     @Test("the module list and the bundled folder agree")
     func noStragglers() throws {
         let dir = Self.repoRoot.appending(path: "mac/KhaytCore/Sources/KhaytCore/JS")
@@ -65,9 +80,10 @@ struct BundledLogicIsNotAForkTests {
             .filter { $0.hasSuffix(".js") }
             .map { String($0.dropLast(3)) }
             .sorted()
-        #expect(onDisk == KhaytEngine.modules.sorted(), """
-            The bundled folder and KhaytEngine.modules disagree. A file nobody loads is
-            dead weight; a module in the list with no file fails at startup.
+        let expected = (KhaytEngine.modules + KhaytEngine.locales.map { "locale-\($0)" }).sorted()
+        #expect(onDisk == expected, """
+            The bundled folder and KhaytEngine's lists disagree. A file nobody loads is
+            dead weight; a module or locale in a list with no file fails at startup.
             """)
     }
 }

@@ -11,14 +11,14 @@ struct Sidebar: View {
     var body: some View {
         List(selection: $shop.shelf) {
             Section {
-                Row(title: "All jobs", symbol: "tray.full", count: shop.orders.count,
+                Row(title: shop.words.callIt("mac.all_jobs"), symbol: "tray.full", count: shop.orders.count,
                     selected: shop.shelf == .jobs(nil))
                     .tag(Shop.Shelf.jobs(nil))
             }
-            Section("Pipeline") {
+            Section(shop.words.callIt("mac.pipeline")) {
                 ForEach(Stage.allCases) { stage in
                     let n = shop.count(stage)
-                    Row(title: stage.title, symbol: stage.symbol, count: n,
+                    Row(title: shop.words.callIt(stage.key), symbol: stage.symbol, count: n,
                         selected: shop.shelf == .jobs(stage))
                         .tag(Shop.Shelf.jobs(stage))
                         // An empty stage stays visible and dimmed rather than
@@ -27,8 +27,8 @@ struct Sidebar: View {
                         .foregroundStyle(n == 0 ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.primary))
                 }
             }
-            Section("People") {
-                Row(title: "Customers", symbol: "person.2", count: shop.customers.count,
+            Section(shop.words.callIt("mac.people")) {
+                Row(title: shop.words.callIt("tab.clients"), symbol: "person.2", count: shop.customers.count,
                     selected: shop.shelf == .customers)
                     .tag(Shop.Shelf.customers)
             }
@@ -36,8 +36,8 @@ struct Sidebar: View {
             // together — the seven Saudi Kings, offered as one collection —
             // so the groups a shop has actually made are named here rather
             // than hidden behind a filter menu.
-            Section("Library") {
-                Row(title: "All models", symbol: "square.grid.2x2", count: shop.files.count,
+            Section(shop.words.callIt("mac.library")) {
+                Row(title: shop.words.callIt("mac.all_models"), symbol: "square.grid.2x2", count: shop.files.count,
                     selected: shop.shelf == .library(nil))
                     .tag(Shop.Shelf.library(nil))
                 ForEach(shop.groups, id: \.self) { group in
@@ -79,8 +79,8 @@ private struct Provenance: View {
     let shop: Shop
 
     private var footerLabel: String {
-        guard shop.source.isReal else { return "Sample data" }
-        return shop.canWrite ? "This book is yours to change" : "Opened read-only"
+        guard shop.source.isReal else { return shop.words.callIt("mac.sample") }
+        return shop.words.callIt(shop.canWrite ? "mac.writable" : "mac.read_only")
     }
     private var footerSymbol: String {
         guard shop.source.isReal else { return "theatermasks" }

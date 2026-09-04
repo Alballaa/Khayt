@@ -65,6 +65,11 @@ struct ShopWindow: View {
                 .help("Show or hide the job details")
             }
         }
+        // NOT `.environment(\.layoutDirection, …)` — see `Words.layout`. The one
+        // line that would mirror this window loops SwiftUI's split view until
+        // the window is 3380pt wide and AppKit gives up. The words are Arabic;
+        // the mirroring is not done yet, and pretending otherwise with a crash
+        // would be worse than saying so.
         .navigationTitle(shop.shopName)
         .navigationSubtitle(subtitle)
     }
@@ -76,23 +81,23 @@ struct ShopWindow: View {
         // while after the app could write, which is the kind of stale label
         // people stop trusting the rest of the window over.
         let provenance = shop.source.isReal
-            ? (shop.canWrite ? "yours to change" : "read-only")
-            : "sample data — not a real shop"
+            ? shop.words.callIt(shop.canWrite ? "mac.yours" : "mac.read_only")
+            : shop.words.callIt("mac.not_real_shop")
         if shop.showingLibrary {
             let n = shop.shownFiles.count
-            return "\(n) model\(n == 1 ? "" : "s") · \(provenance)"
+            return "\(n) \(shop.words.callIt("mac.models_count")) · \(provenance)"
         }
         if shop.showingCustomers {
             let n = shop.shownCustomers.count
-            return "\(n) customer\(n == 1 ? "" : "s") · \(provenance)"
+            return "\(n) \(shop.words.callIt("mac.customers_count")) · \(provenance)"
         }
         return provenance
     }
 
     private var searchPrompt: String {
-        if shop.showingLibrary { return "Model, material or tag" }
-        if shop.showingCustomers { return "Customer or job" }
-        return "Job, customer or number"
+        if shop.showingLibrary { return shop.words.callIt("mac.search_models") }
+        if shop.showingCustomers { return shop.words.callIt("mac.search_people") }
+        return shop.words.callIt("mac.search_jobs")
     }
 }
 
@@ -107,7 +112,7 @@ private struct OwedSummary: View {
     var body: some View {
         HStack(spacing: 10) {
             VStack(alignment: .trailing, spacing: 0) {
-                Text("Owed")
+                Text(shop.words.callIt("mac.owed_caps"))
                     .font(.system(size: 9, weight: .semibold))
                     .foregroundStyle(.tertiary)
                     .textCase(.uppercase)
@@ -117,7 +122,8 @@ private struct OwedSummary: View {
                     .monospacedDigit()
             }
             if shop.overdueCount > 0 {
-                Label("\(shop.overdueCount) late", systemImage: "exclamationmark.triangle.fill")
+                Label("\(shop.overdueCount) \(shop.words.callIt("mac.late"))",
+                      systemImage: "exclamationmark.triangle.fill")
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(.orange)
                     .labelStyle(.titleAndIcon)

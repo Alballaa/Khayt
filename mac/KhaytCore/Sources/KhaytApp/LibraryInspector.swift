@@ -27,14 +27,14 @@ struct LibraryInspector: View {
                     actions(file)
             if let notes = file.testedNotes, !notes.isEmpty {
                         Divider()
-                        DetailSection("Notes") { Text(notes).textSelection(.enabled) }
+                        DetailSection(shop.words.callIt("doc.notes")) { Text(notes).textSelection(.enabled) }
                     }
                 }
                 .padding(16)
             }
         } else {
-            ContentUnavailableView("No model selected", systemImage: "cube",
-                                   description: Text("Pick a model to see its file and its filament."))
+            ContentUnavailableView(shop.words.callIt("mac.no_model"), systemImage: "cube",
+                                   description: Text(shop.words.callIt("mac.no_model_hint")))
         }
     }
 
@@ -44,10 +44,10 @@ struct LibraryInspector: View {
         if let url = shop.modelFile(for: file) {
             HStack(spacing: 8) {
                 Button { FileActions.reveal(url) } label: {
-                    Label("Reveal", systemImage: "folder")
+                    Label(shop.words.callIt("mac.reveal"), systemImage: "folder")
                 }
                 Button { FileActions.open(url) } label: {
-                    Label("Open", systemImage: "arrow.up.forward.app")
+                    Label(shop.words.callIt("mac.open"), systemImage: "arrow.up.forward.app")
                 }
             }
             .controlSize(.small)
@@ -106,32 +106,32 @@ struct LibraryInspector: View {
     }
 
     private func theFile(_ file: LibraryFile) -> some View {
-        DetailSection("File") {
+        DetailSection(shop.words.callIt("mac.file")) {
             if let original = file.sourceFile?.originalName ?? file.originalName {
-                DetailLine("Name", original)
+                DetailLine(shop.words.callIt("mac.name"), original)
             }
-            if let size = file.size { DetailLine("Size", Format.bytes(size)) }
+            if let size = file.size { DetailLine(shop.words.callIt("set.store_size"), Format.bytes(size)) }
             if let material = file.material, !material.isEmpty {
-                DetailLine("Material", material)
+                DetailLine(shop.words.callIt("plib.material"), material)
             }
-            DetailLine("Printed", file.printCount == 0 ? "never" : "\(file.printCount)×",
+            DetailLine(shop.words.callIt("mac.printed"), file.printCount == 0 ? shop.words.callIt("mac.never") : "\(file.printCount)×",
                        dim: file.printCount == 0)
             if let last = file.lastPrinted, let day = Order.day(last) {
-                DetailLine("Last run", day.formatted(date: .abbreviated, time: .omitted))
+                DetailLine(shop.words.callIt("mac.last_run"), day.formatted(date: .abbreviated, time: .omitted))
             }
             // Where the bytes are is worth stating plainly. "On this Mac" and
             // "in the records but not here" look identical in a grid, and only
             // one of them can be put on a printer this afternoon.
             if shop.fileIsPresent(file) {
-                DetailLine("On this Mac", "yes", dim: true)
+                DetailLine(shop.words.callIt("mac.on_this_mac"), "✓", dim: true)
             } else {
-                DetailLine("On this Mac", "not found", warn: true)
+                DetailLine(shop.words.callIt("mac.on_this_mac"), shop.words.callIt("mac.not_found"), warn: true)
             }
         }
     }
 
     private func filament(_ file: LibraryFile) -> some View {
-        DetailSection("Filament") {
+        DetailSection(shop.words.callIt("mac.filament")) {
             ForEach(Array(file.palette.enumerated()), id: \.offset) { i, colour in
                 HStack(spacing: 8) {
                     if let rgb = colour.rgb {
@@ -156,15 +156,15 @@ struct LibraryInspector: View {
                 }
             }
             if file.swaps > 0 {
-                DetailLine("Swaps", "\(file.swaps)", dim: true)
+                DetailLine(shop.words.callIt("mac.swaps"), "\(file.swaps)", dim: true)
             }
         }
     }
 
     private func geometry(_ mesh: LibraryFile.Mesh) -> some View {
-        DetailSection("Mesh") {
-            DetailLine("Size", "\(Format.mm(mesh.x)) × \(Format.mm(mesh.y)) × \(Format.mm(mesh.z)) mm")
-            DetailLine("Triangles", Format.count(mesh.triangles), dim: true)
+        DetailSection(shop.words.callIt("mac.mesh")) {
+            DetailLine(shop.words.callIt("set.store_size"), "\(Format.mm(mesh.x)) × \(Format.mm(mesh.y)) × \(Format.mm(mesh.z)) mm")
+            DetailLine(shop.words.callIt("mac.triangles"), Format.count(mesh.triangles), dim: true)
         }
     }
 }
