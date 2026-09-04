@@ -5,6 +5,7 @@ const {
   SECRET_MASK,
   redactSettingsForExport,
   redactMachinesForExport,
+  redactOrdersForExport,
   buildSnapshot,
   buildExportPayload,
 } = require('../lib/store.js');
@@ -101,7 +102,7 @@ test('every field the UI treats as a secret is known to the redactor', () => {
   const store = fs.readFileSync(path.join(root, 'lib/store.js'), 'utf8');
   const body = store.slice(
     store.indexOf('function redactSettingsForExport'),
-    store.indexOf('function redactMachinesForExport'),
+    store.indexOf('function redactOrdersForExport'),
   );
   const missing = [...names].filter(n => !body.includes(`'${n}'`) && !STORE_SECRET_KEY_RE_TEST(n));
   assert.deepEqual(missing, [], `secret field(s) the export redactor never masks: ${missing.join(', ')}`);
@@ -175,4 +176,82 @@ test('a store from a NEWER Khayt is detected rather than silently truncated', ()
   assert.equal(normalized.version, STORE_VERSION + 5, 'the version survives so callers can act on it');
   // Documents the truncation the guard exists to prevent.
   assert.equal(normalized.someFutureCollection, undefined);
+});
+
+/* ------------------------------------------------------------------
+ * The export must mask every field the at-rest layer calls a credential.
+ *
+ * `lib/store-secret-paths.js` is the one list of which store fields hold a
+ * credential — it exists because the same list used to be written out by hand
+ * three times and "adding a secret meant remembering five places; it only takes
+ * forgetting one". The export redactor is a fourth hand-written copy of it, and
+ * it had already forgotten three: the S3 bucket secret and the two Drive
+ * tokens.
+ *
+ * They looked safe because the RENDERER's copy of settings is already masked,
+ * so an export built there carried a mask by accident. Anything building an
+ * export from the store on disk — the native Mac app — shipped the real values.
+ * ------------------------------------------------------------------ */
+
+const { SECRET_PATHS } = require('../lib/store-secret-paths.js');
+
+/** Put a value at a dotted path, creating the objects on the way. */
+function place(root, path, value) {
+  const [head, tail] = path.includes('[]') ? path.split('[].') : [null, path];
+  if (head !== null) {
+    const keys = head.split('.');
+    let cur = root;
+    for (const k of keys.slice(0, -1)) cur = (cur[k] ||= {});
+    const last = keys[keys.length - 1];
+    cur[last] ||= [{ id: 'M-1' }];
+    for (const item of cur[last]) place(item, tail, value);
+    return;
+  }
+  const keys = path.split('.');
+  let cur = root;
+  for (const k of keys.slice(0, -1)) cur = (cur[k] ||= {});
+  cur[keys[keys.length - 1]] = value;
+}
+
+test('every credential the at-rest layer knows about is masked on export', () => {
+  const store = {};
+  const canaries = [];
+  for (const [i, p] of SECRET_PATHS.entries()) {
+    const canary = `CANARY-${i}-${p.replace(/[^a-z]/gi, '')}`;
+    canaries.push([p, canary]);
+    place(store, p, canary);
+  }
+  const text = JSON.stringify(buildExportPayload(store, { redactSecrets: true }));
+  const leaked = canaries.filter(([, c]) => text.includes(c)).map(([p]) => p);
+  assert.deepEqual(leaked, [],
+    'these are credentials at rest and are exported in the clear: ' + leaked.join(', '));
+});
+
+test('a per-order access token is removed from an export, not masked', () => {
+  // Both are capabilities: the tracking token opens an order's status page over
+  // LAN and is the customer portal's `/p/<token>`, and the approval token
+  // APPROVES A QUOTE. Deleted rather than masked because both are minted on
+  // demand — `__KHAYT_MASKED__` is truthy, so masking would hand every order
+  // the same token and stop anything re-minting.
+  const out = redactOrdersForExport([
+    { id: 'P-1', project: 'lids', trackingToken: 'abc', quoteApprovalToken: 'def' },
+    { id: 'P-2', project: 'brackets' },
+    null,
+  ]);
+  assert.equal('trackingToken' in out[0], false);
+  assert.equal('quoteApprovalToken' in out[0], false);
+  assert.equal(out[0].project, 'lids');
+  assert.equal(out[1].project, 'brackets');
+  assert.equal(out[2], null);
+});
+
+test('a backup keeps the tokens an export drops', () => {
+  // The unredacted payload is what `backups/` holds and what a restore puts
+  // back. A shop that restores must get its portal links back, not a book that
+  // silently re-mints every one of them.
+  const collections = { printLog: [{ id: 'P-1', trackingToken: 'abc' }], settings: {}, machines: [] };
+  const backup = buildExportPayload(collections, { redactSecrets: false });
+  assert.equal(backup.printLog[0].trackingToken, 'abc');
+  const share = buildExportPayload(collections, { redactSecrets: true });
+  assert.equal('trackingToken' in share.printLog[0], false);
 });

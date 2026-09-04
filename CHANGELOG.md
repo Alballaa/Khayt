@@ -147,6 +147,26 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **Three credentials were missing from the export redactor.** The print
+  library's S3 bucket secret and the two Google Drive tokens are on
+  `lib/store-secret-paths.js` — encrypted at rest, masked on the way to the
+  renderer — and were on neither of the export's two lists. In Khayt itself
+  they came out masked by accident, because the renderer's copy of settings is
+  already masked; anything building an export from the store on disk shipped
+  the real values. A test now fails if any credential the at-rest layer knows
+  about survives an export.
+
+- **A shared export carried every order's access tokens.** `trackingToken` and
+  `quoteApprovalToken` are capabilities, not data: the first opens an order's
+  status page over LAN and is the `/p/<token>` segment of the customer portal,
+  and the second approves a quote — which turns it into an order in the shop's
+  book. They are now removed from the two payloads that leave the machine (the
+  file *Export* writes and the iCloud copy) and kept in the ones that restore a
+  shop (the daily backup and a named restore point). They are minted on demand,
+  so an import re-mints; a shop that migrates by export republishes its portal
+  links.
+
+
 - **Your backups before an app update are kept properly.** They were counted
   as ordinary daily backups and survived only by accident of how the filenames
   sort — and meanwhile each one cost you a day of ordinary backup history.
