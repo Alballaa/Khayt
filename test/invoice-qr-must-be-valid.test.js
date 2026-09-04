@@ -103,9 +103,13 @@ test('a generation failure keeps its own reason, not the readiness one', () => {
 });
 
 test('the document says it is not compliant, in the shop\'s language', () => {
-  assert.ok(!/>QR unavailable</.test(src), 'the untranslated grey placeholder is back');
-  assert.match(src, /escapeHtml\(t\('inv\.qr_not_compliant'\)\)/, 'the document no longer names the problem');
-  assert.match(src, /escapeHtml\(qrProblem \|\| t\('inv\.qr_failed'\)\)/);
+  // The QR is DECIDED in renderer/invoicing.js — which needs the main process
+  // to draw one — and DISPLAYED by lib/invoice-document.js, which is where the
+  // empty-box problem is named. The claim follows the half it is about.
+  const doc = fs.readFileSync(path.join(ROOT, 'lib', 'invoice-document.js'), 'utf8');
+  assert.ok(!/>QR unavailable</.test(doc), 'the untranslated grey placeholder is back');
+  assert.match(doc, /escapeHtml\(t\('inv\.qr_not_compliant'\)\)/, 'the document no longer names the problem');
+  assert.match(doc, /escapeHtml\(qrProblem \|\| t\('inv\.qr_failed'\)\)/);
 });
 
 test('all four strings exist in every locale', () => {

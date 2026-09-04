@@ -54,10 +54,17 @@ test('the logged line freezes the money a percentage resolved to', () => {
 });
 
 test('the invoice shows the percentage and the frozen money', () => {
-  const at = invoicing.indexOf('const extraLinesHtml');
-  const body = invoicing.slice(at, invoicing.indexOf('.join(\'\')', at));
+  // The document moved to lib/invoice-document.js so something other than the
+  // Electron window could produce one; the claim is the same and follows it.
+  const doc = read('lib/invoice-document.js');
+  const at = doc.indexOf('const extraLinesHtml');
+  const body = doc.slice(at, doc.indexOf('.join(\'\')', at));
   assert.match(body, /\+l\.pct > 0/, 'a percentage fee is indistinguishable from a fixed one');
   assert.match(body, /fmtMoney\(\+l\.amount \|\| 0\)/, 'the invoice does not print the money');
+
+  // And the renderer has not grown its own copy back.
+  assert.doesNotMatch(invoicing, /const extraLinesHtml/,
+    'renderer/invoicing.js is building the line items again');
 });
 
 test('editing an amount drops the percentage it overrode', () => {
