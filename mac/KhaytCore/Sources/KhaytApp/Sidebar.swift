@@ -32,6 +32,15 @@ struct Sidebar: View {
                         .foregroundStyle(n == 0 ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.primary))
                 }
             }
+            // The floor: what the shop prints with and prints on.
+            Section(shop.words.callIt("mac.the_floor")) {
+                Row(title: shop.words.callIt("mac.machines"), symbol: "printer",
+                    count: shop.machines.count, selected: shop.shelf == .machines)
+                    .tag(Shop.Shelf.machines)
+                Row(title: shop.words.callIt("mac.inventory"), symbol: "shippingbox",
+                    count: shop.spools.count, selected: shop.shelf == .inventory)
+                    .tag(Shop.Shelf.inventory)
+            }
             Section(shop.words.callIt("mac.people")) {
                 Row(title: shop.words.callIt("tab.clients"), symbol: "person.2", count: shop.customers.count,
                     selected: shop.shelf == .customers)

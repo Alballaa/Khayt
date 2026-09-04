@@ -254,6 +254,37 @@ has one from the attention engine, and the money section's counted something
 subtly different (unpaid *and* overdue). Two tiles with the same label and
 different numbers is the same fault as the zeros.
 
+### The shop floor
+
+Machines as cards — a shop has a handful of printers, not four hundred, and what
+you want from one does not line up into columns worth scanning. Filament as a
+table, with the per-kilo cost worked out, which is the number that compares two
+suppliers.
+
+Nozzle wear comes from `lib/nozzle-wear.js` — bundled with
+`lib/nozzle-wear-data.js`, **which must load first**: `nozzle-wear` reads it
+through `require`, and under JavaScriptCore there is none, so it falls back to
+`global.KhaytNozzleWearData`. Without that file the module still LOADS and then
+throws on the first call. Verified identical to Node's answer.
+
+**The machine's address is shown; its key never is.** The store keeps that
+encrypted and a screen saying where a printer lives has no business opening it.
+
+### Three shared modules, three signatures I got wrong by assuming
+
+All in one afternoon, and the pattern is worth the space:
+
+| Module | What I passed | What it wanted | What it did |
+|---|---|---|---|
+| `kpi.computeKpis` | `{orders, settings}` | rows already scoped and converted | returned every figure as **zero** |
+| `nozzleWear` | one options object | `(printLog, machine, settings)`, positional, **per machine** | reported every nozzle at the default 5,000g threshold instead of its own |
+| `filament-dryness` | inventory rows | Bed Ready dry-log records keyed on `driedAt` | a column of dashes — the module does not apply to this collection at all |
+
+None of the three failed. Each returned a plausible object that rendered
+perfectly and was wrong. **Read the function, not the name** — and when a module
+turns out not to fit the data, unbundle it rather than keeping a column that
+would go wrong the moment somebody filled the field in.
+
 ### How the library is ordered
 
 **The default is not "by name".** `renderer/printfiles.js` sorts favourites
