@@ -37,6 +37,13 @@ public actor KhaytEngine {
         // the `inventory` collection does not carry. Wiring it to the filament
         // shelf produced a column of dashes and would have produced a column of
         // wrong answers the moment anything filled that field in.
+        // What one order is worth and what is owed on it, and which orders
+        // count towards a period. Both lifted out of the renderer so this app
+        // could use the same rules rather than invent a second opinion about
+        // revenue.
+        "order-money",
+        "kpi-rows",
+        "kpi",
         // What needs a shop's attention, and the figures on the dashboard.
         // Pure, zero requires, and already assigning onto globalThis — so the
         // screen a shop opens on is the same arithmetic the Electron app shows,
@@ -144,7 +151,26 @@ public actor KhaytEngine {
                           as: DashboardFacts.self)
     }
 
-    // `KhaytKpi.computeKpis` is deliberately NOT exposed.
+    /// The headline figures for a period.
+    ///
+    /// Three shared modules in one expression, which is the point:
+    /// `order-money` says what an order earned and what is owed on it,
+    /// `kpi-rows` says which orders count and what "on time" means, and `kpi`
+    /// adds them up. None of it is arithmetic written in Swift.
+    ///
+    /// The money function is written HERE, in JavaScript, because a function
+    /// cannot cross the JSON bridge — and because these are the same calls the
+    /// renderer makes, from the same module.
+    public func kpis(orders: [JSONValue], clients: [JSONValue],
+                     settings: [String: JSONValue], range: String) throws -> Kpis {
+        let script = KPI_SCRIPT
+        return try runtime.call2(script,
+                                 [.array(orders), .array(clients), .object(settings),
+                                  .string(range), .string("\u{2014}")],
+                                 as: Kpis.self)
+    }
+
+    // A note kept from when this was not yet possible:
     //
     // It takes rows a caller has already scoped to a date range, converted to
     // base currency and marked completed/on-time — `renderer/analytics.js` does
@@ -250,3 +276,31 @@ public actor KhaytEngine {
         return try JSONDecoder().decode(T.self, from: data)
     }
 }
+
+/// The one expression that puts the three modules together.
+///
+/// `cost` is the parts, the way the renderer computes it. The renderer adds
+/// shipping through `convertToBase`; this does not, because an order in this
+/// store has no `shippingCost` and inventing a conversion for a field that is
+/// never set would be a difference waiting to appear.
+private let KPI_SCRIPT = """
+(function () {
+  var ctx = { settings: ARG2, clients: ARG1 };
+  var M = globalThis.KhaytOrderMoney;
+  var b = globalThis.KhaytKpiRows.bounds(ARG3);
+  return globalThis.KhaytKpi.computeKpis(globalThis.KhaytKpiRows.kpiRows({
+    orders: ARG0, from: b[0], to: b[1],
+    money: function (o) {
+      return {
+        revenue: M.orderNetRevenueBase(o, ctx),
+        cost: (o.parts || []).reduce(function (s, p) {
+          return s + (+p.unitCost || 0) * (+p.qty || 1);
+        }, 0),
+        outstanding: M.orderOwedBase(o, ctx)
+      };
+    },
+    clientName: function (o) { return o.client || ""; },
+    unassigned: ARG4
+  }));
+})()
+"""

@@ -9,7 +9,13 @@ import KhaytCore
 /// shop's other app already answers, and the two would disagree in a way nobody
 /// could see until an accountant did.
 struct Dashboard: View {
-    let shop: Shop
+    @Bindable var shop: Shop
+
+    /// The ranges `renderer/analytics.js` offers, in its order.
+    static let ranges: [(String, String)] = [
+        ("month", "an.range.month"), ("last_month", "an.range.last_month"),
+        ("quarter", "an.range.quarter"), ("year", "an.range.year"), ("all", "an.range.all"),
+    ]
 
     private let columns = [GridItem(.adaptive(minimum: 210, maximum: 320), spacing: 14)]
 
@@ -119,34 +125,64 @@ private struct Work: View {
 
 /// The money, when this shop deals in money.
 ///
-/// ONE figure, and it is the one the app computes itself: what is still owed,
-/// which is `price - paid` summed over the open jobs — the same arithmetic the
-/// toolbar shows, so the two cannot disagree.
+/// Every figure comes from the shared modules — `order-money` for what an order
+/// earned and what is owed on it, `kpi-rows` for which orders count, `kpi` for
+/// the totals. The margin shown here is the margin the Electron app shows,
+/// because it is the same three functions.
 ///
-/// Revenue, margin and average job are NOT here. `lib/kpi.js` computes them, but
-/// from rows a caller has already scoped to a period and converted to base
-/// currency, and that normalising lives inside `renderer/analytics.js` rather
-/// than in `lib/`. Calling it with raw orders returns zeros — which this screen
-/// briefly showed, beside a toolbar reading 52,691.57 SAR. A dashboard that
-/// contradicts itself is worse than one with fewer tiles on it.
+/// This screen showed zeros for ten minutes once, because `computeKpis` was
+/// handed raw orders and answered politely. The figures came back only after
+/// those rules were lifted out of `renderer/analytics.js` into `lib/`.
 private struct MoneyTiles: View {
-    let shop: Shop
+    @Bindable var shop: Shop
 
     var body: some View {
         DetailSection(shop.words.callIt("mac.money")) {
-            HStack(spacing: 14) {
-                Tile(value: Money.short(shop.owed, shop.currency),
-                     label: shop.words.callIt("flow.owed"), symbol: "clock.arrow.circlepath",
-                     tint: shop.owed > 0 ? .orange : .secondary)
-                // No second "Late" tile here. The floor already has one, from
-                // the attention engine, and this one counted something else —
-                // unpaid AND overdue rather than simply overdue. Two tiles with
-                // the same label and different numbers on one screen is the
-                // fault this section was just rewritten to remove.
-                Tile(value: "\(shop.customers.count)", label: shop.words.callIt("tab.clients"),
-                     symbol: "person.2", tint: .secondary)
-                Tile(value: "\(shop.files.count)", label: shop.words.callIt("mac.library"),
-                     symbol: "square.grid.2x2", tint: .secondary)
+            // Which period, said next to the figures rather than assumed. An
+            // owner reading "revenue" needs to know whether that is this month
+            // or all time before the number means anything.
+            Picker("", selection: $shop.kpiRange) {
+                ForEach(Dashboard.ranges, id: \.0) { key, word in
+                    Text(shop.words.callIt(word)).tag(key)
+                }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .fixedSize()
+            .padding(.bottom, 2)
+
+            if let k = shop.kpis {
+                HStack(spacing: 14) {
+                    Tile(value: Money.short(k.revenue, shop.currency),
+                         label: shop.words.callIt("mac.revenue"), symbol: "banknote", tint: .secondary)
+                    Tile(value: Money.short(k.grossProfit, shop.currency),
+                         label: shop.words.callIt("mac.gross"), symbol: "chart.line.uptrend.xyaxis",
+                         tint: .secondary)
+                    Tile(value: "\(Money.figure(k.grossMargin))%",
+                         label: shop.words.callIt("mac.margin"), symbol: "percent", tint: .secondary)
+                    Tile(value: Money.short(k.avgOrderValue, shop.currency),
+                         label: shop.words.callIt("mac.avg_order"), symbol: "chart.bar", tint: .secondary)
+                }
+                HStack(spacing: 14) {
+                    // NOT "Owed" here. `kpi` scopes outstanding to the rows in
+                    // the period, and the toolbar shows what the whole book is
+                    // owed, unscoped and always visible. Two figures under one
+                    // word, inches apart, differing by an order of magnitude —
+                    // the same trap this section was rewritten to remove once
+                    // already.
+                    Tile(value: "\(k.orderCount)", label: shop.words.callIt("mac.jobs_count"),
+                         symbol: "tray.full", tint: .secondary)
+                    // Nothing to judge against is "—", not 100%. A shop with no
+                    // due dates has not delivered everything on time; it has
+                    // promised nothing.
+                    Tile(value: k.onTimePct.map { "\(Money.figure($0))%" } ?? "—",
+                         label: shop.words.callIt("mac.on_time"), symbol: "checkmark.circle",
+                         tint: .secondary)
+                    Tile(value: "\(k.completedCount)", label: shop.words.callIt("queue.completed"),
+                         symbol: "shippingbox", tint: .secondary)
+                    Tile(value: "\(shop.files.count)", label: shop.words.callIt("mac.library"),
+                         symbol: "square.grid.2x2", tint: .secondary)
+                }
             }
         }
     }

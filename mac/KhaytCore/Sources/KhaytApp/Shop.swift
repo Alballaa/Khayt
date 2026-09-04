@@ -54,6 +54,14 @@ final class Shop {
     /// or when the engine could not start — the screen says so rather than
     /// showing zeros, which would be a statement about the shop.
     private(set) var facts: DashboardFacts?
+    /// The period's figures, from the shared modules. Nil when the engine could
+    /// not start; the screen then shows nothing rather than zeros.
+    private(set) var kpis: Kpis?
+    /// Which period those figures cover. `month` is what the Electron app's
+    /// executive summary opens on.
+    var kpiRange = "month" {
+        didSet { Task { await recomputeKpis() } }
+    }
     var attention: DashboardFacts.Attention? { facts?.attn }
     /// The ownership record this app holds, when the book was free to take.
     /// Nil means read-only: somebody else has it, or this is the sample.
@@ -208,6 +216,8 @@ final class Shop {
         if case .array(let rows)? = root["printLog"] { orders = rows } else { orders = [] }
         let machines: [JSONValue]
         if case .array(let rows)? = root["machines"] { machines = rows } else { machines = [] }
+        let clients: [JSONValue]
+        if case .array(let rows)? = root["clients"] { clients = rows } else { clients = [] }
         var settings: [String: JSONValue] = [:]
         if case .object(let dict)? = root["settings"] { settings = dict }
         facts = try? await engine.dashboardFacts(orders: orders, machines: machines, settings: settings)
@@ -220,7 +230,23 @@ final class Shop {
             }
         }
         wear = perMachine
+        kpiOrders = orders
+        kpiClients = clients
+        kpiSettings = settings
+        await recomputeKpis()
 
+    }
+
+    private var kpiOrders: [JSONValue] = []
+    private var kpiClients: [JSONValue] = []
+    private var kpiSettings: [String: JSONValue] = [:]
+
+    /// One call for the whole period. Changing the range does not re-read the
+    /// book — the orders are already here; only the arithmetic changes.
+    private func recomputeKpis() async {
+        guard let engine, !kpiOrders.isEmpty else { kpis = nil; return }
+        kpis = try? await engine.kpis(orders: kpiOrders, clients: kpiClients,
+                                      settings: kpiSettings, range: kpiRange)
     }
 
     enum Failure: Error { case missingSample }
