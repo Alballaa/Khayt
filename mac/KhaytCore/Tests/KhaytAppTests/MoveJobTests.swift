@@ -82,10 +82,17 @@ struct MoveJobTests {
         return nil
     }
 
-    static func move(_ root: inout [String: JSONValue], _ id: String, _ stage: Stage)
+    static func move(_ root: inout [String: JSONValue], _ id: String, _ stage: Stage,
+                     holdReason: String? = nil)
     async throws -> (undo: [Shop.ChangedRecord], notices: [String]) {
         let engine = try KhaytEngine()
-        return try await Shop.applyMove(to: &root, id: id, stage: stage, engine: engine, words: Words())
+        // Words loaded, not bare: a notice is only useful if it comes back as a
+        // sentence, and an unloaded catalogue would let a missing key pass as
+        // one.
+        let words = Words()
+        await words.load("en", engine: engine)
+        return try await Shop.applyMove(to: &root, id: id, stage: stage, engine: engine,
+                                        words: words, holdReason: holdReason)
     }
 
     // MARK: -
@@ -239,6 +246,49 @@ struct MoveJobTests {
         // record that went backwards would look to the next sync like the
         // change never happened, and the other machine's copy would win.
         #expect(Self.number(Self.row(root, "printLog", "J1")?["rev"]) == 5)
+    }
+
+    /// The gap this fixes was shipped in the drag itself: a card dropped on
+    /// "On Hold" set the status and nothing else, so the job came back with its
+    /// original due date and no way to know it had ever stopped.
+    @Test("a job dropped on hold records when, and why")
+    func holdRecordsWhenAndWhy() async throws {
+        var root = Self.book()
+        _ = try await Self.move(&root, "J1", .on_hold, holdReason: "waiting on filament")
+
+        let job = try #require(Self.row(root, "printLog", "J1"))
+        #expect(Self.string(job["status"]) == "on_hold")
+        #expect(Self.string(job["heldAt"])?.hasSuffix("Z") == true, "or the days back cannot be counted")
+        #expect(Self.string(job["holdReason"]) == "waiting on filament")
+    }
+
+    @Test("a hold with nothing typed is a hold with no reason, not the last one")
+    func holdWithNoReason() async throws {
+        var root = Self.book()
+        _ = try await Self.move(&root, "J1", .on_hold, holdReason: "")
+        #expect(Self.row(root, "printLog", "J1")?["holdReason"] == .null)
+        #expect(Self.string(Self.row(root, "printLog", "J1")?["heldAt"]) != nil)
+    }
+
+    @Test("resuming a held job gives back the days it waited")
+    func resumeExtendsTheDueDate() async throws {
+        var root = Self.book()
+        // Held nine days ago, due in a fortnight.
+        guard case .array(var jobs)? = root["printLog"], case .object(var j1) = jobs[0] else {
+            Issue.record("fixture changed"); return
+        }
+        j1["status"] = .string("on_hold")
+        j1["dueDate"] = .string("2099-01-20")
+        // Nine days and a bit less: the rule counts whole days and rounds UP,
+        // so exactly nine days ago plus the microseconds this test takes is ten.
+        j1["heldAt"] = .string(StoreWriter.iso(Date().addingTimeInterval(-9 * 86400 + 3600)))
+        jobs[0] = .object(j1)
+        root["printLog"] = .array(jobs)
+
+        let (_, notices) = try await Self.move(&root, "J1", .printing)
+        #expect(Self.string(Self.row(root, "printLog", "J1")?["dueDate"]) == "2099-01-29")
+        #expect(Self.row(root, "printLog", "J1")?["heldAt"] == nil, "the hold is over")
+        #expect(notices.contains { $0.contains("2099-01-29") }, "and the shop is told: \(notices)")
     }
 
     @Test("the ids this app mints are the ids Khayt mints")

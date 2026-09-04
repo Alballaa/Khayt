@@ -27,6 +27,19 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **A job put on hold now remembers when, and why.** The due date a held job
+  gets back is counted from the moment it stopped, and until now only Khayt's
+  own "Put on hold" button recorded that moment — a job held any other way came
+  back with its original due date and nothing to explain why it was suddenly
+  late. Putting a job on hold also goes through the same rules as every other
+  move now, which fixes three things it used to skip: the print timer kept
+  running, so a job held for a week reported a week of machine time nobody
+  spent; the Telegram "notify on hold" setting never fired from the one button
+  that puts a job on hold; and nothing was written to the team's activity log,
+  so the status change a shop most often has to explain later was the one with
+  no record. The Mac app asks for the reason when you drag a card onto On Hold,
+  and takes no for an answer.
+
 - **The Mac app's board left out the jobs somebody was waiting on.** A job on
   hold, in post-processing or in QC had no column, so it did not move to the
   end of the board — it disappeared from it, and a shop looking for its

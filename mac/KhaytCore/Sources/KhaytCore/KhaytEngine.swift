@@ -334,15 +334,22 @@ public actor KhaytEngine {
     /// The three collections come back changed. Write all three or none — the
     /// job saying "completed" while the spools still hold its filament is a shop
     /// that has been told it has stock it has already used.
+    ///
+    /// `holdReason` is why a job is being put on hold, and is only ever read
+    /// when it is. Nil means "say nothing about it"; an empty string means "no
+    /// reason given", which is a different thing from the last hold's reason
+    /// being left behind.
     public func moveJob(order: JSONValue, to status: String,
                         orders: [JSONValue], settings: [String: JSONValue],
                         inventory: [JSONValue], consumables: [JSONValue],
                         machines: [JSONValue],
-                        now: Date, today: String) throws -> JobMove {
+                        now: Date, today: String,
+                        holdReason: String? = nil) throws -> JobMove {
         try runtime.call2(MOVE_SCRIPT,
                           [order, .string(status), .array(orders), .object(settings),
                            .array(inventory), .array(consumables), .array(machines),
-                           .number(now.timeIntervalSince1970 * 1000), .string(today)],
+                           .number(now.timeIntervalSince1970 * 1000), .string(today),
+                           holdReason.map(JSONValue.string) ?? .null],
                           as: JobMove.self)
     }
 
@@ -378,11 +385,16 @@ private let MOVE_SCRIPT = """
 (function () {
   var order = ARG0, status = ARG1, orders = ARG2, settings = ARG3;
   var inventory = ARG4, consumables = ARG5, machines = ARG6, now = ARG7, today = ARG8;
+  var holdReason = ARG9;
 
   var gate = KhaytOrderStatus.gate(order, status, { orders: orders, settings: settings });
   if (!gate.ok) return { ok: false, gate: gate };
 
-  var moved = KhaytOrderStatus.apply(order, status, { now: now, inventory: inventory });
+  var moveCtx = { now: now, inventory: inventory };
+  // Present only when there is something to say, because the rules distinguish
+  // "no reason given" from "nobody mentioned the reason".
+  if (holdReason !== null) moveCtx.holdReason = holdReason;
+  var moved = KhaytOrderStatus.apply(order, status, moveCtx);
   var notices = moved.notices.slice();
   var performed = [], cosmetic = [], outbound = [], unhandled = [], activity = null;
 
