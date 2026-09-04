@@ -256,6 +256,22 @@ public struct NewOrder: Decodable, Sendable {
     public let settings: [String: JSONValue]
 }
 
+/// One quarter of the shop's P&L.
+public struct PnlPeriod: Decodable, Sendable, Identifiable, Equatable {
+    /// "2026-Q3".
+    public let period: String
+    public let orders: Int
+    public let revenue: Double
+    public let shipping: Double
+    public let expenses: Double
+    /// The fixed overhead charged to this period — pro-rated for the quarter
+    /// in progress, so it is not billed a full quarter's rent on day three.
+    public let fixed: Double
+    public let vatCollected: Double
+    public let net: Double
+    public var id: String { period }
+}
+
 /// A record the shared rule built, or the reason it would not.
 ///
 /// Both halves optional because exactly one is present: a rule that refuses

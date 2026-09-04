@@ -129,6 +129,11 @@ public actor KhaytEngine {
         "date-range",
         "expense-book",
         "waste-entry",
+        // The shop's quarters. ORDER-MONEY AND TAX ARE ALREADY ABOVE, and both
+        // must be: this consults them through their globals, and without them
+        // it does not raise — it reports every order at its gross price and no
+        // tax collected at all.
+        "pnl-report",
     ]
 
     /// The languages whose strings are bundled.
@@ -626,6 +631,17 @@ public actor KhaytEngine {
           + " var gone = KhaytWasteEntry.removeEntry(log, ARG1, {inventory: inv});"
           + " return {removed: !!gone, wasteLog: log, inventory: inv};})()",
             [.array(wasteLog), .string(id), .array(inventory)], as: WasteRemoved.self)
+    }
+
+    /// The shop's quarters: what it earned, what it spent, what it kept.
+    public func pnlByPeriod(orders: [JSONValue], expenses: [JSONValue],
+                            settings: [String: JSONValue], clients: [JSONValue],
+                            currencies: [String: JSONValue], now: Date) throws -> [PnlPeriod] {
+        try runtime.call2(
+            "KhaytPnl.pnlByPeriod(ARG0, ARG1, {settings: ARG2, clients: ARG3, currencies: ARG4, now: new Date(ARG5)})",
+            [.array(orders), .array(expenses), .object(settings), .array(clients),
+             .object(currencies), .number(now.timeIntervalSince1970 * 1000)],
+            as: [PnlPeriod].self)
     }
 
     // MARK: - Who the shop's customers are

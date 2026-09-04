@@ -85,6 +85,10 @@ final class Shop {
     private(set) var currency = "SAR"
     private(set) var skipped: [String] = []
     private(set) var problem: String?
+    /// Why the shared rules did not start, when they did not. Everything this
+    /// app computes and every word it says comes through them, so a shop is
+    /// told rather than shown a screen of keys.
+    private(set) var engineProblem: String?
     private(set) var taxSummary: String?
     private(set) var settingsValue: JSONValue = .object([:])
 
@@ -112,6 +116,7 @@ final class Shop {
         case board
         case expenses
         case waste
+        case reports
     }
 
     var stage: Stage? { if case .jobs(let s) = shelf { s } else { nil } }
@@ -123,6 +128,7 @@ final class Shop {
     var showingBoard: Bool { shelf == .board }
     var showingExpenses: Bool { shelf == .expenses }
     var showingWaste: Bool { shelf == .waste }
+    var showingReports: Bool { shelf == .reports }
 
     /// The open jobs, grouped by the stage they are in.
     ///
@@ -233,7 +239,18 @@ final class Shop {
             takeOwnership(of: next.build)
             if case .object(let settings)? = root["settings"],
                case .string(let c)? = settings["currency"] { currency = c }
-            if engine == nil { engine = try? KhaytEngine() }
+            // THE ENGINE FAILING IS NOT A SILENT CONDITION.
+            //
+            // It was `try?`, so a bad module list left `engine` nil and every
+            // screen carried on: no words (the catalogue is loaded through the
+            // runtime, so every label rendered as its own key), no tax, no P&L,
+            // no writes. Nothing said why. Bundling one module whose file name
+            // did not match the global it assigns did exactly that, and it took
+            // a photograph to notice.
+            if engine == nil {
+                do { engine = try KhaytEngine() }
+                catch { engineProblem = String(describing: error) }
+            }
             // `settings.lang` and not the system language: a Riyadh shop on an
             // English Mac still keeps its book in Arabic, and the book is what
             // this window shows. (The Electron app keeps the live choice in

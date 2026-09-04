@@ -1731,59 +1731,21 @@ function renderPnLSection() {
   const el = $('#pnlSection');
   if (!el) return;
 
-  // Group completed orders by YYYY-Q (quarter)
-  const qMap = {};
-  for (const o of printLog) {
-      // Voiding keeps status 'completed' by design (invoicing.js) and only sets
-      // voidedAt, so a status-only filter books a cancelled invoice as full
-      // revenue AND full VAT collected.
-    if (o.status !== 'completed' || o.voidedAt) continue;
-    const d = new Date((o.date || '') + 'T00:00:00');
-    if (isNaN(d)) continue;
-    const q = Math.ceil((d.getMonth() + 1) / 3);
-    const key = `${d.getFullYear()}-Q${q}`;
-    if (!qMap[key]) qMap[key] = { revenue: 0, shipping: 0, vatCollected: 0, orders: 0 };
-    qMap[key].revenue += orderNetRevenueBase(o);
-    qMap[key].shipping += convertToBase(+o.shippingCost || 0, orderCurrency(o));
-    qMap[key].orders++;
-    // NB: orderNetRevenueBase is net of CREDIT NOTES, not net of tax — it is
-    // still a gross figure. The old line extracted tax out of it, which is right
-    // only when prices include tax. computeTax().taxTotal is right either way:
-    // it extracts under inclusive pricing and adds under exclusive.
-    qMap[key].vatCollected += KhaytTax.computeTax(
-      orderNetRevenueBase(o), KhaytTax.profileFromSettings(settings)).taxTotal;
-  }
-  const expQ = {};
-  for (const e of expenses) {
-    const d = new Date((e.date || '') + 'T00:00:00');
-    if (isNaN(d)) continue;
-    const q = Math.ceil((d.getMonth() + 1) / 3);
-    const key = `${d.getFullYear()}-Q${q}`;
-    expQ[key] = (expQ[key] || 0) + (+e.amount || 0);
-  }
-
-  // Aggregate fixedCosts per quarter (assume monthly recurring → multiply by 3)
-  const fixedCostPerMonth = (settings.fixedCosts || []).reduce((s, fc) => s + (+fc.amount || 0), 0);
-  const fixedCostPerQ = fixedCostPerMonth * 3;
-
-  const allKeys = [...new Set([...Object.keys(qMap), ...Object.keys(expQ)])].sort().reverse();
-  if (allKeys.length === 0) { el.innerHTML = `<p style="color:var(--text-muted);font-size:13px;">${escapeHtml(t('an.pnl_empty'))}</p>`; return; }
+  // The table is lib/pnl-report.js's `pnlByPeriod` — which orders count, which
+  // are voided, how VAT is worked out, and how a quarter in progress is charged
+  // its share of the overhead. It was all inline here, so the Mac app had no
+  // P&L and no way to have one without a second opinion about the shop's money.
+  const Pnl = (typeof globalThis !== 'undefined' && globalThis.KhaytPnl)
+    || require('../lib/pnl-report.js');
+  const rows = Pnl.pnlByPeriod(printLog, expenses, {
+    settings, clients, currencies: CURRENCIES, now: new Date(),
+  });
+  if (rows.length === 0) { el.innerHTML = `<p style="color:var(--text-muted);font-size:13px;">${escapeHtml(t('an.pnl_empty'))}</p>`; return; }
+  const hasFixed = rows.some((r) => r.fixed > 0);
 
   const cur = currencySymbol();
-  const hasFixed = fixedCostPerQ > 0;
-  const nowQ = (() => { const d = new Date(); const q = Math.ceil((d.getMonth() + 1) / 3); return `${d.getFullYear()}-Q${q}`; })();
-  // Fraction of the current quarter elapsed, so the in-progress period is comparable.
-  const nowQuarterFraction = (() => {
-    const d = new Date();
-    const qStartMonth = Math.floor(d.getMonth() / 3) * 3;
-    const start = new Date(d.getFullYear(), qStartMonth, 1);
-    const end = new Date(d.getFullYear(), qStartMonth + 3, 0);
-    const total = Math.round((end - start) / 86400000) + 1;
-    const done = Math.round((d - start) / 86400000) + 1;
-    return Math.max(0, Math.min(1, done / total));
-  })();
   el.innerHTML = `
-    ${hasFixed ? `<div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">Fixed overhead: ${fmtMoney(fixedCostPerQ)}/quarter included in net</div>` : ''}
+    ${hasFixed ? `<div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">Fixed overhead: ${fmtMoney(rows.find((r) => r.fixed > 0).fixed)}/quarter included in net</div>` : ''}
     <div style="overflow-x:auto;">
       <table style="width:100%; border-collapse:collapse; font-size:13px;">
         <thead>
@@ -1797,26 +1759,15 @@ function renderPnLSection() {
           </tr>
         </thead>
         <tbody>
-          ${allKeys.map(k => {
-            const r = qMap[k]?.revenue || 0;
-            const exp = expQ[k] || 0;
-            const vat = qMap[k]?.vatCollected || 0;
-            // Fixed overhead applies to EVERY quarter with activity, not just the
-            // current one. Charging it only to `nowQ` overstated profit in every
-            // historical quarter, so the current quarter always looked worse than the
-            // past — which invalidates quarter-over-quarter comparison, the table's whole
-            // purpose. The in-progress quarter is pro-rated by days elapsed so it isn't
-            // charged a full quarter's rent on day three.
-            const fixedForPeriod = (k === nowQ) ? fixedCostPerQ * nowQuarterFraction : fixedCostPerQ;
-            const net = r - exp - fixedForPeriod;
-            const netCol = net >= 0 ? 'var(--success)' : 'var(--danger)';
+          ${rows.map(r => {
+            const netCol = r.net >= 0 ? 'var(--success)' : 'var(--danger)';
             return `<tr style="border-top:1px solid rgba(255,255,255,0.06);">
-              <td style="padding:6px 8px; font-weight:600;">${escapeHtml(k)}</td>
-              <td style="padding:6px 8px; text-align:right;">${qMap[k]?.orders || 0}</td>
-              <td style="padding:6px 8px; text-align:right; font-variant-numeric:tabular-nums;">${fmtMoney(r)}</td>
-              <td style="padding:6px 8px; text-align:right; color:var(--danger); font-variant-numeric:tabular-nums;">−${fmtMoney(exp + fixedForPeriod)}</td>
-              <td style="padding:6px 8px; text-align:right; color:var(--text-muted); font-variant-numeric:tabular-nums;">${fmtMoney(vat)}</td>
-              <td style="padding:6px 8px; text-align:right; font-weight:700; color:${netCol}; font-variant-numeric:tabular-nums;">${fmtMoney(net)}</td>
+              <td style="padding:6px 8px; font-weight:600;">${escapeHtml(r.period)}</td>
+              <td style="padding:6px 8px; text-align:right;">${r.orders}</td>
+              <td style="padding:6px 8px; text-align:right; font-variant-numeric:tabular-nums;">${fmtMoney(r.revenue)}</td>
+              <td style="padding:6px 8px; text-align:right; color:var(--danger); font-variant-numeric:tabular-nums;">−${fmtMoney(r.expenses + r.fixed)}</td>
+              <td style="padding:6px 8px; text-align:right; color:var(--text-muted); font-variant-numeric:tabular-nums;">${fmtMoney(r.vatCollected)}</td>
+              <td style="padding:6px 8px; text-align:right; font-weight:700; color:${netCol}; font-variant-numeric:tabular-nums;">${fmtMoney(r.net)}</td>
             </tr>`;
           }).join('')}
         </tbody>

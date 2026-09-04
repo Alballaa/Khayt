@@ -92,7 +92,12 @@ public final class JSRuntime {
     /// `global.X = api` line; a module whose global does not follow the pattern
     /// is listed here explicitly rather than guessed at.
     static func globalName(for module: String) -> String {
-        let exceptions = ["store-validate": "KhaytStoreValidate"]
+        // A module whose file is named for what it produces rather than for
+        // the global it assigns. Both of these predate the convention; a NEW
+        // module should be named for its global instead, because this check is
+        // the only thing that catches a module that loads and defines nothing.
+        let exceptions = ["store-validate": "KhaytStoreValidate",
+                          "pnl-report": "KhaytPnl"]
         if let known = exceptions[module] { return known }
         let camel = module.split(separator: "-").map { $0.prefix(1).uppercased() + $0.dropFirst() }.joined()
         return "Khayt\(camel)"

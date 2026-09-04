@@ -11,6 +11,10 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   A registered shop gets its ZATCA QR; a shop missing a field the QR needs is
   told which, on the paper, rather than handed an empty box.
 
+- **The Mac app shows profit and loss by quarter.** What each quarter earned,
+  what it spent, the tax collected and what the shop kept — by the same rules
+  the Khayt analytics screen uses, which now come from one place.
+
 - **The Mac app tracks expenses and failed prints.** Two screens under Money,
   with a period to look at and a search that searches what is on them. Logging
   a failed print takes the filament off the shelf and remembers which spool, so

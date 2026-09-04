@@ -299,8 +299,26 @@ test('every VAT figure is derived from the netted revenue', () => {
   // arithmetic moved into lib/tax.js when exclusive pricing arrived, and pinning
   // the old formula text would have failed a change that preserved the property
   // exactly. So assert the input, and assert the gross price is NOT the input.
+  // The quarterly table's VAT moved into lib/pnl-report.js, so the property is
+  // asserted THERE, by running it: a credit note must reduce the tax collected
+  // exactly as it reduces the revenue. The remaining source pins cover the
+  // exports that still take it themselves.
+  require('../lib/business-scope.js');
+  require('../lib/order-money.js');
+  require('../lib/tax.js');
+  const { pnlByPeriod } = require('../lib/pnl-report.js');
+  const settings = { currency: 'SAR', enableVat: true, vatRate: 15 };
+  const gross = pnlByPeriod([{ id: 'A', status: 'completed', date: '2026-08-10', price: 1000 }],
+                            [], { settings, now: new Date(2026, 8, 4) })[0];
+  const credited = pnlByPeriod([{ id: 'A', status: 'completed', date: '2026-08-10', price: 1000,
+                                  creditNotes: [{ amount: 400 }] }],
+                               [], { settings, now: new Date(2026, 8, 4) })[0];
+  assert.equal(gross.vatCollected, 130.43);
+  assert.equal(credited.revenue, 600, 'the credit note reduces the sale');
+  assert.equal(credited.vatCollected, 78.26,
+    'and the tax collected with it — VAT must follow the netted revenue, never the gross price');
+
   const checks = [
-    ['renderer/analytics.js', /vatCollected \+= KhaytTax\.computeTax\(\s*orderNetRevenueBase\(o\)/],
     ['renderer/expenses.js',  /vatCollected \+= KhaytTax\.computeTax\(\s*orderNetRevenueBase\(o\)/],
   ];
   for (const [rel] of checks) {
@@ -310,6 +328,8 @@ test('every VAT figure is derived from the netted revenue', () => {
   for (const [rel, re] of checks) {
     assert.match(read(rel), re, `${rel}: VAT collected must follow revenue, not the gross price`);
   }
+  assert.doesNotMatch(read('renderer/analytics.js'), /vatCollected \+=/,
+    'renderer/analytics.js must not total VAT itself any more — lib/pnl-report.js does');
   // The ZATCA/GAZT return's sales boxes must net credits too — and, since a
   // Saudi shop's prices INCLUDE the VAT, must have the VAT taken back out. This
   // pinned the exact old expression, which is the mistake the comment at the top

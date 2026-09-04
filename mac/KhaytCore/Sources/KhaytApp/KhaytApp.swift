@@ -269,6 +269,13 @@ final class Activator: NSObject, NSApplicationDelegate {
             shop.shelf = .waste
             await settle()
             capture(named: "19-waste", into: dir)
+            shop.shelf = .reports
+            await settle()
+            // The P&L is computed by the runtime after the screen appears, so
+            // it gets longer than a settle — photographed too early it is the
+            // "no data yet" placeholder, which is what a broken one looks like.
+            try? await Task.sleep(for: .seconds(1))
+            capture(named: "20-reports", into: dir)
 
             shop.shelf = .machines
             await settle()
