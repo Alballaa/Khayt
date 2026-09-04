@@ -37,6 +37,11 @@ struct KhaytCommands: Commands {
             Button("About Khayt") { About.show() }
         }
 
+        // Into the View menu AppKit already puts there, beside Show Sidebar,
+        // rather than a menu of our own: a shop looking for how a list is
+        // ordered looks under View.
+        CommandGroup(after: .sidebar) { SortMenu(shop: shop) }
+
         CommandMenu("Book") { BookMenu(shop: shop) }
         CommandMenu("Go") { GoMenu(shop: shop) }
         CommandMenu("Model") { ModelMenu(shop: shop) }
@@ -72,6 +77,21 @@ private struct GoMenu: View {
         Button("Library") { shop.shelf = .library(nil) }
             .keyboardShortcut("3", modifiers: .command)
             
+    }
+}
+
+private struct SortMenu: View {
+    @Bindable var shop: Shop
+
+    var body: some View {
+        // A Picker rather than five buttons, so the current order carries a
+        // tick and the menu says what is true as well as what is possible.
+        Picker(shop.words.callIt("mac.sort_by"), selection: $shop.librarySort) {
+            ForEach(LibrarySort.allCases) { sort in
+                Text(shop.words.callIt(sort.key)).tag(sort)
+            }
+        }
+        .disabled(!shop.showingLibrary)
     }
 }
 

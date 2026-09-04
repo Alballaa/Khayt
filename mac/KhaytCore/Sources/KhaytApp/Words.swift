@@ -106,6 +106,8 @@ final class Words {
         "mac.name":          ["en": "Name",          "ar": "الاسم"],
         "mac.late":          ["en": "late",          "ar": "متأخرة"],
         "mac.owed_caps":     ["en": "OWED",          "ar": "المستحق"],
+        "mac.sort_default":  ["en": "Favourites first", "ar": "المفضّلة أولاً"],
+        "mac.sort_by":       ["en": "Sort Library By",  "ar": "ترتيب المكتبة حسب"],
         "mac.search_jobs": ["en": "Job, customer or number", "ar": "عمل أو عميل أو رقم"],
         "mac.search_models": ["en": "Model, material or tag", "ar": "مجسم أو خامة أو وسم"],
         "mac.search_people": ["en": "Customer or job", "ar": "عميل أو عمل"],

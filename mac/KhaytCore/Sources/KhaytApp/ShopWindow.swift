@@ -6,6 +6,7 @@ struct ShopWindow: View {
     // the one you left is a small thing that makes it feel like a web page.
     @SceneStorage("inspector.showing") private var showInspector = true
     @SceneStorage("shelf") private var storedShelf = ""
+    @SceneStorage("library.sort") private var storedSort = LibrarySort.khayt.rawValue
     /// Nil where a context has no undo, which the documentation says to expect
     /// and which every registration in `Shop` is guarded for.
     @Environment(\.undoManager) private var undoManager
@@ -84,6 +85,8 @@ struct ShopWindow: View {
         // hand out a different manager than the one at first launch.
         .task(id: ObjectIdentifier(undoManager ?? UndoManager())) { shop.undoManager = undoManager }
         .task(id: shop.shelf) { storedShelf = Shelves.name(shop.shelf) }
+        .task(id: shop.librarySort) { storedSort = shop.librarySort.rawValue }
+        .task { shop.librarySort = LibrarySort(rawValue: storedSort) ?? .khayt }
         .task {
             // Only after the book has loaded: a group shelf means nothing until
             // the groups are known, and restoring one that no longer exists
