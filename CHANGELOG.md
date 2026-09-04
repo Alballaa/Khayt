@@ -25,6 +25,10 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   print ran long, change a price — with the price it used to be kept, so a
   supplier's invoice can be checked. Deleting one is undoable.
 
+- **Back Up Now and Reveal Backups, in the Mac app's Book menu.** A backup on
+  demand keeps the day's automatic one rather than replacing it, so both sides
+  of whatever you are about to do survive.
+
 - **The Mac app keeps your daily backup.** Same folder, same names and same
   thirty-day history as Khayt's, so the two apps keep one set of backups
   between them — and a shop running only the Mac app is no longer one disk

@@ -1,4 +1,5 @@
 import Foundation
+import AppKit
 import Observation
 import KhaytCore
 
@@ -1348,6 +1349,41 @@ final class Shop {
 
     /// Why the day's backup could not be taken, when it could not.
     private(set) var backupProblem: String?
+
+    /// Take a backup now, for the shop that is about to do something it might
+    /// want to undo.
+    ///
+    /// The day's file already exists more often than not, and overwriting it
+    /// would throw away the copy taken before whatever the shop did earlier —
+    /// so this writes a SECOND file for today, stamped with the time. Khayt's
+    /// own rotation counts it as a day, which is right: it is one.
+    func backUpNow() async {
+        spendProblem = nil
+        spendNote = nil
+        guard let build = source.build else {
+            spendProblem = words.callIt("mac.move_sample"); return
+        }
+        do {
+            let file = try await Backups.writeNow(for: build, engine: engine)
+            lastBackup = Backups.lastBackupDay(in: Backups.directory(for: build))
+            spendNote = words.callIt("mac.backed_up") + " " + file.lastPathComponent
+            backupProblem = nil
+        } catch {
+            backupProblem = String(describing: error)
+            spendProblem = words.callIt("mac.backup_failed") + " " + String(describing: error)
+        }
+    }
+
+    /// Show the shop where its backups are, so it can copy one somewhere safe.
+    func revealBackups() {
+        guard let build = source.build else { return }
+        let directory = Backups.directory(for: build)
+        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        NSWorkspace.shared.activateFileViewerSelecting(
+            [directory.appending(path: Backups.filename())].filter {
+                FileManager.default.fileExists(atPath: $0.path)
+            }.isEmpty ? [directory] : [directory.appending(path: Backups.filename())])
+    }
 
     // MARK: - The shelf
 
