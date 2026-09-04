@@ -45,6 +45,11 @@ final class Shop {
     /// Who has this book open, when that is somebody else. Nil when nothing
     /// claims it — which is the ordinary case, and says nothing on screen.
     private(set) var owner: String?
+    /// The dashboard, from the shared modules. Nil until the book has loaded,
+    /// or when the engine could not start — the screen says so rather than
+    /// showing zeros, which would be a statement about the shop.
+    private(set) var facts: DashboardFacts?
+    var attention: DashboardFacts.Attention? { facts?.attn }
     /// The ownership record this app holds, when the book was free to take.
     /// Nil means read-only: somebody else has it, or this is the sample.
     private(set) var ownership: StoreLock.Record?
@@ -69,7 +74,7 @@ final class Shop {
     var selection: Order.ID?
     var fileSelection: Set<LibraryFile.ID> = []
     var customerSelection: Customer.ID?
-    var shelf: Shelf = .jobs(nil)
+    var shelf: Shelf = .dashboard
     /// Opens the way Khayt opens. See `LibrarySort`.
     var librarySort: LibrarySort = .khayt
     var search = ""
@@ -84,11 +89,13 @@ final class Shop {
         /// nil is every model; a string is one group.
         case library(String?)
         case customers
+        case dashboard
     }
 
     var stage: Stage? { if case .jobs(let s) = shelf { s } else { nil } }
     var showingLibrary: Bool { if case .library = shelf { true } else { false } }
     var showingCustomers: Bool { shelf == .customers }
+    var showingDashboard: Bool { shelf == .dashboard }
 
     /// The sources that can actually be opened on this Mac. A menu offering a
     /// store that is not there is a dead end dressed up as a choice.
@@ -167,13 +174,29 @@ final class Shop {
             await words.load(wanted, engine: engine)
             settingsValue = root["settings"] ?? .object([:])
             taxSummary = await describeTax(root["settings"])
+            await computeDashboard(root)
         } catch {
             orders = []
             files = []
             libraryRoots = nil
             owner = nil
+            facts = nil
             problem = String(describing: error)
         }
+    }
+
+    /// One call per load, not one per tile. Building the arguments means
+    /// crossing the bridge with every order, which is cheap once and absurd
+    /// four times over for four figures on one screen.
+    private func computeDashboard(_ root: [String: JSONValue]) async {
+        guard let engine else { facts = nil; return }
+        let orders: [JSONValue]
+        if case .array(let rows)? = root["printLog"] { orders = rows } else { orders = [] }
+        let machines: [JSONValue]
+        if case .array(let rows)? = root["machines"] { machines = rows } else { machines = [] }
+        var settings: [String: JSONValue] = [:]
+        if case .object(let dict)? = root["settings"] { settings = dict }
+        facts = try? await engine.dashboardFacts(orders: orders, machines: machines, settings: settings)
     }
 
     enum Failure: Error { case missingSample }

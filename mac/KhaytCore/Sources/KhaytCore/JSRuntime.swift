@@ -128,6 +128,28 @@ public final class JSRuntime {
         return try JSONDecoder().decode(T.self, from: data)
     }
 
+    /// Evaluate an expression with arguments substituted for `ARG0`, `ARG1`, …
+    ///
+    /// For the modules whose entry point takes one options object rather than
+    /// positional arguments — `dashboardFacts({orders, machines, settings})` —
+    /// and for the one that needs another MODULE passed in. Same JSON crossing
+    /// as `call`, so a shape change is still a decoding error here.
+    public func call2<T: Decodable>(_ expression: String, _ args: [JSONValue] = [],
+                                    as type: T.Type) throws -> T {
+        let encoder = JSONEncoder()
+        var script = expression
+        for (i, arg) in args.enumerated() {
+            let data = try encoder.encode(arg)
+            script = script.replacingOccurrences(of: "ARG\(i)",
+                                                 with: String(data: data, encoding: .utf8) ?? "null")
+        }
+        let value = try evaluate("JSON.stringify(\(script))")
+        guard let json = value.toString(), json != "undefined", let data = json.data(using: .utf8) else {
+            throw KhaytJSError.unexpectedResult(expression)
+        }
+        return try JSONDecoder().decode(T.self, from: data)
+    }
+
     /// Read `object.property` and decode it as `T`. Same JSON crossing as
     /// `call`, for the modules that export data rather than functions.
     public func value<T: Decodable>(_ object: String, _ property: String, as type: T.Type) throws -> T {

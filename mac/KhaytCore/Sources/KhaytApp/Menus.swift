@@ -68,14 +68,16 @@ private struct GoMenu: View {
     @Bindable var shop: Shop
 
     var body: some View {
-        Button("Jobs") { shop.shelf = .jobs(nil) }
+        Button(shop.words.callIt("mac.dashboard")) { shop.shelf = .dashboard }
             .keyboardShortcut("1", modifiers: .command)
-            
-        Button("Customers") { shop.shelf = .customers }
+        Button("Jobs") { shop.shelf = .jobs(nil) }
             .keyboardShortcut("2", modifiers: .command)
             
-        Button("Library") { shop.shelf = .library(nil) }
+        Button("Customers") { shop.shelf = .customers }
             .keyboardShortcut("3", modifiers: .command)
+            
+        Button("Library") { shop.shelf = .library(nil) }
+            .keyboardShortcut("4", modifiers: .command)
             
     }
 }
