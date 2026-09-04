@@ -41,6 +41,10 @@ final class Shop {
     private(set) var files: [LibraryFile] = []
     private(set) var machines: [Machine] = []
     private(set) var spools: [Spool] = []
+    /// The shop's own record of its customers. Read from the `clients`
+    /// collection, which this app did not open until it needed to point a new
+    /// job at one.
+    private(set) var clients: [Client] = []
     /// Wear per machine, keyed by id. `nozzleWear` answers for one machine at
     /// a time, so this is one call each — a handful of printers, not a table.
     private(set) var wear: [String: NozzleWear] = [:]
@@ -244,6 +248,7 @@ final class Shop {
             await words.load(wanted, engine: engine)
             settingsValue = root["settings"] ?? .object([:])
             if case .array(let shelf)? = root["inventory"] { inventoryRows = shelf } else { inventoryRows = [] }
+            clients = Self.decodeClients(root)
             taxSummary = await describeTax(root["settings"])
             await computeDashboard(root)
         } catch {
@@ -566,6 +571,63 @@ final class Shop {
     struct PendingHold: Identifiable, Sendable {
         let id: Order.ID
         let project: String
+    }
+
+    /// The customer being written down, or edited.
+    var editingCustomer: Client?
+
+    /// Save a customer — a new one, or changes to one the shop already has.
+    ///
+    /// A NAME IS THE ONLY THING REQUIRED, in either language, because that is
+    /// Khayt's own rule and because a customer with a phone number and no name
+    /// is not a customer anyone can find again.
+    func saveCustomer(_ client: Client) async {
+        moveProblem = nil
+        guard let build = source.build else {
+            moveProblem = words.callIt("mac.move_sample"); return
+        }
+        guard !client.nameEn.trimmingCharacters(in: .whitespaces).isEmpty
+                || !client.nameAr.trimmingCharacters(in: .whitespaces).isEmpty else {
+            moveProblem = words.callIt("ce.need_name"); return
+        }
+
+        var undo: [ChangedRecord] = []
+        do {
+            try StoreWriter.update(build) { root in
+                var rows = Self.rows(root, "clients")
+                var record = client.record
+                if let at = rows.firstIndex(where: { Self.recordId($0) == client.id }) {
+                    // An edit, so it is stamped like any other — and undoable.
+                    guard case .object(let was) = rows[at] else { return }
+                    undo.append(ChangedRecord(collection: "clients", id: client.id, was: was))
+                    // Fields this app does not offer are the shop's and stay:
+                    // the price list, the recurring schedule, the comms log.
+                    for (key, value) in was where record[key] == nil {
+                        record[key] = value
+                    }
+                    StoreWriter.stamp(&record)
+                    rows[at] = .object(record)
+                } else {
+                    StoreWriter.stamp(&record)
+                    rows.append(.object(record))
+                }
+                root["clients"] = .array(rows)
+            }
+            if !undo.isEmpty { registerMoveUndo(undo, named: words.callIt("mac.edit_customer")) }
+            editingCustomer = nil
+            await load(source)
+        } catch {
+            moveProblem = String(describing: error)
+        }
+    }
+
+    /// A blank customer with an id in Khayt's own shape.
+    ///
+    /// `uid('CLI')` — prefix, base-36 milliseconds, three random base-36
+    /// characters upper-cased. Matched so a customer written down here is
+    /// indistinguishable from one written down in Khayt.
+    static func newCustomer() -> Client {
+        Client(id: uid("CLI"), createdAt: localDay())
     }
 
     // MARK: - Taking a job
@@ -1244,6 +1306,17 @@ final class Shop {
         root["printFiles"] = .array(rows)
     }
 
+    /// The customers, skipping any row without an id.
+    ///
+    /// A client with no id cannot be pointed at by a job, so it is not a client
+    /// this app can offer — every other field is optional, because a customer
+    /// written down in a hurry has a name and nothing else.
+    private static func decodeClients(_ root: [String: JSONValue]) -> [Client] {
+        guard case .array(let rows)? = root["clients"] else { return [] }
+        let encoder = JSONEncoder(), decoder = JSONDecoder()
+        return rows.compactMap { try? decoder.decode(Client.self, from: encoder.encode($0)) }
+    }
+
     private static func decodeOrders(_ root: [String: JSONValue]) throws -> (items: [Order], skipped: [String]) {
         guard case .array(let rows)? = root["printLog"] else { return ([], []) }
         let encoder = JSONEncoder(), decoder = JSONDecoder()
@@ -1439,7 +1512,7 @@ final class Shop {
 
     // MARK: - What the customers screen shows
 
-    var customers: [Customer] { Customer.from(orders) }
+    var customers: [Customer] { Customer.from(orders, clients: clients) }
 
     var shownCustomers: [Customer] {
         let q = search.trimmingCharacters(in: .whitespaces).lowercased()

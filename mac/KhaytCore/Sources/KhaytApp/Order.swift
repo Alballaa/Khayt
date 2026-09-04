@@ -29,6 +29,10 @@ struct Order: Identifiable, Decodable, Hashable, Sendable {
     let priorityLevel: String?
     let notes: String
     let machineId: String?
+    /// The customer's row in `clients`, when the job was linked to one. Absent
+    /// on a job taken for a walk-in, and on every job in a shop that has never
+    /// used the customer screen.
+    let clientId: String?
     let completedAt: String?
     let deliveredAt: String?
     let dueDate: String?
@@ -37,7 +41,7 @@ struct Order: Identifiable, Decodable, Hashable, Sendable {
     private enum CodingKeys: String, CodingKey {
         case id, date, status, project, client, currency, price, paidAmount, costBasis
         case paymentStatus, paymentMethod, printTime, priority, priorityLevel, notes
-        case machineId, completedAt, deliveredAt, dueDate, parts
+        case machineId, clientId, completedAt, deliveredAt, dueDate, parts
     }
 
     /// THREE FIELDS A NEW JOB HAS NOT GOT YET.
@@ -74,6 +78,7 @@ struct Order: Identifiable, Decodable, Hashable, Sendable {
         priorityLevel = try c.decodeIfPresent(String.self, forKey: .priorityLevel)
         notes = try c.decode(String.self, forKey: .notes)
         machineId = try c.decodeIfPresent(String.self, forKey: .machineId)
+        clientId = try c.decodeIfPresent(String.self, forKey: .clientId)
         completedAt = try c.decodeIfPresent(String.self, forKey: .completedAt)
         deliveredAt = try c.decodeIfPresent(String.self, forKey: .deliveredAt)
         dueDate = try c.decodeIfPresent(String.self, forKey: .dueDate)

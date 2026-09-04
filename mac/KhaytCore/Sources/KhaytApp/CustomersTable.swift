@@ -114,8 +114,47 @@ struct CustomerInspector: View {
                         Text("\(person.jobCount) job\(person.jobCount == 1 ? "" : "s")")
                             .font(.caption)
                             .foregroundStyle(.secondary)
+                        if shop.canMoveJobs {
+                            Button(shop.words.callIt(person.record == nil
+                                                     ? "mac.write_them_down" : "mac.edit_customer")) {
+                                // Someone who exists only as a name on old jobs
+                                // gets a real record, pre-filled with the name
+                                // those jobs already call them.
+                                shop.editingCustomer = person.record
+                                    ?? Shop.newCustomer().with(\.nameEn, person.name)
+                            }
+                            .buttonStyle(.link)
+                            .font(.callout)
+                        }
                     }
                     Divider()
+                    // What the shop actually wrote down. Absent entirely before
+                    // this app read the `clients` collection, so a customer's
+                    // phone number lived only in the Electron window.
+                    if let record = person.record {
+                        DetailSection(shop.words.callIt("doc.client")) {
+                            if !record.phone.isEmpty {
+                                DetailLine(shop.words.callIt("ce.phone"), record.phone)
+                            }
+                            if !record.email.isEmpty {
+                                DetailLine(shop.words.callIt("ce.email"), record.email)
+                            }
+                            if !record.vat.isEmpty {
+                                DetailLine(shop.words.callIt("ce.vat"), record.vat)
+                            }
+                            if !record.cr.isEmpty {
+                                DetailLine(shop.words.callIt("ce.cr"), record.cr)
+                            }
+                            if !record.notes.isEmpty {
+                                Text(record.notes).font(.callout).textSelection(.enabled)
+                            }
+                        }
+                        Divider()
+                    } else {
+                        Label(shop.words.callIt("mac.no_record"), systemImage: "person.crop.circle.badge.questionmark")
+                            .font(.caption).foregroundStyle(.secondary)
+                        Divider()
+                    }
                     DetailSection(shop.words.callIt("mac.money")) {
                         DetailLine(shop.words.callIt("mac.billed"), Money.text(person.billed, shop.currency))
                         DetailLine(shop.words.callIt("flow.paid"), Money.text(person.paid, shop.currency), dim: true)

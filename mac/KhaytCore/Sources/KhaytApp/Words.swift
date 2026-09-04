@@ -279,6 +279,13 @@ final class Words {
         "mac.save_quote":    ["en": "Save as quote",  "ar": "حفظ كعرض سعر"],
         "mac.grams":         ["en": "grams",          "ar": "غرام"],
         "mac.hours":         ["en": "hours",          "ar": "ساعة"],
+        // Customers
+        "mac.new_customer":  ["en": "New Customer",   "ar": "عميل جديد"],
+        "mac.edit_customer": ["en": "Edit Customer",  "ar": "تعديل العميل"],
+        "mac.no_record":     ["en": "Not written down yet",
+                              "ar": "غير مسجّل بعد"],
+        "mac.write_them_down": ["en": "Write them down",
+                                "ar": "تسجيل العميل"],
         "mac.what_went_wrong": ["en": "What went wrong?", "ar": "ما الذي حدث؟"],
         "mac.wasted":        ["en": "Filament wasted (g)", "ar": "الخيط المهدور (غم)"],
         "mac.board_unplaced": ["en": "{n} job(s) are in a stage this board has no column for.",

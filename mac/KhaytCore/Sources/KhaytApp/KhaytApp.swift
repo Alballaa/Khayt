@@ -201,6 +201,12 @@ final class Activator: NSObject, NSApplicationDelegate {
             shop.takingAJob = false
             await settle()
 
+            shop.editingCustomer = Shop.newCustomer()
+            await settle()
+            captureSheet(named: "15-new-customer", into: dir)
+            shop.editingCustomer = nil
+            await settle()
+
             shop.shelf = .machines
             await settle()
             capture(named: "07-machines", into: dir)
