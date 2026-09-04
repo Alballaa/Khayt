@@ -95,5 +95,7 @@ import AppKit
                    "27-waste-words", size: CGSize(width: 460, height: 460))
         try render(SpoolSheet(shop: shop, existing: shop.spools.first),
                    "28-spool-words", size: CGSize(width: 440, height: 520))
+        try render(MachineSheet(shop: shop, existing: shop.machines.first),
+                   "29-machine-words", size: CGSize(width: 480, height: 560))
     }
 }

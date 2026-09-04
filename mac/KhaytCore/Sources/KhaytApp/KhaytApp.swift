@@ -280,6 +280,14 @@ final class Activator: NSObject, NSApplicationDelegate {
             shop.shelf = .machines
             await settle()
             capture(named: "07-machines", into: dir)
+            if let machine = shop.machines.first {
+                shop.editingMachine = machine
+                await settle()
+                try? await Task.sleep(for: .milliseconds(600))
+                captureSheet(named: "22-machine", into: dir)
+                shop.editingMachine = nil
+                await settle()
+            }
             shop.shelf = .inventory
             await settle()
             capture(named: "08-inventory", into: dir)

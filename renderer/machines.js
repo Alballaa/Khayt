@@ -16,6 +16,10 @@ if (typeof KhaytWorkingWeek === 'undefined' && typeof require === 'function') {
   require('../lib/working-week.js');
 }
 (function (global) {
+/** The shop floor's rules, however this file happens to be loaded. */
+const MachineEdit = (typeof globalThis !== 'undefined' && globalThis.KhaytMachineEdit)
+  || (() => { try { return require('../lib/machine-edit.js'); } catch (e) { return null; } })();
+
 // Bed Ready swaps decorative emoji for its bespoke drafting glyphs; Khayt keeps the emoji.
 const _mBdr = (typeof document !== 'undefined' && document.documentElement && document.documentElement.dataset.app === 'bedready');
 function _mIco(name, emoji, size) { return (_mBdr && window.BedReadyIcons) ? `<span class="br-ico">${window.BedReadyIcons.get(name, size || 15)}</span>` : emoji; }
@@ -529,71 +533,27 @@ function openMachineEditor(machineId = null) {
           }).catch(() => {});
         }
         const fillSpecs = (s, name) => {
-          draft.printerModel = s.printerModel || name;
-          draft.printerModelName = name;
-          if (s.vendor) draft.vendor = s.vendor;
-          if (s.bed) draft.bed = s.bed;
-          if (s.maxColors) draft.maxColors = s.maxColors;
-          if (s.powerDraw != null) draft.powerDraw = s.powerDraw;
-          const nameEl = modal.querySelector('#machName');
-          if (nameEl && !nameEl.value.trim()) { nameEl.value = name; draft.name = name; }
-          if (s.nozzleDiameter) { const el = modal.querySelector('#machNozzleDiameter'); if (el) el.value = s.nozzleDiameter; draft.nozzleDiameter = s.nozzleDiameter; }
-          if (s.extruderType)  { const el = modal.querySelector('#machExtruderType');  if (el) el.value = s.extruderType;  draft.extruderType  = s.extruderType; }
-          /* THE NOZZLE MATERIAL IS THE POINT OF THE CATALOG KNOWING IT.
-           *
-           * A Bambu X1C ships hardened steel and a Prusa MK4S ships brass — a
-           * ten-fold difference in expected life — and without this line both
-           * still landed on the brass default, so the whole printer-facts sweep
-           * changed nothing a shop could see. Only when the catalog actually
-           * checked it: an unswept printer must keep asking rather than inherit
-           * a maintenance threshold nobody chose.
-           */
-          if (s.nozzle && s.nozzle.material) {
-            draft.nozzle = Object.assign({ installedAt: '', gramsAtInstall: 0 }, draft.nozzle, { material: s.nozzle.material });
-            const matEl = modal.querySelector('#machNozzleMaterial');
-            if (matEl) matEl.value = s.nozzle.material;
-            /* FILL AN EMPTY THRESHOLD. NEVER REWRITE ONE THAT IS SET.
-             *
-             * This used to overwrite any value that MATCHED A SUGGESTION, on the
-             * theory that such a value must be untouched. It is not a safe
-             * theory: a shop that deliberately typed 5,000 has typed the same
-             * number brass suggests, and the old table's brass default of 2,000
-             * is still sitting in stores from before that figure changed. The
-             * app cannot tell a default from a decision, so it was guessing —
-             * about a maintenance setting, silently, with no way for the shop to
-             * know it had happened.
-             *
-             * (This was first written up as the cause of a real threshold change
-             * on a shop's U1. It was not: the shop had typed that number itself.
-             * The behaviour is still wrong and still worth removing, and the
-             * incident that prompted the look was not evidence for it — recorded
-             * here so the next reader does not inherit a false story.) */
+          // What a model fills in is lib/machine-edit.js's `applySpecs`, so the
+          // Mac app's machine sheet fills in the same things — including the
+          // two rules that took a while to get right: the nozzle MATERIAL is
+          // the point of the catalog knowing it, and an existing threshold is
+          // never rewritten because the app cannot tell a default from a
+          // decision. Both live in the module now, with their reasoning.
+          MachineEdit.applySpecs(draft, s, name, { settings });
+          // The draft is the record; these mirror it into the form the shop is
+          // looking at, which is this window's job and not the rule's.
+          const put = (sel, value) => { const el = modal.querySelector(sel); if (el && value != null) el.value = value; };
+          put('#machName', draft.name);
+          put('#machNozzleDiameter', draft.nozzleDiameter);
+          put('#machExtruderType', draft.extruderType);
+          if (draft.nozzle) {
+            put('#machNozzleMaterial', draft.nozzle.material);
             const thEl = modal.querySelector('#machNozzleGramsThreshold');
-            if (thEl && !thEl.value) {
-              const g = KhaytNozzleWear.defaultThresholdFor(s.nozzle.material, settings);
-              thEl.value = g;
-              draft.nozzle.gramsThreshold = g;
-            }
-          }
-          // Carried so the machine card can offer the vendor's support page, and
-          // so the checked specs are on the machine rather than only in a table.
-          if (s.support) draft.support = s.support;
-          for (const f of ['maxHotendC', 'maxBedC', 'chamber', 'maxChamberC', 'filamentMm', 'feed', 'toolheads']) {
-            if (s[f] != null) draft[f] = s[f];
+            if (thEl && !thEl.value) thEl.value = draft.nozzle.gramsThreshold;
           }
           if (pmHint) {
-            const bits = [];
-            if (s.bed) bits.push(`${s.bed.x}×${s.bed.y}×${s.bed.z} mm`);
-            if (s.nozzleDiameter) bits.push(`${s.nozzleDiameter} mm`);
-            if (s.maxColors > 1) bits.push(`${s.maxColors}×`);
-            if (s.powerDraw != null) bits.push(`~${s.powerDraw} W`);
-            // The checked specs, so the shop can see what the catalog knows —
-            // and, just as usefully, what it does not.
-            if (s.nozzle && s.nozzle.material) bits.push(s.nozzle.material);
-            if (s.maxHotendC) bits.push(`${s.maxHotendC}°C`);
-            if (s.chamber === 'active') bits.push(`${s.maxChamberC || '?'}°C ${t('mach.chamber') || 'chamber'}`);
-            if (s.filamentMm && s.filamentMm !== 1.75) bits.push(`${s.filamentMm} mm`);
-            pmHint.textContent = bits.join(' · ') || (t('mach.printer_model_hint') || '');
+            pmHint.textContent = MachineEdit.specsLine(s, { chamber: t('mach.chamber') })
+              || (t('mach.printer_model_hint') || '');
           }
         };
         // Network scan — find printers that announce themselves over mDNS, so the owner

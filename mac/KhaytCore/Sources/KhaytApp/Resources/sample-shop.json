@@ -2088,7 +2088,7 @@
         "TPU 95A"
       ],
       "nozzle": {
-        "material": "hardened steel",
+        "material": "hardened",
         "installedAt": "2026-03-02",
         "gramsThreshold": 30000,
         "gramsAtInstall": 0

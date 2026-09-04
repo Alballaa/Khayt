@@ -28,6 +28,12 @@ struct Machines: View {
                                        description: Text(shop.words.callIt("mac.no_machines_hint")))
             }
         }
+        .toolbar {
+            ToolbarItem {
+                Button(shop.words.callIt("mach.add"), systemImage: "plus") { shop.addingMachine = true }
+                    .disabled(!shop.canMoveJobs)
+            }
+        }
     }
 }
 
@@ -37,6 +43,15 @@ private struct Card: View {
     let shop: Shop
 
     var body: some View {
+        card
+            .contextMenu {
+                if shop.canMoveJobs {
+                    Button(shop.words.callIt("mach.edit")) { shop.editingMachine = machine }
+                }
+            }
+    }
+
+    private var card: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
                 // The colour the shop gave this machine, which is how it is
@@ -46,6 +61,11 @@ private struct Card: View {
                     .frame(width: 4, height: 30)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(machine.name).font(.title3.weight(.semibold)).lineLimit(1)
+                        // The name is the handle: clicking it opens the printer,
+                        // the way clicking a job's name opens the job.
+                        .onTapGesture(count: 2) {
+                            if shop.canMoveJobs { shop.editingMachine = machine }
+                        }
                     if !machine.model.isEmpty {
                         Text(machine.model).font(.caption).foregroundStyle(.secondary)
                     }

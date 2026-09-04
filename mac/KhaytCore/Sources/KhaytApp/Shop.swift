@@ -1419,6 +1419,93 @@ final class Shop {
         }
     }
 
+    // MARK: - The machines
+
+    /// The machine being written down, or corrected.
+    var editingMachine: Machine?
+    var addingMachine = false
+    /// The printers Khayt knows, read once per launch — the catalogue is a
+    /// constant, not something a book carries.
+    private(set) var catalog: [CatalogPrinter] = []
+
+    /// The nozzle fitments, from the wear data rather than from a list here.
+    private(set) var nozzleMaterials: [NozzleMaterial] = []
+
+    func readCatalog() async {
+        guard let engine else { return }
+        if catalog.isEmpty { catalog = (try? await engine.printerCatalog()) ?? [] }
+        if nozzleMaterials.isEmpty { nozzleMaterials = (try? await engine.nozzleMaterials()) ?? [] }
+    }
+
+    /// Put a machine on the floor, or correct one.
+    ///
+    /// `catalogId` applies a printer model FIRST, the way Khayt's picker does
+    /// on the change — the bed, the colours, the power and what the nozzle is
+    /// made of, arriving together rather than as eight fields to type.
+    func saveMachine(_ input: [String: JSONValue], id: Machine.ID?, catalogId: String?) async {
+        spendProblem = nil
+        spendNote = nil
+        guard let build = source.build else {
+            spendProblem = words.callIt("mac.move_sample"); return
+        }
+        guard let engine else {
+            spendProblem = words.callIt("mac.move_no_engine"); return
+        }
+        var undo: [ChangedRecord] = []
+        do {
+            try await StoreWriter.update(
+                storeURL: build.storeURL,
+                owns: { StoreLock.weOwnIt(build) },
+                whoHasIt: { StoreLock.describe(StoreLock.verdict(for: build)) }
+            ) { root in
+                var floor = Self.rows(root, "machines")
+                let settings = Self.settings(root)
+                var record: JSONValue
+                var at: Int?
+                if let id {
+                    guard let found = floor.firstIndex(where: { Self.recordId($0) == id }),
+                          case .object(let was) = floor[found] else {
+                        throw MoveRefused(sentence: self.words.callIt("mac.move_gone"))
+                    }
+                    undo.append(ChangedRecord(collection: "machines", id: id, was: was))
+                    record = floor[found]
+                    at = found
+                } else {
+                    let made = try await engine.newMachine(input, id: Self.uid("MACH"), count: floor.count)
+                    guard let fresh = made.machine else {
+                        throw MoveRefused(sentence: self.words.callIt("mach.need_name"))
+                    }
+                    record = fresh
+                }
+                if let catalogId, !catalogId.isEmpty {
+                    record = try await engine.applyPrinterModel(record, catalogId: catalogId,
+                                                                settings: settings).machine ?? record
+                }
+                let edited = try await engine.editMachine(record, input: input, settings: settings)
+                if edited.refused != nil {
+                    throw MoveRefused(sentence: self.words.callIt("mach.need_name"))
+                }
+                guard case .object(var fields)? = edited.machine else { return }
+                if let at {
+                    StoreWriter.stamp(&fields)
+                    floor[at] = .object(fields)
+                } else {
+                    floor.append(.object(fields))
+                }
+                root["machines"] = .array(floor)
+            }
+            if !undo.isEmpty { registerMoveUndo(undo, named: words.callIt("mach.edit")) }
+            editingMachine = nil
+            addingMachine = false
+            await load(source)
+            spendNote = words.callIt("mach.saved")
+        } catch let refusal as MoveRefused {
+            spendProblem = refusal.sentence
+        } catch {
+            spendProblem = String(describing: error)
+        }
+    }
+
     // MARK: - The shop's own settings
 
     /// What stopped the last settings save, and what it did.
