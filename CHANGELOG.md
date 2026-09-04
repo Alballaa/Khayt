@@ -70,6 +70,12 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   behind a guard, so the feature was simply not there. All five are workshop
   logic that had never been given a script tag.
 
+- **Bed Ready's estimates never learned from its own prints.** It records what
+  a print actually took, and it could recognise a model — but not the g-code
+  sliced from that model, and it had no way to link the two. So the history it
+  was collecting could never be used to sharpen the next estimate. Half of that
+  feature had a script tag and half did not.
+
 - **Bed Ready could not tell a printer that had moved from one that was off.**
   It scans the network for printers like Khayt does, and had no rule for
   matching a rediscovered machine back to a configured one — so a DHCP lease
