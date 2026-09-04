@@ -279,6 +279,7 @@ final class Shop {
             if case .array(let jobs)? = root["printLog"] { orderRows = jobs } else { orderRows = [] }
             if case .array(let people)? = root["clients"] { clientRows = people } else { clientRows = [] }
             if case .array(let catalog)? = root["products"] { productRows = catalog } else { productRows = [] }
+            if case .array(let fleet)? = root["machines"] { machineRows = fleet } else { machineRows = [] }
             clients = Self.decodeClients(root)
             await keepTheDaysBackup()
             expenses = Self.decode(root, "expenses", as: Expense.self)
@@ -288,6 +289,10 @@ final class Shop {
             taxSummary = await describeTax(root["settings"])
             await readSettingsTables(root)
             await computeDashboard(root)
+            // Ask the machines what they are doing — but never for the sample
+            // shop, whose printers are somebody else's addresses on somebody
+            // else's network.
+            if next.build != nil { printers.start(shop: self) } else { printers.stop() }
         } catch {
             orders = []
             files = []
@@ -297,8 +302,21 @@ final class Shop {
             libraryRoots = nil
             owner = nil
             facts = nil
+            printers.stop()
             problem = String(describing: error)
         }
+    }
+
+    /// Recompute just the fleet tile, when the printers have answered.
+    ///
+    /// Not the whole dashboard: `computeDashboard` walks every machine's nozzle
+    /// wear, and doing that every ten seconds to move one tile from 0/1 to 1/1
+    /// would be paying for the wrong thing.
+    func printersAnswered() async {
+        guard let engine, !machineRows.isEmpty else { return }
+        facts = try? await engine.dashboardFacts(orders: orderRows, machines: machineRows,
+                                                 settings: kpiSettings.isEmpty ? settingsDict : kpiSettings,
+                                                 statusCache: printers.statusCache)
     }
 
     /// One call per load, not one per tile. Building the arguments means
@@ -314,7 +332,8 @@ final class Shop {
         if case .array(let rows)? = root["clients"] { clients = rows } else { clients = [] }
         var settings: [String: JSONValue] = [:]
         if case .object(let dict)? = root["settings"] { settings = dict }
-        facts = try? await engine.dashboardFacts(orders: orders, machines: machines, settings: settings)
+        facts = try? await engine.dashboardFacts(orders: orders, machines: machines, settings: settings,
+                                                 statusCache: printers.statusCache)
         var perMachine: [String: NozzleWear] = [:]
         for machine in machines {
             guard case .object(let record) = machine,
@@ -1026,6 +1045,10 @@ final class Shop {
     /// did not name it is exactly the kind of loss this avoids.
     private(set) var clientRows: [JSONValue] = []
 
+    /// The machines, as the book holds them. Kept so the fleet tile can be
+    /// recomputed when the printers answer, without redoing the whole dashboard.
+    private(set) var machineRows: [JSONValue] = []
+
     /// The catalogue, as the book holds it.
     ///
     /// This app does not show the catalogue — it has no products screen — but
@@ -1421,6 +1444,12 @@ final class Shop {
             spendProblem = words.callIt("mac.export_failed") + " " + String(describing: error)
         }
     }
+
+    // MARK: - What the printers are doing
+
+    /// The live poll. Started when a book is opened and stopped with it, so a
+    /// window showing the sample shop is not knocking on a shop's printers.
+    let printers = PrinterWatch()
 
     // MARK: - Putting a backup back
 

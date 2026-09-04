@@ -159,3 +159,43 @@ test('things that merely look numeric are still treated as hostnames', () => {
   assert.equal(isAllowedPrinterHost('abc'), true, 'a bare hostname is still a hostname');
   assert.equal(isBlockedHost('1.2.3.4.5'), false, 'five parts is not an IPv4 address');
 });
+
+/* ------------------------------------------------------------------
+ * The printer guard is one rule, in one place.
+ *
+ * The syntactic half lives in lib/printer-host.js so the Mac app — which polls
+ * the same machines and has no `dns` — shares it. A second, more forgiving copy
+ * in Swift is how two apps come to disagree about what they are willing to
+ * connect to, and the disagreement would be invisible until somebody pointed
+ * one of them at an address that was not a printer.
+ * ------------------------------------------------------------------ */
+
+test('the split kept every caller working', () => {
+  const guard = require('../lib/host-guard.js');
+  const pure = require('../lib/printer-host.js');
+  assert.equal(guard.isAllowedPrinterHost, pure.isAllowedPrinterHost,
+    'host-guard no longer re-exports the shared guard');
+  assert.equal(guard.sanitizePrinterHost, pure.sanitizePrinterHost);
+  assert.equal(guard.canonicalizeIpv4, pure.canonicalizeIpv4);
+});
+
+test('the shared half needs nothing Node-only', () => {
+  // It runs in JavaScriptCore, which has no require, no fs, no dns.
+  const fs = require('fs');
+  const path = require('path');
+  const src = fs.readFileSync(path.join(__dirname, '..', 'lib', 'printer-host.js'), 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1');
+  for (const forbidden of ["require('dns')", "require('fs')", "require('net')", 'process.']) {
+    assert.ok(!src.includes(forbidden), `printer-host.js now uses ${forbidden}`);
+  }
+});
+
+test('nobody strips a printer host by hand any more', () => {
+  // Four call sites in main.js each wrote the same character class out. One of
+  // them getting a character wrong is a URL that points somewhere else.
+  const fs = require('fs');
+  const path = require('path');
+  const main = fs.readFileSync(path.join(__dirname, '..', 'main.js'), 'utf8');
+  assert.doesNotMatch(main, /replace\(\/\[\^a-zA-Z0-9\.\\-\]\/g, ''\)/,
+    'a hand-written printer-host strip is back in main.js — use sanitizePrinterHost');
+});

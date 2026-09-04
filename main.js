@@ -61,13 +61,14 @@ if (process.env.KHAYT_USER_DATA) {
 const crypto = require('crypto');
 const QRCode = require('qrcode');
 const { safeJsonParse } = require('./lib/safe-json');
-const { isBlockedHost, isAllowedPrinterHost, sanitizeMailgunDomain, resolvesToBlockedHost } = require('./lib/host-guard');
+const { isBlockedHost, isAllowedPrinterHost, sanitizeMailgunDomain, resolvesToBlockedHost,
+        sanitizePrinterHost } = require('./lib/host-guard');
 const { sendCustomSmtp } = require('./lib/custom-smtp');
 const {
   mergePollSuccess, mergePollFailure, completionsToPersist, restoreCompletions, completionIsNew,
 } = require('./lib/printer-poll-cache');
 const sdcpClient = require('./lib/sdcp-client');
-const { normalizeProgress, fileProgressPct, etaSeconds, moonrakerProgress, explainPrinterHttp } = require('./lib/printer-status');
+const { normalizeProgress, fileProgressPct, explainPrinterHttp } = require('./lib/printer-status');
 const KhaytDuet = require('./lib/duet');
 const KhaytRepetier = require('./lib/repetier');
 const printerCommands = require('./lib/printer-commands');
@@ -76,6 +77,10 @@ const upgradeBackup = require('./lib/upgrade-backup');
 const { createStoreIo, MAX_STORE_BYTES } = require('./lib/store-io');
 const { parseGcodeText } = require('./lib/gcode-parse');
 const moonrakerHistory = require('./lib/moonraker-history');
+// Reading a Klipper printer's answer — shared with the Mac app, which polls the
+// same machines. Two readings of the same JSON would be two opinions about
+// whether a shop's print is nearly done.
+const moonraker = require('./lib/moonraker');
 const contextMenu = require('./lib/main/context-menu');
 const { createSilhouette } = require('./lib/gcode-geometry');
 const { intake: intakeModel } = require('./lib/model-intake');
@@ -1189,7 +1194,7 @@ ipcMain.handle('hub:detect-slicers', async () => {
 // optionally start it. Uses the same host allowlist as the status poller (SSRF-safe).
 async function uploadGcodeToPrinter(machine, gcodePath, startPrint) {
   const { type, host, port, apiKey, accessCode, serial, printerSlug } = (machine && machine.printerApi) || {};
-  const printerHost = String(host || '').replace(/[^a-zA-Z0-9.\-]/g, '');
+  const printerHost = sanitizePrinterHost(host);
   if (!isAllowedPrinterHost(printerHost)) return { ok: false, error: 'Invalid printer host' };
   const portNum = parseInt(port || defaultPrinterPort(type), 10);
   if (!Number.isInteger(portNum) || portNum < 1 || portNum > 65535) return { ok: false, error: 'Invalid port' };
@@ -4225,7 +4230,7 @@ async function fetchPrinterHistory(machine, limit) {
   if (type !== 'moonraker') {
     return { ok: false, error: 'Only Klipper/Moonraker printers keep a job history Khayt can read' };
   }
-  const printerHost = String(host || '').replace(/[^a-zA-Z0-9.\-]/g, '');
+  const printerHost = sanitizePrinterHost(host);
   if (!isAllowedPrinterHost(printerHost)) return { ok: false, error: 'Invalid printer host' };
   const portNum = parseInt(port || defaultPrinterPort(type), 10);
   if (!Number.isInteger(portNum) || portNum < 1 || portNum > 65535) {
@@ -4252,7 +4257,7 @@ async function fetchPrinterHistory(machine, limit) {
 
 async function sendPrinterCommand(machine, command) {
   const { type, host, port, apiKey, printerSlug } = (machine && machine.printerApi) || {};
-  const printerHost = String(host || '').replace(/[^a-zA-Z0-9.\-]/g, '');
+  const printerHost = sanitizePrinterHost(host);
   if (!isAllowedPrinterHost(printerHost)) return { ok: false, error: 'Invalid printer host' };
   const portNum = parseInt(port || defaultPrinterPort(type), 10);
   if (!Number.isInteger(portNum) || portNum < 1 || portNum > 65535) {
@@ -4401,7 +4406,7 @@ function stockOptsFor(machine) {
 async function fetchPrinterStatus(machine) {
   const { type, host, port, apiKey, accessCode, printerSlug, serial } = machine.printerApi || {};
   // Strip any characters that aren't valid in a hostname/IP (prevents URL injection via @, /, etc.)
-  const printerHost = String(host || '').replace(/[^a-zA-Z0-9.\-]/g, '');
+  const printerHost = sanitizePrinterHost(host);
   if (!isAllowedPrinterHost(printerHost)) {
     return { ok: false, error: 'Invalid printer host' };
   }
@@ -4502,47 +4507,23 @@ async function fetchPrinterStatus(machine) {
     };
   }
   if (type === 'moonraker') {
-    const data = await get('/printer/objects/query?print_stats&virtual_sdcard&extruder&heater_bed&toolhead');
-    const ps = data.result?.status?.print_stats || {};
-    const vs = data.result?.status?.virtual_sdcard || {};
-    // On a toolchanger `extruder` is toolhead 0 and nothing else. Klipper names
-    // the rest `extruder1`, `extruder2`… and publishes the live one as
-    // `toolhead.extruder`, so a U1 printing on its third head showed a nozzle
-    // sitting at room temperature — the machine on this bench has four of them.
-    // Only the machines that need it pay for the extra request.
-    const activeExtruder = data.result?.status?.toolhead?.extruder;
-    let nozzleTemp = data.result?.status?.extruder?.temperature;
-    if (typeof activeExtruder === 'string' && activeExtruder && activeExtruder !== 'extruder') {
-      try {
-        const hot = await get(`/printer/objects/query?${encodeURIComponent(activeExtruder)}`);
-        const t = hot.result?.status?.[activeExtruder]?.temperature;
-        if (Number.isFinite(Number(t))) nozzleTemp = Number(t);
-      } catch (e) { /* keep toolhead 0's reading rather than showing nothing */ }
+    const data = await get(`/printer/objects/query?${moonraker.QUERY}`);
+    // On a toolchanger the live head is not toolhead zero, and only the machines
+    // that need it pay for the second request. A failure there keeps toolhead
+    // zero's reading rather than showing nothing.
+    const hotName = moonraker.activeExtruder(data);
+    let hot = null;
+    if (hotName) {
+      try { hot = await get(`/printer/objects/query?${encodeURIComponent(hotName)}`); }
+      catch (e) { hot = null; }
     }
-    // Layers where Klipper reports them, bytes otherwise — see moonrakerProgress
-    // for the measurement that settled it. And the ETA goes through etaSeconds,
-    // which has existed (with a test saying "under 1% is noise, not a signal")
-    // since the shared helpers were written and had never once been called: this
-    // adapter is the only one that extrapolates an ETA itself, and it was doing
-    // the arithmetic inline without the guard.
-    const prog = moonrakerProgress(ps, vs);
     return {
-      state: ps.state || 'Unknown',
-      progress: prog.percent,
-      progressSource: prog.source,
-      filename: ps.filename || '',
-      // print_duration, not total_duration: the latter includes heating and
-      // idling either side of the job, which is the same reason the actuals
-      // reader prefers it.
-      timeRemaining: etaSeconds(ps.print_duration, prog.percent / 100),
-      tempNozzle: Number.isFinite(Number(nozzleTemp)) ? Number(nozzleTemp) : null,
-      tempBed: data.result?.status?.heater_bed?.temperature || null,
+      ...moonraker.readStatus(data, hot, hotName),
       // filament_used is a running total across toolchanges, not per-head:
       // print_stats.py rebases its last extruder position on the
       // `extruder:activate_extruder` event, so the jump between heads is not
       // counted as extrusion and a four-colour job sums correctly.
       actuals: extractActuals('moonraker', data, stockOptsFor(machine)),
-      type: 'moonraker'
     };
   }
   if (type === 'prusalink') {

@@ -121,6 +121,11 @@ final class Activator: NSObject, NSApplicationDelegate {
                 FileHandle.standardError.write(Data(line.utf8))
             }
             capture(named: "00-dashboard", into: dir)
+            // Again once the printers have answered: the live strip is the one
+            // thing on this screen that is not read from the book, so a first
+            // photograph taken before the first poll cannot show it.
+            try? await Task.sleep(for: .seconds(3))
+            capture(named: "00c-dashboard-live", into: dir)
 
             guard let shop = subject else { NSApp.terminate(nil); return }
             // The sample too: a shop whose jobs are auto-logged from printer
@@ -304,6 +309,17 @@ final class Activator: NSObject, NSApplicationDelegate {
             shop.shelf = .machines
             await settle()
             capture(named: "07-machines", into: dir)
+            // And the real book, because the live card only exists there: the
+            // sample's printers are somebody else's addresses on somebody
+            // else's network, so this app never knocks on them. The poll needs
+            // longer than a settle — it is a request to a machine on the wifi.
+            await shop.load(Shop.available.first(where: \.isReal) ?? .sample)
+            shop.shelf = .machines
+            await settle()
+            try? await Task.sleep(for: .seconds(3))
+            capture(named: "07b-machines-live", into: dir)
+            await shop.load(.sample)
+            await settle()
             if let machine = shop.machines.first {
                 shop.editingMachine = machine
                 await settle()

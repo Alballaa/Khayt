@@ -438,6 +438,22 @@ final class Words {
         "mac.best":          ["en": "Best",         "ar": "الأفضل"],
         "mac.times_ordered": ["en": "Orders",       "ar": "الطلبات"],
         "mac.unnamed":       ["en": "(no name yet)", "ar": "(بلا اسم بعد)"],
+        // What the printer is doing. Khayt has words for the states and the
+        // errors; these are the ones its own card does not need, because this
+        // app tells a shop what it is NOT doing as well.
+        "mac.live":          ["en": "Right now",     "ar": "الآن"],
+        "mac.eta":           ["en": "Left",          "ar": "المتبقي"],
+        "mac.by_layers":     ["en": "by layer",      "ar": "حسب الطبقة"],
+        "mac.by_bytes":      ["en": "by file position", "ar": "حسب موضع الملف"],
+        "mac.nozzle_temp":   ["en": "Nozzle",        "ar": "الفوهة"],
+        "mac.bed_temp":      ["en": "Bed",           "ar": "المنصة"],
+        // Said out loud rather than left blank: a card that shows nothing looks
+        // broken, and a shop would go back to the other app not knowing why.
+        "mac.not_polled":    ["en": "Khayt watches this printer; this app does not speak {protocol} yet.",
+                              "ar": "خيط يتابع هذه الطابعة؛ هذا التطبيق لا يتحدث {protocol} بعد."],
+        "mac.no_connection": ["en": "No connection set up for this printer.",
+                              "ar": "لا يوجد اتصال معدّ لهذه الطابعة."],
+        "mac.asking":        ["en": "Asking\u{2026}", "ar": "جارٍ السؤال\u{2026}"],
         // Settings
         "mac.revert":        ["en": "Revert",       "ar": "تراجع"],
         "mac.settings_saved": ["en": "Saved.",      "ar": "حُفظ."],
