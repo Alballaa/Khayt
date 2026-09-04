@@ -224,3 +224,9 @@ public struct Handover: Decodable, Sendable {
     public let ok: Bool
     public let order: JSONValue?
 }
+
+/// A job after its details were changed, and whether anything actually moved.
+public struct JobEdited: Decodable, Sendable {
+    public let order: JSONValue
+    public let changed: Bool
+}

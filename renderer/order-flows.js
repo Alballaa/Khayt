@@ -1680,8 +1680,9 @@ function openOrderEditor(orderId) {
       modal.querySelector('#oeOpenMilestones')?.addEventListener('click', () => openMilestoneInvoices(order.id));
       const plSel = modal.querySelector('[data-f="priorityLevel"]');
       if (plSel) plSel.addEventListener('change', (e) => {
-        draft.priorityLevel = e.target.value;
-        draft.priority = e.target.value !== 'normal';
+        // Both fields, from one answer: a job that is urgent on one screen and
+        // ordinary on another is what happens when only one of them moves.
+        Object.assign(draft, EditRules().priorityFrom(e.target.value));
       });
       // Feature 3: Auto-suggest due date when field is empty
       requestAnimationFrame(() => {
@@ -2072,19 +2073,16 @@ function openOrderEditor(orderId) {
       // Feature 8: Record edit history before overwriting
       const existingOrder = printLog.find(o => o.id === order.id);
       if (existingOrder) {
-        const changedFields = {};
-        const checkField = (key, newVal) => {
-          const oldVal = existingOrder[key];
-          if (String(oldVal ?? '') !== String(newVal ?? '')) {
-            changedFields[key] = { from: oldVal, to: newVal };
-          }
-        };
-        checkField('dueDate', draft.dueDate || null);
-        checkField('discountPct', draft.discountPct);
-        checkField('shippingCost', draft.shippingCost);
-        checkField('priority', draft.priority);
-        checkField('priorityLevel', draft.priorityLevel);
-        recordOrderEdit(order, changedFields);
+        // Which fields are worth recording, and what counts as a change, is
+        // lib/order-edit.js's answer — so an edit made anywhere else leaves the
+        // same trace as one made here.
+        recordOrderEdit(order, EditRules().changesBetween(existingOrder, {
+          dueDate: draft.dueDate || null,
+          discountPct: draft.discountPct,
+          shippingCost: draft.shippingCost,
+          priority: draft.priority,
+          priorityLevel: draft.priorityLevel,
+        }));
       }
 
       // Persist any pending full images to disk
@@ -2112,8 +2110,8 @@ function openOrderEditor(orderId) {
       // `true` or gone — never `false`. Every existing order predates this, so
       // an absent key must mean one thing rather than two.
       KhaytBusinessScope.setNonBusiness(order, !!draft.nonBusiness);
-      order.priority = draft.priority;
-      order.priorityLevel = draft.priorityLevel || (draft.priority ? 'high' : 'normal');
+      Object.assign(order, EditRules().priorityFrom(
+        draft.priorityLevel || (draft.priority ? 'high' : 'normal')));
       order.operatorId = draft.operatorId || undefined;
       order.printPhotos = draft.printPhotos;
       order.attachedFiles = draft.attachedFiles;
@@ -2953,15 +2951,21 @@ function openSpoolSwitchModal(orderId) {
   });
 }
 
+/** Write an edit into the job's history. The rule is lib/order-edit.js's. */
 function recordOrderEdit(order, changedFields) {
-  if (!changedFields || Object.keys(changedFields).length === 0) return;
-  order.editHistory = order.editHistory || [];
-  order.editHistory.push({
-    id: uid('edit'),
-    at: new Date().toISOString(),
-    fields: changedFields,
-  });
-  if (order.editHistory.length > 100) order.editHistory = order.editHistory.slice(-100);
+  EditRules().recordEdit(order, changedFields, { now: Date.now(), id: uid('edit') });
+}
+
+/** The order-edit rules, however this file happens to be loaded. */
+function EditRules() {
+  if (EditRules.cached) return EditRules.cached;
+  if (typeof globalThis !== 'undefined' && globalThis.KhaytOrderEdit) {
+    EditRules.cached = globalThis.KhaytOrderEdit;
+    return EditRules.cached;
+  }
+  try { EditRules.cached = require('../lib/order-edit.js'); }
+  catch (e) { EditRules.cached = null; }
+  return EditRules.cached;
 }
 
 function openEditHistoryModal(orderId) {

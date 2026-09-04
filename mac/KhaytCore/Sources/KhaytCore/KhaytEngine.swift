@@ -83,6 +83,10 @@ public actor KhaytEngine {
         // to "is this paid" instead of the three that had drifted apart — the
         // smallest of which was the one that WROTE the field the others read.
         "order-payment",
+        // Changing a job's own details, and remembering that it changed. Five
+        // fields are recorded because those are the ones a customer can be told
+        // a different answer about later.
+        "order-edit",
     ]
 
     /// The languages whose strings are bundled.
@@ -372,6 +376,28 @@ public actor KhaytEngine {
           + " var r = KhaytOrderStatus.markDelivered(o, { now: ARG1 });"
           + " return { ok: r.ok, order: r.ok ? o : null }; })()",
             [order, .number(now.timeIntervalSince1970 * 1000)], as: Handover.self)
+    }
+
+    /// Change a job's due date and priority, and write the edit down.
+    ///
+    /// `dueDate` nil clears it — a job with no due date is a real answer.
+    /// Returns the order unchanged and no effects when nothing actually moved,
+    /// so an editor opened and closed again writes no revision.
+    public func editJob(order: JSONValue, dueDate: String?, priorityLevel: String,
+                        now: Date, editId: String) throws -> JobEdited {
+        try runtime.call2(
+            "(function(){ var o = ARG0;"
+          + " var r = KhaytOrderEdit.applyEdit(o, { dueDate: ARG1, priorityLevel: ARG2 },"
+          + "                                 { now: ARG3, id: ARG4 });"
+          + " return { order: o, changed: Object.keys(r.changes).length > 0 }; })()",
+            [order, dueDate.map(JSONValue.string) ?? .null, .string(priorityLevel),
+             .number(now.timeIntervalSince1970 * 1000), .string(editId)],
+            as: JobEdited.self)
+    }
+
+    /// The priority a job is at, however old the record is.
+    public func priority(of order: JSONValue) throws -> String {
+        try runtime.call("KhaytOrderEdit", "priorityOf", [order], as: String.self)
     }
 
     // MARK: - Money received

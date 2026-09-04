@@ -149,6 +149,13 @@ private struct JobMenu: View {
             // reached by name, which is also how they are read on the board.
             .disabled(!canMove || Stage.of(job!) == stage)
         }
+        Button(Words.upfront("mac.edit_job")) {
+            guard let one = job else { return }
+            shop.pendingEdit = Shop.PendingHold(id: one.id, project: one.project)
+        }
+        .keyboardShortcut("e", modifiers: [.command, .shift])
+        .disabled(!canMove)
+        Divider()
         Button(Words.upfront("queue.delivered")) {
             if let id = shop.selection { Task { await shop.markDelivered(id) } }
         }
