@@ -98,3 +98,20 @@ public struct DashboardFacts: Decodable, Sendable {
         public let daysLate: Int?
     }
 }
+
+
+// MARK: - The shop floor
+
+/// What `lib/nozzle-wear.js` says about a machine's nozzle.
+public struct NozzleWear: Decodable, Sendable {
+    /// Grams printed since the nozzle went in.
+    public let grams: Double
+    /// Wear in "abrasive-equivalent" grams — the module's own weighting, since
+    /// a kilo of carbon fibre is not a kilo of PLA as far as brass is concerned.
+    public let wear: Double
+    public let threshold: Double
+    /// 0–100. The module rounds it; this does not round it again.
+    public let pct: Double
+    public let over: Bool
+    public let abrasive: Bool
+}

@@ -1999,15 +1999,87 @@
   "machines": [
     {
       "id": "MACH-u1",
-      "name": "Snapmaker U1"
+      "name": "Snapmaker U1",
+      "vendor": "Snapmaker",
+      "printerModelName": "Snapmaker U1",
+      "bed": {
+        "x": 270,
+        "y": 270,
+        "z": 270
+      },
+      "maxColors": 4,
+      "nozzleDiameter": 0.4,
+      "extruderType": "Direct Drive",
+      "powerDraw": 140,
+      "compatMaterials": [
+        "PLA",
+        "PETG",
+        "PLA+ 2.0",
+        "Sunlu PETG",
+        "Sunlu TPU",
+        "TPU"
+      ],
+      "nozzle": {
+        "material": "stainless",
+        "installedAt": "2026-08-01",
+        "gramsThreshold": 50000,
+        "gramsAtInstall": 0
+      }
     },
     {
       "id": "MACH-core-one",
-      "name": "Prusa CORE One"
+      "name": "Prusa CORE One",
+      "vendor": "Prusa",
+      "printerModelName": "Prusa CORE One",
+      "bed": {
+        "x": 250,
+        "y": 220,
+        "z": 270
+      },
+      "maxColors": 1,
+      "nozzleDiameter": 0.4,
+      "extruderType": "Direct Drive",
+      "powerDraw": 120,
+      "compatMaterials": [
+        "PLA",
+        "PETG",
+        "ASA",
+        "PC"
+      ],
+      "nozzle": {
+        "material": "brass",
+        "installedAt": "2026-06-14",
+        "gramsThreshold": 8000,
+        "gramsAtInstall": 0
+      }
     },
     {
       "id": "MACH-x1c",
-      "name": "Bambu X1C"
+      "name": "Bambu X1C",
+      "vendor": "Bambu Lab",
+      "printerModelName": "Bambu Lab X1 Carbon",
+      "bed": {
+        "x": 256,
+        "y": 256,
+        "z": 256
+      },
+      "maxColors": 4,
+      "nozzleDiameter": 0.4,
+      "extruderType": "Direct Drive",
+      "powerDraw": 350,
+      "compatMaterials": [
+        "PLA",
+        "PETG",
+        "ABS",
+        "PA-CF",
+        "TPU 95A"
+      ],
+      "nozzle": {
+        "material": "hardened steel",
+        "installedAt": "2026-03-02",
+        "gramsThreshold": 30000,
+        "gramsAtInstall": 0
+      }
     }
   ],
   "printFiles": [
@@ -2756,6 +2828,66 @@
       "rev": 1,
       "timesPrinted": 0,
       "lastPrinted": null
+    }
+  ],
+  "inventory": [
+    {
+      "id": "sp-1",
+      "material": "PLA+ 2.0",
+      "cost": 75,
+      "weight": 1000,
+      "rev": 1,
+      "openedAt": "2026-08-20",
+      "storage": "drybox",
+      "updatedAt": "2026-08-20T09:00:00.000Z"
+    },
+    {
+      "id": "sp-2",
+      "material": "Sunlu PETG",
+      "cost": 85,
+      "weight": 1000,
+      "rev": 1,
+      "openedAt": "2026-07-02",
+      "storage": "shelf",
+      "updatedAt": "2026-07-02T09:00:00.000Z"
+    },
+    {
+      "id": "sp-3",
+      "material": "Sunlu TPU",
+      "cost": 110,
+      "weight": 750,
+      "rev": 1,
+      "openedAt": "2026-08-30",
+      "storage": "drybox",
+      "updatedAt": "2026-08-30T09:00:00.000Z"
+    },
+    {
+      "id": "sp-4",
+      "material": "PA-CF",
+      "cost": 240,
+      "weight": 500,
+      "rev": 1,
+      "openedAt": "2026-05-11",
+      "storage": "shelf",
+      "updatedAt": "2026-05-11T09:00:00.000Z"
+    },
+    {
+      "id": "sp-5",
+      "material": "ASA",
+      "cost": 95,
+      "weight": 1000,
+      "rev": 1,
+      "updatedAt": "2026-08-01T09:00:00.000Z"
+    },
+    {
+      "id": "sp-6",
+      "material": "PLA Silk",
+      "cost": 68,
+      "weight": 1000,
+      "rev": 1,
+      "openedAt": "2026-09-01",
+      "storage": "drybox",
+      "updatedAt": "2026-09-01T09:00:00.000Z"
     }
   ]
 }

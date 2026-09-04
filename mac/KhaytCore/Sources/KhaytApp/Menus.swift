@@ -78,6 +78,10 @@ private struct GoMenu: View {
             
         Button("Library") { shop.shelf = .library(nil) }
             .keyboardShortcut("4", modifiers: .command)
+        Button(shop.words.callIt("mac.machines")) { shop.shelf = .machines }
+            .keyboardShortcut("5", modifiers: .command)
+        Button(shop.words.callIt("mac.inventory")) { shop.shelf = .inventory }
+            .keyboardShortcut("6", modifiers: .command)
             
     }
 }

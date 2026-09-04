@@ -39,6 +39,11 @@ final class Shop {
     private(set) var source: Source
     private(set) var orders: [Order] = []
     private(set) var files: [LibraryFile] = []
+    private(set) var machines: [Machine] = []
+    private(set) var spools: [Spool] = []
+    /// Wear per machine, keyed by id. `nozzleWear` answers for one machine at
+    /// a time, so this is one call each — a handful of printers, not a table.
+    private(set) var wear: [String: NozzleWear] = [:]
     /// Where this shop's models live. Resolved once per book, because it reads
     /// settings and probes the disk, and every cell asks about it.
     private(set) var libraryRoots: LibraryLocation.Roots?
@@ -90,12 +95,16 @@ final class Shop {
         case library(String?)
         case customers
         case dashboard
+        case machines
+        case inventory
     }
 
     var stage: Stage? { if case .jobs(let s) = shelf { s } else { nil } }
     var showingLibrary: Bool { if case .library = shelf { true } else { false } }
     var showingCustomers: Bool { shelf == .customers }
     var showingDashboard: Bool { shelf == .dashboard }
+    var showingMachines: Bool { shelf == .machines }
+    var showingInventory: Bool { shelf == .inventory }
 
     /// The sources that can actually be opened on this Mac. A menu offering a
     /// store that is not there is a dead end dressed up as a choice.
@@ -138,6 +147,8 @@ final class Shop {
             let decoded = try Self.decodeOrders(root)
             orders = decoded.items
             skipped = decoded.skipped
+            machines = Self.decode(root, "machines", as: Machine.self)
+            spools = Self.decode(root, "inventory", as: Spool.self)
             let library = Self.decodeFiles(root)
             files = library.items
             skipped += library.skipped
@@ -178,6 +189,9 @@ final class Shop {
         } catch {
             orders = []
             files = []
+            machines = []
+            spools = []
+            wear = [:]
             libraryRoots = nil
             owner = nil
             facts = nil
@@ -197,6 +211,16 @@ final class Shop {
         var settings: [String: JSONValue] = [:]
         if case .object(let dict)? = root["settings"] { settings = dict }
         facts = try? await engine.dashboardFacts(orders: orders, machines: machines, settings: settings)
+        var perMachine: [String: NozzleWear] = [:]
+        for machine in machines {
+            guard case .object(let record) = machine,
+                  case .string(let id)? = record["id"] else { continue }
+            if let w = try? await engine.nozzleWear(orders: orders, machine: machine, settings: settings) {
+                perMachine[id] = w
+            }
+        }
+        wear = perMachine
+
     }
 
     enum Failure: Error { case missingSample }
@@ -434,6 +458,19 @@ final class Shop {
             }
         }
         return (items, skipped)
+    }
+
+    /// Decode one collection, skipping records that do not fit rather than
+    /// losing the collection. Same reasoning as the orders and the library: a
+    /// newer build will put fields here this app has never heard of.
+    private static func decode<T: Decodable>(_ root: [String: JSONValue], _ key: String,
+                                             as type: T.Type) -> [T] {
+        guard case .array(let rows)? = root[key] else { return [] }
+        let encoder = JSONEncoder(), decoder = JSONDecoder()
+        return rows.compactMap { row in
+            guard let data = try? encoder.encode(row) else { return nil }
+            return try? decoder.decode(T.self, from: data)
+        }
     }
 
     private static func librarySettings(_ root: [String: JSONValue]) -> JSONValue? {

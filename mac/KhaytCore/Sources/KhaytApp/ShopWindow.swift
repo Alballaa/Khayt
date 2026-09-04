@@ -21,6 +21,10 @@ struct ShopWindow: View {
                 Dashboard(shop: shop)
             } else if shop.showingLibrary {
                 LibraryGrid(shop: shop)
+            } else if shop.showingMachines {
+                Machines(shop: shop)
+            } else if shop.showingInventory {
+                Inventory(shop: shop)
             } else if shop.showingCustomers {
                 CustomersTable(shop: shop)
             } else {
@@ -37,11 +41,16 @@ struct ShopWindow: View {
         // binding is read-only there so the toolbar button cannot open an empty
         // one either.
         .inspector(isPresented: Binding(
-            get: { showInspector && !shop.showingDashboard },
+            get: { showInspector && !shop.showingDashboard
+                   && !shop.showingMachines && !shop.showingInventory },
             set: { showInspector = $0 }
         )) {
             Group {
-                if shop.showingLibrary {
+                if shop.showingMachines || shop.showingInventory {
+                    // Both screens carry their own detail — a card and a table
+                    // wide enough to read. A panel beside them would repeat.
+                    EmptyView()
+                } else if shop.showingLibrary {
                     LibraryInspector(shop: shop)
                 } else if shop.showingCustomers {
                     CustomerInspector(shop: shop)
@@ -124,6 +133,12 @@ struct ShopWindow: View {
             return "\(n) \(shop.words.callIt("mac.customers_count")) · \(provenance)"
         }
         if shop.showingDashboard { return provenance }
+        if shop.showingMachines {
+            return "\(shop.machines.count) \(shop.words.callIt("mac.machines")) · \(provenance)"
+        }
+        if shop.showingInventory {
+            return "\(shop.spools.count) \(shop.words.callIt("mac.inventory")) · \(provenance)"
+        }
         return provenance
     }
 
@@ -180,6 +195,8 @@ private struct OwedSummary: View {
         case .jobs(let stage?): "jobs:\(stage.rawValue)"
         case .customers: "customers"
         case .dashboard: "dashboard"
+        case .machines: "machines"
+        case .inventory: "inventory"
         case .library(nil): "library"
         case .library(let group?): "library:\(group)"
         }
@@ -196,6 +213,10 @@ private struct OwedSummary: View {
             return .customers
         case "dashboard":
             return .dashboard
+        case "machines":
+            return .machines
+        case "inventory":
+            return .inventory
         case "library":
             guard parts.count == 2 else { return .library(nil) }
             // Only if it is still a group this shop has.

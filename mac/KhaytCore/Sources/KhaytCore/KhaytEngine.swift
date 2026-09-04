@@ -22,6 +22,21 @@ public actor KhaytEngine {
         "business-scope",
         "order-progress",
         "loyalty",
+        // How long a nozzle lasts, and what wears it out.
+        //
+        // THE DATA MODULE MUST COME FIRST. `nozzle-wear` reads it through
+        // `require`, and under JavaScriptCore there is no require — it falls
+        // back to `global.KhaytNozzleWearData`, which only exists if that file
+        // has already run. Without it the module still LOADS and then throws on
+        // the first call, which is a failure that arrives from inside a screen
+        // with no clue why. Verified identical to Node's answer with it.
+        "nozzle-wear-data",
+        "nozzle-wear",
+        // `filament-dryness` is NOT here. It reads `driedAt` — when a spool
+        // was last DRIED — and belongs to Bed Ready's dry log, whose records
+        // the `inventory` collection does not carry. Wiring it to the filament
+        // shelf produced a column of dashes and would have produced a column of
+        // wrong answers the moment anything filled that field in.
         // What needs a shop's attention, and the figures on the dashboard.
         // Pure, zero requires, and already assigning onto globalThis — so the
         // screen a shop opens on is the same arithmetic the Electron app shows,
@@ -141,6 +156,23 @@ public actor KhaytEngine {
     // Revenue and margin wait until that normalising is lifted into `lib/`
     // where both apps can share it. A bridge method that quietly answers zero
     // is worse than no bridge method.
+
+    // MARK: - The shop floor
+
+    /// How worn ONE machine's nozzle is, from the grams it has actually printed.
+    ///
+    /// `nozzleWear(printLog, machine, settings)` — POSITIONAL, and one machine at
+    /// a time. Handed a single options object instead it takes that object as
+    /// the print log, finds it is not an array, loops over nothing, and reports
+    /// every nozzle as 0 of the DEFAULT 5,000g threshold rather than the one the
+    /// machine actually carries. It looked right on screen. Checked against the
+    /// source, not inferred from the name, after `KhaytKpi.computeKpis` had
+    /// already cost this app a screenful of zeros the same way.
+    public func nozzleWear(orders: [JSONValue], machine: JSONValue,
+                           settings: [String: JSONValue]) throws -> NozzleWear {
+        try runtime.call2("KhaytNozzleWear.nozzleWear(ARG0, ARG1, ARG2)",
+                          [.array(orders), machine, .object(settings)], as: NozzleWear.self)
+    }
 
     // MARK: - Groups
 
