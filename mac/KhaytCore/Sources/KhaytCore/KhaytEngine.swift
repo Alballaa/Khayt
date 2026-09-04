@@ -564,6 +564,70 @@ public actor KhaytEngine {
         try runtime.call2("KhaytContentLanguages.languageName(ARG0)", [.string(code)], as: String.self)
     }
 
+    // MARK: - What the shop spent, and what it wasted
+
+    /// Whether a record's date falls in a period — the same rule every list in
+    /// Khayt filters through.
+    public func inRange(_ date: String, period: String, now: Date) throws -> Bool {
+        try runtime.call2("KhaytDateRange.inRange(ARG0, ARG1, {now: new Date(ARG2)})",
+                          [.string(date), .string(period), .number(now.timeIntervalSince1970 * 1000)],
+                          as: Bool.self)
+    }
+
+    /// One expense, as the book records it. `refused` names the field when the
+    /// rule will not build one — an amount that is not positive is the only case.
+    public func newExpense(_ input: [String: JSONValue], id: String, today: String) throws -> Written {
+        try runtime.call2("KhaytExpenseBook.newExpense(ARG0, {id: ARG1, today: ARG2})",
+                          [.object(input), .string(id), .string(today)], as: Written.self)
+    }
+
+    /// Whether a category has gone past its monthly budget, AFTER the expense
+    /// is in the list handed here. Nil when it has not, or has no budget.
+    public func overBudget(_ expenses: [JSONValue], category: String, month: String,
+                           budgets: [String: JSONValue]) throws -> Overspend? {
+        try runtime.call2("KhaytExpenseBook.overBudget(ARG0, ARG1, ARG2, ARG3)",
+                          [.array(expenses), .string(category), .string(month), .object(budgets)],
+                          as: Overspend?.self)
+    }
+
+    /// Budget against actual, one row per category that has a budget.
+    public func budgetProgress(_ byCategory: [String: Double],
+                               budgets: [String: JSONValue]) throws -> [BudgetRow] {
+        try runtime.call2("KhaytExpenseBook.budgetProgress(ARG0, ARG1)",
+                          [.object(byCategory.mapValues(JSONValue.number)), .object(budgets)],
+                          as: [BudgetRow].self)
+    }
+
+    /// A failed print written down by hand.
+    ///
+    /// `inventory` COMES BACK CHANGED when the entry deducts: the grams come
+    /// off the spool it names, and the entry records which spool, so deleting
+    /// it can put them back. Write both, or the shelf and the log disagree.
+    public func newWasteEntry(_ input: [String: JSONValue], id: String, today: String,
+                              inventory: [JSONValue]) throws -> WasteWritten {
+        try runtime.call2(
+            "(function(){var inv = ARG3; var out = KhaytWasteEntry.newEntry(ARG0, {id: ARG1, today: ARG2, inventory: inv});"
+          + " return {entry: out.entry, refused: out.refused, inventory: inv};})()",
+            [.object(input), .string(id), .string(today), .array(inventory)], as: WasteWritten.self)
+    }
+
+    /// What wasted grams of a material cost, from the spool they came off.
+    public func wasteCost(material: String, grams: Double, inventory: [JSONValue]) throws -> Double {
+        try runtime.call2("KhaytWasteEntry.costOf(ARG0, ARG1, ARG2)",
+                          [.string(material), .number(grams), .array(inventory)], as: Double.self)
+    }
+
+    /// Take an entry out of the log and put its grams back on its spool.
+    /// Both collections come back changed.
+    public func removeWasteEntry(_ wasteLog: [JSONValue], id: String,
+                                 inventory: [JSONValue]) throws -> WasteRemoved {
+        try runtime.call2(
+            "(function(){var log = ARG0, inv = ARG2;"
+          + " var gone = KhaytWasteEntry.removeEntry(log, ARG1, {inventory: inv});"
+          + " return {removed: !!gone, wasteLog: log, inventory: inv};})()",
+            [.array(wasteLog), .string(id), .array(inventory)], as: WasteRemoved.self)
+    }
+
     // MARK: - Who the shop's customers are
 
     /// A customer's name, in the language the shop writes.

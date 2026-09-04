@@ -26,6 +26,7 @@ struct ShopWindow: View {
                 // did not happen and said nothing is the worst of the three
                 // possible outcomes.
                 MoveBanners(shop: shop)
+                SpendBanner(shop: shop)
 
                 if shop.showingDashboard {
                     Dashboard(shop: shop)
@@ -37,6 +38,10 @@ struct ShopWindow: View {
                     Machines(shop: shop)
                 } else if shop.showingInventory {
                     Inventory(shop: shop)
+                } else if shop.showingExpenses {
+                    Expenses(shop: shop)
+                } else if shop.showingWaste {
+                    Waste(shop: shop)
                 } else if shop.showingCustomers {
                     CustomersTable(shop: shop)
                 } else {
@@ -55,11 +60,13 @@ struct ShopWindow: View {
         // one either.
         .inspector(isPresented: Binding(
             get: { showInspector && !shop.showingDashboard && !shop.showingBoard
-                   && !shop.showingMachines && !shop.showingInventory },
+                   && !shop.showingMachines && !shop.showingInventory
+                   && !shop.showingExpenses && !shop.showingWaste },
             set: { showInspector = $0 }
         )) {
             Group {
-                if shop.showingMachines || shop.showingInventory || shop.showingBoard {
+                if shop.showingMachines || shop.showingInventory || shop.showingBoard
+                    || shop.showingExpenses || shop.showingWaste {
                     // Both screens carry their own detail — a card and a table
                     // wide enough to read. A panel beside them would repeat.
                     EmptyView()
@@ -169,6 +176,8 @@ struct ShopWindow: View {
     private var searchPrompt: String {
         if shop.showingLibrary { return shop.words.callIt("mac.search_models") }
         if shop.showingCustomers { return shop.words.callIt("mac.search_people") }
+        if shop.showingExpenses { return shop.words.callIt("mac.search_expenses") }
+        if shop.showingWaste { return shop.words.callIt("mac.search_waste") }
         return shop.words.callIt("mac.search_jobs")
     }
 }
@@ -222,6 +231,8 @@ private struct OwedSummary: View {
         case .machines: "machines"
         case .inventory: "inventory"
         case .board: "board"
+        case .expenses: "expenses"
+        case .waste: "waste"
         case .library(nil): "library"
         case .library(let group?): "library:\(group)"
         }
@@ -244,6 +255,10 @@ private struct OwedSummary: View {
             return .inventory
         case "board":
             return .board
+        case "expenses":
+            return .expenses
+        case "waste":
+            return .waste
         case "library":
             guard parts.count == 2 else { return .library(nil) }
             // Only if it is still a group this shop has.

@@ -391,6 +391,9 @@ final class Words {
         "mac.no_customer_hint": ["en": "Pick a row to see their jobs and their balance.", "ar": "اختر صفاً لعرض أعماله ورصيده."],
         "mac.models_count": ["en": "models", "ar": "مجسمات"],
         "mac.customers_count": ["en": "customers", "ar": "عملاء"],
+        // What the shop spent, and what it wasted
+        "mac.search_expenses": ["en": "Note, category or job", "ar": "ملاحظة أو تصنيف أو عمل"],
+        "mac.search_waste":  ["en": "Material, reason or failure", "ar": "خامة أو سبب أو نوع العطل"],
         // Settings
         "mac.revert":        ["en": "Revert",       "ar": "تراجع"],
         "mac.settings_saved": ["en": "Saved.",      "ar": "حُفظ."],
@@ -418,6 +421,22 @@ final class Words {
         "plib.material", "plib.tags_short", "plib.group_ph", "set.store_size",
         "tab.clients", "doc.invoice", "doc.quotation", "common.close",
         "inv.qr_failed",
+        // Expenses and waste
+        "common.cancel", "common.delete", "exp.add_btn", "exp.add_title", "exp.amount",
+        "exp.budget_title", "exp.cat.electricity", "exp.cat.filament",
+        "exp.cat.maintenance", "exp.cat.other", "exp.cat.shipping", "exp.cat.tools",
+        "exp.category", "exp.date", "exp.no_budgets", "exp.note", "exp.note_ph",
+        "exp.order_ref", "exp.order_ref_ph", "exp.over_budget", "exp.recurring",
+        "exp.recurring_annually", "exp.recurring_monthly",
+        "exp.recurring_quarterly", "exp.sum.expenses", "exp.summary", "exp.title",
+        "mach.unassigned", "waste.add", "waste.date", "waste.deduct_inv", "waste.empty",
+        "waste.est_cost", "waste.failure_breakdown", "waste.failure_type",
+        "waste.ft.bed_adhesion", "waste.ft.design_issue", "waste.ft.material_quality",
+        "waste.ft.nozzle_jam", "waste.ft.operator_error", "waste.ft.other",
+        "waste.ft.power_failure", "waste.ft.stringing", "waste.ft.warping",
+        "waste.log_btn", "waste.material", "waste.printer", "waste.reason",
+        "waste.reason_ph", "waste.title", "waste.total_cost", "waste.total_entries",
+        "waste.total_weight", "waste.weight",
         // The Settings window
         "common.save", "day.fri", "day.mon", "day.sat", "day.sun", "day.thu",
         "day.tue", "day.wed", "pay.method.applepay", "pay.method.cash",

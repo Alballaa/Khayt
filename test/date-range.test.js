@@ -86,7 +86,10 @@ test('the module and the original agree over 6000 generated dates, ranges and cl
   const r = rng(20260905);
   for (let i = 0; i < 6000; i++) {
     const now = new Date(2024 + Math.floor(r() * 4), Math.floor(r() * 12), 1 + Math.floor(r() * 28), 13);
-    const dateStr = pick(r, [day(r), day(r) + 'T09:15:00.000Z', '', null, 'not a date', day(r).slice(0, 7)]);
+    // Well-formed dates and the shapes that are plainly not dates. A PARTIAL
+    // date — "2026", "2026-09" — is the one deliberate change and is tested
+    // on its own below, so it is not generated here.
+    const dateStr = pick(r, [day(r), day(r) + 'T09:15:00.000Z', '', null, 'not a date']);
     const range = pick(r, [...RANGES, undefined, 'nonsense']);
     const from = pick(r, ['', day(r)]);
     const to = pick(r, ['', day(r)]);
@@ -94,6 +97,22 @@ test('the module and the original agree over 6000 generated dates, ranges and cl
     const ours = inRange(dateStr, range, { now, from, to });
     assert.equal(ours, theirs, `date=${dateStr} range=${range} now=${localDay(now)} from=${from} to=${to}`);
   }
+});
+
+test('a partial date is in no period, where the original filed it under the year', () => {
+  // The deliberate change. `"2026".slice(0, 4)` is the year, so the original
+  // put a record dated "2026" in "this year" and in nothing else; every other
+  // branch sliced ten characters out of four and matched nothing.
+  const now = new Date(2026, 8, 4);
+  for (const partial of ['2026', '2026-09', '2026-9-4']) {
+    for (const range of RANGES) {
+      assert.equal(inRange(partial, range, { now }), range === 'all',
+        `${partial} in ${range}`);
+    }
+  }
+  // And a real date is unaffected, in either shape it is written.
+  assert.equal(inRange('2026-09-04', 'month', { now }), true);
+  assert.equal(inRange('2026-09-04T22:00:00.000Z', 'month', { now }), true);
 });
 
 test('the custom span with no page context behaves as the original did', () => {

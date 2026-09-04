@@ -110,6 +110,8 @@ final class Shop {
         case machines
         case inventory
         case board
+        case expenses
+        case waste
     }
 
     var stage: Stage? { if case .jobs(let s) = shelf { s } else { nil } }
@@ -119,6 +121,8 @@ final class Shop {
     var showingMachines: Bool { shelf == .machines }
     var showingInventory: Bool { shelf == .inventory }
     var showingBoard: Bool { shelf == .board }
+    var showingExpenses: Bool { shelf == .expenses }
+    var showingWaste: Bool { shelf == .waste }
 
     /// The open jobs, grouped by the stage they are in.
     ///
@@ -257,6 +261,10 @@ final class Shop {
             if case .array(let jobs)? = root["printLog"] { orderRows = jobs } else { orderRows = [] }
             if case .array(let people)? = root["clients"] { clientRows = people } else { clientRows = [] }
             clients = Self.decodeClients(root)
+            expenses = Self.decode(root, "expenses", as: Expense.self)
+            wasteLog = Self.decode(root, "wasteLog", as: WasteEntry.self)
+            if case .array(let rows)? = root["expenses"] { expenseRows = rows } else { expenseRows = [] }
+            if case .array(let rows)? = root["wasteLog"] { wasteRows = rows } else { wasteRows = [] }
             taxSummary = await describeTax(root["settings"])
             await readSettingsTables(root)
             await computeDashboard(root)
@@ -1011,6 +1019,268 @@ final class Shop {
         .object(currencies.mapValues {
             .object(["symbol": .string($0.symbol), "label": .string($0.label), "pos": .string($0.pos)])
         })
+    }
+
+    // MARK: - What the shop spent, and what it wasted
+
+    private(set) var expenses: [Expense] = []
+    private(set) var wasteLog: [WasteEntry] = []
+    /// The raw rows, for the rules that read fields this app does not decode.
+    private(set) var expenseRows: [JSONValue] = []
+    private(set) var wasteRows: [JSONValue] = []
+
+    /// Which period the two screens are showing. On the shop, not the view, so
+    /// a snapshot run can turn to a month and photograph it.
+    var period: Period = .month
+    /// What the last expense or waste write said — an overspent budget, a
+    /// refusal, a deletion.
+    var spendNote: String?
+    var spendProblem: String?
+
+    /// The expenses in the chosen period, newest first, matching the search.
+    ///
+    /// The search box is on the window, so it is on these screens too — and a
+    /// search field that does nothing on the screen you are looking at is
+    /// worse than no search field. What a shop looks for here is a note or a
+    /// category: "nozzles", "electricity", the job a cost was booked to.
+    var shownExpenses: [Expense] {
+        let q = search.trimmingCharacters(in: .whitespaces).lowercased()
+        return expenses
+            .filter { inPeriod($0.date) }
+            .filter {
+                q.isEmpty || $0.note.lowercased().contains(q)
+                    || words.callIt("exp.cat." + $0.category).lowercased().contains(q)
+                    || ($0.orderId ?? "").lowercased().contains(q)
+            }
+            .sorted { $0.date > $1.date }
+    }
+
+    /// The waste entries in the chosen period, newest first, matching the
+    /// search — by material, by what went wrong, or by the words somebody
+    /// wrote about it.
+    var shownWaste: [WasteEntry] {
+        let q = search.trimmingCharacters(in: .whitespaces).lowercased()
+        return wasteLog
+            .filter { inPeriod($0.date) }
+            .filter {
+                q.isEmpty || $0.material.lowercased().contains(q)
+                    || $0.reason.lowercased().contains(q)
+                    || words.callIt("waste.ft." + $0.failureType).lowercased().contains(q)
+            }
+            .sorted { $0.date > $1.date }
+    }
+
+    /// Whether a date falls in the chosen period.
+    ///
+    /// Swift, not the engine, and deliberately: this decides whether to draw a
+    /// row, so it is asked once per record while a list lays out — a bridge
+    /// crossing each time would be thousands of them. `PeriodTests` runs it
+    /// against `lib/date-range.js` over every range and a year of dates, so the
+    /// two cannot answer differently.
+    func inPeriod(_ date: String, now: Date = Date()) -> Bool {
+        Self.inPeriod(date, period: period, now: now)
+    }
+
+    static func inPeriod(_ date: String, period: Period, now: Date = Date()) -> Bool {
+        if period == .all { return true }
+        guard !date.isEmpty else { return false }
+        let ds = String(date.prefix(10))
+        guard ds.count == 10, Order.day(ds) != nil else { return false }
+        let cal = Calendar.current
+        let year = cal.component(.year, from: now)
+        let month = cal.component(.month, from: now)
+        switch period {
+        case .month:
+            return ds.hasPrefix(String(format: "%04d-%02d", year, month))
+        case .last_month:
+            let lm = cal.date(byAdding: .month, value: -1, to: cal.date(from: DateComponents(year: year, month: month, day: 1))!)!
+            return ds.hasPrefix(String(format: "%04d-%02d", cal.component(.year, from: lm), cal.component(.month, from: lm)))
+        case .quarter:
+            guard let dsYear = Int(ds.prefix(4)), let dsMonth = Int(ds.dropFirst(5).prefix(2)) else { return false }
+            return dsYear == year && (dsMonth - 1) / 3 == (month - 1) / 3
+        case .year:
+            return ds.hasPrefix(String(format: "%04d", year))
+        case .all:
+            return true
+        }
+    }
+
+    /// What the shown expenses come to, and what each category came to.
+    var expenseTotals: (total: Double, byCategory: [String: Double]) {
+        var byCategory: [String: Double] = [:]
+        for category in Self.expenseCategories { byCategory[category] = 0 }
+        var total = 0.0
+        for e in shownExpenses {
+            byCategory[e.category, default: 0] += e.amount
+            total += e.amount
+        }
+        return (total, byCategory)
+    }
+
+    /// Khayt's own categories, in its own order.
+    static let expenseCategories = ["filament", "electricity", "maintenance", "tools", "shipping", "other"]
+
+    /// Record an expense.
+    ///
+    /// The record is `lib/expense-book.js`'s, so this app and Khayt write the
+    /// same one. A budget the month has now gone past is said afterwards, by
+    /// the same rule the Electron page says it with — a warning, not a refusal:
+    /// the money has already been spent.
+    func addExpense(_ input: [String: JSONValue]) async {
+        spendProblem = nil
+        spendNote = nil
+        guard let build = source.build else {
+            spendProblem = words.callIt("mac.move_sample"); return
+        }
+        guard let engine else {
+            spendProblem = words.callIt("mac.move_no_engine"); return
+        }
+        var overspend: (category: String, over: Overspend)?
+        do {
+            try await StoreWriter.update(
+                storeURL: build.storeURL,
+                owns: { StoreLock.weOwnIt(build) },
+                whoHasIt: { StoreLock.describe(StoreLock.verdict(for: build)) }
+            ) { root in
+                let made = try await engine.newExpense(input, id: Self.uid("EXP"), today: Self.today())
+                guard let record = made.expense, case .object(let fields) = record else {
+                    throw MoveRefused(sentence: self.words.callIt("exp.amount_required"))
+                }
+                var rows = Self.rows(root, "expenses")
+                rows.insert(record, at: 0)
+                root["expenses"] = .array(rows)
+                // Asked with the expense already in, on the shop's own calendar
+                // month — a UTC month counts the wrong one for the first hours
+                // of the 1st east of London.
+                if let category = Self.plainString(fields["category"]),
+                   let over = try await engine.overBudget(rows, category: category,
+                                                          month: String(Self.today().prefix(7)),
+                                                          budgets: Self.settings(root)["expBudgets"].flatMap {
+                                                              if case .object(let b) = $0 { return b } else { return nil }
+                                                          } ?? [:]) {
+                    overspend = (category, over)
+                }
+            }
+            await load(source)
+            if let overspend {
+                spendNote = words.callIt("exp.budget_exceeded", [
+                    "cat": .string(words.callIt("exp.cat." + overspend.category)),
+                    "spent": .string(Money.figure(overspend.over.spent)),
+                    "budget": .string(Money.figure(overspend.over.budget)),
+                ])
+            } else {
+                spendNote = words.callIt("exp.added")
+            }
+        } catch let refusal as MoveRefused {
+            spendProblem = refusal.sentence
+        } catch {
+            spendProblem = String(describing: error)
+        }
+    }
+
+    /// Log a failed print.
+    ///
+    /// Two collections in one swap: the log and the shelf. A log saying a print
+    /// wasted 200g while the spool still holds them has told the shop it has
+    /// filament it has already thrown away.
+    func logWaste(_ input: [String: JSONValue]) async {
+        spendProblem = nil
+        spendNote = nil
+        guard let build = source.build else {
+            spendProblem = words.callIt("mac.move_sample"); return
+        }
+        guard let engine else {
+            spendProblem = words.callIt("mac.move_no_engine"); return
+        }
+        do {
+            try await StoreWriter.update(
+                storeURL: build.storeURL,
+                owns: { StoreLock.weOwnIt(build) },
+                whoHasIt: { StoreLock.describe(StoreLock.verdict(for: build)) }
+            ) { root in
+                let made = try await engine.newWasteEntry(
+                    input, id: Self.uid("W"), today: Self.today(),
+                    inventory: Self.rows(root, "inventory"))
+                guard let entry = made.entry else {
+                    throw MoveRefused(sentence: self.words.callIt("waste.err_material"))
+                }
+                var log = Self.rows(root, "wasteLog")
+                log.insert(entry, at: 0)
+                root["wasteLog"] = .array(log)
+                // The shelf as the deduction left it — stamped, because those
+                // spools are edits to existing records and the cloud's sync
+                // baseline reads the stamp.
+                root["inventory"] = .array(Self.stamping(made.inventory,
+                                                         against: Self.rows(root, "inventory")))
+            }
+            await load(source)
+            spendNote = words.callIt("waste.saved")
+        } catch let refusal as MoveRefused {
+            spendProblem = refusal.sentence
+        } catch {
+            spendProblem = String(describing: error)
+        }
+    }
+
+    /// Take a waste entry out, and put its grams back on the spool it came off.
+    ///
+    /// An entry written before the spool was recorded (anything logged by hand
+    /// before #971) restores nothing, because nothing knows where the filament
+    /// came from. It is deleted anyway: leaving a row a shop cannot remove is
+    /// worse than a shelf figure it can correct.
+    func deleteWaste(_ id: String) async {
+        spendProblem = nil
+        spendNote = nil
+        guard let build = source.build else {
+            spendProblem = words.callIt("mac.move_sample"); return
+        }
+        guard let engine else {
+            spendProblem = words.callIt("mac.move_no_engine"); return
+        }
+        do {
+            try await StoreWriter.update(
+                storeURL: build.storeURL,
+                owns: { StoreLock.weOwnIt(build) },
+                whoHasIt: { StoreLock.describe(StoreLock.verdict(for: build)) }
+            ) { root in
+                let before = Self.rows(root, "inventory")
+                let out = try await engine.removeWasteEntry(
+                    Self.rows(root, "wasteLog"), id: id, inventory: before)
+                guard out.removed else { throw MoveRefused(sentence: self.words.callIt("mac.move_gone")) }
+                root["wasteLog"] = .array(out.wasteLog)
+                root["inventory"] = .array(Self.stamping(out.inventory, against: before))
+            }
+            await load(source)
+            spendNote = words.callIt("waste.deleted")
+        } catch let refusal as MoveRefused {
+            spendProblem = refusal.sentence
+        } catch {
+            spendProblem = String(describing: error)
+        }
+    }
+
+    /// Stamp the rows a rule actually changed, and leave the rest alone.
+    ///
+    /// `rev` and `updatedAt` are what the cloud's sync baseline reads, so an
+    /// unstamped edit never leaves this Mac — and stamping a row nothing
+    /// touched sends the whole shelf up on every deletion.
+    static func stamping(_ after: [JSONValue], against before: [JSONValue]) -> [JSONValue] {
+        let was = Dictionary(before.compactMap { row -> (String, JSONValue)? in
+            guard let id = recordId(row) else { return nil }
+            return (id, row)
+        }, uniquingKeysWith: { a, _ in a })
+        return after.map { row in
+            guard case .object(var fields) = row, let id = recordId(row),
+                  let previous = was[id], previous != row else { return row }
+            StoreWriter.stamp(&fields)
+            return .object(fields)
+        }
+    }
+
+    /// Today, as the book writes a day: the shop's own calendar.
+    static func today(_ now: Date = Date()) -> String {
+        let c = Calendar.current.dateComponents([.year, .month, .day], from: now)
+        return String(format: "%04d-%02d-%02d", c.year ?? 0, c.month ?? 0, c.day ?? 0)
     }
 
     // MARK: - The shop's own settings

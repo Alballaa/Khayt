@@ -27,6 +27,17 @@ enum Money {
         return f.string(from: amount as NSNumber) ?? "\(amount)"
     }
 
+    /// Grams, as a shop says them: whole numbers, and a half when there is one.
+    /// `figure` is for money and always shows two decimals, which turned a
+    /// 180g failure into "180.00 grams".
+    static func grams(_ n: Double) -> String {
+        let f = NumberFormatter()
+        f.numberStyle = .decimal
+        f.minimumFractionDigits = 0
+        f.maximumFractionDigits = 1
+        return f.string(from: n as NSNumber) ?? "\(n)"
+    }
+
     /// Money with the small change rubbed off, for a dashboard tile.
     ///
     /// A tile is read at a glance; "52,691.57 SAR" at 24pt either wraps or
