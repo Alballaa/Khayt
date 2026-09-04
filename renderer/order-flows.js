@@ -1328,23 +1328,16 @@ function openPaymentModal(orderId) {
       });
     },
     async onSave() {
-      order.paidAmount    = Math.min(Math.max(0, draft.paidAmount || 0), +order.price || 0);
-      order.paymentMethod = draft.paymentMethod;
-      order.paidAt        = draft.paidAt;
-      {
-        const giftCredit = +order.giftCardDiscount || 0;
-        const effPaid = (draft.paidAmount || 0) + giftCredit;
-        order.paymentStatus = (effPaid >= fullAmount) ? 'paid'
-                            : (effPaid > 0 ? 'partial' : 'unpaid');
-      }
-      saveAll();
-      renderLogs(); renderKanban(); renderAnalytics();
-      toast(t('pay.saved'), 'success');
-      // Round 12 — Webhook: payment_received
-      fireWebhook('payment_received', { orderId: order.id, amount: order.paidAmount, paymentStatus: order.paymentStatus, client: order.client });
-      if (order.paymentStatus === 'paid') fireOrderWebhook('paid', order);
-      if (order.paidAmount > 0) autoSendEmailNotification(order, 'payment_received');
-      if (typeof maybePushAccounting === 'function') maybePushAccounting(order);
+      // The status is DERIVED, by the same rule every report reads it with.
+      // This used to work it out inline from gift cards alone, so a payment on
+      // an order that had been part-credited was written as partial and read
+      // back as paid — by the row underneath it.
+      const out = PaymentRules().recordPayment(order, {
+        amount: draft.paidAmount,
+        method: draft.paymentMethod,
+        paidAt: draft.paidAt,
+      }, { today: localDateStr() });
+      runPaymentEffects(order, out.effects);
       return true;
     }
   });
@@ -1353,13 +1346,44 @@ function openPaymentModal(orderId) {
 function clearPayment(orderId) {
   const order = printLog.find(o => o.id === orderId);
   if (!order) return;
-  order.paymentStatus = 'unpaid';
-  order.paidAmount = 0;
-  order.paymentMethod = null;
-  order.paidAt = null;
-  saveAll();
-  renderLogs(); renderKanban(); renderAnalytics();
-  toast(t('pay.cleared'), 'success');
+  runPaymentEffects(order, PaymentRules().clearPayment(order).effects);
+}
+
+/** The payment rules, however this file happens to be loaded. */
+function PaymentRules() {
+  if (PaymentRules.cached) return PaymentRules.cached;
+  if (typeof globalThis !== 'undefined' && globalThis.KhaytOrderPayment) {
+    PaymentRules.cached = globalThis.KhaytOrderPayment;
+    return PaymentRules.cached;
+  }
+  try { PaymentRules.cached = require('../lib/order-payment.js'); }
+  catch (e) { PaymentRules.cached = null; }
+  return PaymentRules.cached;
+}
+
+/** Perform what a payment asked for, in the order it asked. */
+function runPaymentEffects(order, effects) {
+  for (const e of effects || []) {
+    switch (e.type) {
+      case 'save': saveAll(); break;
+      case 'render': renderLogs(); renderKanban(); renderAnalytics(); break;
+      case 'toast_saved': toast(t('pay.saved'), 'success'); break;
+      case 'toast_cleared': toast(t('pay.cleared'), 'success'); break;
+      case 'webhook':
+        fireWebhook(e.event, {
+          orderId: order.id, amount: order.paidAmount,
+          paymentStatus: order.paymentStatus, client: order.client,
+        });
+        break;
+      case 'order_webhook': fireOrderWebhook(e.event, order); break;
+      case 'email': autoSendEmailNotification(order, e.status); break;
+      case 'accounting':
+        if (typeof maybePushAccounting === 'function') maybePushAccounting(order);
+        break;
+      default:
+        console.warn('[order-payment] no handler for effect', e.type);
+    }
+  }
 }
 
 /* Builds the extra-lines rows HTML for the order-editor modal */

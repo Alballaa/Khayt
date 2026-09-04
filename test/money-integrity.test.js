@@ -232,9 +232,18 @@ test('gift-card redemption is a tender, NOT a reduction of revenue', () => {
   const o = { status: 'completed', price: 1000, giftCardDiscount: 400 };
   assert.equal(CUR.orderNetRevenueBase(o), 1000, 'a gift-card-settled sale is still a sale');
 
-  const helpers = read('renderer/app-helpers.js');
-  assert.match(helpers, /const paidTotal = \(\+order\.paidAmount \|\| 0\) \+ \(\+order\.giftCardDiscount \|\| 0\);/,
-    'payStatus treats the gift card as cash paid, not as a discount');
+  // The rule moved to lib/order-payment.js — payStatus and the payment modal
+  // both defer to it now, which is the point: they used to disagree, and one of
+  // them WROTE the field the other read.
+  const payment = read('lib/order-payment.js');
+  assert.match(payment, /const paid = numberOf\(order\.paidAmount\) \+ numberOf\(order\.giftCardDiscount\);/,
+    'a gift card is cash paid, not a discount');
+  assert.match(payment, /const due = Math\.max\(0, price - credited\);/,
+    'and a credit note reduces what is DUE — the two sides of the division');
+  const P = require('../lib/order-payment.js');
+  assert.equal(P.statusOf({ price: 1000, giftCardDiscount: 1000 }), 'paid',
+    'a gift card settles the order');
+  assert.equal(P.statusOf({ price: 1000, giftCardDiscount: 400 }), 'partial');
   const integrations = read('renderer/integrations.js');
   assert.match(integrations, /Gift Card Liability/,
     'the journal clears gift-card settlement against a liability, i.e. it is a tender');
