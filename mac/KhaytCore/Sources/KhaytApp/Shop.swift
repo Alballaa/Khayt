@@ -105,6 +105,7 @@ final class Shop {
         case dashboard
         case machines
         case inventory
+        case board
     }
 
     var stage: Stage? { if case .jobs(let s) = shelf { s } else { nil } }
@@ -113,6 +114,32 @@ final class Shop {
     var showingDashboard: Bool { shelf == .dashboard }
     var showingMachines: Bool { shelf == .machines }
     var showingInventory: Bool { shelf == .inventory }
+    var showingBoard: Bool { shelf == .board }
+
+    /// The open jobs, grouped by the stage they are in.
+    ///
+    /// Computed once per read rather than filtered per column: four passes over
+    /// the book to draw four columns is three too many, and the board is the
+    /// screen most likely to be left open all day.
+    var board: [Stage: [Order]] {
+        var out: [Stage: [Order]] = [:]
+        for order in orders {
+            guard let stage = Stage.of(order) else { continue }
+            out[stage, default: []].append(order)
+        }
+        for (stage, jobs) in out {
+            // Urgent first, then by due date, then by what has been waiting
+            // longest — the order someone would work through them in.
+            out[stage] = jobs.sorted { a, b in
+                if a.priority != b.priority { return a.priority }
+                let da = Order.day(a.dueDate), db = Order.day(b.dueDate)
+                if let da, let db, da != db { return da < db }
+                if (da == nil) != (db == nil) { return da != nil }
+                return (a.day ?? .distantPast) < (b.day ?? .distantPast)
+            }
+        }
+        return out
+    }
 
     /// The sources that can actually be opened on this Mac. A menu offering a
     /// store that is not there is a dead end dressed up as a choice.

@@ -21,6 +21,8 @@ struct ShopWindow: View {
                 Dashboard(shop: shop)
             } else if shop.showingLibrary {
                 LibraryGrid(shop: shop)
+            } else if shop.showingBoard {
+                Kanban(shop: shop)
             } else if shop.showingMachines {
                 Machines(shop: shop)
             } else if shop.showingInventory {
@@ -41,12 +43,12 @@ struct ShopWindow: View {
         // binding is read-only there so the toolbar button cannot open an empty
         // one either.
         .inspector(isPresented: Binding(
-            get: { showInspector && !shop.showingDashboard
+            get: { showInspector && !shop.showingDashboard && !shop.showingBoard
                    && !shop.showingMachines && !shop.showingInventory },
             set: { showInspector = $0 }
         )) {
             Group {
-                if shop.showingMachines || shop.showingInventory {
+                if shop.showingMachines || shop.showingInventory || shop.showingBoard {
                     // Both screens carry their own detail — a card and a table
                     // wide enough to read. A panel beside them would repeat.
                     EmptyView()
@@ -132,7 +134,7 @@ struct ShopWindow: View {
             let n = shop.shownCustomers.count
             return "\(n) \(shop.words.callIt("mac.customers_count")) · \(provenance)"
         }
-        if shop.showingDashboard { return provenance }
+        if shop.showingDashboard || shop.showingBoard { return provenance }
         if shop.showingMachines {
             return "\(shop.machines.count) \(shop.words.callIt("mac.machines")) · \(provenance)"
         }
@@ -197,6 +199,7 @@ private struct OwedSummary: View {
         case .dashboard: "dashboard"
         case .machines: "machines"
         case .inventory: "inventory"
+        case .board: "board"
         case .library(nil): "library"
         case .library(let group?): "library:\(group)"
         }
@@ -217,6 +220,8 @@ private struct OwedSummary: View {
             return .machines
         case "inventory":
             return .inventory
+        case "board":
+            return .board
         case "library":
             guard parts.count == 2 else { return .library(nil) }
             // Only if it is still a group this shop has.

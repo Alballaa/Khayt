@@ -264,6 +264,27 @@ scopes outstanding to the period, while the toolbar shows what the whole book is
 owed, unscoped and always visible — two figures under one word, inches apart,
 differing by an order of magnitude.
 
+### The board
+
+Every open job in the column its stage puts it in. The table answers "what is
+the state of this job"; the board answers "where is the work piling up", which is
+the question a shop asks standing in the middle of the room and the one a list of
+forty rows sorted by date cannot answer at a glance.
+
+Cards sort urgent first, then by due date, then by what has been waiting longest
+— the order someone would work through them in. Delivered and cancelled are off
+the board on purpose: a column of two hundred delivered jobs buries the four that
+need doing. An empty column keeps its width and says "nothing here", because a
+board whose columns collapse as work moves is a board you cannot learn.
+
+**READ-ONLY, AND THAT IS THE POINT.** Dragging a card between columns would be a
+status change, and a status change in Khayt is not a field write: it stamps
+`completedAt`, moves the customer's progress tracker, and can settle an
+instalment plan — 3,200 lines of `renderer/order-flows.js` worth of rules. A
+Swift reimplementation of the most consequential write in the app is exactly what
+this project refuses to do. Dragging arrives when those rules are shared, the way
+the money rules now are.
+
 ### The shop floor
 
 Machines as cards — a shop has a handful of printers, not four hundred, and what

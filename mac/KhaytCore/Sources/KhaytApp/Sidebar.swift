@@ -21,6 +21,10 @@ struct Sidebar: View {
                     .tag(Shop.Shelf.jobs(nil))
             }
             Section(shop.words.callIt("mac.pipeline")) {
+                Row(title: shop.words.callIt("mac.board"), symbol: "rectangle.split.3x1",
+                    count: shop.orders.count { Stage.of($0).map { $0 != .delivered && $0 != .cancelled } ?? false },
+                    selected: shop.shelf == .board)
+                    .tag(Shop.Shelf.board)
                 ForEach(Stage.allCases) { stage in
                     let n = shop.count(stage)
                     Row(title: shop.words.callIt(stage.key), symbol: stage.symbol, count: n,

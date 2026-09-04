@@ -155,6 +155,10 @@ final class Activator: NSObject, NSApplicationDelegate {
             // from printer history has no customers and no prices — true, and
             // no use at all for looking at a design.
             await shop.load(.sample)
+            shop.shelf = .board
+            await settle()
+            capture(named: "09-board", into: dir)
+
             shop.shelf = .machines
             await settle()
             capture(named: "07-machines", into: dir)

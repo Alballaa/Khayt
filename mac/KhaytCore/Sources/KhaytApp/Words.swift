@@ -65,6 +65,9 @@ final class Words {
         // Shelves
         "mac.all_jobs":      ["en": "All jobs",      "ar": "كل الأعمال"],
         "mac.pipeline":      ["en": "Pipeline",      "ar": "المسار"],
+        "mac.board":         ["en": "Board",         "ar": "اللوح"],
+        "mac.nothing_here":  ["en": "nothing here",  "ar": "لا شيء هنا"],
+        "mac.no_jobs":       ["en": "No jobs yet",   "ar": "لا أعمال بعد"],
         "mac.library":       ["en": "Library",       "ar": "المكتبة"],
         "mac.all_models":    ["en": "All models",    "ar": "كل المجسمات"],
         "mac.people":        ["en": "People",        "ar": "الأشخاص"],
