@@ -31,15 +31,6 @@ struct Kanban: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            if let problem = shop.moveProblem {
-                Banner(text: problem, symbol: "exclamationmark.triangle", tint: .orange)
-            }
-            // By position, not by text: two spools running low can produce the
-            // same sentence, and a ForEach with two identical ids draws one.
-            ForEach(Array(shop.moveNotices.enumerated()), id: \.offset) { _, notice in
-                Banner(text: notice, symbol: "info.circle", tint: .secondary)
-            }
-
             ScrollView([.horizontal, .vertical]) {
                 HStack(alignment: .top, spacing: 12) {
                     ForEach(columns) { stage in
@@ -129,11 +120,27 @@ struct AskFirst: View {
     }
 }
 
-/// What the last move had to say, above the board rather than in a sheet.
+/// What the last move had to say, above whatever screen you are on.
 ///
-/// A modal would have to be dismissed before the next card could be dragged,
-/// which turns "move four jobs" into eight gestures. This is read where it is
-/// noticed and ignored where it is not, and the next move replaces it.
+/// Not a sheet: a modal would have to be dismissed before the next card could
+/// be dragged, which turns "move four jobs" into eight gestures. This is read
+/// where it is noticed and ignored where it is not, and the next move replaces
+/// it.
+struct MoveBanners: View {
+    let shop: Shop
+
+    var body: some View {
+        if let problem = shop.moveProblem {
+            Banner(text: problem, symbol: "exclamationmark.triangle", tint: .orange)
+        }
+        // By position, not by text: two spools running low can produce the same
+        // sentence, and a ForEach with two identical ids draws one.
+        ForEach(Array(shop.moveNotices.enumerated()), id: \.offset) { _, notice in
+            Banner(text: notice, symbol: "info.circle", tint: .secondary)
+        }
+    }
+}
+
 private struct Banner: View {
     let text: String
     let symbol: String

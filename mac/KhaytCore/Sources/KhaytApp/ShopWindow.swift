@@ -17,20 +17,31 @@ struct ShopWindow: View {
             Sidebar(shop: shop)
                 .navigationSplitViewColumnWidth(min: 190, ideal: 215, max: 280)
         } detail: {
-            if shop.showingDashboard {
-                Dashboard(shop: shop)
-            } else if shop.showingLibrary {
-                LibraryGrid(shop: shop)
-            } else if shop.showingBoard {
-                Kanban(shop: shop)
-            } else if shop.showingMachines {
-                Machines(shop: shop)
-            } else if shop.showingInventory {
-                Inventory(shop: shop)
-            } else if shop.showingCustomers {
-                CustomersTable(shop: shop)
-            } else {
-                OrdersTable(shop: shop)
+            VStack(spacing: 0) {
+                // What the last move said, above whatever screen you are on.
+                //
+                // It used to live inside the board, which is where a drag
+                // starts — but ⇧⌘H and the Job menu move a job from the table
+                // too, and there a refusal appeared nowhere at all. A move that
+                // did not happen and said nothing is the worst of the three
+                // possible outcomes.
+                MoveBanners(shop: shop)
+
+                if shop.showingDashboard {
+                    Dashboard(shop: shop)
+                } else if shop.showingLibrary {
+                    LibraryGrid(shop: shop)
+                } else if shop.showingBoard {
+                    Kanban(shop: shop)
+                } else if shop.showingMachines {
+                    Machines(shop: shop)
+                } else if shop.showingInventory {
+                    Inventory(shop: shop)
+                } else if shop.showingCustomers {
+                    CustomersTable(shop: shop)
+                } else {
+                    OrdersTable(shop: shop)
+                }
             }
         }
         // On the split view, not inside `detail`. Inside it, the detail content
