@@ -219,6 +219,44 @@ and every screen except the book. `KhaytCore` came first because the
 alternative, screens against a half-trusted engine, is how the two apps come to
 disagree about a shop's money.
 
+## Who owns the store
+
+The constraint below is now written down on disk rather than assumed.
+
+`lib/store-lock.js` decides who owns `khayt-store.json`; Electron takes ownership
+for its whole session, refreshes a heartbeat, and drops it on quit.
+`StoreLock.swift` reads that record and the Mac app says who has the book — it
+never takes the lock, because it does not write, and a reader claiming ownership
+would shut a shop out of its own app for nothing. When writing arrives, that
+check is what gates it.
+
+**Ownership, not a lock around each write.** Per-write locking looks smaller and
+does not work: `updateStoreOnDisk` reads the in-memory `getStore()` in preference
+to the disk, so a second process could take a perfectly correct lock, write,
+release, and have its change overwritten by the incumbent's next save from
+memory. What has to be exclusive is the session.
+
+**Liveness beats time.** A lock is broken because its process is gone, not
+because a clock says so — an app paused at a breakpoint or busy through a long
+import is still the owner. The heartbeat is consulted in exactly one case: a
+record written by another machine, where there is no pid to ask about.
+
+Two traps, both found by running the two implementations against each other
+rather than by reading either:
+
+* **Node and Swift spell this machine differently.** `os.hostname()` gives
+  `Turkis-MacBook-Air.local`; `ProcessInfo.hostName` gives
+  `turkis-macbook-air.local`. Compared raw, the Mac app reads Electron's lock as
+  foreign, stops checking liveness, and judges a live holder on the clock. Both
+  sides fold case before comparing.
+* **A heartbeat from the future is not stale.** Two machines never agree on the
+  time, and treating a negative age as old breaks a live holder's lock instantly.
+
+`test/store-lock.test.js` covers the rules; `StoreLockParityTests` runs sixteen
+cases through Node and Swift and compares; and the E2E smoke asserts the running
+app actually wrote a record naming its own live process — delete
+`acquireStoreOwnership()` from main.js and that fails.
+
 ## The one hard constraint
 
 **Only one app may own the store at a time.** Khayt's write serialisation is

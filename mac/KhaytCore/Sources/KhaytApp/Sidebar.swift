@@ -92,6 +92,14 @@ private struct Provenance: View {
             }
             Label(shop.source.isReal ? "Opened read-only" : "Sample data",
                   systemImage: shop.source.isReal ? "lock" : "theatermasks")
+            // Who else has it open. Only shown when somebody does — a line that
+            // says "nobody else is using this" on every ordinary launch is a
+            // line people stop reading.
+            if let owner = shop.owner {
+                Label(owner, systemImage: "person.badge.key")
+                    .help("Khayt serialises writes per process. While another app owns "
+                          + "this book, only it may change anything.")
+            }
         }
         .font(.caption)
         .foregroundStyle(.secondary)
