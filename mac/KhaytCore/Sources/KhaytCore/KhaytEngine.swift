@@ -497,6 +497,66 @@ public actor KhaytEngine {
                           as: InvoiceDocument.self)
     }
 
+    // MARK: - The shop's own settings
+
+    /// The settings as a save leaves them.
+    ///
+    /// `form` carries only the keys a screen showed; every other setting keeps
+    /// its value. That is the rule's one deliberate difference from the
+    /// Electron page, and it is what lets a Business tab save the phone number
+    /// without zeroing the WIP limits it never displayed.
+    public func applySettings(_ settings: [String: JSONValue], form: [String: JSONValue],
+                              year: Int) throws -> [String: JSONValue] {
+        try runtime.call2("KhaytSettingsEdit.apply(ARG0, ARG1, {year: ARG2})",
+                          [.object(settings), .object(form), .number(Double(year))],
+                          as: [String: JSONValue].self)
+    }
+
+    /// The settings after a country is chosen for tax rules: name, rate,
+    /// pricing convention and registration label together, with the legacy
+    /// VAT fields kept in step.
+    public func chooseTaxCountry(_ settings: [String: JSONValue], code: String) throws -> [String: JSONValue] {
+        try runtime.call2("KhaytSettingsEdit.chooseCountry(ARG0, ARG1)",
+                          [.object(settings), .string(code)], as: [String: JSONValue].self)
+    }
+
+    /// The tax rules Khayt knows by country, keyed by ISO code.
+    public func taxPresets() throws -> [String: TaxProfile] {
+        try runtime.value("KhaytTax", "PRESETS", as: [String: TaxProfile].self)
+    }
+
+    /// The currencies a shop can price in.
+    public func currencies() throws -> [String: Currency] {
+        try runtime.value("KhaytCurrencies", "CURRENCIES", as: [String: Currency].self)
+    }
+
+    /// The languages the shop writes its own text in — one or two, never none.
+    public func contentLanguages(settings: [String: JSONValue]) throws -> [String] {
+        try runtime.call2("KhaytContentLanguages.contentLangs(ARG0)", [.object(settings)], as: [String].self)
+    }
+
+    /// The store key for one of the shop's text fields in one language:
+    /// `bizEn`, `bizAr`, `biz_fr`. Asked rather than assumed, because the
+    /// suffix rule is the whole back-compatibility story of that module.
+    public func fieldKey(_ base: String, language: String) throws -> String {
+        try runtime.call2("KhaytContentLanguages.fieldKey(ARG0, ARG1)",
+                          [.string(base), .string(language)], as: String.self)
+    }
+
+    /// One of the shop's own text fields — its name, tagline, address — in the
+    /// language asked for, by the same fallback every Khayt document uses:
+    /// that language only if the shop writes in it, then the shop's own
+    /// languages, then anything filled in at all.
+    public func shopText(_ base: String, settings: [String: JSONValue], language: String) throws -> String {
+        try runtime.call2("(KhaytContentLanguages.read(ARG0, ARG1, ARG2, ARG0) || '')",
+                          [.object(settings), .string(base), .string(language)], as: String.self)
+    }
+
+    /// A language's own name — "Deutsch", not "German".
+    public func languageName(_ code: String) throws -> String {
+        try runtime.call2("KhaytContentLanguages.languageName(ARG0)", [.string(code)], as: String.self)
+    }
+
     // MARK: - Who the shop's customers are
 
     /// A customer's name, in the language the shop writes.

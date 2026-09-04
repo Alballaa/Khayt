@@ -262,9 +262,34 @@ under the bill-to name (`contactLine`) and the printed date (`lib/print-date.js`
 which also now owns `LOCALE_TAGS`). Both default inside the module now, so a
 host that forgets to pass them gets the right document rather than a blank.
 
+## Settings
+
+⌘, — five panes: Business, Invoice & Tax, Payments, Operations, Preferences.
+Each pane is its own draft with its own Save, and a pane saves ONLY the keys
+it shows. The rule is `lib/settings-edit.js`, lifted out of the 240-line
+literal in `renderer/settings.js` and proven against it field for field over
+3000 generated saves; its one deliberate difference — a key the form does not
+carry keeps its value — is what lets the Business pane save a phone number
+without zeroing the WIP limits it never displayed. Choosing a country for tax
+rules goes through `chooseCountry`, the same rule Khayt's picker applies on
+the change, so name, registration label, convention and rate land together.
+
+`SettingsTests` round-trips every field of every pane through the rule and
+reads it back: a form key the rule does not know leaves the stored value in
+place, and that is the test that notices, for every field rather than a
+sample. Two small tables are spelled out in Swift because the field list is
+built while a view draws (`Shop.contentKey`, `Shop.languageNames`); both are
+pinned to `lib/content-languages.js` by a test.
+
+**The shop's name is `bizEn`/`bizAr`**, read through the shared fallback, not
+`settings.shopName` — which nothing in Khayt writes. This app read `shopName`
+for six weeks, fell back to the build's title, and would have issued this
+shop's invoice from "Khayt". Found by opening the Business pane on the sample
+and seeing every field empty.
+
 ## Not yet built
 
-Settings, expenses, waste, analytics, the catalog, gift cards, the portfolio,
+Expenses, waste, analytics, the catalog, gift cards, the portfolio,
 the colour studio, the converter, the cloud portal, the LAN server, and the
 printer protocols. `KhaytCore` came first because the alternative, screens
 against a half-trusted engine, is how the two apps come to disagree about a

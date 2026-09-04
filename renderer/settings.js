@@ -5110,12 +5110,10 @@ function loadSettingsIntoForm() {
     tcEl.addEventListener('change', () => {
       const code = tcEl.value;
       if (!code) return;
-      const preset = KhaytTax.presetFor(code);
-      settings.tax = { country: code, name: preset.name, mode: preset.mode, registration: preset.registration, rates: preset.rates };
-      const first = preset.rates[0];
-      // Keep the legacy fields in step so anything still reading them agrees.
-      settings.enableVat = !!first;
-      if (first) settings.vatRate = first.percent;
+      // The rule is shared with the Mac app's Settings window, which applies
+      // it at save time rather than on the change.
+      settings = KhaytSettingsEdit.chooseCountry(settings, code);
+      const first = settings.tax.rates[0];
       if ($('#set_enableVat')) $('#set_enableVat').checked = !!first;
       if ($('#set_vatRate') && first) $('#set_vatRate').value = first.percent;
       syncTaxControls();

@@ -1976,7 +1976,12 @@
     }
   ],
   "settings": {
-    "shopName": "Tuwaiq Additive",
+    "bizEn": "Tuwaiq Additive",
+      "bizAr": "تويق أدتف",
+      "taglineEn": "Precision 3D printing in Riyadh",
+      "addrEn": "Riyadh",
+      "phone": "+966 50 000 0000",
+      "email": "hello@tuwaiq.example",
     "currency": "SAR",
     "country": "SA",
     "tax": {

@@ -15,12 +15,21 @@ public struct TaxProfile: Codable, Sendable, Equatable {
         public let label: String
         public let percent: Double
         public let compound: Bool?
+        public init(id: String, label: String, percent: Double, compound: Bool? = nil) {
+            self.id = id; self.label = label; self.percent = percent; self.compound = compound
+        }
     }
 
     public let name: String
     public let mode: Mode
     public let registration: String
     public let rates: [Rate]
+
+    /// Memberwise, so a screen can build the profile a draft describes and ask
+    /// what a price of 100 would be invoiced as before anything is saved.
+    public init(name: String, mode: Mode, registration: String, rates: [Rate]) {
+        self.name = name; self.mode = mode; self.registration = registration; self.rates = rates
+    }
 
     /// The combined percentage across every rate.
     public var totalPercent: Double { rates.reduce(0) { $0 + $1.percent } }
@@ -245,6 +254,14 @@ public struct QcFailure: Decodable, Sendable {
 public struct NewOrder: Decodable, Sendable {
     public let order: JSONValue
     public let settings: [String: JSONValue]
+}
+
+/// A currency a shop can price in, as `lib/currencies.js` describes it.
+public struct Currency: Codable, Sendable, Equatable {
+    public let symbol: String
+    public let label: String
+    /// Where the symbol goes: "before" the figure ($12) or "after" it (12 SAR).
+    public let pos: String
 }
 
 /// An invoice, ready to be shown or printed.

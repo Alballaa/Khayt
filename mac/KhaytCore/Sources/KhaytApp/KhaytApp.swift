@@ -30,6 +30,13 @@ struct KhaytApp: App {
         // page with a grey bar at the top.
         .windowToolbarStyle(.unified)
                 .commands { KhaytCommands(shop: shop) }
+
+        // ⌘, — the shop's own settings, written through the same rule the
+        // Electron page saves through. The scene puts "Settings…" in the app
+        // menu by itself.
+        Settings {
+            SettingsWindow(shop: shop)
+        }
     }
 }
 
@@ -228,6 +235,29 @@ final class Activator: NSObject, NSApplicationDelegate {
                 await settle()
             }
 
+            // The Settings window: opened the way ⌘, opens it, one picture per
+            // pane. It is its own window, so it is found by not being the shop's.
+            let main = NSApp.windows.first { $0.isVisible && $0.contentView != nil }
+            // Through the menu item ⌘, is bound to, whatever selector SwiftUI
+            // gave it this release — sending `showSettingsWindow:` by name
+            // opened nothing.
+            if let item = NSApp.mainMenu?.items.first?.submenu?.items.first(where: { $0.keyEquivalent == "," }) {
+                NSApp.sendAction(item.action ?? #selector(NSApplication.terminate(_:)), to: item.target, from: item)
+            }
+            await settle()
+            try? await Task.sleep(for: .seconds(1))
+            if let settings = NSApp.windows.first(where: { $0.isVisible && $0 !== main && $0.contentView != nil }) {
+                for pane in SettingsPane.allCases {
+                    shop.settingsPane = pane
+                    await settle()
+                    capture(named: "17-settings-\(pane.rawValue)", window: settings, into: dir)
+                }
+                settings.close()
+                await settle()
+            } else {
+                FileHandle.standardError.write(Data("no settings window to capture\n".utf8))
+            }
+
             shop.shelf = .machines
             await settle()
             capture(named: "07-machines", into: dir)
@@ -363,8 +393,17 @@ final class Activator: NSObject, NSApplicationDelegate {
     }
 
     static func capture(named name: String, into dir: URL) {
-        guard let window = NSApp.windows.first(where: { $0.isVisible && $0.contentView != nil }),
-              // The theme frame, not the content view. A unified toolbar sits
+        guard let window = NSApp.windows.first(where: { $0.isVisible && $0.contentView != nil }) else {
+            FileHandle.standardError.write(Data("no window to capture\n".utf8))
+            return
+        }
+        capture(named: name, window: window, into: dir)
+    }
+
+    /// Photograph one particular window — the Settings window, which is not
+    /// the first visible one.
+    static func capture(named name: String, window: NSWindow, into dir: URL) {
+        guard // The theme frame, not the content view. A unified toolbar sits
               // in the title bar, which is a sibling of the content rather than
               // inside it, so photographing the content alone drops the source
               // menu, the owed figure and the inspector toggle.
