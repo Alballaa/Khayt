@@ -9,7 +9,7 @@
 ## 1. What already exists (extend, do not rebuild)
 
 - **Parts as a list** — `order.parts[]` and `product.parts[]` (`renderer/app-state.js`, `renderer/order-flows.js:93`). `currentBuild[]` (`renderer/build.js`) builds an order from N parts; `renderBuild()` already renders a multi-part cart and `updateGrandTotal()` already rolls cost across all cart parts via `computePartBreakdown` (build.js ~337).
-- **Per-part cost** — `computePartBaseCost(part)` / `computePartBreakdown(part)` (`renderer/calculator-cost.js`). A `part` already carries `qty`, `filamentId`, `printWeight`, `supportWeight`, `printTime`, rates, `extraMaterials[]`, `priceTiers[]`.
+- **Per-part cost** — `computePartBaseCost(part)` / `computePartBreakdown(part)` (`lib/calculator-cost.js`). A `part` already carries `qty`, `filamentId`, `printWeight`, `supportWeight`, `printTime`, rates, `extraMaterials[]`, `priceTiers[]`.
 - **Per-part material deduction** — `deductFilamentForOrder(order)` loops `order.parts[]`, deducts `partGramsConsumed(part) = (printWeight+supportWeight)×qty` from the part's spool (location-preferred), then deducts consumables **by print hours** and packaging (`renderer/inventory.js:1842`, `:1139`, `:1920`).
 - **Consumables collection** — `consumables[]` `{id,name,stock,unit,cost,minStock,usagePerHour,isPackaging}` (`renderer/inventory.js:1968`, `app-state.js:238`).
 - **Per-part status** — each part already gets `partStatus` (default `'pending'`) at order create (`order-flows.js:93`); order-level QC lives in `KHAYT-3.0-QC-SPEC.md` (qc-pass/qc-fail, `order-flows.js:372`).
@@ -72,7 +72,7 @@
 - `renderer/order-flows.js` → `updateOrderStatus` (~213) — add the assembly completion gate; add per-part status setters and a part-level reprint action.
 - `renderer/inventory.js` → `deductFilamentForOrder` (~1899) — add the `components[]` deduction block (qty × assemblyQty), reuse `cons.low` toast + `materialDeducted` guard.
 - `renderer/inventory.js` → `consumables` editor — unchanged; components reference these rows.
-- `renderer/calculator-cost.js` — **unchanged** (it costs one `part`; the rollup lives in build.js, as today).
+- `lib/calculator-cost.js` — **unchanged** (it costs one `part`; the rollup lives in build.js, as today).
 - `renderer/app-state.js` — document `components[]`/`assemblyQty` on the product/order shape (no key change).
 - Locale keys (`en.js`/`ar.js`): `bom.components`, `bom.add_component`, `bom.qty_per_unit`, `bom.assembly_qty`, `bom.assembled`, `bom.assembly_incomplete`, `bom.reprint_part`.
 

@@ -29,20 +29,27 @@ const invoicing = read('renderer/invoicing.js');
 const { quoteTotal, resolveExtraLines } = require('../lib/pricing.js');
 
 test('the logged order is priced by lib/pricing.js, not a second formula', () => {
-  const at = flows.indexOf('const totalBaseCost  =');
-  const body = flows.slice(at, flows.indexOf('const clientInputVal', at));
-  assert.match(body, /KhaytPricing\.quoteTotal\(/, 'logPrint re-derives the price itself');
+  // The record moved to lib/order-new.js so the Mac app could create a job at
+  // all; the claim is the same one and this follows it there.
+  const shared = read('lib/order-new.js');
+  const at = shared.indexOf('const totalBaseCost');
+  const body = shared.slice(at, shared.indexOf('const year =', at));
+  assert.match(body, /P\.quoteTotal\(/, 'the new order re-derives the price itself');
   // The specific shapes that could not see a percentage.
   assert.doesNotMatch(body, /extraLines\.reduce/, 'the extras are still summed by hand');
   assert.doesNotMatch(body, /totalBaseCost \* \(1 \+ margin \/ 100\)/,
     'the price formula is duplicated here — two prices for one job');
+
+  // And the renderer must not have grown one back.
+  assert.doesNotMatch(flows, /KhaytPricing\.quoteTotal\(/,
+    'order-flows.js is pricing a new order again');
 });
 
 test('the logged line freezes the money a percentage resolved to', () => {
   // An invoice reports what was charged. Recomputing a percentage months later,
   // against a base that has since changed, is a different number on a document
   // the customer already has.
-  assert.match(flows, /KhaytPricing\.resolveExtraLines\(currentExtraLines, _lq\.extrasBase\)/,
+  assert.match(read('lib/order-new.js'), /P\.resolveExtraLines\(extraLines, quote\.extrasBase\)/,
     'the logged lines keep a percentage with no resolved amount');
 });
 

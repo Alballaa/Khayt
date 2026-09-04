@@ -7,7 +7,7 @@
  *
  * The design constraint that shapes everything here: the phone must never
  * produce a different number from the desktop it is paired to. So the endpoint
- * calls the desktop's own `renderer/calculator-cost.js` against the live store
+ * calls the desktop's own `lib/calculator-cost.js` against the live store
  * rather than reimplementing the maths server-side. Two implementations means
  * two costs for one part, and the wrong one is whichever the shop happens to be
  * looking at.
@@ -99,7 +99,7 @@ test('a part is costed with the desktop\'s own maths', async () => {
   // The authority check: the endpoint must agree with the calculator the
   // desktop uses, run against the same store. Not a hardcoded number — a
   // hardcoded number would still pass if both sides drifted together.
-  const cost = require('../renderer/calculator-cost.js');
+  const cost = require('../lib/calculator-cost.js');
   const ctx = { inventory: store.inventory, settings: store.settings };
   const expected = cost.computePartBaseCost({ ...FULL_PART, qty: 2 }, ctx);
 

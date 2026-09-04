@@ -23,7 +23,7 @@ A product today (`renderer/app-state.js` `products` / `K.PROD = 'hub_products_v1
 | `description` | new published field | optional marketing copy |
 | `availability` | published flag (in stock / made-to-order / hidden) | drives out-of-stock UI |
 
-**Never projected:** `baseCost`, margin, `priceTiers.*` raw inputs, filament/material costs, times, rates, internal notes, other products' or orders' data. Pricing is computed **on the desktop** (reuse `getActivePriceTier` / the price-tier math in `renderer/calculator-cost.js` and `renderer/build.js` ~320) and only the **final per-unit/tier customer price** is published. Only products explicitly marked **published** appear.
+**Never projected:** `baseCost`, margin, `priceTiers.*` raw inputs, filament/material costs, times, rates, internal notes, other products' or orders' data. Pricing is computed **on the desktop** (reuse `getActivePriceTier` / the price-tier math in `lib/calculator-cost.js` and `renderer/build.js` ~320) and only the **final per-unit/tier customer price** is published. Only products explicitly marked **published** appear.
 
 ---
 
@@ -88,7 +88,7 @@ Reuse the configured rail (`settings.bnpl.{stripe|tabby|tamara}`, all SAR-capabl
 ## Integration points (exact files/functions)
 
 - **Catalog source + publish fields:** `renderer/app-state.js` (`products`, `K.PROD`); authoring UI `renderer/inventory.js` (~2349 `renderProductCatalog`, `quoteFromProduct` ~2432) — add publish toggle + storefront fields.
-- **Pricing projection:** `renderer/calculator-cost.js` (`getActivePriceTier`, `computePartBreakdown`), `renderer/build.js` (~320 final-price math, `renderProductTierChips`) — compute customer price, drop internals.
+- **Pricing projection:** `lib/calculator-cost.js` (`getActivePriceTier`, `computePartBreakdown`), `renderer/build.js` (~320 final-price math, `renderProductTierChips`) — compute customer price, drop internals.
 - **Order creation:** `renderer/order-flows.js` `logPrint` (single creation path; `productId`, ZATCA, payment fields).
 - **Public hosting/tokens/throttle:** `lib/lan-server.js` (route handling ~400/1100/1290; new `/shop/...` routes), `lib/lan-quote-page.js` (`ensureTrackingToken`, `lanEscapeHtml`, expiry).
 - **Payments:** `renderer/integrations.js`, `settings.bnpl` (`renderer/app-state.js` ~118).

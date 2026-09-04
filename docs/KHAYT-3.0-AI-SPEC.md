@@ -8,7 +8,7 @@
 
 ## 1. The contract (why this is safe)
 
-The quote calculator is deterministic (`renderer/calculator-cost.js → computePartBaseCost(part)`), consuming a `part`:
+The quote calculator is deterministic (`lib/calculator-cost.js → computePartBaseCost(part)`), consuming a `part`:
 
 ```
 part = { qty, filamentId | spoolCost+spoolWeight, printWeight, supportWeight,

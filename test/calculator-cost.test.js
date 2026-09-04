@@ -1,7 +1,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 
-const { computePartBaseCost, partTotalCost, getActivePriceTier, computePartBreakdown } = require('../renderer/calculator-cost.js');
+const { computePartBaseCost, partTotalCost, getActivePriceTier, computePartBreakdown } = require('../lib/calculator-cost.js');
 
 test('computePartBaseCost for simple FDM part', () => {
   global.inventory = [];

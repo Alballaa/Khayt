@@ -349,10 +349,17 @@ test('no settings key is read that nothing ever writes', () => {
 
 test('the phone numbers an order the way the desk does', () => {
   // Different prefixes meant one shop's orders arrived under two schemes
-  // depending on which device raised them.
+  // depending on which device raised them. The desk's copy of the rule is gone:
+  // what a new job IS lives in lib/order-new.js, which the desk, the phone and
+  // the Mac app all build the record with. So this now pins the LAN server to
+  // that one rule rather than to a second copy in the renderer.
   const lan = fs.readFileSync(path.join(__dirname, '..', 'lib', 'lan-server.js'), 'utf8');
-  const desk = fs.readFileSync(path.join(__dirname, '..', 'renderer', 'order-flows.js'), 'utf8');
+  const shared = fs.readFileSync(path.join(__dirname, '..', 'lib', 'order-new.js'), 'utf8');
   const of = (src) => (src.match(/asQuote \? \(settings\.quotePrefix \|\| 'QUO'\) : \(settings\.(\w+) \|\| '(\w+)'\)/) || []).slice(1);
-  assert.deepEqual(of(lan), of(desk), 'the phone and the desk must mint the same order prefix');
-  assert.deepEqual(of(desk), ['invPrefix', 'INV']);
+  assert.deepEqual(of(lan), of(shared), 'the phone and the shared rule must mint the same order prefix');
+  assert.deepEqual(of(shared), ['invPrefix', 'INV']);
+
+  // And the renderer must not have grown one back.
+  const desk = fs.readFileSync(path.join(__dirname, '..', 'renderer', 'order-flows.js'), 'utf8');
+  assert.deepEqual(of(desk), [], 'the renderer has its own order prefix again');
 });

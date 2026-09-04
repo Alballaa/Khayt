@@ -90,6 +90,17 @@ public actor KhaytEngine {
         // A job that failed inspection: the fields the metrics count, the
         // defect the analytics table is built from, and the waste row.
         "qc-failure",
+        // What one part of a job costs to make, and what a new job IS. The
+        // record was written inline in logPrint, reading twenty form controls,
+        // which is why only the Electron window could create one — and why this
+        // app could not replace it.
+        //
+        // WORKING-WEEK FIRST: order-new estimates a due date from it and reaches
+        // it through a global, so listing it after would give every new job a
+        // default eight-hour day instead of the shop's own.
+        "working-week",
+        "calculator-cost",
+        "order-new",
     ]
 
     /// The languages whose strings are bundled.
