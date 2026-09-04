@@ -245,6 +245,8 @@ function openWasteForm() {
 function openLogWasteFromCard(orderId) {
   const order = printLog.find(o => o.id === orderId);
   if (!order) return;
+  // What the printer got through before it stopped, where one measured it.
+  const measuredForCard = (typeof measuredWasteFor === 'function') ? measuredWasteFor(order) : null;
   // Pre-fill material from first part with material data
   const firstPart = (order.parts || []).find(p => p.material);
   const defaultMaterial = firstPart?.material || order.material || '';
@@ -264,35 +266,39 @@ function openLogWasteFromCard(orderId) {
       <label>${escapeHtml(t('waste.material'))}</label>
       <select id="wfc_material">${invOptions || `<option value="">${escapeHtml(defaultMaterial)}</option>`}</select>
       <label style="margin-top:12px;">${escapeHtml(t('waste.weight_g'))}</label>
-      <input type="number" id="wfc_weight" value="0" min="0" step="1">
+      <input type="number" id="wfc_weight" value="${measuredForCard ? measuredForCard.grams : 0}" min="0" step="1">
+      <div style="font-size:11px;color:var(--text-muted);margin-top:3px;">${escapeHtml(
+        measuredForCard
+          ? (t('qc.weight_measured', { source: measuredForCard.source || 'printer' })
+             || `Measured by ${measuredForCard.source || 'your printer'}.`)
+          : (t('qc.weight_typed') || 'The filament comes off the shelf.'))}</div>
       <label style="margin-top:12px;">${escapeHtml(t('waste.failure_type'))}</label>
       <select id="wfc_failure_type">${failureOptions}</select>
       <label style="margin-top:12px;">${escapeHtml(t('waste.notes'))}</label>
       <textarea id="wfc_notes" rows="2" style="resize:vertical;"></textarea>
     `,
     onSave() {
-      const material    = $('#wfc_material').value.trim();
-      const weight      = Math.max(0, +$('#wfc_weight').value || 0);
-      const failureType = $('#wfc_failure_type').value;
-      const notes       = $('#wfc_notes').value.trim();
-      if (!material) { toast(t('waste.err_material'), 'error'); return false; }
-      // Compute cost per gram from inventory
-      const invItem = inventory.find(i => i.material === material);
-      const costPerGram = (invItem && invItem.cost > 0 && invItem.weight > 0)
-        ? invItem.cost / invItem.weight : 0;
-      const entry = {
+      // The entry is lib/waste-entry.js's `forOrder`, which takes the grams off
+      // the spools THIS JOB was printing from — the same claims a completion
+      // would settle. Logging waste against a job used to record it and take
+      // nothing off the shelf at all, so the stock read high by every one.
+      const made = WasteEntry.forOrder(order, {
+        material:    $('#wfc_material').value,
+        weight:      $('#wfc_weight').value,
+        failureType: $('#wfc_failure_type').value,
+        notes:       $('#wfc_notes').value,
+      }, {
         id: uid('W'),
-        date: localDateStr(),
-        orderId: order.id,
-        material,
-        weight,
-        failureType,
-        notes,
-        cost: +(weight * costPerGram).toFixed(2),
-      };
-      wasteLog.unshift(entry);
+        today: localDateStr(),
+        inventory,
+        settings,
+        machines: typeof machines !== 'undefined' ? machines : [],
+      });
+      if (made.refused) { toast(t('waste.err_material'), 'error'); return false; }
+      wasteLog.unshift(made.entry);
       saveAll();
       renderWasteLog();
+      if (typeof renderInventory === 'function') renderInventory();
       toast(t('waste.saved'), 'success');
       return true;
     }

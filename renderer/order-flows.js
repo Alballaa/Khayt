@@ -3206,6 +3206,7 @@ async function captureFailurePhoto(orderId) {
     qcPassOrder,
     qcFailOrder,
     recordQcFailure,
+    measuredWasteFor,
     promptScrapOrReprint,
     createLinkedReprint,
     openRmaModal,
