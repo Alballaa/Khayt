@@ -29,23 +29,12 @@ final class Words {
     /// table's column order.
     var isRTL: Bool { language == "ar" }
 
-    /// NOT APPLIED YET, AND DELIBERATELY NOT.
+    /// Mirroring is NOT done from here — see `Direction`.
     ///
-    /// `.environment(\.layoutDirection, .rightToLeft)` on the window sends
-    /// SwiftUI's `NavigationSplitView` into an unbounded layout loop on
-    /// macOS 26: `SplitViewChildController.hostingView(_:didUpdateMinSize:maxSize:)`
-    /// re-invalidates on every pass, the window grows — 3380pt was measured —
-    /// and AppKit aborts with "more Update Constraints in Window passes than
-    /// there are views in the window".
-    ///
-    /// Bisected: the Arabic STRINGS are fine (screens render, nothing loops); the
-    /// layout direction alone is the trigger, and it is not the sidebar's or the
-    /// inspector's width constraint — removing either changes nothing.
-    ///
-    /// So the words ship and the mirroring does not. An Arabic shop reads its own
-    /// vocabulary in a window that is still laid out left to right, which is
-    /// wrong but legible; a crash is neither. Text inside each label is already
-    /// ordered correctly — Unicode does that without being asked.
+    /// `.environment(\\.layoutDirection, .rightToLeft)` on the window loops
+    /// SwiftUI's `NavigationSplitView` until AppKit aborts, so the writing
+    /// direction is set the way AppKit has always done it, before the app
+    /// starts. This value is kept for views that need to ask, and for the tests.
     var layout: LayoutDirection { isRTL ? .rightToLeft : .leftToRight }
 
     /// Which languages this app has words for. English is the fallback and Arabic

@@ -65,11 +65,9 @@ struct ShopWindow: View {
                 .help("Show or hide the job details")
             }
         }
-        // NOT `.environment(\.layoutDirection, …)` — see `Words.layout`. The one
-        // line that would mirror this window loops SwiftUI's split view until
-        // the window is 3380pt wide and AppKit gives up. The words are Arabic;
-        // the mirroring is not done yet, and pretending otherwise with a crash
-        // would be worse than saying so.
+        // No `.environment(\.layoutDirection, …)` here on purpose: that line
+        // loops SwiftUI's split view until AppKit aborts. The window is mirrored
+        // before it exists instead — see `Direction`.
         .navigationTitle(shop.shopName)
         .navigationSubtitle(subtitle)
     }

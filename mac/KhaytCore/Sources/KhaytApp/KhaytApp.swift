@@ -1,7 +1,8 @@
 import SwiftUI
 import AppKit
 
-@main
+/// Not `@main`: `main.swift` is the entry point, because the writing direction
+/// has to be settled before AppKit starts. See `Direction.swift`.
 struct KhaytApp: App {
     @State private var shop = Shop()
     @NSApplicationDelegateAdaptor(Activator.self) private var activator
