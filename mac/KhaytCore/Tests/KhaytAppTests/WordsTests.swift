@@ -92,3 +92,54 @@ struct WordsTests {
         }
     }
 }
+
+/// Everything the menu bar says.
+///
+/// The menu bar is the one part of the app whose words are decided BEFORE a
+/// book is open — a SwiftUI menu title is baked when the bar is built and never
+/// rewritten, so `Words.upfront` reads the catalogue that `Words.preload` warms
+/// in `main.swift`. A key with no value there does not fall back to English on
+/// screen; it renders as the key, in the menu bar, for ever.
+@MainActor
+struct MenuWordsTests {
+
+    /// Every key any menu asks `Words.upfront` for.
+    static let menuKeys = [
+        "mac.menu_book", "mac.menu_go", "mac.menu_job", "mac.menu_model",
+        "mac.reload", "mac.open_book",
+        "mac.dashboard", "mac.all_jobs", "mac.board", "mac.customers",
+        "mac.library", "mac.machines", "mac.inventory",
+        "mac.favourite", "mac.reveal_in_finder", "mac.open",
+        "mac.sort_by", "ord.hold_btn",
+    ]
+
+    @Test("every menu word exists in both languages, warm or not")
+    func everyMenuWordResolves() async throws {
+        let engine = try KhaytEngine()
+        for language in Words.supported {
+            let words = Words()
+            await words.load(language, engine: engine)
+            for key in Self.menuKeys + Stage.allCases.map(\.key) {
+                let said = words.callIt(key)
+                #expect(said != key, "\(language) has no word for \(key) — the menu would show the key")
+                #expect(!said.isEmpty)
+            }
+        }
+    }
+
+    @Test("a cold start still says words, not keys")
+    func upfrontWithoutAWarmCatalogue() {
+        // Before preload runs — or when it fails, because a store could not be
+        // read — `upfront` has only this app's own catalogue. Every key the menu
+        // BAR itself needs must be in it, or the bar reads as broken on a Mac
+        // with no book on it yet.
+        let ownOnly = ["mac.menu_book", "mac.menu_go", "mac.menu_job", "mac.menu_model",
+                       "mac.reload", "mac.open_book", "mac.favourite",
+                       "mac.reveal_in_finder", "mac.open", "mac.dashboard",
+                       "mac.all_jobs", "mac.board", "mac.customers", "mac.library",
+                       "mac.machines", "mac.inventory", "mac.sort_by"]
+        for key in ownOnly {
+            #expect(Words.upfront(key) != key, "\(key) is not in Words.own, so a cold menu shows the key")
+        }
+    }
+}

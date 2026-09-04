@@ -40,12 +40,86 @@ final class Words {
     /// Which languages this app has words for. English is the fallback and Arabic
     /// is the one that changes the layout; the other seven are a matter of
     /// bundling more files, not of new machinery.
-    static let supported = ["en", "ar"]
+    nonisolated static let supported = ["en", "ar"]
+
+    init() {
+        if let warm = Self.warm {
+            language = warm.language
+            khayt = warm.strings
+        }
+    }
 
     func load(_ wanted: String?, engine: KhaytEngine?) async {
         let lang = Self.supported.contains(wanted ?? "") ? wanted! : "en"
         language = lang
         khayt = (try? await engine?.translations(language: lang)) ?? [:]
+    }
+
+    /// The catalogue, read before AppKit starts.
+    ///
+    /// ── WHY THIS EXISTS, AND IT IS NOT AN OPTIMISATION ─────────────────────
+    /// A SwiftUI menu item's TITLE is baked when the menu bar is built and is
+    /// never rewritten. Not when the value behind it changes, not when the menu
+    /// is about to open, not after `NSMenu.update()`. Verified three ways: with
+    /// the items in a plain `View` (the fix the forums give for the enabled
+    /// state, which does work for that), with the model injected through the
+    /// environment as the forum thread shows, and by calling `update()` on every
+    /// submenu before reading the titles back. All three still read the value
+    /// from build time.
+    ///
+    /// The menu bar is built as the scene is created, and the book — with the
+    /// shop's language in it — is opened afterwards, asynchronously. So every
+    /// stage in the Job menu read `queue.quote`, `queue.pending`: the key
+    /// itself, which is exactly what a missing translation looks like.
+    ///
+    /// `Direction` already resolves the language before launch, from the store
+    /// on disk, because the writing direction has the same problem. This does
+    /// the same for the words. It costs one engine start at launch, which the
+    /// app pays for anyway a moment later.
+    ///
+    /// A book opened LATER in a different language still updates everything
+    /// except the menu titles. Changing the language is already a restart —
+    /// `Direction.settle()` says so — and this is one more reason.
+    /// `nonisolated(unsafe)` because it is written exactly once, before AppKit
+    /// starts and before any other thread exists to read it, and only read
+    /// afterwards. There is nothing to race with.
+    nonisolated(unsafe) private(set) static var warm: (language: String, strings: [String: String])?
+
+    nonisolated static func preload(_ wanted: String) {
+        let lang = supported.contains(wanted) ? wanted : "en"
+        guard let engine = try? KhaytEngine(),
+              let strings = try? engineTranslations(engine, lang) else { return }
+        warm = (lang, strings)
+    }
+
+    /// `KhaytEngine` is an actor and this runs before there is a run loop to
+    /// await on, so the hop is made explicitly and waited for.
+    ///
+    /// `Task.detached`, NOT `Task` — this type is `@MainActor`, so a plain
+    /// `Task` inherits the main actor, and the main thread is the one sitting in
+    /// `wait()`. The app launched to a window that never appeared until it was
+    /// killed. A detached task inherits no isolation and runs while the main
+    /// thread is blocked, which is the whole point of blocking it.
+    private nonisolated static func engineTranslations(_ engine: KhaytEngine,
+                                                       _ lang: String) throws -> [String: String] {
+        let done = DispatchSemaphore(value: 0)
+        let box = Box()
+        Task.detached {
+            do { box.strings = try await engine.translations(language: lang) }
+            catch { box.failure = error }
+            done.signal()
+        }
+        done.wait()
+        if let failure = box.failure { throw failure }
+        return box.strings
+    }
+
+    /// Somewhere for the detached task to put its answer. Written once before
+    /// the semaphore is signalled and read once after it is waited on, which is
+    /// the ordering `@unchecked` is standing on.
+    private final class Box: @unchecked Sendable {
+        var strings: [String: String] = [:]
+        var failure: Error?
     }
 
     /// Khayt's word, then this app's, then the key — which is visible enough on
@@ -133,12 +207,25 @@ final class Words {
         return callIt("mac.move_reaches") + " " + list + ". " + callIt("mac.move_in_khayt")
     }
 
+    /// A word needed before there is a `Words` to ask.
+    ///
+    /// The menu bar's own titles — Book, Go, Job, Model — are built with the
+    /// scene, before any book is open, and like every other menu title they are
+    /// never rewritten. `warm` is already in hand by then, so they can be said
+    /// in the shop's language instead of always in English.
+    nonisolated static func upfront(_ key: String) -> String {
+        if let theirs = warm?.strings[key], !theirs.isEmpty { return theirs }
+        let lang = warm?.language ?? "en"
+        if let mine = own[key]?[lang] ?? own[key]?["en"] { return mine }
+        return key
+    }
+
     /// The words this app needed and Khayt did not have.
     ///
     /// Every entry carries both languages. A key with only English is worse than
     /// no key at all: it reads as a translation that happens to look English, and
     /// nothing tells anyone it is missing.
-    static let own: [String: [String: String]] = [
+    nonisolated static let own: [String: [String: String]] = [
         // Shelves
         "mac.all_jobs":      ["en": "All jobs",      "ar": "كل الأعمال"],
         "mac.pipeline":      ["en": "Pipeline",      "ar": "المسار"],
@@ -166,6 +253,15 @@ final class Words {
         "mac.reach_email":         ["en": "an email to the customer", "ar": "بريداً للعميل"],
         "mac.reach_portal":        ["en": "the customer's tracking link", "ar": "رابط متابعة العميل"],
         "mac.and":           ["en": "and",            "ar": "و"],
+        // The menu bar's own titles, said before any book is open
+        "mac.menu_book":     ["en": "Book",           "ar": "الدفتر"],
+        "mac.menu_go":       ["en": "Go",             "ar": "انتقال"],
+        "mac.menu_job":      ["en": "Job",            "ar": "العمل"],
+        "mac.menu_model":    ["en": "Model",          "ar": "المجسم"],
+        "mac.reload":        ["en": "Reload from Disk", "ar": "إعادة التحميل من القرص"],
+        "mac.favourite":     ["en": "Favourite",      "ar": "مفضّلة"],
+        "mac.reveal_in_finder": ["en": "Reveal in Finder", "ar": "إظهار في الباحث"],
+        "mac.open_book":     ["en": "Open",           "ar": "فتح دفتر"],
         "mac.board_unplaced": ["en": "{n} job(s) are in a stage this board has no column for.",
                                "ar": "{n} من الأعمال في مرحلة لا عمود لها في هذا اللوح."],
         "mac.library":       ["en": "Library",       "ar": "المكتبة"],

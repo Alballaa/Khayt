@@ -123,7 +123,10 @@ final class Shop {
     /// screen most likely to be left open all day.
     var board: [Stage: [Order]] {
         var out: [Stage: [Order]] = [:]
-        for order in orders {
+        // The search box is one box for the whole window. A board that ignored
+        // it left somebody typing a customer's name into a field that visibly
+        // did nothing.
+        for order in matching(orders) {
             guard let stage = Stage.of(order) else { continue }
             out[stage, default: []].append(order)
         }
@@ -141,13 +144,26 @@ final class Shop {
         return out
     }
 
+    /// The jobs that match what is typed in the search box, or all of them.
+    ///
+    /// Project, customer and job number — the three things somebody standing at
+    /// the bench actually has to hand.
+    func matching(_ rows: [Order]) -> [Order] {
+        let q = search.trimmingCharacters(in: .whitespaces).lowercased()
+        guard !q.isEmpty else { return rows }
+        return rows.filter {
+            $0.project.lowercased().contains(q) || $0.client.lowercased().contains(q)
+                || $0.id.lowercased().contains(q)
+        }
+    }
+
     /// Jobs the board has no column for.
     ///
     /// A `split` parent, or a status a later version of Khayt introduces. They
     /// are counted rather than dropped: the board's job is to show where the
     /// work is, and quietly leaving some of it out is the one thing it must not
     /// do.
-    var unplaced: [Order] { orders.filter { Stage.of($0) == nil } }
+    var unplaced: [Order] { matching(orders).filter { Stage.of($0) == nil } }
 
     /// The sources that can actually be opened on this Mac. A menu offering a
     /// store that is not there is a dead end dressed up as a choice.
@@ -867,14 +883,7 @@ final class Shop {
     var shown: [Order] {
         var rows = orders
         if let stage { rows = rows.filter { Stage.of($0) == stage } }
-        let q = search.trimmingCharacters(in: .whitespaces).lowercased()
-        if !q.isEmpty {
-            rows = rows.filter {
-                $0.project.lowercased().contains(q) || $0.client.lowercased().contains(q)
-                    || $0.id.lowercased().contains(q)
-            }
-        }
-        return rows
+        return matching(rows)
     }
 
     func count(_ stage: Stage) -> Int { orders.count { Stage.of($0) == stage } }

@@ -121,6 +121,18 @@ enum Stage: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
+    /// The columns the board draws, in the order work moves through them.
+    ///
+    /// Here rather than inside the view because `board` is keyed by EVERY stage
+    /// — the dictionary is the whole book grouped, and the screen chooses. Two
+    /// places deciding which stages are "on the board" is how a test comes to
+    /// agree with a list nobody is looking at.
+    ///
+    /// Delivered and cancelled are off it on purpose: they are where work goes
+    /// to stop being work, and a column of two hundred delivered jobs buries the
+    /// four that need doing.
+    static let boardColumns: [Stage] = [.quote, .pending, .on_hold, .printing, .post, .qc, .completed]
+
     /// The stage a job is in, or nil for a status this app has no column for.
     ///
     /// Nil is not "no stage" — it is a job that will not appear on the board, so

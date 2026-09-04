@@ -102,11 +102,6 @@ final class Activator: NSObject, NSApplicationDelegate {
             // every write, and a gate nobody checked is a gate that is open.
             FileHandle.standardError.write(Data(
                 "ownership: \(shopOwnership())\n".utf8))
-            // The menu bar as AppKit actually built it. A Commands block that
-            // compiles proves nothing about what a person can reach.
-            // The menu bar as AppKit actually built it. A Commands block that
-            // compiles proves nothing about what a person can reach.
-            FileHandle.standardError.write(Data("menus: \(menuTree())\n".utf8))
             capture(named: "00-dashboard", into: dir)
 
             guard let shop = subject else { NSApp.terminate(nil); return }
@@ -115,6 +110,14 @@ final class Activator: NSObject, NSApplicationDelegate {
             // about the design.
             await shop.load(.sample)
             await settle()
+            // The menu bar as AppKit actually built it. A Commands block that
+            // compiles proves nothing about what a person can reach.
+            //
+            // AFTER a book is open, not before. The stages are named from the
+            // shop's own catalogue, which is loaded with the book — dumped at
+            // launch every one of them read "queue.quote", which is what a
+            // missing translation looks like and was only an early photograph.
+            FileHandle.standardError.write(Data("menus: \(menuTree())\n".utf8))
             capture(named: "00b-dashboard-sample", into: dir)
             await shop.load(Shop.available.first(where: \.isReal) ?? .sample)
             await settle()
@@ -134,7 +137,12 @@ final class Activator: NSObject, NSApplicationDelegate {
             await settle()
             capture(named: "04-model-selected", into: dir)
             // The Model menu should now be live: library shelf, one model
-            // selected, and the book is ours to change.
+            // selected, and the book is ours to change. Dumped a SECOND time
+            // for exactly that reason: a menu built at launch and never rebuilt
+            // is indistinguishable from a correct one until something it reads
+            // changes, and the titles here depend on a selection made after the
+            // first dump.
+            FileHandle.standardError.write(Data("menus (after selection): \(menuTree())\n".utf8))
             capturePanes(named: "04-model-selected", into: dir)
 
             // Several selected: the shape a shop is in when it files the
@@ -188,8 +196,18 @@ final class Activator: NSObject, NSApplicationDelegate {
     /// What IS trustworthy here is structure. The Book menu's picker is built
     /// inside an `if let shop`, so its presence says the shop reached the menu;
     /// its absence says it did not.
+    /// The menu bar as AppKit actually built it.
+    ///
+    /// `update()` FIRST, on every submenu. SwiftUI does not rewrite an
+    /// NSMenuItem's title the moment the value behind it changes — AppKit asks
+    /// the menu to refresh itself when it is about to be shown, and a headless
+    /// run never shows one. Reading the titles without asking gives whatever
+    /// they were when the menu was first built, which reads exactly like a
+    /// broken menu: every stage named "queue.quote", every title stuck on its
+    /// placeholder. Both were photographs of a menu nobody had opened.
     private static func menuTree() -> String {
         guard let main = NSApp.mainMenu else { return "none" }
+        for top in main.items { top.submenu?.update() }
         return main.items.compactMap { top -> String? in
             guard let sub = top.submenu else { return top.title }
             let items = sub.items.filter { !$0.isSeparatorItem }.map { item -> String in
