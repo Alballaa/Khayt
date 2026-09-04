@@ -73,6 +73,12 @@ public actor KhaytEngine {
         // raising is the worst kind, so it is listed rather than guarded against.
         "assembly",
         "order-status",
+        // What a finished job takes off the shelf: the grams, the hourly
+        // consumables, the bought-in components, the packaging. Lifted out of
+        // renderer/inventory.js because the move being shared is not enough —
+        // a completion that silently failed to deduct would leave a shop
+        // ordering filament it does not have.
+        "order-deduction",
     ]
 
     /// The languages whose strings are bundled.
