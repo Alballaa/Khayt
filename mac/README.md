@@ -341,20 +341,39 @@ can read; `settings.lang` is the copy that travels with the store.)
 `KHAYT_LANG=ar` forces one run, which is the only way to photograph a language
 the shop does not use.
 
-### Right-to-left is NOT done, and that is deliberate
+### Right to left
 
-The words are Arabic; the layout is not mirrored. One line would do it —
-`.environment(\.layoutDirection, .rightToLeft)` on the window — and that line
-sends SwiftUI's `NavigationSplitView` into an unbounded layout loop on macOS 26:
+An Arabic shop gets a mirrored window: sidebar on the right, columns reversed,
+inspector on the left, traffic lights on the right.
+
+**Not via `.environment(\\.layoutDirection, .rightToLeft)`.** That line sends
+SwiftUI's `NavigationSplitView` into an unbounded layout loop on macOS 26 —
 `SplitViewChildController.hostingView(_:didUpdateMinSize:maxSize:)` re-invalidates
-on every pass, the window grows (3380pt measured), and AppKit aborts with *"more
-Update Constraints in Window passes than there are views in the window"*.
+every pass, the window grows past 3000pt, and AppKit aborts with *"more Update
+Constraints in Window passes than there are views in the window"*. It is not the
+sidebar's or the inspector's width constraint; removing either changes nothing.
 
-Bisected: the Arabic strings alone are fine, and it is not the sidebar's or the
-inspector's width constraint — removing either changes nothing. So the words ship
-and the mirroring waits. Text inside each label is already ordered correctly;
-Unicode does that without being asked. What is missing is the sidebar moving to
-the right edge and the table's columns reversing.
+The way that works is the way AppKit has always done it. `Direction.settle()`
+sets `NSForceRightToLeftWritingDirection` and `AppleTextDirection` — the two
+defaults Apple documents for [testing right-to-left
+layout](https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPInternational/TestingYourInternationalApp/TestingYourInternationalApp.html)
+— and the whole application flips. SwiftUI is never asked to mirror anything, so
+there is nothing for it to loop over.
+
+**AppKit reads those once, on the way up**, so this has to happen before
+`NSApplicationMain`. That is why there is a `main.swift` and why `KhaytApp` is
+not `@main`. When the answer differs from last launch the app `execv`s itself
+once — guarded by an environment variable so it can never do it twice — which is
+also why changing a shop's language takes effect at the next launch rather than
+immediately.
+
+Both keys are always written, never only the true one: a shop moving from Arabic
+to English would otherwise keep a mirrored window for ever, because the value it
+set last time is still in its own defaults. Round-trip verified — ar → en → ar,
+mirrored, unmirrored, mirrored, no crash in any direction.
+
+Resolving the language reads the store before AppKit exists: 3ms on a real 958KB
+book, bounded by the 50MB cap.
 
 ## The one hard constraint
 
