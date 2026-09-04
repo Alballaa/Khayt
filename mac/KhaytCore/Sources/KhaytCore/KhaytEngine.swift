@@ -79,6 +79,10 @@ public actor KhaytEngine {
         // a completion that silently failed to deduct would leave a shop
         // ordering filament it does not have.
         "order-deduction",
+        // What a shop has been paid, and what that makes an order. One answer
+        // to "is this paid" instead of the three that had drifted apart — the
+        // smallest of which was the one that WROTE the field the others read.
+        "order-payment",
     ]
 
     /// The languages whose strings are bundled.

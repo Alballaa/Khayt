@@ -67,27 +67,16 @@ function altLocalName(obj) {
   return KhaytContentLanguages.readAlt(obj, 'name', i18n.current,
     (typeof settings !== 'undefined' ? settings : null));
 }
-/** Normalise payment status with fallback, accounting for credit notes. */
+/** Normalise payment status with fallback, accounting for credit notes.
+ *
+ *  The rule moved to lib/order-payment.js. It was one of three answers to "is
+ *  this paid" and the only complete one; the payment modal had its own, which
+ *  is why an order could be WRITTEN as partial and READ as paid a line later.
+ *  This name stays because sixty call sites use it. */
 function payStatus(order) {
-  if (order.voidedAt) return 'voided';
-  // A fully-credited order (credit notes >= price) is settled/cancelled — it must
-  // not keep showing as outstanding (generateCreditNote sets creditedAt at full credit).
-  if (order.creditedAt) return 'voided';
-  const price = +order.price || 0;
-  if (price === 0) return order.paymentStatus || 'paid';
-
-  // Subtract any issued credit notes (refunds) from cash paid, then ADD gift-card
-  // redemption as a credit toward the order (it pays the order down, like a payment).
-  const totalCredited = (order.creditNotes || []).reduce((s, cn) => s + (+cn.amount || 0), 0);
-  // Credit notes reduce the effective amount DUE (consistent with orderOwedBase);
-  // cash paid and gift-card redemption both pay the order down.
-  const effectivePrice = Math.max(0, price - totalCredited);
-  const paidTotal = (+order.paidAmount || 0) + (+order.giftCardDiscount || 0);
-
-  if (effectivePrice <= 0) return 'paid';
-  if (paidTotal <= 0) return 'unpaid';
-  if (paidTotal >= effectivePrice) return 'paid';
-  return 'partial';
+  const rules = (typeof globalThis !== 'undefined' && globalThis.KhaytOrderPayment)
+    || (() => { try { return require('../lib/order-payment.js'); } catch (e) { return null; } })();
+  return rules ? rules.statusOf(order) : 'unpaid';
 }
 /* csvFormulaNeutralize — renderer/format.js */
 /** Escape a value for CSV (RFC 4180). */

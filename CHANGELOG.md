@@ -40,6 +40,14 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **Recording a payment could write a status the next screen disagreed with.**
+  Whether an order counts as paid, partly paid or unpaid was worked out in
+  three different places, and the one inside the payment dialog was the only
+  one that did not know about credit notes. So a job that had been part-credited
+  and then paid off was saved as "partial" and read back as "paid" by the row
+  underneath it — and sat in receivables for money nobody owed. There is one
+  rule now, and it is the one every report already used.
+
 - **A job completed through QC never sent the notification a job completed
   through the column button does.** Passing inspection wrote the completion
   itself rather than going through the same rules as every other move, so the
