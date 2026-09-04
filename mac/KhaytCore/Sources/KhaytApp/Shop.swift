@@ -454,6 +454,293 @@ final class Shop {
         }
     }
 
+
+    // MARK: - Moving a job
+
+    /// Whether a job may be moved at all: a real book, held by this app, with
+    /// the shared rules running. The sample shop is for looking at.
+    var canMoveJobs: Bool { source.isReal && ownership != nil }
+
+    /// What stopped a move, when something did. Cleared by the next attempt.
+    var moveProblem: String?
+    /// What the last move had to say — the due date it pushed out, the spools
+    /// it emptied, the ones that are now low.
+    var moveNotices: [String] = []
+
+    /// Move a job to a stage, and take what it costs off the shelf.
+    ///
+    /// Three collections change together and are written in one swap: the job,
+    /// the spools its filament came off, and the consumables it spent. A book
+    /// where the job says "completed" and the spools still hold its filament
+    /// has told the shop it has stock it has already used.
+    ///
+    /// Read `Kanban` for what a person sees; this is what happens.
+    func moveJob(_ id: Order.ID, to stage: Stage) async {
+        moveProblem = nil
+        moveNotices = []
+        guard let build = source.build else {
+            moveProblem = words.callIt("mac.move_sample")
+            return
+        }
+        guard let engine else {
+            moveProblem = words.callIt("mac.move_no_engine")
+            return
+        }
+
+        var undoSnapshot: [ChangedRecord] = []
+        var said: [String] = []
+        do {
+            try await StoreWriter.update(
+                storeURL: build.storeURL,
+                owns: { StoreLock.weOwnIt(build) },
+                whoHasIt: { StoreLock.describe(StoreLock.verdict(for: build)) }
+            ) { root in
+                (undoSnapshot, said) = try await Self.applyMove(
+                    to: &root, id: id, stage: stage, engine: engine, words: self.words)
+            }
+            // Only once the swap has happened. The last ownership check is after
+            // the mutation, so a book that changed hands mid-move throws here —
+            // and a shop told which spools were emptied by a move that was
+            // refused would be worse than being told nothing.
+            moveNotices = said
+            registerMoveUndo(undoSnapshot, named: words.callIt("mac.move_action"))
+            await load(source)
+        } catch let refusal as MoveRefused {
+            moveProblem = refusal.sentence
+        } catch {
+            moveProblem = String(describing: error)
+        }
+    }
+
+    /// One record as it was before a move, and where it lives.
+    ///
+    /// A move changes three collections, so an undo has to put three
+    /// collections back — including the spools. Undoing a completion that
+    /// emptied a spool without returning the filament would be an undo that
+    /// lies about the shelf.
+    struct ChangedRecord: Sendable {
+        let collection: String
+        let id: String
+        let was: [String: JSONValue]
+    }
+
+    /// A move the rules refused, said in the shop's own words.
+    struct MoveRefused: Error { let sentence: String }
+
+    /// The move itself, against the book as it is ON DISK.
+    ///
+    /// Static and taking `root` because it runs inside the write: everything it
+    /// reads — the other jobs the WIP limit counts, the spools it draws from,
+    /// the settings that decide whether it deducts at all — must be what is in
+    /// the file, not what this app last drew on screen.
+    static func applyMove(to root: inout [String: JSONValue],
+                                  id: Order.ID, stage: Stage,
+                                  engine: KhaytEngine, words: Words)
+    async throws -> (undo: [ChangedRecord], notices: [String]) {
+
+        let orders = rows(root, "printLog")
+        let inventory = rows(root, "inventory")
+        let consumables = rows(root, "consumables")
+        let machines = rows(root, "machines")
+        let clients = rows(root, "clients")
+        var settings: [String: JSONValue] = [:]
+        if case .object(let s)? = root["settings"] { settings = s }
+
+        guard let target = orders.first(where: { recordId($0) == id }) else {
+            throw MoveRefused(sentence: words.callIt("mac.move_gone"))
+        }
+
+        // Asked BEFORE anything is written. A webhook, a Telegram message, an
+        // email or a portal refresh cannot be sent from here and cannot be sent
+        // afterwards, so a move that would trigger one is refused whole rather
+        // than made with a piece missing.
+        let reaches = (try? await engine.outbound(order: target, to: stage.rawValue,
+                                                  settings: settings, clients: clients)) ?? []
+        if !reaches.isEmpty {
+            throw MoveRefused(sentence: words.outboundRefusal(reaches))
+        }
+
+        let move = try await engine.moveJob(
+            order: target, to: stage.rawValue, orders: orders, settings: settings,
+            inventory: inventory, consumables: consumables, machines: machines,
+            now: Date(), today: localDay())
+
+        guard move.ok else {
+            throw MoveRefused(sentence: words.gateRefusal(move.gate))
+        }
+        // An effect nobody classified is a gap, and a gap in a status change is
+        // how something goes missing on this Mac and nowhere else. Refuse.
+        if let unhandled = move.unhandled, !unhandled.isEmpty {
+            throw MoveRefused(sentence: words.callIt("mac.move_unhandled")
+                              + " (" + unhandled.joined(separator: ", ") + ")")
+        }
+        guard var changedOrder = move.order.flatMap(asObject) else {
+            throw MoveRefused(sentence: words.callIt("mac.move_gone"))
+        }
+
+        // A completion asks for a survey token, and a random source is exactly
+        // what a pure module does not have. The FORMAT is shared, so the token
+        // this app mints is the token Khayt would have minted.
+        if move.performed?.contains("ensure_survey_token") == true, changedOrder["surveyToken"] == nil {
+            changedOrder["surveyToken"] = .string(surveyToken())
+        }
+
+        var undo: [ChangedRecord] = []
+        write(&root, "printLog", changed: [.object(changedOrder)], before: orders, into: &undo)
+        write(&root, "inventory", changed: move.inventory ?? [], before: inventory, into: &undo)
+        write(&root, "consumables", changed: move.consumables ?? [], before: consumables, into: &undo)
+
+        if let text = move.activity {
+            appendActivity(&root, text: text, ref: id, settings: settings, root: root)
+        }
+
+        let notices = (move.notices ?? []).map { words.sentence(for: $0) }
+        return (undo, notices)
+    }
+
+    // MARK: - Reading and writing rows
+
+    static func rows(_ root: [String: JSONValue], _ collection: String) -> [JSONValue] {
+        if case .array(let r)? = root[collection] { return r }
+        return []
+    }
+
+    static func asObject(_ value: JSONValue) -> [String: JSONValue]? {
+        if case .object(let o) = value { return o }
+        return nil
+    }
+
+    static func recordId(_ value: JSONValue) -> String? {
+        guard case .object(let o) = value, case .string(let id)? = o["id"] else { return nil }
+        return id
+    }
+
+    /// Put changed rows back, stamping only the ones that actually changed.
+    ///
+    /// Stamping a row that did not change would push it to the cloud as an edit
+    /// nobody made, and on a shop with two machines that is how the older build
+    /// gets to win with a stale copy.
+    static func write(_ root: inout [String: JSONValue], _ collection: String,
+                              changed: [JSONValue], before: [JSONValue],
+                              into undo: inout [ChangedRecord]) {
+        guard !changed.isEmpty else { return }
+        var byId: [String: JSONValue] = [:]
+        for row in changed { if let id = recordId(row) { byId[id] = row } }
+
+        var out = before
+        var touched = false
+        for i in out.indices {
+            guard let id = recordId(out[i]), let next = byId[id], next != out[i] else { continue }
+            guard case .object(let was) = out[i], case .object(var now) = next else { continue }
+            undo.append(ChangedRecord(collection: collection, id: id, was: was))
+            StoreWriter.stamp(&now)
+            out[i] = .object(now)
+            touched = true
+        }
+        guard touched else { return }
+        root[collection] = .array(out)
+    }
+
+    /// The team's activity log — the same collection, shape and cap Khayt uses.
+    static func appendActivity(_ root: inout [String: JSONValue], text: String,
+                                       ref: String, settings: [String: JSONValue],
+                                       root snapshot: [String: JSONValue]) {
+        var log = rows(snapshot, "auditLog")
+        var operatorId: JSONValue = .null
+        var operatorName = ""
+        if case .string(let opId)? = settings["activeOperatorId"] {
+            operatorId = .string(opId)
+            if let op = rows(snapshot, "operators").first(where: { recordId($0) == opId }),
+               case .object(let o) = op, case .string(let name)? = o["name"] {
+                operatorName = name
+            }
+        }
+        log.append(.object([
+            "id": .string(uid("AL")),
+            "at": .string(StoreWriter.iso(Date())),
+            "action": .string("status"),
+            "detail": .string(text),
+            "ref": .string(ref),
+            "operatorId": operatorId,
+            "operatorName": .string(operatorName),
+        ]))
+        // Khayt keeps two thousand and drops the oldest. A log that grew for
+        // ever would be the one collection that could push a book past the size
+        // every backup is built to hold.
+        if log.count > 2000 { log = Array(log.suffix(2000)) }
+        root["auditLog"] = .array(log)
+    }
+
+    /// `YYYY-MM-DD` in this Mac's own timezone, the way `localDateStr` in
+    /// renderer/util.js writes it. A spool's usage history records the local
+    /// DAY a job drew from it, not an instant, so UTC would put a Riyadh
+    /// evening on the wrong date.
+    static func localDay(_ date: Date = Date()) -> String {
+        let c = Calendar(identifier: .gregorian).dateComponents([.year, .month, .day], from: date)
+        return String(format: "%04d-%02d-%02d", c.year ?? 0, c.month ?? 0, c.day ?? 0)
+    }
+
+    /// `uid()` from renderer/util.js: prefix, base-36 milliseconds, three random
+    /// base-36 characters upper-cased. Matched so an entry written here is
+    /// indistinguishable from one Khayt wrote.
+    static func uid(_ prefix: String) -> String {
+        let ms = Int(Date().timeIntervalSince1970 * 1000)
+        let stamp = String(ms, radix: 36)
+        let alphabet = Array("0123456789abcdefghijklmnopqrstuvwxyz")
+        let tail = String((0..<3).map { _ in alphabet.randomElement()! }).uppercased()
+        return "\(prefix)-\(stamp)\(tail)"
+    }
+
+    /// `srv-` and twelve random bytes in hex, the format `lib/order-status.js`
+    /// defines and both apps read.
+    static func surveyToken() -> String {
+        var bytes = [UInt8](repeating: 0, count: 12)
+        for i in bytes.indices { bytes[i] = UInt8.random(in: 0...255) }
+        return "srv-" + bytes.map { String(format: "%02x", $0) }.joined()
+    }
+
+    // MARK: - Undo
+
+    private func registerMoveUndo(_ before: [ChangedRecord], named actionName: String) {
+        guard let undoManager, !before.isEmpty else { return }
+        undoManager.setActionName(actionName)
+        undoManager.registerUndo(withTarget: self) { shop in
+            shop.restoreMove(before, named: actionName)
+        }
+    }
+
+    /// Put every collection back exactly as it was, and make THAT undoable.
+    ///
+    /// The deductions come back with it: undoing a completion that emptied a
+    /// spool has to put the filament back, or the undo is a lie about the shelf.
+    private func restoreMove(_ snapshot: [ChangedRecord], named actionName: String) {
+        guard let build = source.build else { return }
+        var before: [ChangedRecord] = []
+        do {
+            try StoreWriter.update(build) { root in
+                for (collection, wanted) in Dictionary(grouping: snapshot, by: \.collection) {
+                    guard case .array(var rows)? = root[collection] else { continue }
+                    let byId = Dictionary(wanted.map { ($0.id, $0.was) }, uniquingKeysWith: { a, _ in a })
+                    var touched = false
+                    for i in rows.indices {
+                        guard case .object(let current) = rows[i],
+                              case .string(let id)? = current["id"],
+                              let was = byId[id] else { continue }
+                        before.append(ChangedRecord(collection: collection, id: id, was: current))
+                        rows[i] = .object(StoreWriter.restoring(was, over: current))
+                        touched = true
+                    }
+                    if touched { root[collection] = .array(rows) }
+                }
+            }
+            moveProblem = nil
+            registerMoveUndo(before, named: actionName)
+            Task { await load(source) }
+        } catch {
+            moveProblem = String(describing: error)
+        }
+    }
+
     /// The shared shape of every edit: check we may write, do it, re-read.
     private func write(_ change: (inout [String: JSONValue]) -> Void) {
         guard let build = source.build else { return }

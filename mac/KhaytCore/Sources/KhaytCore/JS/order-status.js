@@ -65,6 +65,8 @@
 
   const MS_PER_DAY = 86400000;
 
+  const ctxOfStatus = (ctx) => (ctx && typeof ctx === 'object' ? ctx : {});
+
   const assemblyApi = () =>
     (typeof globalThis !== 'undefined' ? globalThis.KhaytAssembly : undefined);
 
@@ -290,6 +292,78 @@
   }
 
   /**
+   * What this move would reach OUTSIDE the shop's own book.
+   *
+   * `apply()` returns every effect a move asks for; most of them — saving,
+   * redrawing, deducting — happen inside the shop. A handful leave it: a
+   * webhook to somebody's ERP, a Telegram message, an email to the customer, a
+   * refresh of the link they are watching. Those are not undoable and not
+   * repeatable, and an app that cannot perform them must not perform the move
+   * and quietly skip them.
+   *
+   * So this answers, before anything is written: which of them would this
+   * particular move, in this particular shop, actually reach? A shop with no
+   * integrations configured gets an empty list and a move that is complete.
+   *
+   * `ctx`: `{ settings, clients }`. Returns `[{ channel, why }]`, where
+   * `channel` is the message code naming it.
+   *
+   * THE CONDITIONS ARE THE RENDERER'S OWN, and they have to stay that way. Each
+   * one is the guard the corresponding function opens with:
+   *
+   *   webhooks       renderer/integrations.js       fireWebhook
+   *   event_webhook  renderer/operations-extras.js  fireOrderWebhook
+   *   telegram       renderer/integrations.js       sendTelegramForOrder
+   *   email          renderer/integrations.js       autoSendEmailNotification
+   *   portal         renderer/integrations.js       republishPortalIfPublished
+   *
+   * A guard that changes there and not here turns this from a promise into a
+   * guess. `autoExportStatusPage` is deliberately absent: it writes a local
+   * file, reaches nobody, and going stale is not the same as being missed.
+   */
+  function outboundFor(order, newStatus, ctx) {
+    const c = ctxOfStatus(ctx);
+    const settings = c.settings || {};
+    const clients = Array.isArray(c.clients) ? c.clients : [];
+    const out = [];
+
+    const webhooks = settings.webhooks || {};
+    if (webhooks.enabled) out.push({ channel: 'webhooks', why: 'enabled' });
+
+    const events = settings.eventWebhooks || {};
+    if (events.enabled && /^https:\/\//i.test(events.url || '') &&
+        !(events.events && events.events.status === false)) {
+      out.push({ channel: 'event_webhook', why: 'enabled' });
+    }
+
+    // Telegram is per-status: it announces a completion and a hold, and stays
+    // quiet for everything else, so moving a job to `printing` reaches nobody.
+    const tg = settings.telegram || {};
+    if (tg.botToken && tg.chatId &&
+        ((newStatus === 'completed' && tg.notifyOnComplete) ||
+         (newStatus === 'on_hold' && tg.notifyOnHold))) {
+      out.push({ channel: 'telegram', why: newStatus });
+    }
+
+    // Email is per-status too, and needs a customer with an address on file.
+    const email = settings.emailConfig || {};
+    const triggers = Array.isArray(email.triggers) ? email.triggers : [];
+    if (email.provider && email.provider !== 'none' && triggers.indexOf(newStatus) !== -1 &&
+        order && order.clientId) {
+      const client = clients.find(x => x && x.id === order.clientId);
+      if (client && client.email) out.push({ channel: 'email', why: newStatus });
+    }
+
+    // The portal link only refreshes for a job that was actually published.
+    const cloud = settings.cloud || {};
+    if (order && order.cloudPublished && order.trackingToken && cloud.enabled && cloud.shopId) {
+      out.push({ channel: 'portal', why: 'published' });
+    }
+
+    return out;
+  }
+
+  /**
    * Format a survey token from `SURVEY_TOKEN_BYTES` random bytes.
    *
    * The bytes come from the caller because a random source is exactly what a
@@ -303,7 +377,7 @@
 
   const api = {
     HISTORY_CAP, SURVEY_TOKEN_BYTES,
-    wouldExceedWipLimit, gate, apply, resumeFromHold, makeSurveyToken,
+    wouldExceedWipLimit, gate, apply, outboundFor, resumeFromHold, makeSurveyToken,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   global.KhaytOrderStatus = api;

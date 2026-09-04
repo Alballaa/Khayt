@@ -6,6 +6,16 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Changed
 
+- **The native Mac app's board can move a job.** Drag a card from one column to
+  another and the job moves — stamping the completion, taking the filament and
+  the packaging off the shelf, clearing a hold and pushing the due date out by
+  the days it waited, all by the same rules Khayt uses, because it is the same
+  code. ⌘Z puts it back, filament included. A move that would send a webhook,
+  a Telegram message, an email or refresh a customer's tracking link is refused
+  rather than half-made, and says which — those cannot be sent from the Mac app
+  and cannot be sent afterwards, so the job stays where it is and the move is
+  yours to make in Khayt.
+
 - **What a finished job takes off the shelf is now decided in one place.** The
   grams it drew from each spool, the isopropyl and glue its print hours spent,
   the bolts a BOM assembly consumed, and the one-of-each packaging it ships in

@@ -309,6 +309,43 @@ public actor KhaytEngine {
                                 [order, status, ctx], as: StatusGate.self)
     }
 
+    /// Where this move would reach outside the shop's own book.
+    ///
+    /// Ask BEFORE moving anything. A webhook, a Telegram message, an email or a
+    /// portal refresh cannot be sent from here and cannot be sent later, so a
+    /// move that would trigger one has to be refused rather than half-made. An
+    /// empty list is the common case: a shop with no integrations configured.
+    public func outbound(order: JSONValue, to status: String,
+                         settings: [String: JSONValue],
+                         clients: [JSONValue]) throws -> [Outbound] {
+        try runtime.call2("KhaytOrderStatus.outboundFor(ARG0, ARG1, {settings: ARG2, clients: ARG3})",
+                          [order, .string(status), .object(settings), .array(clients)],
+                          as: [Outbound].self)
+    }
+
+    /// Move a job to a stage, and take what it costs off the shelf.
+    ///
+    /// Both shared modules in one expression, which is the point: `order-status`
+    /// says what happens to the job and asks for the deductions, `order-deduction`
+    /// performs them on the spools and consumable rows it is handed. None of it
+    /// is arithmetic written in Swift, and none of it is a second opinion about
+    /// whether a job is finished.
+    ///
+    /// The three collections come back changed. Write all three or none — the
+    /// job saying "completed" while the spools still hold its filament is a shop
+    /// that has been told it has stock it has already used.
+    public func moveJob(order: JSONValue, to status: String,
+                        orders: [JSONValue], settings: [String: JSONValue],
+                        inventory: [JSONValue], consumables: [JSONValue],
+                        machines: [JSONValue],
+                        now: Date, today: String) throws -> JobMove {
+        try runtime.call2(MOVE_SCRIPT,
+                          [order, .string(status), .array(orders), .object(settings),
+                           .array(inventory), .array(consumables), .array(machines),
+                           .number(now.timeIntervalSince1970 * 1000), .string(today)],
+                          as: JobMove.self)
+    }
+
     public func raw<T: Decodable>(_ script: String, as type: T.Type) throws -> T {
         let value = try runtime.evaluate("JSON.stringify(\(script))")
         guard let json = value.toString(), let data = json.data(using: .utf8) else {
@@ -317,6 +354,87 @@ public actor KhaytEngine {
         return try JSONDecoder().decode(T.self, from: data)
     }
 }
+
+/// Moving a job, as the two shared modules do it between them.
+///
+/// EVERY EFFECT IS CLASSIFIED, and the default case is `unhandled` rather than
+/// "ignore". `apply()` returns an ordered list of what a move asks for, and a
+/// list this app silently walked past would be how a future effect — a new
+/// notification, a new record — goes missing on the Mac and nowhere else.
+///
+///   performed  this app does it, here or in the write that follows
+///   cosmetic   a toast or a redraw; nothing outside this book depends on it
+///   outbound   leaves the shop entirely — see below
+///   unhandled  reported to the caller, which refuses the move
+///
+/// `apply()` asks for the webhook, the Telegram message, the email and the
+/// portal refresh on EVERY move, because whether any of them reaches anybody
+/// depends on what the shop has configured and it is not this module's business
+/// to know. `outboundFor()` is what knows, and the caller asks it first: a move
+/// that would actually reach somebody is refused before this runs. So finding
+/// them here means the shop has none of it switched on, and they are named
+/// rather than dropped.
+private let MOVE_SCRIPT = """
+(function () {
+  var order = ARG0, status = ARG1, orders = ARG2, settings = ARG3;
+  var inventory = ARG4, consumables = ARG5, machines = ARG6, now = ARG7, today = ARG8;
+
+  var gate = KhaytOrderStatus.gate(order, status, { orders: orders, settings: settings });
+  if (!gate.ok) return { ok: false, gate: gate };
+
+  var moved = KhaytOrderStatus.apply(order, status, { now: now, inventory: inventory });
+  var notices = moved.notices.slice();
+  var performed = [], cosmetic = [], outbound = [], unhandled = [], activity = null;
+
+  var COSMETIC = {
+    render: 1, toast_updated: 1, toast_updated_undoable: 1,
+    // A congratulation when a customer reaches a new tier. Nothing is written.
+    tier_check: 1,
+    // Writes a local HTML file for the customer to look at. Going stale is not
+    // the same as being missed, and it reaches nobody.
+    export_status_page: 1
+  };
+  // Asked for on every move; reaches somebody only when the shop has it
+  // configured, which the caller has already checked.
+  var OUTBOUND = { webhook: 1, order_webhook: 1, telegram: 1, email: 1, republish_portal: 1 };
+
+  for (var i = 0; i < moved.effects.length; i++) {
+    var e = moved.effects[i];
+    if (e.type === 'deduct_filament') {
+      var d = KhaytOrderDeduction.deductForOrder(order, {
+        settings: settings, inventory: inventory, consumables: consumables,
+        machines: machines, today: today
+      });
+      notices = notices.concat(d.notices);
+      performed.push(e.type);
+    } else if (e.type === 'deduct_packaging') {
+      var p = KhaytOrderDeduction.deductPackaging(order, { consumables: consumables });
+      notices = notices.concat(p.notices);
+      performed.push(e.type);
+    } else if (e.type === 'activity_log') {
+      activity = e.text;
+      performed.push(e.type);
+    } else if (e.type === 'save') {
+      performed.push(e.type);
+    } else if (e.type === 'ensure_survey_token') {
+      // The token is minted by the caller, which has a random source.
+      performed.push(e.type);
+    } else if (COSMETIC[e.type]) {
+      cosmetic.push(e.type);
+    } else if (OUTBOUND[e.type]) {
+      outbound.push(e.type);
+    } else {
+      unhandled.push(e.type);
+    }
+  }
+
+  return {
+    ok: true, gate: gate, order: order, inventory: inventory, consumables: consumables,
+    notices: notices, activity: activity,
+    performed: performed, cosmetic: cosmetic, outbound: outbound, unhandled: unhandled
+  };
+})()
+"""
 
 /// The one expression that puts the three modules together.
 ///

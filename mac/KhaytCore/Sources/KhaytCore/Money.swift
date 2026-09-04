@@ -159,3 +159,51 @@ public struct StatusGate: Decodable, Sendable, Equatable {
     /// it is also the moment worth asking for the actual time and grams.
     public let needsActuals: Bool
 }
+
+/// Something the person should be told, named by code rather than sentence.
+///
+/// The shared modules do not know which language the shop reads, so they hand
+/// back a code and whatever the sentence needs. `Words` turns it into words.
+public struct Notice: Decodable, Sendable, Equatable {
+    public let code: String
+    public let params: [String: JSONValue]
+}
+
+/// One of the places a status change reaches outside the shop's own book.
+///
+/// A webhook to somebody's ERP, a Telegram message, an email to the customer, a
+/// refresh of the link they are watching. None of it is undoable and none of it
+/// is repeatable — so an app that cannot send them must not make the move and
+/// quietly skip them.
+public struct Outbound: Decodable, Sendable, Equatable {
+    /// `webhooks`, `event_webhook`, `telegram`, `email`, `portal`.
+    public let channel: String
+    /// Why it applies: `enabled`, `published`, or the status that triggers it.
+    public let why: String
+}
+
+/// A job moved from one stage to another, and everything that moved with it.
+///
+/// The three collections come back CHANGED rather than as a patch, because the
+/// shared modules mutate what they are handed and the caller's job is to write
+/// the result down. `unhandled` is the safety net: an effect type this app does
+/// not classify is reported rather than dropped, so a new effect in
+/// `lib/order-status.js` surfaces as a visible gap instead of a silent one.
+public struct JobMove: Decodable, Sendable {
+    public let ok: Bool
+    /// Present and refusing when `ok` is false.
+    public let gate: StatusGate
+    public let order: JSONValue?
+    public let inventory: [JSONValue]?
+    public let consumables: [JSONValue]?
+    public let notices: [Notice]?
+    /// What the move should be called in the activity log, if anything.
+    public let activity: String?
+    /// Effect types this app performed, cosmetically skipped, that would have
+    /// left the shop (and reached nobody, or the move would have been refused),
+    /// or that it does not know at all.
+    public let performed: [String]?
+    public let cosmetic: [String]?
+    public let outbound: [String]?
+    public let unhandled: [String]?
+}
