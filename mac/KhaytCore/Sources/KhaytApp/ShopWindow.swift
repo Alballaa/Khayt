@@ -2,7 +2,11 @@ import SwiftUI
 
 struct ShopWindow: View {
     @Bindable var shop: Shop
-    @State private var showInspector = true
+    // Both restored on relaunch. Reopening an app onto a different screen from
+    // the one you left is a small thing that makes it feel like a web page.
+    @SceneStorage("inspector.showing") private var showInspector = true
+    @SceneStorage("shelf") private var storedShelf = ""
+
 
     var body: some View {
         NavigationSplitView {
@@ -62,12 +66,23 @@ struct ShopWindow: View {
                 } label: {
                     Label("Details", systemImage: "sidebar.trailing")
                 }
-                .help("Show or hide the job details")
+                .help("Show or hide the details")
+                // The label above is the button's title; VoiceOver reads this.
+                // "Don't include text that repeats information users already
+                // have" — it is already a button, so this does not say so.
+                .accessibilityLabel(showInspector ? "Hide details" : "Show details")
             }
         }
         // No `.environment(\.layoutDirection, …)` here on purpose: that line
         // loops SwiftUI's split view until AppKit aborts. The window is mirrored
         // before it exists instead — see `Direction`.
+        .task(id: shop.shelf) { storedShelf = Shelves.name(shop.shelf) }
+        .task {
+            // Only after the book has loaded: a group shelf means nothing until
+            // the groups are known, and restoring one that no longer exists
+            // would open on an empty screen with no way to tell why.
+            if let restored = Shelves.shelf(storedShelf, in: shop) { shop.shelf = restored }
+        }
         .navigationTitle(shop.shopName)
         .navigationSubtitle(subtitle)
     }
@@ -129,5 +144,41 @@ private struct OwedSummary: View {
             }
         }
         .padding(.horizontal, 4)
+    }
+}
+
+
+/// Which shelf was open, as something that survives a relaunch.
+///
+/// A string rather than the enum: `SceneStorage` takes only simple values, and a
+/// shelf that names a group has to be checked against the book before it is
+/// restored — the group may have been renamed or emptied since.
+@MainActor enum Shelves {
+    static func name(_ shelf: Shop.Shelf) -> String {
+        switch shelf {
+        case .jobs(nil): "jobs"
+        case .jobs(let stage?): "jobs:\(stage.rawValue)"
+        case .customers: "customers"
+        case .library(nil): "library"
+        case .library(let group?): "library:\(group)"
+        }
+    }
+
+    static func shelf(_ name: String, in shop: Shop) -> Shop.Shelf? {
+        guard !name.isEmpty else { return nil }
+        let parts = name.split(separator: ":", maxSplits: 1).map(String.init)
+        switch parts.first {
+        case "jobs":
+            guard parts.count == 2 else { return .jobs(nil) }
+            return Stage(rawValue: parts[1]).map(Shop.Shelf.jobs)
+        case "customers":
+            return .customers
+        case "library":
+            guard parts.count == 2 else { return .library(nil) }
+            // Only if it is still a group this shop has.
+            return shop.groups.contains(parts[1]) ? .library(parts[1]) : .library(nil)
+        default:
+            return nil
+        }
     }
 }

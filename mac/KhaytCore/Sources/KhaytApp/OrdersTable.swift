@@ -5,6 +5,11 @@ import SwiftUI
 /// keyboard — none of which the web version manages convincingly.
 struct OrdersTable: View {
     @Bindable var shop: Shop
+    // Sort order and column layout both survive a relaunch. A Mac table whose
+    // columns snap back to the developer's idea of the right ones every morning
+    // is a table nobody bothers to arrange.
+    @SceneStorage("jobs.sort") private var storedSort = "date:down"
+    @SceneStorage("jobs.columns") private var columns: TableColumnCustomization<Order>
     @State private var order: [KeyPathComparator<Order>] = [
         .init(\.date, order: .reverse)
     ]
@@ -12,7 +17,8 @@ struct OrdersTable: View {
     private var rows: [Order] { shop.shown.sorted(using: order) }
 
     var body: some View {
-        Table(rows, selection: $shop.selection, sortOrder: $order) {
+        Table(rows, selection: $shop.selection, sortOrder: $order,
+              columnCustomization: $columns) {
             TableColumn(shop.words.callIt("mac.job"), value: \.project) { job in
                 HStack(spacing: 6) {
                     if job.priority {

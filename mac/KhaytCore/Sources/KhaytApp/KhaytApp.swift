@@ -18,6 +18,7 @@ struct KhaytApp: App {
                     // data exists is answering a question nobody asked.
                     await shop.load(Shop.available.first(where: \.isReal) ?? .sample)
                 }
+
         }
         // Wide enough that all six columns are on screen with the inspector
         // open, which is how the window opens. At 1180 the table was given
@@ -28,24 +29,14 @@ struct KhaytApp: App {
         // below it. It is most of the difference between a Mac window and a web
         // page with a grey bar at the top.
         .windowToolbarStyle(.unified)
+                // `_ = shop.…` is not decoration. Reading these in the SCENE's body is
+        // what makes SwiftUI rebuild the menu bar when the shelf or the
+        // selection changes — a `Commands` body does not re-run on its own for
+        // an `@Observable` it read, so without this the items keep whatever
+        // enabled state they had when the app started.
         .commands {
-            CommandGroup(replacing: .newItem) { }
-            CommandGroup(after: .toolbar) {
-                // The store is read once, at launch. Anything the Electron app
-                // writes after that is invisible here until asked for, and the
-                // two are expected to be open together while this is a reader.
-                Button("Reload from disk") {
-                    Task { await shop.load(shop.source) }
-                }
-                .keyboardShortcut("r")
-                Divider()
-                Picker("Book", selection: Binding(
-                    get: { shop.source },
-                    set: { next in Task { await shop.load(next) } }
-                )) {
-                    ForEach(Shop.available) { Text($0.title).tag($0) }
-                }
-            }
+            let _ = (shop.showingLibrary, shop.canEditSelection, shop.selectionIsOnThisMac)
+            KhaytCommands(shop: shop)
         }
     }
 }
@@ -119,6 +110,11 @@ final class Activator: NSObject, NSApplicationDelegate {
             // every write, and a gate nobody checked is a gate that is open.
             FileHandle.standardError.write(Data(
                 "ownership: \(shopOwnership())\n".utf8))
+            // The menu bar as AppKit actually built it. A Commands block that
+            // compiles proves nothing about what a person can reach.
+            // The menu bar as AppKit actually built it. A Commands block that
+            // compiles proves nothing about what a person can reach.
+            FileHandle.standardError.write(Data("menus: \(menuTree())\n".utf8))
             capture(named: "01-jobs", into: dir)
 
             guard let shop = subject else { NSApp.terminate(nil); return }
@@ -134,6 +130,8 @@ final class Activator: NSObject, NSApplicationDelegate {
             shop.fileSelection = Set(shop.shownFiles.prefix(1).map(\.id))
             await settle()
             capture(named: "04-model-selected", into: dir)
+            // The Model menu should now be live: library shelf, one model
+            // selected, and the book is ours to change.
             capturePanes(named: "04-model-selected", into: dir)
 
             // Several selected: the shape a shop is in when it files the
@@ -163,6 +161,30 @@ final class Activator: NSObject, NSApplicationDelegate {
             try? await Task.sleep(for: .milliseconds(300))
             NSApp.terminate(nil)
         }
+    }
+
+    private static func menuTree() -> String {
+        guard let main = NSApp.mainMenu else { return "none" }
+        return main.items.compactMap { top -> String? in
+            guard let sub = top.submenu else { return top.title }
+            // AppKit validates menu items when a menu is about to open, not
+            // continuously. Reading `isEnabled` without this reports every item
+            // as disabled and looks exactly like a broken focused value.
+            sub.update()
+            let items = sub.items.filter { !$0.isSeparatorItem }.map { item -> String in
+                let key = item.keyEquivalent.isEmpty ? "" : "[\(shortcut(item))]"
+                return item.title + key + (item.isEnabled ? "" : "(off)")
+            }
+            return "\(top.title){\(items.joined(separator: ", "))}"
+        }.joined(separator: " | ")
+    }
+
+    private static func shortcut(_ item: NSMenuItem) -> String {
+        var out = ""
+        if item.keyEquivalentModifierMask.contains(.command) { out += "⌘" }
+        if item.keyEquivalentModifierMask.contains(.shift) { out += "⇧" }
+        if item.keyEquivalentModifierMask.contains(.option) { out += "⌥" }
+        return out + item.keyEquivalent.uppercased()
     }
 
     private static func shopOwnership() -> String {

@@ -3,6 +3,7 @@ import SwiftUI
 /// The shop's customers, and what each of them owes.
 struct CustomersTable: View {
     @Bindable var shop: Shop
+    @SceneStorage("customers.columns") private var columns: TableColumnCustomization<Customer>
     @State private var order: [KeyPathComparator<Customer>] = [
         .init(\.owed, order: .reverse)
     ]
@@ -10,7 +11,8 @@ struct CustomersTable: View {
     private var rows: [Customer] { shop.shownCustomers.sorted(using: order) }
 
     var body: some View {
-        Table(rows, selection: $shop.customerSelection, sortOrder: $order) {
+        Table(rows, selection: $shop.customerSelection, sortOrder: $order,
+              columnCustomization: $columns) {
             TableColumn(shop.words.callIt("doc.client"), value: \.name) { person in
                 HStack(spacing: 6) {
                     if person.overdueCount > 0 {

@@ -232,6 +232,35 @@ and every screen except the book. `KhaytCore` came first because the
 alternative, screens against a half-trusted engine, is how the two apps come to
 disagree about a shop's money.
 
+## The menu bar, and what a Commands body does not do
+
+Everything the app can do is in the menu bar with a key for it — ⌘1/2/3 for the
+three shelves, ⌘R to reload, ⌘D to favourite, ⇧⌘R to reveal, ⌘O to open. A menu
+you have to know is there is a feature for the person who wrote it.
+
+Two routes were tried before the one that is in the file:
+
+* **`focusedSceneValue` + `@FocusedValue`** is the documented way and is what a
+  multi-window app needs. It delivers **nil** here — with the window key, main
+  and the app active, declared both with `@Entry` and with an explicit
+  `FocusedValueKey`. Every item then validates as disabled, which reads as a bug
+  in the menu rather than in the plumbing.
+* **Passing the `Shop` in as a plain `let`** delivers it and then never updates:
+  a `Commands` body does not re-run when an `@Observable` it read changes.
+
+What works is reading the flags in the **Scene's** body — `let _ = (shop.…)` —
+which is what makes SwiftUI rebuild the menu bar, with `@Bindable var shop`
+inside `KhaytCommands` for the values themselves. The `let _` is load-bearing;
+deleting it freezes every item in the state it had at launch.
+
+`KHAYT_SNAPSHOT_DIR` runs print the menu bar as AppKit built it, titles and
+shortcuts and all, because a `Commands` block that compiles proves nothing about
+what a person can reach.
+
+**No `Settings` scene yet**, so ⌘, does nothing. That is a gap, and an empty
+preferences window would be a worse one — there is no setting this app owns that
+is not either the shop's (which lives in the book) or the Book menu's.
+
 ## Who owns the store
 
 The constraint below is now written down on disk rather than assumed.
