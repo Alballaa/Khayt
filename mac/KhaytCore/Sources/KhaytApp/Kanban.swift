@@ -23,10 +23,17 @@ import KhaytCore
 struct Kanban: View {
     @Bindable var shop: Shop
 
-    /// Delivered and cancelled are off the board on purpose: they are where
-    /// work goes to stop being work, and a column of two hundred delivered jobs
+    /// Every stage work actually passes through, in the order it passes.
+    ///
+    /// Delivered and cancelled are off the board on purpose: they are where work
+    /// goes to stop being work, and a column of two hundred delivered jobs
     /// buries the four that need doing.
-    private var columns: [Stage] { [.quote, .pending, .printing, .completed] }
+    ///
+    /// The other seven are all here, which they were not. A job in QC or on hold
+    /// had no column and therefore no card — it did not move to the end of the
+    /// board, it vanished from it, and a board that silently omits the jobs
+    /// somebody is waiting on is worse than no board.
+    private var columns: [Stage] { [.quote, .pending, .on_hold, .printing, .post, .qc, .completed] }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -40,12 +47,20 @@ struct Kanban: View {
             }
 
             ScrollView([.horizontal, .vertical]) {
-                HStack(alignment: .top, spacing: 14) {
+                HStack(alignment: .top, spacing: 12) {
                     ForEach(columns) { stage in
                         Column(stage: stage, jobs: shop.board[stage] ?? [], shop: shop)
                     }
                 }
                 .padding(16)
+            }
+            // Said out loud rather than filtered away. A job whose status has no
+            // column is not on this board, and the board saying so is the
+            // difference between a gap and a lie.
+            if !shop.unplaced.isEmpty {
+                Banner(text: shop.words.callIt("mac.board_unplaced",
+                                               ["n": .number(Double(shop.unplaced.count))]),
+                       symbol: "questionmark.circle", tint: .secondary)
             }
         }
         .background(.background)
@@ -130,7 +145,9 @@ private struct Column: View {
                 }
             }
         }
-        .frame(width: 240, alignment: .leading)
+        // Narrow enough that seven columns are a short scroll rather than a
+        // long one, wide enough for a two-line job name.
+        .frame(width: 196, alignment: .leading)
         .padding(10)
         .background(.quinary, in: RoundedRectangle(cornerRadius: 10))
         .overlay {

@@ -27,6 +27,14 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **The Mac app's board left out the jobs somebody was waiting on.** A job on
+  hold, in post-processing or in QC had no column, so it did not move to the
+  end of the board — it disappeared from it, and a shop looking for its
+  bottleneck found an empty gap where the bottleneck was. All seven stages work
+  passes through are on the board now, in the order it passes through them, and
+  anything the board still cannot place is counted out loud at the bottom
+  rather than dropped.
+
 - **Bed Ready's inventory could fail to draw.** A shared module the shelf now
   depends on was not loaded on Bed Ready's page, so its filament screen threw
   before it drew anything. Bed Ready's page is now checked for this on every

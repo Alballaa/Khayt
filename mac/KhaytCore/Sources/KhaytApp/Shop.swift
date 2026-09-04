@@ -141,6 +141,14 @@ final class Shop {
         return out
     }
 
+    /// Jobs the board has no column for.
+    ///
+    /// A `split` parent, or a status a later version of Khayt introduces. They
+    /// are counted rather than dropped: the board's job is to show where the
+    /// work is, and quietly leaving some of it out is the one thing it must not
+    /// do.
+    var unplaced: [Order] { orders.filter { Stage.of($0) == nil } }
+
     /// The sources that can actually be opened on this Mac. A menu offering a
     /// store that is not there is a dead end dressed up as a choice.
     static var available: [Source] {
