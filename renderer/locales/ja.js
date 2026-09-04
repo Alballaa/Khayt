@@ -2781,6 +2781,8 @@
   "qc.inspector": "検査担当",
   "qc.inspector_none": "—",
   "qc.inspector_required": "検査担当を選択してください",
+  "qc.weight_measured": "{source} による実測 — 停止までに使った量です。",
+  "qc.weight_typed": "この印刷は計測されていません。使った量を入力してください。フィラメントは在庫から差し引かれます。",
   "qc.severity": "重大度",
   "qc.sev.major": "重大",
   "qc.sev.minor": "軽微",

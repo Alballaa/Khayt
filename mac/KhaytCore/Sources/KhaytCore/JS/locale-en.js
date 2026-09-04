@@ -2782,6 +2782,8 @@
   "qc.inspector": "Inspector",
   "qc.inspector_none": "—",
   "qc.inspector_required": "Select an inspector",
+  "qc.weight_measured": "Measured by {source} — what it got through before it stopped.",
+  "qc.weight_typed": "Nothing measured this print, so type what it got through. The filament comes off the shelf.",
   "qc.severity": "Severity",
   "qc.sev.major": "Major",
   "qc.sev.minor": "Minor",

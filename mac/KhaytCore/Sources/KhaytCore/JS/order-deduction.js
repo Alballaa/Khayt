@@ -124,9 +124,129 @@
   }
 
   /**
+   * What a job owes the shelf, part by part, at the ESTIMATE.
+   *
+   * Each entry is the spool a part was assigned and the grams that part is
+   * expected to take out of it. Split out of `deductForOrder` so a failed print
+   * can be settled the same way — off the same spools, in the same proportions
+   * — for whatever it actually got through.
+   *
+   * The shortfall rule is NOT here: covering what a chosen spool cannot supply
+   * from its siblings happens at draw time, because it depends on what is left
+   * on the shelf at that moment.
+   */
+  function claimsFor(order, inventory) {
+    const shelf = arrayOf(inventory);
+    const out = [];
+    for (const part of ((order && order.parts) || [])) {
+      // A multicolour part is several filaments in one part: each colour's
+      // grams come out of its own spool, times the part's quantity.
+      if (part.colours && part.colours.length) {
+        const perQty = Math.max(1, +part.qty || 1);
+        for (const col of part.colours) {
+          const primary = col.filamentId && shelf.find(i => i.id === col.filamentId);
+          if (!primary) continue;
+          const grams = Math.max(0, (+col.grams || 0) * perQty);
+          if (grams <= 0) continue;
+          out.push({ spool: primary, grams });
+        }
+        continue;
+      }
+      if (!part.filamentId || !part.printWeight) continue;
+      const primary = shelf.find(i => i.id === part.filamentId);
+      if (!primary) continue;
+      // Grams the spool-switch flow already took off other spools are not owed
+      // again — otherwise switching spools mid-print charges the job twice.
+      const extra = (part.additionalSpools || []).reduce((s, a) => s + (+a.weight || 0), 0);
+      const remaining = Math.max(0, partGramsConsumed(part) - extra);
+      if (remaining <= 0) continue;
+      out.push({ spool: primary, grams: remaining });
+    }
+    return out;
+  }
+
+  /** What the claims come to at the estimate. */
+  function claimedGrams(claims) {
+    return arrayOf(claims).reduce((s, x) => s + (+((x && x.grams)) || 0), 0);
+  }
+
+  /**
+   * How much of the estimate to deduct, given a measured total.
+   *
+   * 1 when nothing was measured — the estimate is what Khayt has always
+   * deducted and stays the answer. 1 too when the estimate is zero, because
+   * there is nothing to scale and scaling by infinity is not a number a shelf
+   * can be charged.
+   *
+   * A measurement LARGER than the estimate scales up rather than being capped:
+   * a print that used more than it was quoted really did take that filament
+   * off the shelf, and a shelf that refuses to believe it is a shelf that
+   * drifts.
+   */
+  function scaleFor(claims, actualGrams) {
+    const actual = +actualGrams;
+    if (!Number.isFinite(actual) || actual <= 0) return 1;
+    const claimed = claimedGrams(claims);
+    if (claimed <= 0) return 1;
+    return actual / claimed;
+  }
+
+  /**
+   * Take `grams` off the shelf for a job that did NOT finish.
+   *
+   * The same spools, in the same proportions, as a completion would have
+   * used — a failed print consumed the filament it was part way through, off
+   * the spools it was printing from. Nothing is marked `materialDeducted`,
+   * because the job is not done: the reprint will deduct its own.
+   *
+   * `ctx`: `{ settings, inventory, machines, today }`.
+   * Returns `{ deducted, spools, nowLow }` — the grams actually taken, the
+   * spool ids they came off, and any that are now low.
+   */
+  function deductActual(order, grams, ctx) {
+    const c = ctxOf(ctx);
+    const settings = ctxOf(c.settings);
+    const inventory = arrayOf(c.inventory);
+    const wanted = Math.max(0, +grams || 0);
+    const empty = { deducted: 0, spools: [], nowLow: [] };
+    if (wanted <= 0) return empty;
+
+    const claims = claimsFor(order, inventory);
+    if (!claims.length) return empty;
+    const scale = scaleFor(claims, wanted);
+
+    let deducted = 0;
+    const spools = [];
+    const nowLow = [];
+    const orderLoc = orderLocationId(order, c.machines);
+
+    for (const claim of claims) {
+      let remaining = claim.grams * scale;
+      if (remaining <= 0) continue;
+      const others = inventory.filter(s =>
+        s.id !== claim.spool.id && s.material === claim.spool.material && (+s.weight || 0) > 0);
+      const fallback = orderLoc ? spoolsByLocationPreference(others, orderLoc) : others;
+      for (const sp of [claim.spool, ...fallback]) {
+        if (remaining <= 0) break;
+        const avail = +sp.weight || 0;
+        if (avail <= 0) continue;
+        const take = Math.min(avail, remaining);
+        drawFrom(sp, take, order, c.today);
+        remaining -= take;
+        deducted += take;
+        if (!spools.includes(sp.id)) spools.push(sp.id);
+        if (isLowStock(sp, settings) && !nowLow.some(x => x.id === sp.id)) nowLow.push(sp);
+      }
+    }
+    return { deducted, spools, nowLow };
+  }
+
+  /**
    * Take a job's materials off the shelf.
    *
-   * `ctx`: `{ settings, inventory, consumables, machines, today }`.
+   * `ctx`: `{ settings, inventory, consumables, machines, today, actualGrams }`.
+   * `actualGrams` is what the PRINTER says the job used, when anything
+   * measured it; absent, the estimate is deducted exactly as before.
    * `opts.skipRender` suppresses only the inventory redraw, as it did before.
    *
    * The shortfall rule matters and is easy to lose: a part draws from the spool
@@ -173,29 +293,24 @@
       }
     };
 
-    for (const part of (order.parts || [])) {
-      // A multicolour part is several filaments in one part: each colour's
-      // grams come out of its own spool, times the part's quantity.
-      if (part.colours && part.colours.length) {
-        const perQty = Math.max(1, +part.qty || 1);
-        for (const col of part.colours) {
-          const primary = col.filamentId && inventory.find(i => i.id === col.filamentId);
-          if (!primary) continue;
-          const grams = Math.max(0, (+col.grams || 0) * perQty);
-          if (grams <= 0) continue;
-          drawDown(primary, grams);
-        }
-        continue;
-      }
-      if (!part.filamentId || !part.printWeight) continue;
-      const primary = inventory.find(i => i.id === part.filamentId);
-      if (!primary) continue;
-      // Grams the spool-switch flow already took off other spools are not owed
-      // again — otherwise switching spools mid-print charges the job twice.
-      const extra = (part.additionalSpools || []).reduce((s, a) => s + (+a.weight || 0), 0);
-      const remaining = Math.max(0, partGramsConsumed(part) - extra);
-      if (remaining <= 0) continue;
-      drawDown(primary, remaining);
+    /* WHAT THE JOB OWES, AND WHAT IT ACTUALLY USED.
+     *
+     * The claims are the estimate: each part's grams, off the spool it was
+     * assigned. `scale` is how much of that estimate the print actually got
+     * through — 1 when nothing measured it, which is every job Khayt has ever
+     * deducted for, so this changes nothing on its own.
+     *
+     * A print that stopped at 40% used about 40% of its filament, and the
+     * printer is the only thing that knows. Scaling the claims rather than
+     * deducting one lump keeps the split intact: each part still draws from
+     * its own spool, in its own proportion.
+     */
+    const claims = claimsFor(order, inventory);
+    const scale = scaleFor(claims, c.actualGrams);
+    for (const claim of claims) {
+      const grams = claim.grams * scale;
+      if (grams <= 0) continue;
+      drawDown(claim.spool, grams);
     }
 
     if (deductedAny) {
@@ -289,6 +404,7 @@
     USAGE_CAP, DEFAULT_LOW_STOCK,
     isLowStock, spoolsByLocationPreference, partGramsConsumed, orderLocationId,
     deductForOrder, deductPackaging,
+    claimsFor, claimedGrams, scaleFor, deductActual,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   global.KhaytOrderDeduction = api;

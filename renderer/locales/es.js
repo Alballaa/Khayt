@@ -2781,6 +2781,8 @@
   "qc.inspector": "Inspector",
   "qc.inspector_none": "—",
   "qc.inspector_required": "Selecciona un inspector",
+  "qc.weight_measured": "Medido por {source}: lo que consumió antes de detenerse.",
+  "qc.weight_typed": "Nada midió esta impresión, así que escribe lo que consumió. El filamento se descuenta del inventario.",
   "qc.severity": "Gravedad",
   "qc.sev.major": "Grave",
   "qc.sev.minor": "Leve",

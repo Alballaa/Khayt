@@ -1,0 +1,170 @@
+/**
+ * A print takes its filament off the shelf, whatever the result — and it takes
+ * what it ACTUALLY used.
+ *
+ * Two changes to how a shop's stock is kept, and both are deliberate:
+ *
+ *  1. A FAILED PRINT DEDUCTS. It used not to: the waste row recorded the grams
+ *     and their cost and the inventory was left alone, while the reprint later
+ *     deducted only its own. So the filament a failed attempt really burned
+ *     through never left the shelf, and a shop's stock read high by the grams
+ *     of every failure it had ever had.
+ *  2. THE AMOUNT CAN COME FROM THE PRINTER. A print that stopped at 40% did not
+ *     use what it was quoted, and the printer is the only thing that knows how
+ *     far it got.
+ *
+ * The claims split — which spool each part draws from, and the shortfall rule
+ * that covers what a chosen spool cannot supply — is unchanged, and
+ * test/order-deduction.test.js still proves it against the original.
+ */
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const D = require('../lib/order-deduction.js');
+const A = require('../lib/printer-actuals.js');
+
+const shelf = () => [
+  { id: 'S1', material: 'PLA', weight: 1000, cost: 90 },
+  { id: 'S2', material: 'PLA', weight: 500, cost: 90 },
+  { id: 'S3', material: 'PETG', weight: 800, cost: 120 },
+];
+const job = () => ({
+  id: 'J1',
+  parts: [
+    { filamentId: 'S1', printWeight: 100, supportWeight: 20, qty: 2 },  // 240 g
+    { filamentId: 'S3', printWeight: 60, qty: 1 },                      //  60 g
+  ],
+});
+
+test('the claims are the estimate, part by part, off the assigned spools', () => {
+  const claims = D.claimsFor(job(), shelf());
+  assert.deepEqual(claims.map((c) => [c.spool.id, c.grams]), [['S1', 240], ['S3', 60]]);
+  assert.equal(D.claimedGrams(claims), 300);
+});
+
+test('nothing measured means the estimate, which is what Khayt has always deducted', () => {
+  const claims = D.claimsFor(job(), shelf());
+  for (const nothing of [undefined, null, 0, -5, NaN, 'x']) {
+    assert.equal(D.scaleFor(claims, nothing), 1, String(nothing));
+  }
+  const inv = shelf();
+  D.deductForOrder(job(), { settings: { autoDeduct: true }, inventory: inv, today: 'd' });
+  assert.equal(inv[0].weight, 760);
+  assert.equal(inv[2].weight, 740);
+});
+
+test('a measured total scales every part, so each spool is charged its share', () => {
+  // 150 g measured against a 300 g estimate: half of each part, off each part's
+  // own spool. Deducting one lump from the first spool would charge PLA for
+  // PETG and leave the shelf wrong in two places rather than one.
+  const inv = shelf();
+  D.deductForOrder(job(), { settings: { autoDeduct: true }, inventory: inv, today: 'd', actualGrams: 150 });
+  assert.equal(inv[0].weight, 880, '120 g of the PLA');
+  assert.equal(inv[2].weight, 770, '30 g of the PETG');
+});
+
+test('a print that used MORE than it was quoted deducts more, rather than being capped', () => {
+  // A shelf that refuses to believe a measurement is a shelf that drifts.
+  const inv = shelf();
+  D.deductForOrder(job(), { settings: { autoDeduct: true }, inventory: inv, today: 'd', actualGrams: 600 });
+  assert.equal(inv[0].weight, 520, 'twice the estimate off the PLA');
+  assert.equal(inv[2].weight, 680);
+});
+
+test('a job with no estimate to scale falls back to the estimate path', () => {
+  // Scaling by a total when there is nothing to scale is a division by zero,
+  // and a shelf cannot be charged infinity.
+  const empty = { id: 'J2', parts: [] };
+  assert.equal(D.scaleFor(D.claimsFor(empty, shelf()), 500), 1);
+  const inv = shelf();
+  const out = D.deductForOrder(empty, { settings: { autoDeduct: true }, inventory: inv, today: 'd', actualGrams: 500 });
+  assert.deepEqual(out.notices, []);
+  assert.equal(inv[0].weight, 1000, 'nothing to draw from, so nothing is drawn');
+});
+
+/* ── A failed print ─────────────────────────────────────────────────────── */
+
+test('a failed print draws from the same spools a completion would have', () => {
+  const inv = shelf();
+  const out = D.deductActual(job(), 150, { settings: {}, inventory: inv, today: 'd' });
+  assert.equal(out.deducted, 150);
+  assert.deepEqual(out.spools, ['S1', 'S3']);
+  assert.equal(inv[0].weight, 880);
+  assert.equal(inv[2].weight, 770);
+  assert.equal(inv[0].usageHistory[0].orderId, 'J1', 'and the spool remembers which job');
+});
+
+test('a failed print does not mark the job deducted, so the reprint still pays', () => {
+  const order = job();
+  const inv = shelf();
+  D.deductActual(order, 100, { settings: {}, inventory: inv, today: 'd' });
+  assert.equal(order.materialDeducted, undefined,
+    'the job is not done — the reprint must deduct its own');
+  D.deductForOrder(order, { settings: { autoDeduct: true }, inventory: inv, today: 'd' });
+  assert.equal(inv[0].weight, 1000 - 80 - 240, 'the failed attempt AND the reprint');
+});
+
+test('the shortfall rule still holds: a spool that ran out is covered by its siblings', () => {
+  const inv = shelf();
+  inv[0].weight = 50;                    // S1 nearly empty
+  const out = D.deductActual(job(), 300, { settings: {}, inventory: inv, today: 'd' });
+  assert.equal(out.deducted, 300);
+  assert.equal(inv[0].weight, 0, 'the assigned spool is emptied first');
+  assert.equal(inv[1].weight, 500 - 190, 'and the rest comes off the other PLA');
+  assert.equal(inv[2].weight, 740);
+});
+
+test('a failed print takes nothing when there is nothing to take', () => {
+  for (const grams of [0, -1, null, undefined, 'x']) {
+    const inv = shelf();
+    assert.deepEqual(D.deductActual(job(), grams, { settings: {}, inventory: inv, today: 'd' }),
+      { deducted: 0, spools: [], nowLow: [] }, String(grams));
+    assert.equal(inv[0].weight, 1000);
+  }
+  const inv = shelf();
+  assert.equal(D.deductActual({ id: 'J3', parts: [] }, 100, { settings: {}, inventory: inv, today: 'd' }).deducted, 0);
+});
+
+test('a spool that goes low is reported, so the shop can order more', () => {
+  const inv = shelf();
+  inv[0].weight = 300;                   // 240 g comes off it, leaving 60
+  const out = D.deductActual(job(), 300, { settings: { lowStockThreshold: 200 }, inventory: inv, today: 'd' });
+  assert.equal(inv[0].weight, 60);
+  assert.ok(out.nowLow.some((s) => s.id === 'S1'), 'the PLA is under its threshold');
+  assert.ok(!out.nowLow.some((s) => s.id === 'S3'), 'and the PETG, which is not, is not reported');
+});
+
+/* ── What the printer says a failed print got through ───────────────────── */
+
+test('the measured grams are used, and only when something measured them', () => {
+  const now = Date.now();
+  const estimate = { printTime: 8, weightG: 300 };
+  const measured = A.measuredSoFar({
+    estimate,
+    completion: { at: now - 1000, actuals: { filamentGrams: 96, durationS: 3600, source: 'moonraker' } },
+    now,
+  });
+  assert.deepEqual(measured, { grams: 96, source: 'moonraker' });
+
+  // NOT the estimate. `prefillActuals` falls back to it, which is right for a
+  // completion and exactly wrong for a failure: offering the whole-job figure
+  // as the default invites a shop to confirm a number that is certainly too
+  // big, and the grams come off the shelf now.
+  assert.equal(A.prefillActuals({ estimate, completion: null, now }).weightG, 300);
+  assert.equal(A.measuredSoFar({ estimate, completion: null, now }), null);
+
+  // A printer that reports time but not filament — OctoPrint, PrusaLink and
+  // Bambu, for reasons lib/printer-actuals.js explains at length — measures
+  // nothing here.
+  assert.equal(A.measuredSoFar({
+    estimate,
+    completion: { at: now - 1000, actuals: { filamentGrams: null, durationS: 3600, source: 'octoprint' } },
+    now,
+  }), null);
+
+  // And a reading too old to be about this job is not a reading.
+  assert.equal(A.measuredSoFar({
+    estimate,
+    completion: { at: now - 1000 * 60 * 60 * 24 * 30, actuals: { filamentGrams: 96, source: 'moonraker' } },
+    now,
+  }), null);
+});

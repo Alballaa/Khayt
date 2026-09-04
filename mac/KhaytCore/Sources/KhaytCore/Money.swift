@@ -244,6 +244,13 @@ public struct JobEdited: Decodable, Sendable {
 public struct QcFailure: Decodable, Sendable {
     public let order: JSONValue
     public let waste: JSONValue
+    /// The shelf as the failed print left it. A failure takes its filament off
+    /// the spools it was printing from, so this has to be written with the
+    /// order and the waste row — three records that land together or not at all.
+    public let inventory: [JSONValue]
+    /// What actually came off, and which spools it came off.
+    public let deducted: Double
+    public let spools: [String]
 }
 
 /// A new job, and the shop's counters as taking it left them.

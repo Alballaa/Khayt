@@ -444,6 +444,96 @@ struct MoveJobTests {
 /// rules, serialise, swap — against a COPY of a real store in a temp directory.
 /// A write path whose only trial run was on a dictionary has not been tested
 /// where it can lose anything.
+/// A failed print takes its filament off the shelf, through the app's own path.
+///
+/// The RULE is `lib/qc-failure.js` and `lib/order-deduction.js`, tested where
+/// they live. What is tested here is that this app WRITES the shelf the rule
+/// hands back — it used not to, and could not have, because the bridge returned
+/// the order and the waste row and dropped the inventory. A deduction that
+/// happens inside JavaScriptCore and is thrown away is exactly the shape of the
+/// bug it was meant to fix.
+@MainActor
+struct QcFailureShelfTests {
+
+    static func book() -> [String: JSONValue] {
+        [
+            "printLog": .array([.object([
+                "id": .string("J1"), "project": .string("Bracket"), "status": .string("qc"),
+                "material": .string("PLA"), "price": .number(400), "rev": .number(2),
+                "parts": .array([.object([
+                    "filamentId": .string("S1"), "printWeight": .number(200), "qty": .number(1),
+                    "baseCost": .number(30),
+                ])]),
+            ])]),
+            "inventory": .array([
+                .object(["id": .string("S1"), "material": .string("PLA"), "weight": .number(1000),
+                         "cost": .number(90), "rev": .number(4)]),
+                .object(["id": .string("S9"), "material": .string("PETG"), "weight": .number(500),
+                         "cost": .number(120), "rev": .number(1)]),
+            ]),
+            "consumables": .array([]), "machines": .array([]), "clients": .array([]),
+            "wasteLog": .array([]),
+            "settings": .object(["autoDeduct": .bool(true), "lowStockThreshold": .number(200)]),
+        ]
+    }
+
+    @Test("a failed print's grams leave the shelf, and only its spool is stamped")
+    func shelfIsWritten() async throws {
+        let engine = try KhaytEngine()
+        let url = try MoveJobOnDiskTests.freshCopy(Self.book())
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+
+        try await StoreWriter.update(storeURL: url, owns: { true }, whoHasIt: { nil }) { root in
+            let before = Shop.rows(root, "inventory")
+            let orders = Shop.rows(root, "printLog")
+            let out = try await engine.recordQcFailure(
+                order: orders[0], failureType: "warping", severity: "major",
+                reason: "Lifted", weight: 80, inspector: nil,
+                inventory: before, now: Date(), wasteId: "W-1", defaultReason: "QC fail",
+                settings: Shop.settings(root), machines: [], today: Shop.today())
+            #expect(out.deducted == 80)
+            #expect(out.spools == ["S1"])
+            var undo: [Shop.ChangedRecord] = []
+            Shop.write(&root, "printLog", changed: [out.order], before: orders, into: &undo)
+            Shop.write(&root, "inventory", changed: out.inventory, before: before, into: &undo)
+            root["wasteLog"] = .array([out.waste])
+        }
+
+        let after = try MoveJobOnDiskTests.read(url)
+        #expect(MoveJobTests.number(MoveJobTests.row(after, "inventory", "S1")?["weight"]) == 920,
+                "the 80g it got through is off the spool")
+        #expect(MoveJobTests.number(MoveJobTests.row(after, "inventory", "S1")?["rev"]) == 5,
+                "and that spool is stamped, so the correction reaches the shop's other devices")
+        #expect(MoveJobTests.number(MoveJobTests.row(after, "inventory", "S9")?["rev"]) == 1,
+                "while the spool it never touched is not")
+        // The waste row remembers where the filament came from, so a host that
+        // lets a shop undo the failure can put it back.
+        if case .array(let log)? = after["wasteLog"], case .object(let waste)? = log.first {
+            #expect(MoveJobTests.string(waste["spoolId"]) == "S1")
+            #expect(MoveJobTests.number(waste["weight"]) == 80)
+            #expect((MoveJobTests.number(waste["cost"]) ?? 0) > 0, "and what it cost")
+        } else {
+            Issue.record("no waste row")
+        }
+    }
+
+    @Test("a failure with no weight takes nothing off the shelf")
+    func noWeight() async throws {
+        let engine = try KhaytEngine()
+        var root = Self.book()
+        let before = Shop.rows(root, "inventory")
+        let out = try await engine.recordQcFailure(
+            order: Shop.rows(root, "printLog")[0], failureType: "other", severity: "minor",
+            reason: "", weight: 0, inspector: nil, inventory: before, now: Date(),
+            wasteId: "W-1", defaultReason: "QC fail",
+            settings: Shop.settings(root), machines: [], today: Shop.today())
+        #expect(out.deducted == 0)
+        #expect(out.spools.isEmpty)
+        root["inventory"] = .array(out.inventory)
+        #expect(MoveJobTests.number(MoveJobTests.row(root, "inventory", "S1")?["weight"]) == 1000)
+    }
+}
+
 @MainActor
 struct MoveJobOnDiskTests {
 

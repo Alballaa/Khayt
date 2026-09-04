@@ -108,13 +108,17 @@ test('computeQcMetrics: defect categories + RMA count/cost', () => {
   assert.equal(m.rmaCost, 12.5);
 });
 
-test('recordQcFailure: writes waste row + defect + qcStatus, keeps accounting in wasteLog', () => {
+test('recordQcFailure: writes waste row + defect + qcStatus, AND takes the filament off the shelf', () => {
   global.wasteLog = [];
-  global.inventory = [{ material: 'PLA', weight: 1000, cost: 100 }]; // 0.1/g
+  global.inventory = [{ id: 'S1', material: 'PLA', weight: 1000, cost: 100 }]; // 0.1/g
+  global.settings = {};
+  global.machines = [];
+  global.localDateStr = () => '2026-09-06';
   global.uid = (p) => p + '-1';
   global.num = (v, d) => { const n = Number(v); return Number.isFinite(n) ? n : d; };
   global.t = (k) => k;
-  const order = { id: 'O9', material: 'PLA', machineId: 'M1' };
+  const order = { id: 'O9', material: 'PLA', machineId: 'M1',
+                  parts: [{ filamentId: 'S1', printWeight: 200, qty: 1 }] };
   flows.recordQcFailure(order, { failureType: 'warping', severity: 'major', reason: 'edge lift', weight: 50, inspector: 'op1' });
   assert.equal(global.wasteLog.length, 1);
   assert.equal(global.wasteLog[0].failureType, 'warping');
@@ -126,4 +130,30 @@ test('recordQcFailure: writes waste row + defect + qcStatus, keeps accounting in
   assert.equal(order.defects[0].type, 'warping');
   assert.equal(order.defects[0].severity, 'major');
   assert.ok(order.qcFailedAt && order.qcAt);
+
+  /* THE SHELF. It used to be left alone — the waste row recorded the grams and
+   * their cost, and the inventory was untouched — so the filament a failed
+   * attempt really burned through never left the shelf, and a shop's stock read
+   * high by the grams of every failure it had ever had. */
+  assert.equal(global.inventory[0].weight, 950, 'the 50g it got through came off the spool');
+  assert.equal(global.wasteLog[0].spoolId, 'S1', 'and the row remembers which spool, so it can be put back');
+  assert.equal(global.inventory[0].usageHistory[0].orderId, 'O9',
+    'and the spool remembers which job burned it');
+});
+
+test('a failed print with no parts to draw from takes nothing, and says nothing came off', () => {
+  // A job whose parts carry no filament — Bed Ready logs these from printer
+  // history — has no spool to charge. The waste is still recorded.
+  global.wasteLog = [];
+  global.inventory = [{ id: 'S1', material: 'PLA', weight: 1000, cost: 100 }];
+  global.settings = {};
+  global.machines = [];
+  global.localDateStr = () => '2026-09-06';
+  global.uid = (p) => p + '-1';
+  global.t = (k) => k;
+  const order = { id: 'O10', material: 'PLA', parts: [] };
+  const out = flows.recordQcFailure(order, { failureType: 'other', weight: 50 });
+  assert.equal(global.inventory[0].weight, 1000);
+  assert.equal(out.deducted, 0);
+  assert.equal(global.wasteLog[0].weight, 50, 'the waste is still recorded and still costed');
 });

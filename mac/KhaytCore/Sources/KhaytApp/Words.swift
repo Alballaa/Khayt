@@ -430,6 +430,7 @@ final class Words {
         "plib.material", "plib.tags_short", "plib.group_ph", "set.store_size",
         "tab.clients", "doc.invoice", "doc.quotation", "common.close",
         "inv.qr_failed",
+        "qc.weight_typed",
         // The machines
         "mach.need_name",
         "mach.saved",

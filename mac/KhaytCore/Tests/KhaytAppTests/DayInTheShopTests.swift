@@ -122,15 +122,22 @@ struct DayInTheShopTests {
                 order: target, failureType: "warping", severity: "major",
                 reason: "Lifted at hour six", weight: 60, inspector: nil,
                 inventory: Shop.rows(root, "inventory"), now: Date(),
-                wasteId: "W-1", defaultReason: "QC fail")
+                wasteId: "W-1", defaultReason: "QC fail",
+                settings: Shop.settings(root), machines: Shop.rows(root, "machines"),
+                today: Shop.today())
             var rows = orders
             if let at = rows.firstIndex(where: { Shop.recordId($0) == jobId }) { rows[at] = out.order }
             root["printLog"] = .array(rows)
             root["wasteLog"] = .array([out.waste])
+            // The shelf, in the same swap: a failed print takes its filament
+            // off the spools it was printing from.
+            root["inventory"] = .array(out.inventory)
         }
         var after = try book()
         #expect(Self.string(Self.row(after, "printLog", jobId)?["qcStatus"]) == "fail")
         #expect(Self.rows(after, "wasteLog").count == 1, "a failed inspection is in the waste log")
+        #expect(Self.number(Self.row(after, "inventory", "S1")?["weight"]) == 940,
+                "and the 60g it got through came off the spool, not just into the log")
 
         // ── Printed again, and finished ────────────────────────────────────
         for stage in [Stage.pending, .printing, .qc, .completed] {
@@ -144,19 +151,15 @@ struct DayInTheShopTests {
         let finished = try #require(Self.row(after, "printLog", jobId))
         #expect(Self.string(finished["status"]) == "completed")
         #expect(Self.string(finished["completedAt"]) != nil)
-        // THE COLLECTIONS HAVE TO AGREE — as far as Khayt makes them agree.
-        //
-        // 200g came off the spool when the job finished. The 60g the failed
-        // inspection wrote into the waste log did NOT: `lib/qc-failure.js`
-        // records the waste and leaves the shelf alone, which the renderer
-        // calls "unchanged accounting" and does deliberately. Pinned here, and
-        // said plainly, because it means the shelf overstates stock by every
-        // failed inspection's grams and the two apps at least agree that it
-        // does. Changing it is a decision about a shop's money, not a tidy-up.
-        #expect(Self.number(Self.row(after, "inventory", "S1")?["weight"]) == 800,
-                "1000g less the 200 the finished print took")
+        // THE COLLECTIONS HAVE TO AGREE, and every gram that went through the
+        // machine is off the shelf: the 60 the failed attempt burned and the
+        // 200 the reprint finished with. A book where a print failed and
+        // wasted 200g while the spool still holds them has told the shop it
+        // has filament it has already burned.
+        #expect(Self.number(Self.row(after, "inventory", "S1")?["weight"]) == 740,
+                "1000g less the 60 it wasted and the 200 the reprint took")
         #expect(Self.number(Self.rows(after, "wasteLog").first?["weight"]) == 60,
-                "while the 60g it wasted is recorded, and costed, in the log")
+                "and the 60 is recorded, and costed, in the waste log as well")
 
         // ── Handed over, and paid ──────────────────────────────────────────
         try await write { root in
