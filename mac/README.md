@@ -232,6 +232,20 @@ and every screen except the book. `KhaytCore` came first because the
 alternative, screens against a half-trusted engine, is how the two apps come to
 disagree about a shop's money.
 
+### How the library is ordered
+
+**The default is not "by name".** `renderer/printfiles.js` sorts favourites
+first, then most recently updated, and a shop that switches between the two apps
+and finds its models in a different order has been given two libraries. This app
+opens the same way round, and View ▸ Sort Library By offers name, size, last run
+and times printed. The choice is remembered.
+
+Two small decisions inside those orders, both tested: **by size is biggest
+first**, because the reason to sort by size is to find what is filling the disk;
+and **a model that has never run sorts last**, because an absent date must read
+as "long ago" rather than "now" — otherwise the least useful models would be the
+first thing a shop sees under "Last run".
+
 ### The keyboard in the library
 
 Arrow keys move the selection, ⇧ extends it, ⌘A selects everything on the shelf,

@@ -153,6 +153,53 @@ struct LibraryFile: Identifiable, Decodable, Hashable, Sendable {
     }
 }
 
+/// How the library is ordered.
+///
+/// The default is not "by name". `renderer/printfiles.js` sorts favourites
+/// first and then most recently updated, and a shop that switches between the
+/// two apps and finds its models in a different order has been given two
+/// libraries. This app opens the same way round and offers the rest.
+enum LibrarySort: String, CaseIterable, Identifiable, Sendable {
+    case khayt, name, size, lastPrinted, timesPrinted
+
+    var id: String { rawValue }
+
+    /// The key each one is named by, so the menu speaks the shop's language.
+    var key: String {
+        switch self {
+        case .khayt: "mac.sort_default"
+        case .name: "mac.name"
+        case .size: "set.store_size"
+        case .lastPrinted: "mac.last_run"
+        case .timesPrinted: "mac.printed"
+        }
+    }
+
+    func order(_ a: LibraryFile, _ b: LibraryFile) -> Bool {
+        switch self {
+        case .khayt:
+            if a.isFavourite != b.isFavourite { return a.isFavourite }
+            return (a.updatedAtDate ?? .distantPast) > (b.updatedAtDate ?? .distantPast)
+        case .name:
+            return a.title.localizedStandardCompare(b.title) == .orderedAscending
+        case .size:
+            // Biggest first: the reason to sort by size is to find what is
+            // filling the disk, not to admire the small ones.
+            return (a.size ?? 0) > (b.size ?? 0)
+        case .lastPrinted:
+            return (a.lastPrintedDate ?? .distantPast) > (b.lastPrintedDate ?? .distantPast)
+        case .timesPrinted:
+            if a.printCount != b.printCount { return a.printCount > b.printCount }
+            return a.title.localizedStandardCompare(b.title) == .orderedAscending
+        }
+    }
+}
+
+extension LibraryFile {
+    var updatedAtDate: Date? { Order.day(updatedAt) }
+    var lastPrintedDate: Date? { Order.day(lastPrinted) }
+}
+
 extension LibraryFile.Colour {
     /// The swatch colour. An unparseable or absent hex shows as nothing rather
     /// than as black, which would read as a real filament choice.

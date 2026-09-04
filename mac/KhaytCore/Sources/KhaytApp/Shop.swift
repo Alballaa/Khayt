@@ -70,6 +70,8 @@ final class Shop {
     var fileSelection: Set<LibraryFile.ID> = []
     var customerSelection: Customer.ID?
     var shelf: Shelf = .jobs(nil)
+    /// Opens the way Khayt opens. See `LibrarySort`.
+    var librarySort: LibrarySort = .khayt
     var search = ""
 
     /// Which shelf of the book is open. One selection rather than two, because
@@ -479,7 +481,7 @@ final class Shop {
                     || ($0.tags ?? []).contains { $0.lowercased().contains(q) }
             }
         }
-        return rows.sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+        return rows.sorted(by: librarySort.order)
     }
 
     /// The inspector shows one model. More than one selected is a different
