@@ -906,47 +906,34 @@ async function generateProformaInvoice(orderId) {
  *
  * @returns {{ok: boolean, missing: string[]}} missing holds i18n keys
  */
+/**
+ * ZATCA Phase 1 — the QR a Saudi tax invoice must carry.
+ *
+ * The payload is lib/zatca-qr.js: five BER-TLV tags, base64'd. It was here,
+ * which meant only this window could produce a compliant invoice.
+ *
+ * These two keep their names because the rest of this file and its tests use
+ * them, and because the readiness check needs the shop's name resolved through
+ * the content languages — which is the app's job, not the module's.
+ */
 function zatcaQrReadiness(s) {
-  const cfg = s || {};
-  const missing = [];
-  if (!String((cfg.bizName || cfg.shopName || '')).trim()
-      && !(typeof shopName === 'function' && String(shopName() || '').trim())) {
-    missing.push('inv.qr_missing_seller');
-  }
-  if (!String(cfg.vat || '').trim()) missing.push('inv.qr_missing_vat');
-  return { ok: missing.length === 0, missing };
+  return ZatcaQr().readiness(s || {}, typeof shopName === 'function' ? shopName() : '');
 }
 
-function buildZatcaTLV({ sellerName, vatNumber, timestamp, total, vatAmount }) {
-  const enc = new TextEncoder();
-  function tlv(tag, value) {
-    const bytes = enc.encode(value);
-    const len = bytes.length;
-    // BER-TLV: use two-byte length for values > 127 bytes (0x81 + length byte)
-    let header;
-    if (len <= 127) {
-      header = new Uint8Array([tag, len]);
-    } else if (len <= 255) {
-      header = new Uint8Array([tag, 0x81, len]);
-    } else {
-      header = new Uint8Array([tag, 0x82, (len >> 8) & 0xff, len & 0xff]);
-    }
-    const out = new Uint8Array(header.length + len);
-    out.set(header, 0); out.set(bytes, header.length);
-    return out;
+function buildZatcaTLV(fields) {
+  return ZatcaQr().buildTLV(fields, { base64: (bin) => btoa(bin) });
+}
+
+/** The QR payload, however this file happens to be loaded. */
+function ZatcaQr() {
+  if (ZatcaQr.cached) return ZatcaQr.cached;
+  if (typeof globalThis !== 'undefined' && globalThis.KhaytZatcaQr) {
+    ZatcaQr.cached = globalThis.KhaytZatcaQr;
+    return ZatcaQr.cached;
   }
-  const fields = [
-    tlv(1, String(sellerName || '')),
-    tlv(2, String(vatNumber  || '')),
-    tlv(3, String(timestamp  || '')),
-    tlv(4, String(total      || '')),
-    tlv(5, String(vatAmount  || '')),
-  ];
-  const totalLen = fields.reduce((s, b) => s + b.length, 0);
-  const combined = new Uint8Array(totalLen);
-  let off = 0; for (const b of fields) { combined.set(b, off); off += b.length; }
-  let bin = ''; for (let i = 0; i < combined.length; i++) bin += String.fromCharCode(combined[i]);
-  return btoa(bin);
+  try { ZatcaQr.cached = require('../lib/zatca-qr.js'); }
+  catch (e) { ZatcaQr.cached = null; }
+  return ZatcaQr.cached;
 }
 
 /* ============================================================

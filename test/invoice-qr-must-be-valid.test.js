@@ -39,7 +39,13 @@ function lift(name, deps = {}) {
   return new Function(...keys, `${body}; return ${name};`)(...keys.map((k) => deps[k]));
 }
 
-const ready = lift('zatcaQrReadiness', { shopName: () => '' });
+/* The rule moved to lib/zatca-qr.js so a second app could produce a compliant
+   invoice, and is CALLED here rather than lifted out of the renderer — a test
+   that re-implements what it is checking agrees with your mistake.
+   `sellerName` is an argument now: the shop's name lives in whichever content
+   language it writes, and resolving that is the app's job, not the module's. */
+const QR = require('../lib/zatca-qr.js');
+const ready = (settings) => QR.readiness(settings, '');
 
 test('a fully configured shop can produce a QR', () => {
   assert.deepEqual(ready({ bizName: 'Khayt Shop', vat: '300000000000003' }), { ok: true, missing: [] });
@@ -67,9 +73,9 @@ test('both missing are both reported, so one fix does not reveal another', () =>
 test('the builder still produces an empty tag if called directly', () => {
   // The gate is what protects the invoice; this pins WHY the gate is needed, so
   // removing it cannot look harmless.
-  const build = lift('buildZatcaTLV', {});
-  global.btoa = (b) => Buffer.from(b, 'binary').toString('base64');
-  const b64 = build({ sellerName: 'S', vatNumber: '', timestamp: 'T', total: '1', vatAmount: '0' });
+  const b64 = QR.buildTLV(
+    { sellerName: 'S', vatNumber: '', timestamp: 'T', total: '1', vatAmount: '0' },
+    { base64: (b) => Buffer.from(b, 'binary').toString('base64') });
   const buf = Buffer.from(b64, 'base64');
   // tag 1 is 'S' (len 1), so tag 2 starts at offset 3.
   assert.equal(buf[3], 2, 'tag 2 is not where expected');
@@ -122,4 +128,52 @@ test('all four strings exist in every locale', () => {
       assert.ok(s2.includes(`"${k}"`), `${f} is missing ${k}`);
     }
   }
+});
+
+/* ── The payload, now that something other than a browser can build it ─────── */
+
+test('the base64 step is asked for, not guessed at', () => {
+  // A module that silently produced no QR on a platform it did not recognise
+  // is the failure this whole file exists to prevent. On a host with neither
+  // btoa nor Buffer it must refuse loudly.
+  const fields = { sellerName: 'S', vatNumber: 'V', timestamp: 'T', total: '1', vatAmount: '0' };
+  assert.match(QR.buildTLV(fields, { base64: () => 'SUPPLIED' }), /SUPPLIED/,
+    'the host base64 is ignored');
+});
+
+test('the five tags are the five tags, in order', () => {
+  const b64 = QR.buildTLV({
+    sellerName: 'Tuwaiq', vatNumber: '300000000000003',
+    timestamp: '2026-09-04T09:15:00Z', total: '1150.00', vatAmount: '150.00',
+  }, { base64: (b) => Buffer.from(b, 'binary').toString('base64') });
+  const buf = Buffer.from(b64, 'base64');
+
+  const tags = [];
+  let i = 0;
+  while (i < buf.length) {
+    const tag = buf[i];
+    const len = buf[i + 1];
+    tags.push([tag, buf.subarray(i + 2, i + 2 + len).toString('utf8')]);
+    i += 2 + len;
+  }
+  assert.deepEqual(tags, [
+    [1, 'Tuwaiq'],
+    [2, '300000000000003'],
+    [3, '2026-09-04T09:15:00Z'],
+    [4, '1150.00'],
+    [5, '150.00'],
+  ]);
+});
+
+test('a seller name past 127 bytes still encodes its length', () => {
+  // BER-TLV needs a two-byte length above 127, and an Arabic shop name reaches
+  // it quickly: every character is two bytes in UTF-8.
+  const long = 'ت'.repeat(80);                       // 160 bytes
+  const b64 = QR.buildTLV({ sellerName: long, vatNumber: 'V', timestamp: 'T', total: '1', vatAmount: '0' },
+    { base64: (b) => Buffer.from(b, 'binary').toString('base64') });
+  const buf = Buffer.from(b64, 'base64');
+  assert.equal(buf[0], 1, 'tag 1');
+  assert.equal(buf[1], 0x81, 'the long-form length marker');
+  assert.equal(buf[2], 160, 'and the length itself');
+  assert.equal(buf.subarray(3, 3 + 160).toString('utf8'), long);
 });
