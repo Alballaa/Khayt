@@ -30,14 +30,18 @@ const brHome = read('renderer/bedready-home.js');
 const brHtml = read('renderer/bedready.html');
 
 test('a kit survives a Settings save', () => {
-  // saveSettingsFromForm() rebuilds `settings` from the DOM. A kit is created by
-  // the log's batch bar and has no field on that page, so without this line it
-  // is dropped the next time anyone saves Settings for an unrelated reason.
-  const at = settingsJs.indexOf('function saveSettingsFromForm(');
-  assert.ok(at > -1, 'saveSettingsFromForm went missing');
-  const body = settingsJs.slice(at, settingsJs.indexOf('\n}', at));
-  assert.match(body, /kits:\s*settings\.kits \|\| \[\]/,
+  // The Settings save rebuilds the record from the form. A kit is created by
+  // the log's batch bar and has no field on that page, so unless the rule
+  // carries it across, it is dropped the next time anyone saves Settings for
+  // an unrelated reason. The rule is lib/settings-edit.js now (it was a literal
+  // in settings.js), so this asks the rule rather than reading the source.
+  require('../lib/tax.js');
+  const { apply } = require('../lib/settings-edit.js');
+  const kits = [{ id: 'k1', name: 'Kings', jobs: ['J1'] }];
+  const after = apply({ kits }, { phone: '050' }, { year: 2026 });
+  assert.deepEqual(after.kits, kits,
     'kits are not carried across the settings rebuild — they vanish on the next Settings save');
+  assert.deepEqual(apply({}, {}, { year: 2026 }).kits, [], 'and a shop with none gets the empty list its readers expect');
 });
 
 test('the rollup never shows a total without saying what is behind it', () => {

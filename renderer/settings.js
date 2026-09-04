@@ -5363,220 +5363,83 @@ function saveSettingsFromPanel() {
   saveSettingsFromForm();
 }
 
-function saveSettingsFromForm() {
-  const accepted = $$('#acceptedPaymentsList input[data-pm]')
-    .filter(cb => cb.checked).map(cb => cb.dataset.pm);
-  settings = {
-    /* START FROM WHAT IS ALREADY THERE.
-     *
-     * This literal REPLACES settings wholesale, so every key it does not name
-     * is destroyed — silently, on a save the shop made for an unrelated reason.
-     * The hand-maintained "preserve" entries further down are what that costs:
-     * a list that has to be extended every time anyone adds a setting, and was
-     * not. Nineteen keys were being dropped by the time this was found,
-     * including `cloud` — so entering a business name signed the shop out of
-     * Khayt Cloud and destroyed its sync keyset — plus `slicers`, the `privacy`
-     * choices, and the migration flags, which then re-ran.
-     *
-     * Spreading first makes omission the safe case. The explicit entries below
-     * still win; several of them do real work (lanApi migrates, tax recomputes,
-     * wipLimits rebuilds) and are not merely preserving.
-     */
-    ...settings,
-    /* The shop's own text, per language, read from whatever fields are on
-     * screen — business name, tagline, address, invoice footer and terms. They
-     * were ten hard-coded lines here, which is why a shop could only ever have
-     * an English and an Arabic one. A language the shop has stopped using keeps
-     * whatever it had: removing a language must not erase the text. */
-    ...readContentFields(),
-    vat:       $('#set_vat').value.trim(),
-    cr:        $('#set_cr').value.trim(),
-    phone:     $('#set_phone').value.trim(),
-    email:     $('#set_email').value.trim(),
-    lang:      $('#set_lang').value,
-    theme:       $('#set_theme').value,
-    designTheme: $('#set_designTheme')?.value || settings.designTheme || 'studio',
-    accent:      $('#set_accent')?.value || settings.accent || 'cyan',
-    invPrefix: $('#set_invPrefix').value.trim() || 'INV',
-    autoDeduct: $('#set_autoDeduct').checked,
-    lowStockThreshold: Math.max(0, num($('#set_lowStock').value, 200)),
-    // 1.3 additions
-    bankName:      $('#set_bankName').value.trim(),
-    accountHolder: $('#set_accountHolder').value.trim(),
-    iban:          $('#set_iban').value.trim().replace(/\s+/g, ''),
-    acceptedPayments: accepted,
-    useHijri:      $('#set_useHijri').checked,
-    useArabicNumerals: $('#set_useArabicNumerals').checked,
-    autoBackup:    $('#set_autoBackup').checked,
-    // Written by the folder pickers, not by a field the shop can mistype — a
-    // path typed by hand is a path that silently does not exist.
-    printLibrary:  settings.printLibrary || {},
-    // Same reason as printLibrary above: kits are written by the log's batch bar,
-    // not by any field on this page, so rebuilding settings from the form would
-    // drop them — silently, on the next unrelated Settings save.
-    kits:          settings.kits || [],
-    coachTips:     $('#set_coachTips') ? $('#set_coachTips').checked : (settings.coachTips !== false),
-    enableVat:     $('#set_enableVat').checked,
-    vatRate:       Math.max(0, num($('#set_vatRate').value, 15)),
-    bizLogo:       settings.bizLogo || '',
-    invAccentColor:$('#set_invAccent').value || '#5E2E14',
-    invTemplate:   $('#set_invTemplate')?.value || 'classic',
-    invoiceBilingual: $('#set_invoiceBilingual')?.value || 'auto',
-    // Falls back to the stored value, not to a literal: the picker is hidden
-    // while a document is single-language or ZATCA-pinned, and a hidden control
-    // must not quietly reset a choice the owner made earlier.
-    invoiceSecondLang: $('#set_invoiceSecondLang')?.value || settings.invoiceSecondLang || 'ar',
-    // Reset writes '' while the picker still shows the default colour, so an
-    // untouched picker must not silently re-pin that default as an override.
-    // This must compare against whatever the picker uses as its default, which
-    // is now the theme's colour. Leaving a literal here while the swatch shows
-    // the theme's would make an untouched picker read as a deliberate choice
-    // and persist it — pinning that theme's colour so low stock stopped
-    // following a later theme change.
-    lowStockColor: (settings.lowStockColor === ''
-      && $('#set_lowStockColor')?.value === themeLowStockColor())
-      ? '' : ($('#set_lowStockColor')?.value || ''),
-    quotePrefix:   $('#set_quotePrefix').value.trim() || 'QUO',
-    useIcloud:     $('#set_useIcloud').checked,
-    monthlyGoal:   Math.max(0, num($('#set_monthlyGoal').value, 0)),
-    supplierPhone: $('#set_supplierPhone').value.trim(),
-    // 2.0 worldwide / regional
-    currency:      $('#set_currency')?.value    || 'SAR',
-    enableZatca:   !!$('#set_enableZatca')?.checked,
-    // Written from the live profile so the legacy VAT fields above and the tax
-    // profile can never drift apart into two different answers.
-    tax: (() => {
-      const prof = KhaytTax.profileFromSettings(settings);
-      const mode = $('#set_taxMode')?.value || prof.mode;
-      const rate = +$('#set_vatRate')?.value;
-      const enabled = !!$('#set_enableVat')?.checked;
-      const rates = (settings.tax?.rates?.length && settings.tax.rates.length > 1)
-        ? settings.tax.rates
-        : (enabled && rate > 0 ? [{ id: 'vat', label: prof.rates[0]?.label || 'VAT', percent: rate }] : []);
-      return { country: $('#set_taxCountry')?.value || settings.tax?.country || '',
-               name: prof.name, registration: prof.registration, mode, rates };
-    })(),
-    firstRunDone:  true,
-    // Operational settings
-    minMarginPct:  Math.max(0, Math.min(100, num($('#set_minMarginPct')?.value, 0))),
-    expBudgets:    Object.fromEntries(EXP_CATEGORIES.map(c => [c, Math.max(0, num($(`#set_budget_${c}`)?.value, 0))])),
-    postChecklist: settings.postChecklist || [],
-    // Invoice numbering (managed by renderInvoiceNumberingSection — preserve as-is)
-    invNumPrefix:  settings.invNumPrefix  || 'INV',
-    invNumYear:    settings.invNumYear    || new Date().getFullYear(),
-    invNumNext:    settings.invNumNext    || 1,
-    invNumFormat:  settings.invNumFormat  || '{prefix}-{year}-{seq4}',
-    // New Feature 7: Working hours
-    workingHours: Object.fromEntries(
-      ['mon','tue','wed','thu','fri','sat','sun'].map(d => [d, Math.max(0, Math.min(24, num($(`#wh_${d}`)?.value, 0)))])
-    ),
-    holidays: settings.holidays || [],
-    // Business Mode — preserve current mode/firstRun (changed via mode toggle buttons)
-    mode:      settings.mode      || 'professional',
-    firstRun:  false,
-    customFields: settings.customFields || [],
-    // Feature 5 (new 8-pack): Email config — managed by renderEmailNotificationSettings, preserve as-is
-    emailConfig: settings.emailConfig || { provider: 'none', apiKey: '', fromEmail: '', fromName: '', domain: '', triggers: [] },
-    // SMS/WhatsApp config — managed by renderSmsNotificationSettings, preserve as-is
-    smsConfig: settings.smsConfig || { provider: 'none', channel: 'whatsapp' },
-    // Accounting sync — managed by renderAccountingSyncSettings, preserve as-is
-    accountingSync: settings.accountingSync || { enabled: false, format: 'generic', webhookUrl: '', secret: '', pushOnPaid: true },
-    // Payment providers — managed by renderIntegrationsSettings, preserve as-is
-    paymentProviders: settings.paymentProviders || {},
-    // Feature 7 (new 8-pack): Operator lock
-    operatorLockEnabled: !!$('#set_operatorLock')?.checked,
-    activeOperatorId: settings.activeOperatorId || null,
-    // Feature 8 (new 8-pack): Loyalty tiers
-    loyaltyEnabled: !!$('#set_loyaltyEnabled')?.checked,
-    loyaltyTiers:   settings.loyaltyTiers || [],
-    // Batch-2 Feature 10: Telegram — preserved from renderTelegramSettings
-    telegram: settings.telegram || { botToken: '', chatId: '', notifyOnComplete: false, notifyOnHold: false, notifyOnLowStock: false, notifyPrinterError: true, notifyPrinterOffline: true, notifyPrinterStall: false },
-    // Round 12 — preserve managed-in-place settings
-    webhooks:     settings.webhooks     || { enabled: false, secret: '', events: {} },
-    fixedCosts:   settings.fixedCosts   || [],
-    savedFilters: settings.savedFilters || [],
-    // Payment instructions (textarea, not auto-included by DOM reconstruction)
-    paymentInstructions: $('#set_paymentInstructions')?.value ?? settings.paymentInstructions ?? '',
-    betaAcknowledged: true, // legacy field — always true, beta phase is over
-    betaUpdates:       !!$('#set_betaUpdates')?.checked,
-    // Easy-wins batch: Calculator
-    quoteValidityDays: Math.max(1, num($('#set_quoteValidityDays')?.value, 7)),
-    /* Delivery estimates. Clamped to the same ranges the cloud endpoint enforces,
-       so a value that would be refused on publish is refused here where somebody
-       can see why — rather than silently failing to publish later.
-       `staleAfterHours` is not on the form: it is how long the shop's own figure
-       should be believed for, which is a property of the publish schedule rather
-       than a business decision, so it is preserved rather than edited. */
-    leadTime: {
-      ...(settings.leadTime || {}),
-      dailyHours:         Math.max(1, Math.min(24, num($('#set_leadDailyHours')?.value, 8))),
-      workingDaysPerWeek: Math.max(1, Math.min(7, num($('#set_leadDaysPerWeek')?.value, 5))),
-      finishingDays:      Math.max(0, Math.min(90, num($('#set_leadFinishingDays')?.value, 1))),
-      dispatchDays:       Math.max(0, Math.min(90, num($('#set_leadDispatchDays')?.value, 1))),
-      safetyDays:         Math.max(0, Math.min(90, num($('#set_leadSafetyDays')?.value, 1))),
-      publishToCloud:     !!$('#set_leadPublish')?.checked,
-    },
-    // Quote follow-up automation — preserve advanced fields, update toggle + window from form
-    quoteFollowUp: {
-      ...(settings.quoteFollowUp || { graceDays: 1, cooldownDays: 2, maxCount: 2 }),
-      enabled:    !!$('#set_quoteFollowUpEnabled')?.checked,
-      windowDays: Math.max(0, Math.min(60, num($('#set_quoteFollowUpWindow')?.value, 2))),
-    },
-    paymentReminder: {
-      ...(settings.paymentReminder || { cooldownDays: 3, maxCount: 3 }),
-      enabled:   !!$('#set_payReminderEnabled')?.checked,
-      graceDays: Math.max(0, Math.min(90, num($('#set_payReminderGrace')?.value, 3))),
-    },
-    minOrderAmount:    Math.max(0, num($('#set_minOrderAmount')?.value, 0)),
-    rushFeeEnabled:    !!$('#set_rushFeeEnabled')?.checked,
-    rushFeePct:        Math.max(0, Math.min(500, num($('#set_rushFeePct')?.value, 25))),
-    defaultPackagingCost: Math.max(0, num($('#set_defaultPackagingCost')?.value, 0)),
-    // WIP limits
-    wipLimits: (() => {
-      const wip = { ...(settings.wipLimits || {}) };
-      ['pending', 'printing', 'post', 'qc'].forEach(col => {
-        const v = num($(`#set_wip_${col}`)?.value, 0);
-        if (v > 0) wip[col] = v;
-        else delete wip[col];
-      });
-      return wip;
-    })(),
-    wipEnforceHardLimit: !!$('#set_wipEnforceHardLimit')?.checked,
-    // QC / reprint / RMA
-    qc: {
-      enabled:            !!$('#set_qcEnabled')?.checked,
-      requireInspector:   !!$('#set_qcRequireInspector')?.checked,
-      requirePhotoOnFail: !!$('#set_qcRequirePhotoOnFail')?.checked,
-      warrantyDays:       Math.max(0, num($('#set_qcWarrantyDays')?.value, 30)),
-    },
-    // Preserve fields managed outside this form — never silently drop them
-    zatcaPhase2:        settings.zatcaPhase2        || {},
-    emailDigest:        settings.emailDigest        || {},
-    bnpl:               settings.bnpl               || {},
-    exchangeRates:      settings.exchangeRates       || {},
-    exchangeRatesUpdatedAt: settings.exchangeRatesUpdatedAt ?? null,
-    staleHours:         settings.staleHours          || {},
-    productionPaused:   settings.productionPaused    || false,
-    pauseReason:        settings.pauseReason         || '',
-    pausedAt:           settings.pausedAt            ?? null,
-    filamentColours:    settings.filamentColours     || {},
-    jobTemplates:       settings.jobTemplates        || [],
-    postProcessPresets: settings.postProcessPresets  || [],
-    resinProfiles:      settings.resinProfiles       || [],
-    dismissedNotifs:    settings.dismissedNotifs     || {},
-    kanbanCollapsed:    settings.kanbanCollapsed     || [],
-    donationUrl:        settings.donationUrl         || '', // legacy — UI removed; preserve on save
-    printerApi:         settings.printerApi          || {},
-    locations:          settings.locations           || [],
-    lanApi: (() => { migrateLanApiSettings(); return settings.lanApi || { enabled: false, port: 3219, pin: '' }; })(),
-    // Preserve fields not edited by this form — never silently drop them
-    onlineEnabled:        !!settings.onlineEnabled,
-    securityEnabled:      !!settings.securityEnabled,
-    recoveryCodeHash:     settings.recoveryCodeHash || '',
-    recoveryCodeCreatedAt: settings.recoveryCodeCreatedAt || '',
-    quoteNumYear:         settings.quoteNumYear ?? new Date().getFullYear(),
-    quoteNumNext:         settings.quoteNumNext ?? 1,
+/**
+ * What the Settings page holds, as the shared rule reads it.
+ *
+ * Only what is on screen: a control that is not on the page is not in the
+ * object, and `lib/settings-edit.js` keeps the stored value for it. That is
+ * what lets Bed Ready's page, which hides a third of these, save without
+ * zeroing the third it hides.
+ */
+function readSettingsForm() {
+  const opt = (id) => { const el = $(id); return el ? el.value : undefined; };
+  const tick = (id) => { const el = $(id); return el ? el.checked : undefined; };
+  const group = (pairs) => {
+    const out = {};
+    let any = false;
+    for (const [key, id, kind] of pairs) {
+      const v = kind === 'tick' ? tick(id) : opt(id);
+      if (v !== undefined) { out[key] = v; any = true; }
+    }
+    return any ? out : undefined;
   };
+  const form = {
+    content: readContentFields(),
+    vat: opt('#set_vat'), cr: opt('#set_cr'), phone: opt('#set_phone'), email: opt('#set_email'),
+    lang: opt('#set_lang'), theme: opt('#set_theme'),
+    designTheme: opt('#set_designTheme'), accent: opt('#set_accent'),
+    invPrefix: opt('#set_invPrefix'), autoDeduct: tick('#set_autoDeduct'), lowStock: opt('#set_lowStock'),
+    bankName: opt('#set_bankName'), accountHolder: opt('#set_accountHolder'), iban: opt('#set_iban'),
+    acceptedPayments: $$('#acceptedPaymentsList input[data-pm]').filter(cb => cb.checked).map(cb => cb.dataset.pm),
+    useHijri: tick('#set_useHijri'), useArabicNumerals: tick('#set_useArabicNumerals'),
+    autoBackup: tick('#set_autoBackup'), coachTips: tick('#set_coachTips'),
+    enableVat: tick('#set_enableVat'), vatRate: opt('#set_vatRate'),
+    invAccent: opt('#set_invAccent'), invTemplate: opt('#set_invTemplate'),
+    invoiceBilingual: opt('#set_invoiceBilingual'), invoiceSecondLang: opt('#set_invoiceSecondLang'),
+    lowStockColor: opt('#set_lowStockColor'),
+    quotePrefix: opt('#set_quotePrefix'), useIcloud: tick('#set_useIcloud'),
+    monthlyGoal: opt('#set_monthlyGoal'), supplierPhone: opt('#set_supplierPhone'),
+    currency: opt('#set_currency'), enableZatca: tick('#set_enableZatca'),
+    taxMode: opt('#set_taxMode'), taxCountry: opt('#set_taxCountry'),
+    minMarginPct: opt('#set_minMarginPct'),
+    budgets: Object.fromEntries(EXP_CATEGORIES.map(c => [c, opt(`#set_budget_${c}`)])),
+    workingHours: Object.fromEntries(['mon','tue','wed','thu','fri','sat','sun'].map(d => [d, opt(`#wh_${d}`)])),
+    operatorLock: tick('#set_operatorLock'), loyaltyEnabled: tick('#set_loyaltyEnabled'),
+    paymentInstructions: opt('#set_paymentInstructions'), betaUpdates: tick('#set_betaUpdates'),
+    quoteValidityDays: opt('#set_quoteValidityDays'),
+    leadTime: group([
+      ['dailyHours', '#set_leadDailyHours'], ['workingDaysPerWeek', '#set_leadDaysPerWeek'],
+      ['finishingDays', '#set_leadFinishingDays'], ['dispatchDays', '#set_leadDispatchDays'],
+      ['safetyDays', '#set_leadSafetyDays'], ['publishToCloud', '#set_leadPublish', 'tick'],
+    ]),
+    quoteFollowUp: group([['enabled', '#set_quoteFollowUpEnabled', 'tick'], ['windowDays', '#set_quoteFollowUpWindow']]),
+    paymentReminder: group([['enabled', '#set_payReminderEnabled', 'tick'], ['graceDays', '#set_payReminderGrace']]),
+    minOrderAmount: opt('#set_minOrderAmount'), rushFeeEnabled: tick('#set_rushFeeEnabled'),
+    rushFeePct: opt('#set_rushFeePct'), defaultPackagingCost: opt('#set_defaultPackagingCost'),
+    wip: Object.fromEntries(['pending', 'printing', 'post', 'qc'].map(col => [col, opt(`#set_wip_${col}`)])),
+    wipEnforceHardLimit: tick('#set_wipEnforceHardLimit'),
+    qc: group([
+      ['enabled', '#set_qcEnabled', 'tick'], ['requireInspector', '#set_qcRequireInspector', 'tick'],
+      ['requirePhotoOnFail', '#set_qcRequirePhotoOnFail', 'tick'], ['warrantyDays', '#set_qcWarrantyDays'],
+    ]),
+  };
+  // Absent, not undefined: the rule keeps what the form does not carry, and it
+  // tells the two apart by whether the key is there.
+  for (const k of Object.keys(form)) if (form[k] === undefined) delete form[k];
+  return form;
+}
+
+function saveSettingsFromForm() {
+  // The rule is lib/settings-edit.js, so the Mac app writes the same record by
+  // the same clamps and defaults. It was a 240-line literal here, which is why
+  // only this window could change a setting. The legacy webhook secrets are
+  // moved under lanApi FIRST, because the rule preserves lanApi as it finds it.
+  migrateLanApiSettings();
+  settings = KhaytSettingsEdit.apply(settings, readSettingsForm(), {
+    year: new Date().getFullYear(),
+    themeLowStockColor: themeLowStockColor(),
+    expenseCategories: EXP_CATEGORIES,
+  });
   saveAll();
   syncUpdaterOptionsFromSettings();
   i18n.set(settings.lang);

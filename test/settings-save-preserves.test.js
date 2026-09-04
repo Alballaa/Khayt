@@ -23,52 +23,39 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
+require('../lib/tax.js');
+const { apply } = require('../lib/settings-edit.js');
 
 const SRC = fs.readFileSync(path.join(__dirname, '..', 'renderer', 'settings.js'), 'utf8');
 
-/** The body of the `settings = { … }` literal in saveSettingsFromForm. */
-function collectorBody() {
-  const fn = SRC.indexOf('function saveSettingsFromForm(');
-  assert.notEqual(fn, -1, 'saveSettingsFromForm has been renamed — update this test');
-  const open = SRC.indexOf('settings = {', fn);
-  assert.notEqual(open, -1, 'saveSettingsFromForm no longer rebuilds settings from a literal');
-  return SRC.slice(open + 'settings = {'.length, SRC.indexOf('\n  };', open));
-}
-
 test('the Settings save preserves keys the form does not name', () => {
-  const body = collectorBody();
-  // Comments first: the explanation of WHY lives at the top of the literal.
-  const firstEntry = body
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .split('\n').map((l) => l.trim()).filter(Boolean)[0];
-  assert.equal(firstEntry, '...settings,',
-    'the settings rebuild must start by spreading the settings it replaces, or every key\n' +
-    '  the form does not name is destroyed on save. It was `cloud` last time, which cost a\n' +
-    '  shop its cloud account and its sync keyset.');
+  // The rule is lib/settings-edit.js now, so this asks it rather than reading
+  // a literal: a save with an EMPTY form must hand back every key it was given.
+  const before = { cloud: { token: 'T', keyset: 'K' }, anythingAtAll: 1, nested: { deep: [1] } };
+  const after = apply(before, {}, { year: 2026 });
+  for (const key of Object.keys(before)) {
+    assert.deepEqual(after[key], before[key], `a Settings save would drop or change settings.${key}`);
+  }
 });
 
 test('cloud, the migration flags and the consent choices survive a save', () => {
-  const body = collectorBody();
-  const spreads = /(^|\n)\s*\.\.\.settings\s*,/.test(body);
   // Named individually so a regression reads as the bug it is rather than as a
-  // structural complaint. Either the spread carries them or the literal must.
-  for (const key of ['cloud', 'slicers', 'privacy', 'telemetry', '__designV26Migrated', '_idDedupeDone']) {
-    const named = new RegExp(`(^|\\n)\\s*${key}\\s*:`).test(body);
-    assert.ok(spreads || named, `a Settings save would drop settings.${key}`);
+  // structural complaint.
+  const before = { cloud: 1, slicers: 2, privacy: 3, telemetry: 4, __designV26Migrated: 5, _idDedupeDone: 6 };
+  const after = apply(before, { phone: '050', enableVat: true, vatRate: 15 }, { year: 2026 });
+  for (const key of Object.keys(before)) {
+    assert.equal(after[key], before[key], `a Settings save would drop settings.${key}`);
   }
 });
 
-test('no other wholesale settings rebuild has crept in unspread', () => {
-  // The hazard is the pattern, not the one function. Any `settings = {` that is
-  // not a spread is another copy of this bug waiting for its own key to matter.
-  const sites = [...SRC.matchAll(/(^|[^.\w])settings\s*=\s*\{/g)];
-  for (const m of sites) {
-    // Strip comments BEFORE slicing: the explanation above the spread is longer
-    // than any fixed window, and a window that cuts a block comment in half
-    // leaves an unterminated /* that the stripper cannot match.
-    const after = SRC.slice(m.index).replace(/\/\*[\s\S]*?\*\//g, '').slice(0, 400);
-    assert.ok(/\.\.\.\s*settings\b/.test(after),
-      `a settings rebuild near "${SRC.slice(m.index, m.index + 60).split('\n')[0]}" does not spread the existing settings`);
-  }
-  assert.ok(sites.length >= 1, 'expected to find the settings rebuild');
+test('the renderer saves through the shared rule and has no literal of its own', () => {
+  const fn = SRC.indexOf('function saveSettingsFromForm(');
+  assert.notEqual(fn, -1, 'saveSettingsFromForm has been renamed — update this test');
+  const body = SRC.slice(fn, SRC.indexOf('\n}\n', fn));
+  assert.ok(/KhaytSettingsEdit\.apply\(/.test(body),
+    'saveSettingsFromForm must call KhaytSettingsEdit.apply — the rule lives in lib/settings-edit.js');
+  assert.ok(!/settings = \{/.test(body),
+    'and must not rebuild settings from a literal of its own, or the two apps drift');
+  assert.ok(/migrateLanApiSettings\(\)/.test(body),
+    'the legacy webhook secrets must be migrated before the rule preserves lanApi');
 });
