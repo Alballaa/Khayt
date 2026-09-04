@@ -6,6 +6,20 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Changed
 
+- **The Mac app prints the invoice.** ⌘P on a job, or *Invoice* beside the
+  money in the inspector: the same document Khayt prints, saved as an A4 PDF.
+  A registered shop gets its ZATCA QR; a shop missing a field the QR needs is
+  told which, on the paper, rather than handed an empty box.
+
+- **The Mac app has a Settings window.** ⌘, — the shop's details, invoice and
+  tax rules, bank details and accepted payments, operational defaults, and the
+  language. Each pane saves only what it shows, by the same rules the Khayt
+  Settings page saves through.
+
+- **The shop's name on the Mac is the one its documents print.** It read a
+  field nothing in Khayt writes, and would have issued a shop's invoice from
+  "Khayt".
+
 - **The Mac app can take a job.** ⌘N: what it is, who it is for, the parts and
   what they weigh, and the margin — and it prices them with the same arithmetic
   the calculator uses, because it is the same arithmetic. Save it as an order
@@ -68,6 +82,11 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   already run out, and a re-opened job never being charged twice.
 
 ### Fixed
+
+- **Deleting a failed print you logged by hand now puts the filament back.**
+  The waste form took the wasted grams off the spool, and the delete button
+  read which spool to restore from a field the form never wrote — so every
+  manual entry deleted left the shelf short. The entry now records the spool.
 
 - **The Mac app did not know who your customers were.** It worked them out from
   the names written on jobs, so a customer you had entered but not yet given

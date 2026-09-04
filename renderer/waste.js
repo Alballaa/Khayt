@@ -7,10 +7,16 @@ let wasteFailureFilter = '';
 let wasteDateFilter = 'all';
 
 (function (global) {
+/** The rule, however this file happens to be loaded — a script tag in the
+ *  window, or `require` in a test. */
+const WasteEntry = (typeof globalThis !== 'undefined' && globalThis.KhaytWasteEntry)
+  || (() => { try { return require('../lib/waste-entry.js'); } catch (e) { return null; } })();
+
 /* ============================================================
    Waste Log (failed prints & wasted filament)
    ============================================================ */
-const WASTE_FAILURE_TYPES = ['bed_adhesion','nozzle_jam','warping','stringing','operator_error','design_issue','power_failure','material_quality','other'];
+// The list is lib/waste-entry.js's, so both apps label a failure the same way.
+const WASTE_FAILURE_TYPES = WasteEntry.FAILURE_TYPES;
 
 function renderWasteLog() {
   const tbody = document.querySelector('#wasteTable tbody');
@@ -202,51 +208,31 @@ function openWasteForm() {
         const mat = modal.querySelector('#wf_material')?.value;
         const wt  = Math.max(0, +modal.querySelector('#wf_weight')?.value || 0);
         if (!mat || wt <= 0) return;
-        const invItem = inventory.find(i => i.material === mat);
-        if (invItem && invItem.cost > 0 && invItem.weight > 0) {
-          const costPerGram = invItem.cost / invItem.weight;
-          const costEl = modal.querySelector('#wf_cost');
-          if (costEl) costEl.value = (wt * costPerGram).toFixed(2);
-        }
+        const cost = WasteEntry.costOf(mat, wt, inventory);
+        const costEl = modal.querySelector('#wf_cost');
+        if (cost > 0 && costEl) costEl.value = cost.toFixed(2);
       };
       modal.querySelector('#wf_material')?.addEventListener('change', autoCalcCost);
       modal.querySelector('#wf_weight')?.addEventListener('input', autoCalcCost);
     },
     onSave() {
-      const material    = $('#wf_material').value.trim();
-      const failureType = $('#wf_failure_type').value;
-      const weight      = Math.max(0, +$('#wf_weight').value || 0);
-      const cost        = Math.max(0, +$('#wf_cost').value || 0);
-      const reason      = $('#wf_reason').value.trim();
-      const notes       = $('#wf_notes').value.trim();
-      const deduct      = $('#wf_deduct').checked;
-      const date        = $('#wf_date').value || today;
-      const orderRef    = ($('#wf_order_ref').value || '').trim() || null;
-      const machineId   = ($('#wf_machine')?.value || '').trim() || null;
-
-      if (!material) { toast(t('waste.err_material'), 'error'); return false; }
-
-      const entry = {
-        id: 'w-' + Date.now().toString(36),
-        date,
-        material,
-        failureType,
-        weight,
-        cost,
-        reason,
-        notes,
-        orderId: orderRef,
-        machineId,
-      };
-      wasteLog.unshift(entry);
-
-      // Auto-deduct from matching inventory spool
-      if (deduct && weight > 0) {
-        const spool = inventory.find(f => f.material === material);
-        if (spool) {
-          spool.weight = Math.max(0, (+spool.weight || 0) - weight);
-        }
-      }
+      // The entry is lib/waste-entry.js's — the same record the Mac app writes,
+      // and the one that remembers which spool it deducted from, so deleting
+      // it can put the grams back. This handler deducted and never said which.
+      const made = WasteEntry.newEntry({
+        date:        $('#wf_date').value || today,
+        material:    $('#wf_material').value,
+        failureType: $('#wf_failure_type').value,
+        weight:      $('#wf_weight').value,
+        cost:        $('#wf_cost').value,
+        reason:      $('#wf_reason').value,
+        notes:       $('#wf_notes').value,
+        orderId:     $('#wf_order_ref').value,
+        machineId:   $('#wf_machine')?.value,
+        deduct:      $('#wf_deduct').checked,
+      }, { id: 'w-' + Date.now().toString(36), today, inventory });
+      if (made.refused) { toast(t('waste.err_material'), 'error'); return false; }
+      wasteLog.unshift(made.entry);
 
       saveAll();
       renderWasteLog();
@@ -316,15 +302,8 @@ function openLogWasteFromCard(orderId) {
 async function deleteWasteEntry(id) {
   const ok = await confirmModal(t('common.delete') + '?', { danger: true });
   if (!ok) return;
-  const idx = wasteLog.findIndex(w => w.id === id);
-  if (idx < 0) return;
-  const entry = wasteLog[idx];
-  wasteLog.splice(idx, 1);
-  // Restore filament weight if the waste entry tracked a spool
-  if (entry.spoolId && entry.weight > 0) {
-    const spool = inventory.find(i => i.id === entry.spoolId);
-    if (spool) spool.weight = (spool.weight || 0) + entry.weight;
-  }
+  // Takes the entry out and puts its grams back on the spool it came off.
+  if (!WasteEntry.removeEntry(wasteLog, id, { inventory })) return;
   saveAll();
   renderWasteLog();
   renderInventory();

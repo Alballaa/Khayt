@@ -122,6 +122,13 @@ public actor KhaytEngine {
         // the Mac's Settings window writes the same record by the same clamps.
         "currencies",
         "settings-edit",
+        // The expense book, a failed print written down by hand, and which
+        // records fall in "this month". The three rules the Expenses, Waste
+        // and Reports screens are built on; each was inline in a renderer
+        // handler before, which is why only the Electron window had them.
+        "date-range",
+        "expense-book",
+        "waste-entry",
     ]
 
     /// The languages whose strings are bundled.

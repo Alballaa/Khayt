@@ -298,51 +298,20 @@ function safeBizLogo() {
 let customRangeFrom = { log: '', analytics: '', expenses: '' };
 let customRangeTo   = { log: '', analytics: '', expenses: '' };
 
+/**
+ * Whether a record's date falls in a range picker's period.
+ *
+ * The rule is lib/date-range.js, shared with the Mac app; this hands it the
+ * clock and the page's custom span for the list asking.
+ */
 function inRange(dateStr, range, ctx) {
-  if (!range || range === 'all') return true;
-  if (!dateStr) return false;
-  // Validate the date string is parseable
-  if (isNaN(new Date(dateStr))) return false;
-  if (range === 'custom') {
-    const from = ctx ? customRangeFrom[ctx] : '';
-    const to   = ctx ? customRangeTo[ctx]   : '';
-    if (!from && !to) return true;
-    const ds = dateStr.slice(0, 10);
-    if (from && ds < from) return false;
-    if (to   && ds > to)   return false;
-    return true;
-  }
-  // Use string slicing for all range checks to avoid UTC/local timezone boundary issues
-  const now = new Date();
-  const nowY = now.getFullYear();
-  const nowM = now.getMonth(); // 0-based
-  const ds = dateStr.slice(0, 10); // YYYY-MM-DD
-  if (range === 'month') {
-    const nowStr = `${nowY}-${String(nowM + 1).padStart(2, '0')}`;
-    return ds.slice(0, 7) === nowStr;
-  }
-  if (range === 'last_month') {
-    const lm = new Date(nowY, nowM - 1, 1);
-    const lmStr = `${lm.getFullYear()}-${String(lm.getMonth() + 1).padStart(2, '0')}`;
-    return ds.slice(0, 7) === lmStr;
-  }
-  if (range === 'quarter') {
-    const nowQ = Math.floor(nowM / 3);
-    const dsMonth = parseInt(ds.slice(5, 7), 10) - 1; // 0-based
-    const dsYear  = parseInt(ds.slice(0, 4), 10);
-    return dsYear === nowY && Math.floor(dsMonth / 3) === nowQ;
-  }
-  if (range === 'last_quarter') {
-    const lastQEnd   = new Date(nowY, nowM - (nowM % 3), 0); // last day of prev quarter
-    const lastQStart = new Date(lastQEnd.getFullYear(), Math.floor(lastQEnd.getMonth() / 3) * 3, 1);
-    const fromStr = localDateStr(lastQStart);
-    const toStr   = localDateStr(lastQEnd);
-    return ds >= fromStr && ds <= toStr;
-  }
-  if (range === 'year') {
-    return ds.slice(0, 4) === String(nowY);
-  }
-  return true;
+  const DR = (typeof globalThis !== 'undefined' && globalThis.KhaytDateRange)
+    || require('../lib/date-range.js');
+  return DR.inRange(dateStr, range, {
+    now: new Date(),
+    from: ctx ? customRangeFrom[ctx] : '',
+    to:   ctx ? customRangeTo[ctx]   : '',
+  });
 }
 
 /* ============================================================
