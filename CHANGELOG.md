@@ -195,6 +195,14 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **The OctoPrint and PrusaLink readings are testable at last.** Both were
+  written inline in `main.js`, where nothing could call them and their only
+  guard was a scan of that file's text. They now live in `lib/octoprint.js` and
+  `lib/prusalink.js` and are driven with real per-endpoint payloads — the two
+  behaviours that matter most among them: OctoPrint reading "Offline" from the
+  job endpoint when the printer is switched off, and PrusaLink taking the
+  filename from `/api/v1/job` because the status endpoint has never carried one.
+
 - **Three credentials were missing from the export redactor.** The print
   library's S3 bucket secret and the two Google Drive tokens are on
   `lib/store-secret-paths.js` — encrypted at rest, masked on the way to the
