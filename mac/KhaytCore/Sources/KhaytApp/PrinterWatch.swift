@@ -44,6 +44,13 @@ final class PrinterWatch {
 
     private(set) var readings: [Machine.ID: Reading] = [:]
 
+    /// What has gone wrong, and what to remember about it.
+    let notices = PrinterNotice()
+    /// The cache as it was at the previous sweep, and the module's own
+    /// bookkeeping. Both are handed straight back to it; neither is read here.
+    private var previous: [String: JSONValue] = [:]
+    private var alertState: JSONValue = .object([:])
+
     /// What the printers last said, in the shape `dashboard-facts` reads —
     /// the same `{ [machineId]: { state, … } }` main.js keeps. A machine that
     /// has not answered is absent rather than present-and-blank, because the
@@ -61,7 +68,11 @@ final class PrinterWatch {
             } else if seen.problem != nil {
                 // A machine that did not answer is offline, which is a fact the
                 // fleet tile has to count — not an absence.
+                // `error` is what `isFailedPoll` reads, and the offline alert
+                // counts consecutive failed polls. Without this field a printer
+                // that had been unreachable for an hour raised nothing at all.
                 out[id] = .object(["state": .string("offline"),
+                                   "error": .string(seen.problem ?? "no answer"),
                                    "lastUpdated": .number(seen.at.timeIntervalSince1970 * 1000)])
             }
         }
@@ -97,6 +108,11 @@ final class PrinterWatch {
     func stop() {
         task?.cancel()
         task = nil
+        // The bookkeeping goes with it. A book closed and reopened has not been
+        // offline for an hour, and carrying a stall clock across that would
+        // raise an alert about a print that finished yesterday.
+        previous = [:]
+        alertState = .object([:])
     }
 
     /// Ask every machine once, one after another.
@@ -115,7 +131,57 @@ final class PrinterWatch {
         // so a dashboard computed before the first poll says every machine is
         // neither live nor offline — it read 0/1 with the machine beside it
         // demonstrably printing.
-        if asked { await shop.printersAnswered() }
+        if asked {
+            await shop.printersAnswered()
+            await raiseAlerts(shop: shop)
+        }
+    }
+
+    /// Ask the shared module what has just gone wrong, and say it.
+    ///
+    /// The thresholds, the cooldowns and the stall clock are all
+    /// `lib/printer-alerts.js`'s. What this adds is the sentence: the module's
+    /// own message is English, and a shop keeping its book in Arabic should not
+    /// be told about its printer in another language.
+    private func raiseAlerts(shop: Shop) async {
+        guard let engine = shop.engine else { return }
+        let current = statusCache
+        guard let found = try? await engine.printerAlerts(
+            was: previous, now: current, settings: shop.settingsDict,
+            machines: shop.machineRows, state: alertState,
+            enable: KhaytEngine.Alerting.sensible) else {
+            previous = current
+            return
+        }
+        previous = current
+        alertState = found.state
+        for alert in found.alerts {
+            let name = shop.machines.first { $0.id == alert.machineId }?.name ?? alert.machineId
+            notices.raise(PrinterNotice.Notice(
+                machineId: alert.machineId, machine: name, kind: alert.type,
+                title: Self.title(alert.type, machine: name, shop: shop),
+                body: Self.body(alert, machine: name, shop: shop),
+                at: Date()))
+        }
+    }
+
+    static func title(_ kind: String, machine: String, shop: Shop) -> String {
+        switch kind {
+        case "offline": return shop.words.callIt("mac.alert_offline", ["machine": .string(machine)])
+        case "stall":   return shop.words.callIt("mac.alert_stalled", ["machine": .string(machine)])
+        default:        return shop.words.callIt("mac.alert_error", ["machine": .string(machine)])
+        }
+    }
+
+    static func body(_ alert: KhaytEngine.PrinterAlerts.Alert, machine: String, shop: Shop) -> String {
+        // The file it was making, and how far it had got. A shop deciding
+        // whether to walk over needs both, and "Printer error" alone needs a
+        // second look at the app to mean anything.
+        var parts: [String] = []
+        if !alert.filename.isEmpty { parts.append(alert.filename) }
+        if alert.progress > 0 { parts.append("\(Int(alert.progress))%") }
+        if parts.isEmpty { parts.append(alert.state) }
+        return parts.joined(separator: " · ")
     }
 
     private func poll(_ machine: Machine, engine: KhaytEngine?) async {
