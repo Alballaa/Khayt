@@ -246,8 +246,8 @@ final class Shop {
     /// Mark a model a favourite, or stop. The first thing this app ever wrote.
     func toggleFavourite(_ file: LibraryFile) {
         let wanted = !file.isFavourite
-        write { root in
-            Self.edit(&root, ids: [file.id]) { record in record["favorite"] = .bool(wanted) }
+        editFiles([file.id], named: wanted ? "Add to Favourites" : "Remove from Favourites") { record in
+            record["favorite"] = .bool(wanted)
         }
     }
 
@@ -266,10 +266,89 @@ final class Shop {
             writeProblem = "Could not work out which group that is."
             return
         }
-        write { root in
-            Self.edit(&root, ids: ids) { record in
-                for (key, value) in patch { record[key] = value }
+        let named = name.isEmpty ? "Remove from Group" : "File in \(name)"
+        editFiles(ids, named: named) { record in
+            for (key, value) in patch { record[key] = value }
+        }
+    }
+
+    /// The Mac's undo stack, handed over by the window.
+    ///
+    /// Weak: it belongs to the window, and a Shop outliving one must not keep
+    /// it alive. Nil is a supported state — the environment says so when a
+    /// context has no undo — and every registration below is guarded.
+    weak var undoManager: UndoManager?
+
+    /// Change some print files, and be able to put them back.
+    ///
+    /// The Edit menu has always shown Undo and Redo; until now they did
+    /// nothing, which is worse than their being absent — a menu item that is
+    /// enabled and inert teaches people not to trust the menu.
+    ///
+    /// What is captured is the WHOLE record as it was, not the fields about to
+    /// change. An undo then restores everything, including a field some later
+    /// version of this method starts touching and forgets to snapshot.
+    ///
+    /// What is NOT restored is `rev`. An undo is an edit like any other: it
+    /// stamps a new revision, because a record that went backwards would look
+    /// to the next sync like the change never happened and the other machine's
+    /// copy would win.
+    private func editFiles(_ ids: Set<LibraryFile.ID>, named actionName: String,
+                           change: @escaping (inout [String: JSONValue]) -> Void) {
+        guard let build = source.build, !ids.isEmpty else { return }
+        var before: [String: [String: JSONValue]] = [:]
+        do {
+            try StoreWriter.update(build) { root in
+                guard case .array(var rows)? = root["printFiles"] else { return }
+                for i in rows.indices {
+                    guard case .object(var record) = rows[i],
+                          case .string(let id)? = record["id"], ids.contains(id) else { continue }
+                    before[id] = record
+                    change(&record)
+                    StoreWriter.stamp(&record)
+                    rows[i] = .object(record)
+                }
+                root["printFiles"] = .array(rows)
             }
+            writeProblem = nil
+            registerUndo(of: before, named: actionName)
+            Task { await load(source) }
+        } catch {
+            writeProblem = String(describing: error)
+        }
+    }
+
+    /// Put those records back exactly as they were, and make THAT undoable too.
+    private func registerUndo(of before: [String: [String: JSONValue]], named actionName: String) {
+        guard let undoManager, !before.isEmpty else { return }
+        undoManager.setActionName(actionName)
+        undoManager.registerUndo(withTarget: self) { shop in
+            shop.restore(before, named: actionName)
+        }
+    }
+
+    private func restore(_ snapshot: [String: [String: JSONValue]], named actionName: String) {
+        guard let build = source.build else { return }
+        var before: [String: [String: JSONValue]] = [:]
+        do {
+            try StoreWriter.update(build) { root in
+                guard case .array(var rows)? = root["printFiles"] else { return }
+                for i in rows.indices {
+                    guard case .object(let current) = rows[i],
+                          case .string(let id)? = current["id"],
+                          let wanted = snapshot[id] else { continue }
+                    before[id] = current
+                    rows[i] = .object(StoreWriter.restoring(wanted, over: current))
+                }
+                root["printFiles"] = .array(rows)
+            }
+            writeProblem = nil
+            registerUndo(of: before, named: actionName)
+            Task { await load(source) }
+        } catch {
+            // An undo that cannot be applied — the book changed hands while the
+            // menu was open — must say so rather than fail quietly.
+            writeProblem = String(describing: error)
         }
     }
 

@@ -232,6 +232,28 @@ and every screen except the book. `KhaytCore` came first because the
 alternative, screens against a half-trusted engine, is how the two apps come to
 disagree about a shop's money.
 
+### Undo
+
+Every edit is reversible — ⌘Z, with the Edit menu naming what it will undo
+("Undo Add to Favourites", "Undo File in Saudi Kings"). Those items have always
+been in the menu; until now they did nothing, which is worse than their being
+absent: an item that is enabled and inert teaches people not to trust the menu.
+
+What is captured is the WHOLE record as it was, not the fields about to change,
+so an undo also puts back a field some later version of the edit starts touching
+and forgets to snapshot.
+
+**`rev` is the exception and does not go backwards.** An undo is an edit like
+any other and stamps a new revision. A record whose revision went back would
+look to the next sync exactly like the change never happened, and the other
+machine's copy would win — the undo undone, by a laptop, quietly.
+`StoreWriter.restoring(_:over:)` is that rule, alone and tested.
+
+Verified end to end on the real store, with a backup: `false → true → false`,
+one record touched, only `rev` and `updatedAt` left different, rev 3 → 5 (the
+edit and the undo, both forward), secrets byte-identical, store restored
+afterwards.
+
 ## The menu bar, and what a Commands body does not do
 
 Everything the app can do is in the menu bar with a key for it — ⌘1/2/3 for the

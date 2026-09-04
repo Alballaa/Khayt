@@ -6,6 +6,9 @@ struct ShopWindow: View {
     // the one you left is a small thing that makes it feel like a web page.
     @SceneStorage("inspector.showing") private var showInspector = true
     @SceneStorage("shelf") private var storedShelf = ""
+    /// Nil where a context has no undo, which the documentation says to expect
+    /// and which every registration in `Shop` is guarded for.
+    @Environment(\.undoManager) private var undoManager
 
 
     var body: some View {
@@ -76,6 +79,10 @@ struct ShopWindow: View {
         // No `.environment(\.layoutDirection, …)` here on purpose: that line
         // loops SwiftUI's split view until AppKit aborts. The window is mirrored
         // before it exists instead — see `Direction`.
+        // Handed over rather than reached for: `Shop` is not a view and has no
+        // environment of its own. Re-run when it changes, because SwiftUI may
+        // hand out a different manager than the one at first launch.
+        .task(id: ObjectIdentifier(undoManager ?? UndoManager())) { shop.undoManager = undoManager }
         .task(id: shop.shelf) { storedShelf = Shelves.name(shop.shelf) }
         .task {
             // Only after the book has loaded: a group shelf means nothing until
