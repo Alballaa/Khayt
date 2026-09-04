@@ -423,6 +423,15 @@ final class Words {
         "mac.restore_failed": ["en": "Nothing was restored:", "ar": "لم تُستعد أي بيانات:"],
         "mac.restore_none":  ["en": "There are no backups to restore from yet.",
                               "ar": "لا توجد نسخ احتياطية للاستعادة منها بعد."],
+        // Giving a copy away. The panel says what has been taken out, because
+        // a shop that thinks its keys are in the file will treat it as though
+        // they are — and a shop that does not know they were removed will send
+        // it expecting the other end to be able to connect.
+        "mac.export_copy":   ["en": "Export a Copy\u{2026}", "ar": "تصدير نسخة\u{2026}"],
+        "mac.export_redacted": ["en": "API keys, passwords and access codes are removed from this copy.",
+                                "ar": "تُحذف مفاتيح الواجهات وكلمات المرور ورموز الوصول من هذه النسخة."],
+        "mac.exported_to":   ["en": "Exported as", "ar": "صُدّرت باسم"],
+        "mac.export_failed": ["en": "Nothing was exported:", "ar": "لم يُصدَّر شيء:"],
         // Settings
         "mac.revert":        ["en": "Revert",       "ar": "تراجع"],
         "mac.settings_saved": ["en": "Saved.",      "ar": "حُفظ."],

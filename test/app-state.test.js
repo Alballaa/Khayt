@@ -2,7 +2,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 
 test('defaultSettings returns expected currency and mode defaults', () => {
-  require('../renderer/store.js');
+  require('../lib/store.js');
   require('../renderer/util.js');
   const { defaultSettings } = require('../renderer/app-state.js');
   const s = defaultSettings();
@@ -13,7 +13,7 @@ test('defaultSettings returns expected currency and mode defaults', () => {
 });
 
 test('buildStoreSnapshot returns collections object', () => {
-  require('../renderer/store.js');
+  require('../lib/store.js');
   require('../renderer/util.js');
   const { buildStoreSnapshot, collectStoreCollections } = require('../renderer/app-state.js');
   const snap = buildStoreSnapshot();

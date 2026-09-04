@@ -1385,6 +1385,35 @@ final class Shop {
             }.isEmpty ? [directory] : [directory.appending(path: Backups.filename())])
     }
 
+    /// Write a copy of the book the shop can send somebody.
+    ///
+    /// Redacted, always — see `Export`. The panel comes up before the file is
+    /// built so that a shop that changes its mind never has a redacted copy of
+    /// its book sitting in a temp folder.
+    func exportForSharing() async {
+        spendProblem = nil
+        spendNote = nil
+        guard let build = source.build, let engine else {
+            spendProblem = words.callIt("mac.move_sample"); return
+        }
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.json]
+        panel.nameFieldStringValue = Export.filename()
+        panel.message = words.callIt("mac.export_redacted")
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            // From disk, not from what this app is holding: the screens decode
+            // two collections out of thirty-three, and an export built from
+            // those would be an export missing thirty-one.
+            let root = try JSONDecoder().decode([String: JSONValue].self,
+                                                from: Data(contentsOf: build.storeURL))
+            try await Export.payload(from: root, engine: engine).write(to: url, options: .atomic)
+            spendNote = words.callIt("mac.exported_to") + " " + url.lastPathComponent
+        } catch {
+            spendProblem = words.callIt("mac.export_failed") + " " + String(describing: error)
+        }
+    }
+
     // MARK: - Putting a backup back
 
     /// The backup a shop has chosen and not yet confirmed.

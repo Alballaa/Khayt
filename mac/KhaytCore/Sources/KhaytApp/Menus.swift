@@ -86,6 +86,12 @@ private struct BookMenu: View {
             }
         }
         .disabled(!shop.canMoveJobs)
+        // Not a backup, and named so nobody reaches for it as one: this is the
+        // copy that leaves, and it has had the shop's credentials taken out.
+        Button(Words.upfront("mac.export_copy")) {
+            Task { await shop.exportForSharing() }
+        }
+        .disabled(shop.source.build == nil)
 
         Divider()
         Picker(Words.upfront("mac.open_book"), selection: Binding(get: { shop.source }, set: { shop.open($0) })) {

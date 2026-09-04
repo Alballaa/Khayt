@@ -163,6 +163,12 @@ public actor KhaytEngine {
         // Which of a shop's backups may be rotated away, and which is the
         // insurance it would want after a schema change.
         "upgrade-backup",
+        // What a shop's own copy of its book looks like, and what must not be
+        // in it. `redactSettingsForExport` is what stands between an
+        // accountant and a shop's API keys, and it is data-driven so that
+        // adding a shipping carrier does not quietly export the next one's
+        // credentials — which is exactly why it is not rewritten here.
+        "store",
         // What counts as a Khayt store at all. Restoring a backup REPLACES a
         // shop's book, so the one thing that must not be a second opinion is
         // which files are allowed to do that — the renderer learned the hard
@@ -802,6 +808,19 @@ public actor KhaytEngine {
     public func rotatableBackups(_ filenames: [String]) throws -> [String] {
         try runtime.call2("KhaytUpgradeBackup.partitionForRotation(ARG0).rotatable",
                           [.array(filenames.map(JSONValue.string))], as: [String].self)
+    }
+
+    /// The shop's book as a file it can hand to somebody else.
+    ///
+    /// `redactSecrets` is not optional here, and there is no second method
+    /// without it. A store copy carries the shop's credentials — which is right
+    /// for a backup, where they never leave the Mac, and wrong for a file
+    /// emailed to an accountant. The redaction is `lib/store.js`'s, including
+    /// the data-driven sweep over shipping and BNPL providers that exists so
+    /// that adding a carrier does not quietly export the next one's key.
+    public func redactedExport(_ store: [String: JSONValue]) throws -> [String: JSONValue] {
+        try runtime.call2("KhaytStore.buildExportPayload(ARG0, { redactSecrets: true })",
+                          [.object(store)], as: [String: JSONValue].self)
     }
 
     /// Is this file a Khayt store, and is it whole?
