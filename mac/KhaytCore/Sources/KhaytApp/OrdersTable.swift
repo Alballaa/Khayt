@@ -13,7 +13,7 @@ struct OrdersTable: View {
 
     var body: some View {
         Table(rows, selection: $shop.selection, sortOrder: $order) {
-            TableColumn("Job", value: \.project) { job in
+            TableColumn(shop.words.callIt("mac.job"), value: \.project) { job in
                 HStack(spacing: 6) {
                     if job.priority {
                         Image(systemName: "flag.fill")
@@ -31,16 +31,16 @@ struct OrdersTable: View {
             }
             .width(min: 170, ideal: 240)
 
-            TableColumn("Customer", value: \.client) { job in
+            TableColumn(shop.words.callIt("doc.client"), value: \.client) { job in
                 Text(job.client.isEmpty ? "—" : job.client)
                     .foregroundStyle(job.client.isEmpty ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.primary))
                     .lineLimit(1)
             }
             .width(min: 120, ideal: 180)
 
-            TableColumn("Stage", value: \.status) { job in
+            TableColumn(shop.words.callIt("mac.stage"), value: \.status) { job in
                 if let s = Stage.of(job) {
-                    Label(s.title, systemImage: s.symbol)
+                    Label(shop.words.callIt(s.key), systemImage: s.symbol)
                         .labelStyle(.titleAndIcon)
                         .foregroundStyle(.secondary)
                 } else {
@@ -49,19 +49,19 @@ struct OrdersTable: View {
             }
             .width(min: 100, ideal: 130)
 
-            TableColumn("Due") { job in
+            TableColumn(shop.words.callIt("doc.due")) { job in
                 DueDate(job: job)
             }
             .width(min: 78, ideal: 96)
 
-            TableColumn("Total", value: \.price) { job in
+            TableColumn(shop.words.callIt("common.total"), value: \.price) { job in
                 Text(Money.figure(job.price)).moneyStyle()
             }
             .width(min: 80, ideal: 100)
             .alignment(.trailing)
 
-            TableColumn("Owed", value: \.owed) { job in
-                Owed(job: job)
+            TableColumn(shop.words.callIt("flow.owed"), value: \.owed) { job in
+                Owed(job: job, words: shop.words)
             }
             .width(min: 96, ideal: 120)
             .alignment(.trailing)
@@ -103,6 +103,7 @@ private struct DueDate: View {
 /// next to it.
 private struct Owed: View {
     let job: Order
+    let words: Words
 
     private var paidFraction: Double {
         guard job.price > 0 else { return 0 }
@@ -111,7 +112,7 @@ private struct Owed: View {
 
     var body: some View {
         if job.isSettled {
-            Text("settled")
+            Text(words.callIt("mac.settled"))
                 .font(.caption)
                 .foregroundStyle(.tertiary)
                 .frame(maxWidth: .infinity, alignment: .trailing)

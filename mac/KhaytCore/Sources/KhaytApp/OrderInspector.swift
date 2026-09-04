@@ -18,8 +18,8 @@ struct OrderInspector: View {
                 Detail(job: job, shop: shop, split: split)
                     .task(id: job.id) { split = await shop.taxSplit(job.price) }
             } else {
-                ContentUnavailableView("No job selected", systemImage: "sidebar.trailing",
-                                       description: Text("Pick a row to see its parts and its money."))
+                ContentUnavailableView(shop.words.callIt("mac.no_job"), systemImage: "sidebar.trailing",
+                                       description: Text(shop.words.callIt("mac.no_job_hint")))
             }
         }
     }
@@ -42,7 +42,7 @@ private struct Detail: View {
                 }
                 if !job.notes.isEmpty {
                     Divider()
-                    DetailSection("Note") { Text(job.notes).textSelection(.enabled) }
+                    DetailSection(shop.words.callIt("doc.notes")) { Text(job.notes).textSelection(.enabled) }
                 }
             }
             .padding(16)
@@ -58,7 +58,7 @@ private struct Detail: View {
                 Text(job.id).monospacedDigit()
                 if let s = Stage.of(job) {
                     Text("·")
-                    Label(s.title, systemImage: s.symbol).labelStyle(.titleAndIcon)
+                    Label(shop.words.callIt(s.key), systemImage: s.symbol).labelStyle(.titleAndIcon)
                 }
             }
             .font(.caption)
@@ -72,26 +72,26 @@ private struct Detail: View {
     }
 
     private var money: some View {
-        DetailSection("Money") {
-            DetailLine("Total", Money.text(job.price, job.currency))
+        DetailSection(shop.words.callIt("mac.money")) {
+            DetailLine(shop.words.callIt("common.total"), Money.text(job.price, job.currency))
             if let split {
                 // Only shown for a registered shop: an unregistered one has no
                 // split, and inventing a zero-rate line would imply otherwise.
-                DetailLine("Shop keeps", Money.text(split.subtotal, job.currency), dim: true)
+                DetailLine(shop.words.callIt("mac.shop_keeps"), Money.text(split.subtotal, job.currency), dim: true)
                 DetailLine(shop.taxSummary.map { String($0.prefix(while: { !$0.isNumber })).trimmingCharacters(in: .whitespaces) } ?? "Tax",
                      Money.text(split.taxTotal, job.currency), dim: true)
             }
-            DetailLine("Paid", Money.text(job.paidAmount, job.currency))
-            DetailLine("Owed", Money.text(job.owed, job.currency), strong: !job.isSettled)
+            DetailLine(shop.words.callIt("flow.paid"), Money.text(job.paidAmount, job.currency))
+            DetailLine(shop.words.callIt("flow.owed"), Money.text(job.owed, job.currency), strong: !job.isSettled)
             if let due = Order.day(job.dueDate) {
-                DetailLine("Due", due.formatted(date: .abbreviated, time: .omitted),
+                DetailLine(shop.words.callIt("doc.due"), due.formatted(date: .abbreviated, time: .omitted),
                      warn: job.isOverdue())
             }
         }
     }
 
     private var parts: some View {
-        DetailSection("Parts") {
+        DetailSection(shop.words.callIt("mac.parts")) {
             ForEach(job.parts) { part in
                 HStack(alignment: .firstTextBaseline) {
                     VStack(alignment: .leading, spacing: 1) {
@@ -111,7 +111,7 @@ private struct Detail: View {
                 }
                 .padding(.vertical, 2)
             }
-            DetailLine("Machine time", String(format: "%.1f h", job.printTime), dim: true)
+            DetailLine(shop.words.callIt("mac.machine_time"), String(format: "%.1f h", job.printTime), dim: true)
         }
     }
 }
