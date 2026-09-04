@@ -138,7 +138,12 @@ public final class JSRuntime {
                                     as type: T.Type) throws -> T {
         let encoder = JSONEncoder()
         var script = expression
-        for (i, arg) in args.enumerated() {
+        // HIGHEST INDEX FIRST. "ARG1" is a prefix of "ARG10", so substituting in
+        // order turns ARG10 into the first argument's JSON followed by a stray
+        // "0" — which reaches JavaScriptCore as `SyntaxError: Unexpected number
+        // '0'`, from a script that reads perfectly well in the source. It sat
+        // here unnoticed while no expression had ten arguments.
+        for (i, arg) in args.enumerated().reversed() {
             let data = try encoder.encode(arg)
             script = script.replacingOccurrences(of: "ARG\(i)",
                                                  with: String(data: data, encoding: .utf8) ?? "null")

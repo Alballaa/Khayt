@@ -244,3 +244,18 @@ test('the effects a workshop does not have are ignored, not mistaken for missing
   assert.equal(order.status, 'completed', 'a workshop finishes its job either way');
   assert.equal(calls.saved > 0, true);
 });
+
+test('passing QC records the inspection on the job, not just the column', () => {
+  // `qcStatusOf` reads these fields and `computeQcMetrics` counts only the
+  // orders it can answer for, so a completion that skipped them is not counted
+  // as failed — it is not counted at all.
+  const { ctx, order } = boot({ orders: [job({ status: 'qc' })] });
+  ctx.openFormModal = (cfg) => {
+    cfg.onSave({ querySelector: () => ({ value: 'looked fine' }) });
+  };
+  ctx.qcPassOrder('J1');
+  assert.equal(order.status, 'completed');
+  assert.equal(order.qcStatus, 'pass');
+  assert.ok(order.qcPassedAt, 'the fallback qcStatusOf reads when qcStatus is absent');
+  assert.equal(order.qcNotes, 'looked fine');
+});

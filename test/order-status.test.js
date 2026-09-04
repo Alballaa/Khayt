@@ -706,3 +706,37 @@ test('a finished job is not still being printed', () => {
   assert.equal(order.printingStartedAt, '2026-09-03T00:00:00.000Z',
     'when it first went on the machine is a fact about the job, not about the clock');
 });
+
+/* ── Passing QC ────────────────────────────────────────────────────────────── */
+
+test('a job that passed inspection says so, in the fields Khayt reads', () => {
+  const order = { id: 'o1', status: 'qc' };
+  S.apply(order, 'completed', { now: NOW_MS, qc: { outcome: 'pass', notes: 'clean', inspector: 'OP1' } });
+  assert.equal(order.qcStatus, 'pass');
+  assert.equal(order.qcAt, NOW_ISO);
+  assert.equal(order.qcPassedAt, NOW_ISO, 'qcStatusOf falls back to this one');
+  assert.equal(order.qcNotes, 'clean');
+  assert.equal(order.inspector, 'OP1');
+});
+
+test('an unnamed inspector is nobody, not whoever inspected the last job', () => {
+  const order = { id: 'o1', status: 'qc', inspector: 'OP-OLD' };
+  S.apply(order, 'completed', { now: NOW_MS, qc: { outcome: 'pass' } });
+  assert.equal(order.inspector, null);
+  assert.equal(order.qcNotes, null);
+});
+
+test('a completion with no QC record leaves the fields alone', () => {
+  // Completing from the column button is not an inspection, and pretending it
+  // was would make a shop's pass rate a fiction.
+  const order = { id: 'o1', status: 'printing' };
+  S.apply(order, 'completed', { now: NOW_MS });
+  assert.equal(order.qcStatus, undefined);
+  assert.equal(order.qcPassedAt, undefined);
+});
+
+test('only a pass is recorded here — a failure does not end in completed', () => {
+  const order = { id: 'o1', status: 'qc' };
+  S.apply(order, 'completed', { now: NOW_MS, qc: { outcome: 'fail', notes: 'warped' } });
+  assert.equal(order.qcStatus, undefined, 'a failure is a waste entry and a decision, not a completion');
+});

@@ -490,9 +490,36 @@ final class Shop {
     /// gap.
     var pendingHold: PendingHold?
 
+    /// The job waiting for someone to say it passed inspection.
+    ///
+    /// A job leaving QC for completed is an INSPECTION, and `qcStatusOf` reads
+    /// the record off the order. A completion that skipped it is not counted as
+    /// failed — it is not counted at all, so the shop's pass rate would be
+    /// quietly computed over a shrinking subset of its work.
+    var pendingQC: PendingHold?
+
     struct PendingHold: Identifiable, Sendable {
         let id: Order.ID
         let project: String
+    }
+
+    /// The question this move has to ask before it can happen, if any.
+    ///
+    /// Two moves are not just a change of column. Putting a job on hold starts a
+    /// clock somebody will want explained; finishing a job that was IN QC is an
+    /// inspection, and the record of it is what the shop's pass rate is computed
+    /// from. Every other move is a move.
+    func questionFor(_ id: Order.ID, moving to: Stage) -> (() -> Void)? {
+        guard let job = orders.first(where: { $0.id == id }) else { return nil }
+        let subject = PendingHold(id: id, project: job.project)
+        if to == .on_hold { return { self.pendingHold = subject } }
+        if to == .completed && Stage.of(job) == .qc { return { self.pendingQC = subject } }
+        return nil
+    }
+
+    func clearQuestion() {
+        pendingHold = nil
+        pendingQC = nil
     }
 
     /// Whether a job may be moved at all: a real book, held by this app, with
@@ -513,7 +540,8 @@ final class Shop {
     /// has told the shop it has stock it has already used.
     ///
     /// Read `Kanban` for what a person sees; this is what happens.
-    func moveJob(_ id: Order.ID, to stage: Stage, holdReason: String? = nil) async {
+    func moveJob(_ id: Order.ID, to stage: Stage,
+                 holdReason: String? = nil, qcNotes: String? = nil) async {
         moveProblem = nil
         moveNotices = []
         guard let build = source.build else {
@@ -535,7 +563,7 @@ final class Shop {
             ) { root in
                 (undoSnapshot, said) = try await Self.applyMove(
                     to: &root, id: id, stage: stage, engine: engine, words: self.words,
-                    holdReason: holdReason)
+                    holdReason: holdReason, qcNotes: qcNotes)
             }
             // Only once the swap has happened. The last ownership check is after
             // the mutation, so a book that changed hands mid-move throws here —
@@ -575,7 +603,7 @@ final class Shop {
     static func applyMove(to root: inout [String: JSONValue],
                                   id: Order.ID, stage: Stage,
                                   engine: KhaytEngine, words: Words,
-                                  holdReason: String? = nil)
+                                  holdReason: String? = nil, qcNotes: String? = nil)
     async throws -> (undo: [ChangedRecord], notices: [String]) {
 
         let orders = rows(root, "printLog")
@@ -603,7 +631,7 @@ final class Shop {
         let move = try await engine.moveJob(
             order: target, to: stage.rawValue, orders: orders, settings: settings,
             inventory: inventory, consumables: consumables, machines: machines,
-            now: Date(), today: localDay(), holdReason: holdReason)
+            now: Date(), today: localDay(), holdReason: holdReason, qcNotes: qcNotes)
 
         guard move.ok else {
             throw MoveRefused(sentence: words.gateRefusal(move.gate))

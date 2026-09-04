@@ -71,32 +71,43 @@ struct Kanban: View {
     }
 }
 
-/// Why is this job on hold?
+/// The two moves that ask a question first.
 ///
-/// Optional, and the sheet says so: a shop that just needs a job out of the way
-/// should not have to invent a reason, and a required field would be answered
-/// with a full stop. Return puts it on hold; Escape leaves it where it is.
-struct HoldReason: View {
+/// A hold wants to know why; a job leaving inspection wants to know that it
+/// passed. Both answers are optional text and both are worth having — "waiting
+/// on filament" three weeks later, and a pass rate computed over the whole
+/// book rather than whatever happened to be recorded.
+///
+/// Return commits, Escape leaves the job where it is.
+struct AskFirst: View {
     let shop: Shop
-    let held: Shop.PendingHold
-    @State private var reason = ""
+    let subject: Shop.PendingHold
+    let kind: Kind
+    @State private var answer = ""
     @FocusState private var focused: Bool
+
+    enum Kind {
+        case hold, qcPass
+
+        var title: String { self == .hold ? "ord.hold_btn" : "ord.qc_pass" }
+        var prompt: String { self == .hold ? "ord.hold_reason" : "ord.qc_notes" }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text(shop.words.callIt("ord.hold_btn")).font(.headline)
-            Text(held.project).font(.callout).foregroundStyle(.secondary).lineLimit(1)
+            Text(shop.words.callIt(kind.title)).font(.headline)
+            Text(subject.project).font(.callout).foregroundStyle(.secondary).lineLimit(1)
 
-            TextField(shop.words.callIt("ord.hold_reason"), text: $reason)
+            TextField(shop.words.callIt(kind.prompt), text: $answer)
                 .textFieldStyle(.roundedBorder)
                 .focused($focused)
-                .onSubmit(put)
+                .onSubmit(commit)
 
             HStack {
                 Spacer()
-                Button(shop.words.callIt("common.cancel")) { shop.pendingHold = nil }
+                Button(shop.words.callIt("common.cancel")) { shop.clearQuestion() }
                     .keyboardShortcut(.cancelAction)
-                Button(shop.words.callIt("ord.hold_btn"), action: put)
+                Button(shop.words.callIt(kind.title), action: commit)
                     .keyboardShortcut(.defaultAction)
             }
         }
@@ -105,11 +116,16 @@ struct HoldReason: View {
         .onAppear { focused = true }
     }
 
-    private func put() {
-        let id = held.id
-        let why = reason.trimmingCharacters(in: .whitespacesAndNewlines)
-        shop.pendingHold = nil
-        Task { await shop.moveJob(id, to: .on_hold, holdReason: why) }
+    private func commit() {
+        let id = subject.id
+        let said = answer.trimmingCharacters(in: .whitespacesAndNewlines)
+        shop.clearQuestion()
+        Task {
+            switch kind {
+            case .hold: await shop.moveJob(id, to: .on_hold, holdReason: said)
+            case .qcPass: await shop.moveJob(id, to: .completed, qcNotes: said)
+            }
+        }
     }
 }
 
@@ -205,12 +221,7 @@ private struct Column: View {
             guard Stage.of(job: job.id, in: shop) != stage else { return false }
             // A hold asks why first — it is the one move whose reason a shop
             // will want three weeks later. Every other move just happens.
-            if stage == .on_hold {
-                shop.pendingHold = Shop.PendingHold(
-                    id: job.id,
-                    project: shop.orders.first { $0.id == job.id }?.project ?? job.id)
-                return true
-            }
+            if let ask = shop.questionFor(job.id, moving: stage) { ask(); return true }
             Task { await shop.moveJob(job.id, to: stage) }
             return true
         } isTargeted: { isTarget = $0 }

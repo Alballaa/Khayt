@@ -83,7 +83,7 @@ struct MoveJobTests {
     }
 
     static func move(_ root: inout [String: JSONValue], _ id: String, _ stage: Stage,
-                     holdReason: String? = nil)
+                     holdReason: String? = nil, qcNotes: String? = nil)
     async throws -> (undo: [Shop.ChangedRecord], notices: [String]) {
         let engine = try KhaytEngine()
         // Words loaded, not bare: a notice is only useful if it comes back as a
@@ -92,7 +92,7 @@ struct MoveJobTests {
         let words = Words()
         await words.load("en", engine: engine)
         return try await Shop.applyMove(to: &root, id: id, stage: stage, engine: engine,
-                                        words: words, holdReason: holdReason)
+                                        words: words, holdReason: holdReason, qcNotes: qcNotes)
     }
 
     // MARK: -
@@ -289,6 +289,57 @@ struct MoveJobTests {
         #expect(Self.string(Self.row(root, "printLog", "J1")?["dueDate"]) == "2099-01-29")
         #expect(Self.row(root, "printLog", "J1")?["heldAt"] == nil, "the hold is over")
         #expect(notices.contains { $0.contains("2099-01-29") }, "and the shop is told: \(notices)")
+    }
+
+    /// A completion out of QC that left no record was not counted as a failure.
+    /// It was not counted at all — `computeQcMetrics` only counts the orders
+    /// `qcStatusOf` can answer for — so a shop's pass rate would have been
+    /// computed over a shrinking subset of its own work.
+    @Test("a job finished out of inspection records that it passed")
+    func qcPassIsRecorded() async throws {
+        var root = Self.book()
+        guard case .array(var jobs)? = root["printLog"], case .object(var j1) = jobs[0] else {
+            Issue.record("fixture changed"); return
+        }
+        j1["status"] = .string("qc")
+        jobs[0] = .object(j1)
+        root["printLog"] = .array(jobs)
+
+        _ = try await Self.move(&root, "J1", .completed, qcNotes: "surface is clean")
+
+        let job = try #require(Self.row(root, "printLog", "J1"))
+        #expect(Self.string(job["status"]) == "completed")
+        #expect(Self.string(job["qcStatus"]) == "pass")
+        #expect(Self.string(job["qcPassedAt"])?.hasSuffix("Z") == true)
+        #expect(Self.string(job["qcNotes"]) == "surface is clean")
+        #expect(job["inspector"] == .null, "nobody was named, and nobody is recorded")
+    }
+
+    @Test("a completion that was not an inspection claims nothing about one")
+    func completionWithoutQC() async throws {
+        var root = Self.book()   // J1 is printing, not in QC
+        _ = try await Self.move(&root, "J1", .completed)
+        let job = try #require(Self.row(root, "printLog", "J1"))
+        #expect(job["qcStatus"] == nil, "or every completion would count as a pass")
+        #expect(job["qcPassedAt"] == nil)
+    }
+
+    @Test("the two moves that ask a question first, and only those")
+    func questionsAsked() async {
+        let shop = Shop(source: .sample)
+        await shop.load(.sample)
+        guard let inQC = shop.orders.first(where: { $0.status == "qc" })
+                ?? shop.orders.first(where: { $0.status == "printing" }) else { return }
+
+        // A hold always asks; every ordinary move asks nothing.
+        #expect(shop.questionFor(inQC.id, moving: .on_hold) != nil)
+        #expect(shop.questionFor(inQC.id, moving: .printing) == nil)
+        #expect(shop.questionFor(inQC.id, moving: .post) == nil)
+
+        // Completing asks only when the job is leaving inspection.
+        let asks = shop.questionFor(inQC.id, moving: .completed) != nil
+        #expect(asks == (Stage.of(inQC) == .qc),
+                "finishing a job that was in QC is an inspection; finishing one that was printing is not")
     }
 
     @Test("the ids this app mints are the ids Khayt mints")

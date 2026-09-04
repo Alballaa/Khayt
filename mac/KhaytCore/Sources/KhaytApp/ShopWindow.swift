@@ -64,11 +64,11 @@ struct ShopWindow: View {
         }
         .searchable(text: $shop.search, placement: .toolbar,
                     prompt: searchPrompt)
-        // On the window rather than the board, because ⇧⌘H reaches a job from
-        // the table too and the sheet has to be somewhere both can raise it.
-        .sheet(item: $shop.pendingHold) { held in
-            HoldReason(shop: shop, held: held)
-        }
+        // On the window rather than the board, because ⇧⌘H and the Job menu
+        // reach a job from the table too, and the sheet has to be somewhere all
+        // of them can raise it.
+        .sheet(item: $shop.pendingHold) { AskFirst(shop: shop, subject: $0, kind: .hold) }
+        .sheet(item: $shop.pendingQC) { AskFirst(shop: shop, subject: $0, kind: .qcPass) }
         .toolbar {
             ToolbarItem(placement: .navigation) {
                 // Which book is open, always visible. Mistaking the sample for

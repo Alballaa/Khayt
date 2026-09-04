@@ -134,7 +134,13 @@ private struct JobMenu: View {
     var body: some View {
         ForEach(Self.destinations) { stage in
             Button(Words.upfront(stage.key)) {
-                if let id = shop.selection { Task { await shop.moveJob(id, to: stage) } }
+                guard let id = shop.selection else { return }
+                // The same two questions the board asks. A move made from a
+                // menu must leave the same record as a move made by dragging,
+                // or which screen it was started from changes what is written
+                // down.
+                if let ask = shop.questionFor(id, moving: stage) { ask(); return }
+                Task { await shop.moveJob(id, to: stage) }
             }
             // ⌘1…⌘7 belong to Go, and a rival wins nothing. The stages are
             // reached by name, which is also how they are read on the board.

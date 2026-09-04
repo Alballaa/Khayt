@@ -6,6 +6,13 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Changed
 
+- **The Mac app records that a job passed inspection.** Finishing a job that
+  was in QC — by dragging it or from the Job menu — asks for the inspection
+  note first, and writes the same record Khayt writes. Without it the job was
+  not counted as a failure, it was not counted at all: a shop's pass rate is
+  computed only over the jobs that carry a QC record, so completions made on
+  the Mac would have quietly shrunk the figure they were measured against.
+
 - **A job can be moved from the Mac app's jobs table, not only by dragging it
   on the board.** A new Job menu moves whatever is selected to any stage, and
   ⇧⌘H puts it on hold and asks why. The search box now filters the board too —
@@ -32,6 +39,13 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   already run out, and a re-opened job never being charged twice.
 
 ### Fixed
+
+- **A job completed through QC never sent the notification a job completed
+  through the column button does.** Passing inspection wrote the completion
+  itself rather than going through the same rules as every other move, so the
+  Telegram message a shop had configured for a finished job did not go, and
+  nothing reached the team's activity log. Both now happen wherever the job was
+  finished from.
 
 - **The Mac app's menu bar was half in English for an Arabic shop, and one of
   its items had never said what it does.** Every menu is now in the shop's own

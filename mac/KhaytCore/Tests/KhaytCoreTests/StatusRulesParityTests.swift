@@ -82,6 +82,12 @@ struct StatusRulesParityTests {
         "['quote','pending','printing','post','qc','completed','delivered'].map(function(s){return KhaytOrderStatus.wouldExceedWipLimit(\(LOG),'c',s,{printing:2,pending:1,completed:1,delivered:1,quote:1});})",
         // The token format both apps mint.
         "KhaytOrderStatus.makeSurveyToken([0,15,255,1])",
+        // The hold and the inspection: the two records a move carries with it.
+        "(function(){var o={id:'h',status:'printing',dueDate:'2026-09-20'};var r=KhaytOrderStatus.apply(o,'on_hold',{now:\(NOW),holdReason:'no filament'});return [o,r.notices];})()",
+        "(function(){var o={id:'h',status:'printing',heldAt:'2026-08-01T00:00:00.000Z'};KhaytOrderStatus.apply(o,'on_hold',{now:\(NOW)});return o.heldAt;})()",
+        "(function(){var o={id:'q',status:'qc',inspector:'OLD'};KhaytOrderStatus.apply(o,'completed',{now:\(NOW),qc:{outcome:'pass',notes:'clean',inspector:'OP1'}});return o;})()",
+        "(function(){var o={id:'q',status:'qc',inspector:'OLD'};KhaytOrderStatus.apply(o,'completed',{now:\(NOW),qc:{outcome:'pass'}});return [o.inspector,o.qcNotes];})()",
+        "(function(){var o={id:'q',status:'qc'};KhaytOrderStatus.apply(o,'completed',{now:\(NOW),qc:{outcome:'fail'}});return o.qcStatus===undefined;})()",
     ]
 
     @Test("Swift and Node agree about what happens to a job")
