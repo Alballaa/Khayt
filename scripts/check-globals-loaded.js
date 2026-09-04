@@ -80,6 +80,11 @@ const isFlavourOwned = (owner) => FLAVOUR_DIRS.some((d) => owner.startsWith(d));
  * exemption: everything listed here is a feature Bed Ready silently does not
  * have, and the list may only shrink. A new gap is a failure.
  *
+ * It started at 32 and is 20. The twelve that went were five modules Bed Ready
+ * reads for and never loaded — the consumable category filter, the reorder
+ * suggestions, the printer-state rule and two the theme dashboards need. Every
+ * one of them was workshop logic that had simply never been given a script tag.
+ *
  * `renderer/bedready.html` was outside this check until a shared module
  * (lib/order-deduction.js) was added to inventory.js without a matching script
  * tag there. Nothing errored at build time; the Bed Ready smoke failed on
@@ -92,18 +97,7 @@ const isFlavourOwned = (owner) => FLAVOUR_DIRS.some((d) => owner.startsWith(d));
  */
 const KNOWN_ABSENT = {
   'renderer/bedready.html': [
-    ['KhaytAttention', 'lib/queue-groups.js'],
-    ['KhaytAttention', 'renderer/dashboard.js'],
-    ['KhaytAttention', 'renderer/machines.js'],
-    ['KhaytAttention', 'renderer/themes/command/screens.js'],
-    ['KhaytAttention', 'renderer/themes/vivid/screens.js'],
-    ['KhaytAttention', 'renderer/themes/workbench/screens.js'],
     ['KhaytCloudPlans', 'renderer/settings.js'],
-    ['KhaytConsumableCategories', 'renderer/inventory.js'],
-    ['KhaytConsumableReorder', 'renderer/inventory.js'],
-    ['KhaytDashboardFacts', 'renderer/themes/command/screens.js'],
-    ['KhaytDashboardFacts', 'renderer/themes/vivid/screens.js'],
-    ['KhaytDashboardFacts', 'renderer/themes/workbench/screens.js'],
     ['KhaytEstimateCalibration', 'renderer/settings.js'],
     ['KhaytEstimateCalibration', 'renderer/wire-events.js'],
     ['KhaytFlow', 'renderer/dashboard.js'],
@@ -123,7 +117,6 @@ const KNOWN_ABSENT = {
     ['KhaytPrinterRelocate', 'renderer/machines.js'],
     ['KhaytPrivacy', 'renderer/settings.js'],
     ['KhaytTelemetryScrub', 'renderer/settings.js'],
-    ['KhaytThemeCapabilities', 'renderer/themes/theme-picker.js'],
   ],
 };
 

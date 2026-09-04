@@ -62,6 +62,14 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **Five things Bed Ready was quietly missing.** The consumable list had no
+  category filter and no reorder suggestions; a printer's live state was worked
+  out by looking for the word "print" in whatever the machine reported, rather
+  than by the rule that tells a missed poll apart from a real fault; and three
+  of its dashboards fell back to guesses. None of it errored — each is read
+  behind a guard, so the feature was simply not there. All five are workshop
+  logic that had never been given a script tag.
+
 - **A QC failure recorded in Bed Ready did not say how bad it was.** The defect
   it wrote carried no severity and no photo reference, and never recorded who
   inspected the job — so a failure logged there answered "how serious was
