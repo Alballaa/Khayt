@@ -661,6 +661,37 @@ copy will use to read it — Arabic and all. macOS has no gzip, only raw DEFLATE
 so the container is written by hand and checked from the other side rather than
 against itself.
 
+### Bringing it down
+
+`pullFromCloud` is the only thing this app does that rewrites records the shop
+did not touch, and four things make it safe rather than the intention to be
+careful:
+
+* **A backup first.** The app already knows how; this is the operation that
+  most wants one.
+* **The read is inside the write.** `StoreWriter.update`'s async form reads the
+  book, hands it to the merge, re-checks ownership and swaps — so a merge
+  computed from a copy that went stale cannot put the stale copy back. The
+  engine is an actor, so the window is a JavaScript call wide, which is why the
+  second ownership check is the last thing before the swap.
+* **Nothing is stamped.** A merged record keeps the CLOUD's `rev`. Bumping it
+  would make this Mac look like it had edited every record it received, and it
+  would push them all straight back on the next send.
+* **`settings.cloud` is left alone.** The desktop's `viewSafeForLocal` decides
+  whether its cached server view still holds, and a merge only moves the book
+  FORWARD — so the view stays valid and this app never reaches into another
+  app's bookkeeping.
+
+The rule is `lib/cloud-inbox.js`, which is the desktop's own `pullMerge`.
+Settings never come down; the ledgers are added to and never overwritten; a
+local edit discarded because the record was deleted elsewhere is REPORTED, on
+screen, rather than swallowed.
+
+`CloudMergeTests` runs all of it against a copy of this Mac's real book in a
+temp directory, ownership included as a closure so the refusal is exercised
+too. Made the merge return the local store untouched and twelve assertions
+failed.
+
 ## Not yet built
 
 The rest of analytics, gift cards, the portfolio,

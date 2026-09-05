@@ -6,6 +6,13 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Changed
 
+- **The Mac app can bring the cloud's copy down.** *Check the cloud* has a
+  second button beside sending, and between them the two directions mean a Mac
+  and the cloud can be brought into step without opening Khayt. A backup is
+  taken first, settings are never brought down, the ledgers are only added to,
+  and a change made here that was discarded because the record had been deleted
+  on another device is said on screen rather than swallowed.
+
 - **Which collections a sync may only add to now lives in one place.** The
   list of ledgers — waste, maintenance, time entries, the audit log — sat in the
   desktop's settings file, so a second app could not merge without writing the
