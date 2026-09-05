@@ -222,6 +222,8 @@ public actor KhaytEngine {
         // payload `sync.applyDeltas` folds, and gets the answer wrong in a way
         // that costs a shop data if the two ever disagree about a rev.
         "cloud-outbox",
+        // …and the other direction. AFTER `sync`, which it folds with.
+        "cloud-inbox",
         // What counts as a Khayt store at all. Restoring a backup REPLACES a
         // shop's book, so the one thing that must not be a second opinion is
         // which files are allowed to do that — the renderer learned the hard

@@ -6,6 +6,12 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Changed
 
+- **Which collections a sync may only add to now lives in one place.** The
+  list of ledgers — waste, maintenance, time entries, the audit log — sat in the
+  desktop's settings file, so a second app could not merge without writing the
+  rule again, and a ledger added on one side would have been silently
+  overwritten on the other. The merge itself moved with it.
+
 - **Three names in the Mac app's sidebar were cut off mid-word.** Khayt calls
   them "Expense Tracker", "Failed Prints & Waste Log" and "Profit & Loss by
   Quarter" — good names for a screen, too long for the column. Under a heading
