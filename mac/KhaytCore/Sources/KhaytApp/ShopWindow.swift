@@ -250,7 +250,7 @@ private struct OwedSummary: View {
                 Label("\(shop.overdueCount) \(shop.words.callIt("mac.late"))",
                       systemImage: "exclamationmark.triangle.fill")
                     .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(Khayt.attention)
                     .labelStyle(.titleAndIcon)
                     .help(shop.words.callIt("mac.overdue_jobs",
                                     ["n": .number(Double(shop.overdueCount))]))

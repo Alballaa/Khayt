@@ -26,6 +26,13 @@ struct KhaytApp: App {
                 // better served closing one of them. No maximum: a Mac has a
                 // large display and more of this app on it is better.
                 .frame(minWidth: 900, minHeight: 480)
+                // The app's own colour — the cyan of the letter in its icon —
+                // and only when this Mac's owner has not chosen one of their
+                // own. The HIG is explicit that a chosen system accent replaces
+                // an app's; an app with an asset catalog gets that behaviour
+                // free, and this bundle is assembled by hand, so `appTint`
+                // asks the question and answers nil when the choice is theirs.
+                .tint(Khayt.appTint)
                 .task {
                     Snapshot.subject = shop
                     // Before the book is opened, so the very first write is

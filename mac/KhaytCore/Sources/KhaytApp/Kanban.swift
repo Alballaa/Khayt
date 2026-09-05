@@ -219,7 +219,7 @@ private struct JobCard: View {
         VStack(alignment: .leading, spacing: 5) {
             HStack(spacing: 5) {
                 if job.priority {
-                    Image(systemName: "flag.fill").font(.caption2).foregroundStyle(.orange)
+                    Image(systemName: "flag.fill").font(.caption2).foregroundStyle(Khayt.attention)
                 }
                 Text(job.project).font(.callout.weight(.medium)).lineLimit(2)
             }
@@ -234,7 +234,7 @@ private struct JobCard: View {
                           systemImage: job.isOverdue() ? "exclamationmark.triangle" : "calendar")
                         .font(.caption2)
                         .monospacedDigit()
-                        .foregroundStyle(job.isOverdue() ? AnyShapeStyle(.orange) : AnyShapeStyle(.tertiary))
+                        .foregroundStyle(job.isOverdue() ? AnyShapeStyle(Khayt.attention) : AnyShapeStyle(.tertiary))
                 }
                 Spacer(minLength: 4)
                 if !job.isSettled {

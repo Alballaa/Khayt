@@ -15,13 +15,13 @@ struct MoveBanners: View {
 
     var body: some View {
         if let problem = shop.moveProblem {
-            Banner(text: problem, symbol: "exclamationmark.triangle", tint: .orange)
+            Banner(text: problem, symbol: "exclamationmark.triangle", tint: Khayt.attention)
         }
         // A slicer that would not open. It belongs here for the same reason a
         // refused move does: the gesture was a menu item on a model, and there
         // is nowhere on that menu for an answer to appear.
         if let problem = shop.slicerProblem {
-            Banner(text: problem, symbol: "exclamationmark.triangle", tint: .orange)
+            Banner(text: problem, symbol: "exclamationmark.triangle", tint: Khayt.attention)
         }
         // By position, not by text: two spools running low can produce the same
         // sentence, and a ForEach with two identical ids draws one.
@@ -66,7 +66,7 @@ struct EngineBanner: View {
     var body: some View {
         if let problem = shop.engineProblem {
             Banner(text: shop.words.callIt("mac.engine_failed") + " \u{2014} " + problem,
-                   symbol: "exclamationmark.octagon", tint: .orange)
+                   symbol: "exclamationmark.octagon", tint: Khayt.attention)
         }
     }
 }

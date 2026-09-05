@@ -63,7 +63,7 @@ struct PaymentSheet: View {
             if let job {
                 Text(shop.words.callIt("flow.owed") + " " + Money.text(max(0, price - amount), currency))
                     .font(.callout)
-                    .foregroundStyle(price - amount > 0.005 ? AnyShapeStyle(.orange) : AnyShapeStyle(.secondary))
+                    .foregroundStyle(price - amount > 0.005 ? AnyShapeStyle(Khayt.attention) : AnyShapeStyle(.secondary))
                     .monospacedDigit()
                     .help(job.id)
             }

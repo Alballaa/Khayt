@@ -27,7 +27,7 @@ struct CloudCheckSheet: View {
 
             if let problem = shop.cloudProblem {
                 Text(problem)
-                    .font(.callout).foregroundStyle(.orange)
+                    .font(.callout).foregroundStyle(Khayt.attention)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
@@ -101,10 +101,10 @@ struct CloudCheckSheet: View {
         VStack(alignment: .leading, spacing: 8) {
             if result.agrees {
                 Label(shop.words.callIt("mac.cloud_in_step"), systemImage: "checkmark.circle")
-                    .foregroundStyle(.green)
+                    .foregroundStyle(Khayt.done)
             } else {
                 Label(shop.words.callIt("mac.cloud_apart"), systemImage: "arrow.triangle.branch")
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(Khayt.attention)
             }
             // What the answer is built on, said out loud. Without it "nineteen
             // jobs are newer here" cannot be told apart from a chain that was
@@ -157,7 +157,7 @@ struct CloudCheckSheet: View {
                                         ["applied": .number(Double(pulled.applied)),
                                          "removed": .number(Double(pulled.removed))]),
                       systemImage: "arrow.down.circle")
-                    .font(.callout).foregroundStyle(.green)
+                    .font(.callout).foregroundStyle(Khayt.done)
                     .fixedSize(horizontal: false, vertical: true)
                 // Delete wins over a local edit — and a shop is told, because a
                 // merge that threw somebody's work away in silence is the
@@ -166,7 +166,7 @@ struct CloudCheckSheet: View {
                     Label(shop.words.callIt("mac.cloud_lost_edits",
                                             ["n": .number(Double(pulled.conflicts.count))]),
                           systemImage: "exclamationmark.triangle")
-                        .font(.caption).foregroundStyle(.orange)
+                        .font(.caption).foregroundStyle(Khayt.attention)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
@@ -178,7 +178,7 @@ struct CloudCheckSheet: View {
                                           ["n": .number(Double(sent.count)),
                                            "rev": .number(Double(sent.rev))]),
                       systemImage: "arrow.up.circle")
-                    .font(.callout).foregroundStyle(.green)
+                    .font(.callout).foregroundStyle(Khayt.done)
                     .fixedSize(horizontal: false, vertical: true)
                 // The cause, under the result that reports it. A shop in this
                 // state stays in it — the whole book goes up on every sync,

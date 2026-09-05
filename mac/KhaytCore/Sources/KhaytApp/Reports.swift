@@ -87,7 +87,7 @@ struct Reports: View {
                     // two different minus signs in one table is a typo.
                     Text(spent > 0 ? Money.text(-spent, shop.currency) : "—")
                         .monospacedDigit()
-                        .foregroundStyle(spent > 0 ? AnyShapeStyle(.orange) : AnyShapeStyle(.tertiary))
+                        .foregroundStyle(spent > 0 ? AnyShapeStyle(Khayt.attention) : AnyShapeStyle(.tertiary))
                     if r.fixed > 0 {
                         Text(shop.words.callIt("mac.of_which_fixed") + " " + Money.text(r.fixed, shop.currency))
                             .font(.caption).foregroundStyle(.tertiary).monospacedDigit()
@@ -104,7 +104,7 @@ struct Reports: View {
             TableColumn(shop.words.callIt("an.pnl_net"), value: \.net) { r in
                 Text(Money.text(r.net, shop.currency))
                     .font(.body.weight(.semibold)).monospacedDigit()
-                    .foregroundStyle(r.net >= 0 ? AnyShapeStyle(.primary) : AnyShapeStyle(.orange))
+                    .foregroundStyle(r.net >= 0 ? AnyShapeStyle(.primary) : AnyShapeStyle(Khayt.late))
             }
             .width(min: 110, ideal: 140)
         }
@@ -283,7 +283,7 @@ struct Reports: View {
                         .width(min: 110, ideal: 170)
                         TableColumn(shop.words.callIt("an.aged_col_owed"), value: \.owed) { row in
                             Text(Money.text(row.owed, shop.currency))
-                                .monospacedDigit().foregroundStyle(.orange)
+                                .monospacedDigit().foregroundStyle(Khayt.attention)
                         }
                         .width(min: 100, ideal: 130)
                         TableColumn(shop.words.callIt("an.aged_col_days"), value: \.days) { row in
@@ -303,8 +303,8 @@ struct Reports: View {
         /// Older is louder. The oldest bucket is the one a shop acts on.
         static func tint(_ bucket: String) -> AnyShapeStyle {
             switch bucket {
-            case "90+": AnyShapeStyle(.red)
-            case "61-90": AnyShapeStyle(.orange)
+            case "90+": AnyShapeStyle(Khayt.late)
+            case "61-90": AnyShapeStyle(Khayt.attention)
             case "31-60": AnyShapeStyle(.yellow)
             default: AnyShapeStyle(.secondary)
             }
