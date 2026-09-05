@@ -41,6 +41,10 @@ struct Machine: Identifiable, Decodable, Hashable, Sendable {
         let type: String?
         let host: String?
         let port: Int?
+        /// STILL SEALED. Carried so the poller can open it at the moment it
+        /// sends one — OctoPrint and PrusaLink always need a key — and opened
+        /// nowhere else. No screen displays it and none ever should.
+        let apiKey: String?
     }
 
     /// Has the machine's own job history been read into the book?

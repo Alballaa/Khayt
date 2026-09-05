@@ -102,11 +102,33 @@ final class PrinterWatch {
     /// that is off does not hold the loop. Khayt uses the same five seconds.
     static let timeout: TimeInterval = 5
 
+    /// The protocols whose whole conversation this app knows.
+    ///
+    /// Moonraker was first because it is the one with a machine on the bench.
+    /// OctoPrint and PrusaLink joined it once their READING became a module
+    /// with its own tests, and once opening an API key was settled — both send
+    /// one, and it is `__enc__` on disk.
+    ///
+    /// Duet and Repetier are deliberately absent although they have modules
+    /// too: both need a session handshake before the first read, and building a
+    /// handshake against a machine nobody can point at is how a poller ships
+    /// that has never once been answered. Bambu and Elegoo are not HTTP at all.
+    static let spoken: Set<String> = ["moonraker", "octoprint", "prusalink"]
+
     /// Is this a machine this app can ask? Nil when it can.
     static func notWatched(_ machine: Machine) -> NotWatched? {
         let type = machine.printerApi?.type ?? ""
         if type.isEmpty || type == "none" { return .noConnection }
-        return type == "moonraker" ? nil : .otherProtocol(type)
+        return spoken.contains(type) ? nil : .otherProtocol(type)
+    }
+
+    /// The default port for a protocol, when the record does not say.
+    static func defaultPort(_ type: String) -> Int {
+        switch type {
+        case "octoprint": return 80
+        case "prusalink": return 80
+        default: return 7125          // Moonraker
+        }
     }
 
     func start(shop: Shop) {
@@ -202,22 +224,81 @@ final class PrinterWatch {
         guard let engine else { return }
         do {
             let base = try await Self.baseURL(machine, engine: engine)
-            let query = try await engine.moonrakerQuery()
-            let reply = try await Self.get(base, path: "/printer/objects/query?" + query)
-            // Only the machines that need it pay for the second request, and a
-            // failure there keeps toolhead zero's reading rather than nothing.
-            var hot: [String: JSONValue]?
-            let hotName = try await engine.moonrakerActiveExtruder(reply)
-            if let hotName, let escaped = hotName.addingPercentEncoding(withAllowedCharacters: .alphanumerics) {
-                hot = try? await Self.get(base, path: "/printer/objects/query?" + escaped)
+            // The API key, opened at the moment it is sent and never held.
+            // Moonraker in trusted-client mode needs none; the other two always
+            // do, and an unset one must be sent as NOTHING rather than as the
+            // string "undefined" — which is the mistake main.js records having
+            // made.
+            var key = ""
+            if let sealed = machine.printerApi?.apiKey, !sealed.isEmpty, let build = source {
+                key = (try? Secrets.open(sealed, for: build)) ?? ""
             }
-            let status = try await engine.moonrakerStatus(reply, hot: hot, hotName: hotName)
+            let status = try await Self.read(machine, engine: engine, base: base, key: key) { request in
+                try await Self.session.data(for: request)
+            }
             readings[machine.id] = Reading(status: status, problem: nil, at: Date(),
                                            consecutiveFailures: 0)
         } catch {
             let before = readings[machine.id]?.consecutiveFailures ?? 0
             readings[machine.id] = Reading(status: nil, problem: Self.say(error), at: Date(),
                                            consecutiveFailures: before + 1)
+        }
+    }
+
+    /// Which book this watch belongs to, so a credential can be opened.
+    var source: StoreReader.Build?
+
+    // MARK: - The conversations
+
+    /// One machine's whole exchange, whichever protocol it speaks.
+    ///
+    /// `fetch` is a seam: the orchestration — which endpoints are asked for and
+    /// which failures may be survived — is where the 2026-08-27 audit found its
+    /// defects, and it is the half that cannot be tested by driving a parser.
+    static func read(_ machine: Machine, engine: KhaytEngine, base: URL, key: String,
+                     fetch: @escaping (URLRequest) async throws -> (Data, URLResponse))
+        async throws -> KhaytEngine.PrinterStatus {
+        let type = machine.printerApi?.type ?? ""
+        let get: (String) async throws -> [String: JSONValue] = { path in
+            try await Self.get(base, path: path, key: key, type: type, fetch: fetch)
+        }
+
+        switch type {
+        case "octoprint":
+            // `/api/printer` is guarded by `abort(409, "Printer is not
+            // operational")` in server/api/printer.py, 1.11 and 2.0 alike, and
+            // that is OctoPrint running with the printer switched off — most of
+            // any working day. `/api/job` carries no such guard and its `state`
+            // reads "Offline" from the connection's own string. So the job is
+            // asked for unconditionally and the printer TOLERANTLY; any other
+            // status is still a fault.
+            let job = try await get("/api/job")
+            var printer: [String: JSONValue]?
+            do { printer = try await get("/api/printer") }
+            catch Refusal.http(409, _) { printer = nil }
+            return try await engine.octoprintStatus(printer: printer, job: job)
+
+        case "prusalink":
+            // `/api/v1/status` carries no file information at any firmware
+            // version, so the name comes from `/api/v1/job` — which answers 204
+            // when nothing is printing. That second request is allowed to fail
+            // entirely: a missing name must not cost the temperatures and the
+            // progress the first one returned.
+            let status = try await get("/api/v1/status")
+            let job = try? await get("/api/v1/job")
+            return try await engine.prusalinkStatus(status: status, job: job)
+
+        default:
+            let query = try await engine.moonrakerQuery()
+            let reply = try await get("/printer/objects/query?" + query)
+            // Only the machines that need it pay for the second request, and a
+            // failure there keeps toolhead zero's reading rather than nothing.
+            var hot: [String: JSONValue]?
+            let hotName = try await engine.moonrakerActiveExtruder(reply)
+            if let hotName, let escaped = hotName.addingPercentEncoding(withAllowedCharacters: .alphanumerics) {
+                hot = try? await get("/printer/objects/query?" + escaped)
+            }
+            return try await engine.moonrakerStatus(reply, hot: hot, hotName: hotName)
         }
     }
 
@@ -228,7 +309,7 @@ final class PrinterWatch {
         case notALanAddress(String)
         case badPort(Int)
         case redirected
-        case http(Int)
+        case http(Int, String)
         case notJSON
 
         var description: String {
@@ -242,8 +323,9 @@ final class PrinterWatch {
                 return "\(port) is not a port."
             case .redirected:
                 return "The printer sent this request somewhere else, so it was dropped."
-            case .http(let code):
-                return "The printer's server answered \(code)."
+            case .http(let code, let body):
+                return "The printer's server answered \(code)"
+                     + (body.isEmpty ? "." : ": \(body).")
             case .notJSON:
                 return "The printer's answer was not JSON."
             }
@@ -261,7 +343,7 @@ final class PrinterWatch {
         let host = try await engine.printerHost(raw)
         guard !host.isEmpty else { throw Refusal.noHost }
         guard try await engine.printerHostAllowed(host) else { throw Refusal.notALanAddress(host) }
-        let port = machine.printerApi?.port ?? 7125
+        let port = machine.printerApi?.port ?? defaultPort(machine.printerApi?.type ?? "")
         guard port > 0, port <= 65535 else { throw Refusal.badPort(port) }
         guard let url = URL(string: "http://\(host):\(port)") else { throw Refusal.noHost }
         return url
@@ -272,16 +354,30 @@ final class PrinterWatch {
     /// A misconfigured or compromised printer host must not be able to 302 this
     /// off the address that was checked and onto loopback or a metadata
     /// endpoint — the check above would then have guarded nothing.
-    static func get(_ base: URL, path: String,
-                    timeout seconds: TimeInterval = timeout) async throws -> [String: JSONValue] {
+    static func get(_ base: URL, path: String, key: String = "", type: String = "",
+                    timeout seconds: TimeInterval = timeout,
+                    fetch: ((URLRequest) async throws -> (Data, URLResponse))? = nil)
+        async throws -> [String: JSONValue] {
         guard let url = URL(string: base.absoluteString + path) else { throw Refusal.noHost }
         var request = URLRequest(url: url)
         request.timeoutInterval = seconds
         request.httpMethod = "GET"
-        let (data, response) = try await Self.session.data(for: request)
+        // Guarded on a non-empty key: an unset one previously sent the literal
+        // string "undefined" as the header value in the Electron app, and
+        // Moonraker in trusted-client mode needs no key at all — so sending a
+        // junk one is worse than sending none.
+        if !key.isEmpty, ["octoprint", "prusalink", "moonraker"].contains(type) {
+            request.setValue(key, forHTTPHeaderField: "X-Api-Key")
+        }
+        let (data, response) = try await (fetch ?? { try await Self.session.data(for: $0) })(request)
         if let http = response as? HTTPURLResponse {
             if (300..<400).contains(http.statusCode) { throw Refusal.redirected }
-            guard (200..<300).contains(http.statusCode) else { throw Refusal.http(http.statusCode) }
+            guard (200..<300).contains(http.statusCode) else {
+                throw Refusal.http(http.statusCode, String(decoding: data.prefix(200), as: UTF8.self))
+            }
+            // 204 No Content is a legitimate answer, not an empty body to parse
+            // — PrusaLink sends it when nothing is printing.
+            if http.statusCode == 204 { return [:] }
         }
         guard let decoded = try? JSONDecoder().decode([String: JSONValue].self, from: data) else {
             throw Refusal.notJSON
