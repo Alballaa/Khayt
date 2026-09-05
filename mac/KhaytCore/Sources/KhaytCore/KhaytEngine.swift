@@ -99,6 +99,11 @@ public actor KhaytEngine {
         // it through a global, so listing it after would give every new job a
         // default eight-hour day instead of the shop's own.
         "working-week",
+        // What a print costs money at when nobody has said otherwise. BEFORE
+        // calculator-cost, because it supplies four of the six things that
+        // module adds up — and a caller that omits them gets a price with
+        // material in it and no error at all.
+        "print-rates",
         "calculator-cost",
         "order-new",
         // Which language a shop writes its customers' names in, and which of
@@ -1490,10 +1495,64 @@ public actor KhaytEngine {
     /// Material, machine wear, electricity, labour and the failure allowance —
     /// the figure every price is built on top of, and the same function the
     /// calculator screen and the phone's quote endpoint both call.
+    /// `machine` supplies the two cost inputs a printer knows about itself, its
+    /// power draw and its wear rate — the same two `applyMachineToCalculator`
+    /// applies in the Electron calculator, and no others.
+    ///
+    /// THE RATES ARE NOT OPTIONAL. `computePartBaseCost` adds up six things and
+    /// returns a number whether or not it was given them, so a caller that
+    /// leaves out wear, power, labour and the failure allowance is quoted the
+    /// material and nothing else: 20.40 on a job Khayt's own calculator prices
+    /// at 109.43. This app did exactly that, reading five `settings.default*`
+    /// keys Khayt has never written. `KhaytPrintRates` is where the real
+    /// figures live.
+    ///
+    /// Anything the PART carries wins over the rates, because a rate is what to
+    /// assume and the part is what somebody said.
     public func partCost(_ part: JSONValue, inventory: [JSONValue],
-                         settings: [String: JSONValue]) throws -> Double {
-        try runtime.call2("KhaytCalculatorCost.computePartBaseCost(ARG0, {inventory: ARG1, settings: ARG2})",
-                          [part, .array(inventory), .object(settings)], as: Double.self)
+                         settings: [String: JSONValue],
+                         machine: JSONValue? = nil, preset: JSONValue? = nil) throws -> Double {
+        try runtime.call2("""
+            KhaytCalculatorCost.computePartBaseCost(
+              Object.assign({}, KhaytPrintRates.ratesFor({ machine: ARG3, preset: ARG4 }), ARG0),
+              { inventory: ARG1, settings: ARG2 })
+            """,
+                          [part, .array(inventory), .object(settings),
+                           machine ?? .null, preset ?? .null], as: Double.self)
+    }
+
+    /// The same figure, in the four parts a shop can argue with.
+    ///
+    /// `material`, `machine`, `labor` and `buffer` sum to exactly what
+    /// `partCost` returns — the module folds extra materials and packaging into
+    /// the material bucket for precisely that reason. Shown rather than kept,
+    /// because a price that quietly grew fivefold needs to be able to say where
+    /// it went.
+    public func partBreakdown(_ part: JSONValue, inventory: [JSONValue],
+                              settings: [String: JSONValue],
+                              machine: JSONValue? = nil,
+                              preset: JSONValue? = nil) throws -> CostParts {
+        try runtime.call2("""
+            KhaytCalculatorCost.computePartBreakdown(
+              Object.assign({}, KhaytPrintRates.ratesFor({ machine: ARG3, preset: ARG4 }), ARG0),
+              { inventory: ARG1, settings: ARG2 })
+            """,
+                          [part, .array(inventory), .object(settings),
+                           machine ?? .null, preset ?? .null], as: CostParts.self)
+    }
+
+    /// What a part costs, split the way the calculator splits it.
+    public struct CostParts: Decodable, Sendable, Hashable {
+        /// Filament, plus any extra materials and the packaging share.
+        public let material: Double
+        /// Wear and electricity.
+        public let machine: Double
+        /// Preparation and finishing.
+        public let labor: Double
+        /// The failure allowance, on the sum of the other three.
+        public let buffer: Double
+
+        public var total: Double { material + machine + labor + buffer }
     }
 
     /// A new job, as the book records it.

@@ -574,6 +574,38 @@ sidebar, `EngineStartTests` asserts the runtime starts and that a handful of
 labels are not their own keys, and the loader's exception list has a comment
 saying a NEW module should be named for its global instead.
 
+## What a job costs
+
+`lib/calculator-cost.js` adds up six things: material, machine wear,
+electricity, labour, any extra materials, and an allowance for prints that
+fail. It is the same function the Electron calculator and the phone's quote
+endpoint call.
+
+It also returns a number whether or not you gave it those six. That is the
+trap, and this app fell into it: `costOfPart` read wear, power, labour and the
+failure rate from `settings.defaultWearRate` and four siblings — **five keys
+Khayt has never written anywhere**. The fallback branch was the only branch,
+every rate came out zero, and a job taken here was quoted at its filament and
+nothing else. On this shop's own 272-gram, 14.9-hour job: **20.40 against the
+109.43** the calculator quotes for the same work.
+
+The rates live in `lib/print-rates.js` now, and they are not invented there —
+they are the `value="…"` attributes the calculator's own form has shipped
+since the first release, which is what a shop that has never touched those
+fields is charged at. `test/print-rates.test.js` reads those attributes out of
+`renderer/index.html` and requires them to match, because drifting apart
+quietly is the only failure that module can have.
+
+Order of precedence, the same as `applyMachineToCalculator`: Khayt's defaults,
+then a saved printer preset, then the MACHINE for the two rates a printer
+knows about itself — its power draw and its wear. Anything typed on the part
+beats all of it, so a zero somebody meant stays zero.
+
+The New Job sheet shows the four buckets under the total. Not decoration: this
+screen asks for grams and hours and nothing else, so most of what a print costs
+is invisible unless it is said out loud — and a bucket reading nought is
+exactly what nobody noticed for as long as this was broken.
+
 ## The cloud
 
 Two operations, and the line between them is the design.

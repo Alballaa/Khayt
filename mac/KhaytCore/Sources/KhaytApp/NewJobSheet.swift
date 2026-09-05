@@ -16,6 +16,12 @@ import KhaytCore
 /// Choosing a spool fills the material and the cost of it, because the shelf
 /// already knows what that spool cost and how much of it there was — asking
 /// again is asking a shop to retype something it has told the app once.
+///
+/// The four figures under the total are there because most of what a print
+/// costs is not filament. This screen asks for grams and hours and nothing
+/// else, so a shop is entitled to see what else went into the number before it
+/// quotes somebody — and, more to the point, to notice when one of them is
+/// zero.
 struct NewJobSheet: View {
     let shop: Shop
 
@@ -35,8 +41,9 @@ struct NewJobSheet: View {
     /// One part, as this screen collects it.
     ///
     /// The cost fields it does not ask for — wear, power, labour, the failure
-    /// allowance — are the shop's own and come from its settings, so a job taken
-    /// here is costed exactly as the same job typed into Electron.
+    /// allowance — come from `lib/print-rates.js`, which holds the figures the
+    /// Electron calculator's own form opens on. They used to come from five
+    /// settings keys Khayt never writes, which meant they came to nothing.
     struct Draft: Identifiable, Equatable {
         let id = UUID()
         var name = ""
@@ -45,6 +52,9 @@ struct NewJobSheet: View {
         var hours = ""
         var qty = 1
         var cost: Double = 0
+        /// Where that cost went. Held per part so the sheet can add up the cart
+        /// without asking the engine again for each one.
+        var parts: KhaytEngine.CostParts?
 
         var isComplete: Bool { (Double(grams) ?? 0) > 0 || (Double(hours) ?? 0) > 0 }
     }
@@ -59,6 +69,7 @@ struct NewJobSheet: View {
                     cart
                     money
                     total
+                    breakdown
                 }
                 .padding(18)
             }
@@ -208,6 +219,41 @@ struct NewJobSheet: View {
         }
     }
 
+    /// Where the cost went, before margin.
+    ///
+    /// Four figures, and any of them may be zero for a good reason — a job with
+    /// no hours has no labour. What matters is that a shop can SEE it is zero,
+    /// which is the thing that was missing while this app quoted material and
+    /// called it a price.
+    @ViewBuilder private var breakdown: some View {
+        let sum = parts.compactMap(\.parts).reduce(into: (m: 0.0, k: 0.0, l: 0.0, b: 0.0)) { out, p in
+            out.m += p.material; out.k += p.machine; out.l += p.labor; out.b += p.buffer
+        }
+        if sum.m + sum.k + sum.l + sum.b > 0 {
+            HStack(spacing: 14) {
+                chip("calc.bd.material", sum.m)
+                chip("calc.bd.machine", sum.k)
+                chip("calc.bd.labor", sum.l)
+                chip("calc.bd.buffer", sum.b)
+            }
+        }
+    }
+
+    private func chip(_ key: String, _ value: Double) -> some View {
+        HStack(spacing: 4) {
+            Text(shop.words.callIt(key)).foregroundStyle(.secondary)
+            Text(Money.figure(value)).monospacedDigit()
+        }
+        .font(.caption)
+        // One line, always. A label that wraps inside a row whose height the
+        // window is measuring is the shape that crashed this app once — see
+        // `SidebarLayoutTests`. Four of these across a 560pt sheet is a
+        // comfortable fit until somebody quotes six figures, and then they
+        // shrink rather than fold.
+        .lineLimit(1)
+        .minimumScaleFactor(0.7)
+    }
+
     /// What it comes to, said once and plainly.
     private var total: some View {
         HStack(spacing: 8) {
@@ -263,10 +309,16 @@ struct NewJobSheet: View {
 
     private func addPart() async {
         var next = draft
-        next.cost = await shop.costOfPart(spoolId: next.spoolId,
-                                          grams: Double(next.grams) ?? 0,
-                                          hours: Double(next.hours) ?? 0,
-                                          qty: next.qty)
+        let grams = Double(next.grams) ?? 0
+        let hours = Double(next.hours) ?? 0
+        next.cost = await shop.costOfPart(spoolId: next.spoolId, grams: grams,
+                                          hours: hours, qty: next.qty)
+        // Two crossings rather than one, and only when a part is added — never
+        // per keystroke. Asking for the split separately keeps `partCost` the
+        // single answer to "what does this cost": the four figures are a view
+        // of it, and the module guarantees they sum to it.
+        next.parts = await shop.breakdownOfPart(spoolId: next.spoolId, grams: grams,
+                                                hours: hours, qty: next.qty)
         parts.append(next)
         draft = Draft()
     }
