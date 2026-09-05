@@ -4,15 +4,16 @@
 # `swift run` is fine for working on the app and useless for testing it: no
 # bundle, so no icon, no name in the menu bar, no Dock entry that survives a
 # relaunch, and an activation policy the code has to set by hand. This assembles
-# the same binary into the bundle macOS expects, ad-hoc signed so it opens.
+# the same binary into the bundle macOS expects, signed so it opens.
 #
 #   ./mac/make-app.sh            # build, put it in mac/dist/Khayt.app
 #   ./mac/make-app.sh --open     # …and launch it
 #   ./mac/make-app.sh --install  # …and copy it to /Applications
 #
-# NOT the shipping build. Ad-hoc signing means this Mac will run it and no other
-# will: notarisation, a Developer ID and a hardened runtime are what makes it
-# something a shop can download, and none of that is here yet.
+# NOT the shipping build. It signs with whatever stable identity this Mac has
+# (see the signing block below) and falls back to ad hoc, but it is not
+# notarised and has no hardened runtime — those are what make it something a
+# shop can download, and neither is here yet.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -81,11 +82,57 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 </plist>
 PLIST
 
-# Ad-hoc signature. Without one, a binary built here and then moved is killed on
-# launch as damaged rather than merely refused, which reads as a broken build.
-codesign --force --sign - --timestamp=none "$APP" >/dev/null 2>&1 \
-  || { echo "codesign failed"; exit 1; }
+# SIGN WITH A STABLE IDENTITY IF THIS MAC HAS ONE.
+#
+# An ad-hoc signature — `--sign -` — carries no identity: what macOS remembers
+# about the app is its own content hash, so every rebuild is a DIFFERENT
+# APPLICATION and everything granted to the last one is granted to nothing.
+#
+# The bill is the Keychain. Khayt keeps the cloud token and the printer API keys
+# there, and the first read by an unrecognised application raises a permission
+# dialog. Ad hoc means every single build raises it again — the app sat at 0%
+# CPU behind one for twenty minutes, twice in a day, before this was understood.
+#
+# A real certificate fixes the identity. Signed with a Developer ID the
+# requirement becomes the Team ID:
+#
+#   designated => identifier "Khayt" and anchor apple generic
+#                 and certificate leaf[subject.OU] = "<team>"
+#
+# — which is the same on the next build, and the next. A grant given once holds.
+#
+# Order: an explicit override, then Developer ID (also valid on other Macs, and
+# the identity a notarised build would use), then Apple Development, then ad hoc.
+# `find-identity -v` lists only identities whose certificate is valid and whose
+# private key is present, so anything it prints can actually sign.
+#
+# Matched by SHA-1, not by name: the names contain parentheses and a substring
+# match on two identities is an error rather than a choice.
+pick_identity() {
+  if [ -n "${KHAYT_SIGN_IDENTITY:-}" ]; then echo "$KHAYT_SIGN_IDENTITY"; return; fi
+  local list; list="$(security find-identity -v 2>/dev/null || true)"
+  local kind
+  for kind in "Developer ID Application:" "Apple Development:"; do
+    local line; line="$(printf '%s\n' "$list" | grep -F "$kind" | head -1)"
+    [ -n "$line" ] && { printf '%s\n' "$line" | awk '{print $2}'; return; }
+  done
+  echo "-"
+}
+IDENTITY="$(pick_identity)"
+
+codesign --force --sign "$IDENTITY" --timestamp=none "$APP" >/dev/null 2>&1 \
+  || { echo "codesign failed (identity: $IDENTITY)"; exit 1; }
 codesign --verify --deep --strict "$APP" 2>&1 | sed 's/^/  /' || true
+
+# Print what it was signed as, because the difference is invisible in the bundle
+# and it is the thing that decides whether the Keychain asks again.
+if [ "$IDENTITY" = "-" ]; then
+  echo "  signed: ad hoc — no stable identity on this Mac, so the Keychain will"
+  echo "          ask again after every build. A Developer ID or an Apple"
+  echo "          Development certificate in the login keychain stops that."
+else
+  echo "  signed: $(codesign -dvv "$APP" 2>&1 | sed -n 's/^Authority=//p' | head -1)"
+fi
 
 echo "Built $APP"
 du -sh "$APP" | sed 's/^/  /'
