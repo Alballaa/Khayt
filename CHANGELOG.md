@@ -4,21 +4,6 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
-### Fixed
-
-- **A slicer path from a restored backup or a cloud sync can no longer run
-  something that is not a slicer.** Khayt launches the slicer you configured,
-  and both its path and its arguments live in your settings — which travel in a
-  backup and through the cloud. The check that decided whether a path was safe
-  to launch listed programs to refuse (shells, Python, Node…), and that list can
-  never be complete: `awk`, `find`, `xargs`, `make`, `git`, `busybox` and a
-  dozen other ordinary programs each run whatever command their arguments say,
-  and none of them is a shell. Khayt already had the better check — one that
-  requires the program to look like a slicer — written, explained and tested,
-  but nothing was calling it. It is now the check every path goes through, and
-  the same one used to detect installed slicers, so what Khayt offers you and
-  what Khayt is willing to run are one answer.
-
 ### Changed
 
 - **The Mac app no longer freezes solid while macOS asks about your Keychain.**
@@ -510,6 +495,19 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   already run out, and a re-opened job never being charged twice.
 
 ### Fixed
+
+- **A slicer path from a restored backup or a cloud sync can no longer run
+  something that is not a slicer.** Khayt launches the slicer you configured,
+  and both its path and its arguments live in your settings — which travel in a
+  backup and through the cloud. The check that decided whether a path was safe
+  to launch listed programs to refuse (shells, Python, Node…), and that list can
+  never be complete: `awk`, `find`, `xargs`, `make`, `git`, `busybox` and a
+  dozen other ordinary programs each run whatever command their arguments say,
+  and none of them is a shell. Khayt already had the better check — one that
+  requires the program to look like a slicer — written, explained and tested,
+  but nothing was calling it. It is now the check every path goes through, and
+  the same one used to detect installed slicers, so what Khayt offers you and
+  what Khayt is willing to run are one answer.
 
 - **Check the cloud answered 404.** The shop id was being escaped into the
   address in a way Khayt Cloud has no route for — every id contains an
