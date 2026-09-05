@@ -128,6 +128,22 @@ private struct Provenance: View {
         return shop.canWrite ? "pencil" : "lock"
     }
 
+    /// EVERY LINE HERE IS ONE LINE, and that is a layout rule rather than a
+    /// taste.
+    ///
+    /// This view is the sidebar's `.safeAreaInset(edge: .bottom)`, and the
+    /// sidebar is a RESIZABLE SPLIT-VIEW COLUMN. A label allowed to wrap makes
+    /// this view's HEIGHT depend on the column's WIDTH — and a child whose
+    /// size depends on the size it is given is a feedback loop with
+    /// `SplitViewChildController.hostingView(_:didUpdateMinSize:maxSize:)`.
+    /// AppKit ends that loop by throwing out of
+    /// `_postWindowNeedsUpdateConstraints`, which is an abort with no reason
+    /// attached to it.
+    ///
+    /// It happened: a two-line "changes here reach the cloud…" shipped in
+    /// #997, showed only for a cloud-connected book — so never on the sample
+    /// this app photographs — and took the app down after a minute or two of
+    /// ordinary use. Long text goes in `.help`, where its length costs nothing.
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Divider()
@@ -141,9 +157,9 @@ private struct Provenance: View {
                     .help(shop.skipped.prefix(8).joined(separator: "\n"))
             }
             if let backupProblem = shop.backupProblem {
-                Label(shop.words.callIt("mac.backup_failed") + " " + backupProblem,
-                      systemImage: "exclamationmark.triangle")
-                    .foregroundStyle(.orange).font(.caption).lineLimit(2)
+                Label(shop.words.callIt("mac.backup_failed"), systemImage: "exclamationmark.triangle")
+                    .foregroundStyle(.orange).font(.caption).lineLimit(1)
+                    .help(backupProblem)
             } else if let day = shop.lastBackup {
                 // Quiet, and always there. A shop should be able to answer
                 // "when was this last backed up" by looking, not by trusting.
@@ -155,15 +171,25 @@ private struct Provenance: View {
             // anything, and a line telling it so is a line people stop reading.
             if shop.cloudConnected {
                 Label(shop.words.callIt("mac.not_synced"), systemImage: "icloud.slash")
-                    .foregroundStyle(.tertiary).font(.caption).lineLimit(2)
+                    .foregroundStyle(.tertiary).font(.caption).lineLimit(1)
                     .help(shop.words.callIt("mac.not_synced_why"))
+            }
+            // What the app said as it died last time. One line, like every
+            // other line here; the reason is in the tooltip, and clicking it
+            // says it has been read.
+            if shop.lastCrash != nil {
+                Label(shop.words.callIt("mac.last_crash"), systemImage: "exclamationmark.bubble")
+                    .foregroundStyle(.orange).font(.caption).lineLimit(1)
+                    .help(shop.lastCrash ?? "")
+                    .onTapGesture { shop.forgetLastCrash() }
             }
             if let engineProblem = shop.engineProblem {
                 // Above everything, in the one place that is on every screen.
-                Label(engineProblem, systemImage: "exclamationmark.octagon")
+                Label(shop.words.callIt("mac.engine_failed"), systemImage: "exclamationmark.octagon")
                     .foregroundStyle(.orange)
                     .font(.caption)
-                    .lineLimit(3)
+                    .lineLimit(1)
+                    .help(engineProblem)
             }
             Label(footerLabel, systemImage: footerSymbol)
             // Who else has it open. Only shown when somebody does — a line that

@@ -1425,10 +1425,18 @@ final class Shop {
             backupProblem = String(describing: error)
         }
         lastBackup = Backups.lastBackupDay(in: Backups.directory(for: build))
+        lastCrash = LastWords.read(for: build)
     }
 
     /// Why the day's backup could not be taken, when it could not.
     private(set) var backupProblem: String?
+
+    /// What the app said as it died last time, if it did.
+    ///
+    /// Read once when a book opens. A crash a shop cannot see is a crash it
+    /// cannot report, and the macOS report for an uncaught exception does not
+    /// carry the reason.
+    private(set) var lastCrash: String?
 
     /// Take a backup now, for the shop that is about to do something it might
     /// want to undo.
@@ -1452,6 +1460,13 @@ final class Shop {
             backupProblem = String(describing: error)
             spendProblem = words.callIt("mac.backup_failed") + " " + String(describing: error)
         }
+    }
+
+    /// Put the last crash out of mind, once somebody has looked at it.
+    func forgetLastCrash() {
+        guard let build = source.build else { return }
+        LastWords.clear(for: build)
+        lastCrash = nil
     }
 
     /// Show the shop where its backups are, so it can copy one somewhere safe.

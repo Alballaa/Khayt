@@ -439,6 +439,10 @@ final class Words {
         "mac.times_ordered": ["en": "Orders",       "ar": "الطلبات"],
         "mac.unnamed":       ["en": "(no name yet)", "ar": "(بلا اسم بعد)"],
         "mac.price":         ["en": "Price",        "ar": "السعر"],
+        "mac.engine_failed": ["en": "The shared rules did not load",
+                              "ar": "لم تُحمَّل القواعد المشتركة"],
+        "mac.last_crash":    ["en": "It stopped unexpectedly last time",
+                              "ar": "توقّف التطبيق فجأة في المرة الماضية"],
         "mac.no_products":   ["en": "No catalogue yet", "ar": "لا يوجد كتالوج بعد"],
         "mac.no_products_hint": ["en": "A product is something the shop has decided to sell, "
                               + "with a price it stands behind. Khayt is where one is made.",
@@ -469,8 +473,10 @@ final class Words {
         // What this app does NOT do. Said quietly and always, because a shop
         // with two machines drifting apart is the failure that costs most and
         // announces itself least.
-        "mac.not_synced":    ["en": "Changes here reach the cloud when Khayt next runs",
-                              "ar": "تصل التغييرات هنا إلى السحابة عند تشغيل خيط في المرة القادمة"],
+        // SHORT ENOUGH FOR ONE LINE — see the note on `Provenance`. The
+        // sentence that explains it lives in `mac.not_synced_why`, which is a
+        // tooltip and can be as long as it needs to be.
+        "mac.not_synced":    ["en": "Not synced from here", "ar": "لا تُزامَن من هنا"],
         // Asking the cloud what it holds. Read only, and the sheet says so
         // before it asks for a passphrase.
         "mac.check_cloud":   ["en": "Check the cloud", "ar": "فحص السحابة"],

@@ -1,0 +1,75 @@
+import Foundation
+
+/// Saying why the app died.
+///
+/// A macOS crash report for an uncaught Objective-C exception carries the
+/// backtrace and NOT the reason: the `Last Exception Backtrace` names
+/// `objc_exception_throw` and nothing tells you what the exception said. That
+/// cost a whole investigation — an AppKit abort out of
+/// `_postWindowNeedsUpdateConstraints` with no message, on a machine that was
+/// not this one, from a build that could not be made to do it on demand.
+///
+/// So the app writes its own last words: the exception's name, its reason and
+/// its backtrace, beside the store where a shop can find them and send them on.
+/// One file, overwritten each time, because the interesting crash is the one
+/// that just happened.
+///
+/// **This does not catch Swift runtime traps** — a force-unwrap of nil, an
+/// array out of bounds, a `precondition`. Those are not exceptions and nothing
+/// can catch them; they still produce an ordinary crash report, which for a
+/// Swift trap DOES name the reason. It catches the AppKit and Foundation
+/// exceptions, which are the ones that arrive mute.
+@MainActor
+enum LastWords {
+
+    /// Where it goes. Beside the store, not in a log directory nobody opens.
+    static func file(for build: StoreReader.Build) -> URL {
+        build.storeURL.deletingLastPathComponent().appending(path: "last-crash.txt")
+    }
+
+    /// Install the handler. Safe to call twice; the second wins.
+    ///
+    /// NOT a `try/catch` around anything — an uncaught Objective-C exception
+    /// has already unwound past every Swift frame by the time this runs, and
+    /// the process is going to die. The one job here is to leave a note.
+    /// Where the note goes, as plain paths.
+    ///
+    /// A `static` rather than a capture: `NSSetUncaughtExceptionHandler` takes
+    /// a C function pointer, which cannot close over anything, so whatever the
+    /// handler needs has to be somewhere it can reach without a capture.
+    nonisolated(unsafe) static var targets: [URL] = []
+
+    static func listen() {
+        // Both books, because which one is open is not known this early and a
+        // crash before the book opens is exactly the kind worth reading.
+        targets = StoreReader.Build.allCases.map(file(for:))
+        NSSetUncaughtExceptionHandler { exception in
+            let note = """
+                Khayt for Mac stopped unexpectedly.
+
+                when:   \(ISO8601DateFormatter().string(from: Date()))
+                what:   \(exception.name.rawValue)
+                why:    \(exception.reason ?? "(no reason given)")
+
+                where:
+                \(exception.callStackSymbols.prefix(40).joined(separator: "\n"))
+                """
+            for url in LastWords.targets {
+                // Best effort by design: a handler that throws while reporting
+                // a crash has turned one problem into two.
+                try? note.write(to: url, atomically: true, encoding: .utf8)
+            }
+            FileHandle.standardError.write(Data((note + "\n").utf8))
+        }
+    }
+
+    /// The note from the last crash, if there is one.
+    static func read(for build: StoreReader.Build) -> String? {
+        try? String(contentsOf: file(for: build), encoding: .utf8)
+    }
+
+    /// Forget it — once a shop has been shown it, it is not news any more.
+    static func clear(for build: StoreReader.Build) {
+        try? FileManager.default.removeItem(at: file(for: build))
+    }
+}
