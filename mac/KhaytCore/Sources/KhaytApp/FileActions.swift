@@ -34,16 +34,16 @@ struct ModelActions: View {
 
     var body: some View {
         if let url = shop.modelFile(for: file) {
-            Button("Reveal in Finder") { FileActions.reveal(url) }
-            Button("Open") { FileActions.open(url) }
+            Button(shop.words.callIt("mac.reveal_in_finder")) { FileActions.reveal(url) }
+            Button(shop.words.callIt("mac.open")) { FileActions.open(url) }
             Divider()
         } else if let dir = shop.directory(for: file) {
-            Button("Reveal Folder in Finder") { FileActions.reveal(dir) }
+            Button(shop.words.callIt("mac.reveal_folder")) { FileActions.reveal(dir) }
             Divider()
         }
-        Button("Copy Name") { FileActions.copy(file.title) }
+        Button(shop.words.callIt("mac.copy_name")) { FileActions.copy(file.title) }
         if let original = file.sourceFile?.originalName ?? file.originalName {
-            Button("Copy File Name") { FileActions.copy(original) }
+            Button(shop.words.callIt("mac.copy_file_name")) { FileActions.copy(original) }
         }
     }
 }

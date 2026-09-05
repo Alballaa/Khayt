@@ -36,7 +36,7 @@ struct KhaytCommands: Commands {
         CommandGroup(replacing: .newItem) { NewJobCommand().environment(shop) }
 
         CommandGroup(replacing: .appInfo) {
-            Button("About Khayt") { About.show() }
+            Button(shop.words.callIt("mac.about_khayt")) { About.show() }
         }
 
         // Into the View menu AppKit already puts there, beside Show Sidebar,
@@ -98,7 +98,7 @@ private struct BookMenu: View {
 
         Divider()
         Picker(Words.upfront("mac.open_book"), selection: Binding(get: { shop.source }, set: { shop.open($0) })) {
-            ForEach(Shop.available) { Text($0.title).tag($0) }
+            ForEach(Shop.available) { Text($0.title(shop.words)).tag($0) }
         }
     }
 }

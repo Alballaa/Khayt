@@ -24,7 +24,7 @@ struct OrdersTable: View {
                     if job.priority {
                         Image(systemName: "flag.fill")
                             .foregroundStyle(.orange)
-                            .help("Marked urgent")
+                            .help(shop.words.callIt("mac.is_urgent"))
                     }
                     VStack(alignment: .leading, spacing: 1) {
                         Text(job.project).lineLimit(1)
@@ -56,7 +56,7 @@ struct OrdersTable: View {
             .width(min: 100, ideal: 130)
 
             TableColumn(shop.words.callIt("doc.due")) { job in
-                DueDate(job: job)
+                DueDate(words: shop.words, job: job)
             }
             .width(min: 78, ideal: 96)
 
@@ -85,6 +85,7 @@ struct OrdersTable: View {
 /// unreadable to a good number of people, and this is the cell that decides
 /// whether someone gets a phone call today.
 private struct DueDate: View {
+    let words: Words
     let job: Order
 
     var body: some View {
@@ -93,7 +94,10 @@ private struct DueDate: View {
             Text(due, format: .dateTime.day().month(.abbreviated))
                 .monospacedDigit()
                 .foregroundStyle(late ? AnyShapeStyle(.orange) : AnyShapeStyle(.secondary))
-                .help(late ? "Overdue and unpaid" : "Due \(due.formatted(date: .abbreviated, time: .omitted))")
+                .help(late
+                      ? words.callIt("mac.overdue_unpaid")
+                      : words.callIt("mac.due_on",
+                                     ["date": .string(due.formatted(date: .abbreviated, time: .omitted))]))
         } else {
             Text("—").foregroundStyle(.quaternary)
         }
@@ -137,8 +141,9 @@ private struct Owed: View {
                         }
                     }
                     .help(paidFraction > 0
-                          ? "\(Int(paidFraction * 100))% paid"
-                          : "Nothing paid yet")
+                          ? words.callIt("mac.pct_paid",
+                                         ["n": .number((paidFraction * 100).rounded())])
+                          : words.callIt("mac.nothing_paid"))
             }
             .frame(maxWidth: .infinity, alignment: .trailing)
         }
@@ -151,17 +156,17 @@ private struct EmptyBook: View {
     var body: some View {
         if let problem = shop.problem {
             ContentUnavailableView {
-                Label("This book will not open", systemImage: "exclamationmark.octagon")
+                Label(shop.words.callIt("mac.book_wont_open"), systemImage: "exclamationmark.octagon")
             } description: {
                 Text(problem)
             }
         } else if !shop.search.isEmpty {
             ContentUnavailableView.search(text: shop.search)
         } else if shop.stage != nil {
-            ContentUnavailableView("Nothing at this stage", systemImage: "tray",
-                                   description: Text("Jobs will appear here as they reach it."))
+            ContentUnavailableView(shop.words.callIt("mac.nothing_at_stage"), systemImage: "tray",
+                                   description: Text(shop.words.callIt("mac.stage_hint")))
         } else {
-            ContentUnavailableView("No jobs yet", systemImage: "tray")
+            ContentUnavailableView(shop.words.callIt("mac.no_jobs"), systemImage: "tray")
         }
     }
 }

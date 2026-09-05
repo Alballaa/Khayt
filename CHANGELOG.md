@@ -6,6 +6,19 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Changed
 
+- **Forty-five things the Mac app said only in English now speak Arabic too.**
+  "No jobs yet", "Reveal in Finder", "Marked urgent", the whole grouping menu,
+  every empty screen and every tooltip — all of them reached a shop running
+  Khayt in Arabic exactly as written. There is now a test that fails on a
+  string literal reaching a screen at all, because the last two of these were
+  found in a photograph rather than by anything that runs.
+
+- **Five lines in the Mac app's sidebar could still wrap, and a wrapping line
+  there is what crashed it.** The guard written after that crash forbade asking
+  for two lines; it said nothing about a label that asks for nothing, and
+  SwiftUI wraps by default. Among them was the name of whichever app has the
+  book open, which has no length limit at all.
+
 - **A job taken on the Mac now records what it was priced at.** Khayt's own
   job editor reads a part's rates straight back into its form, so a part saved
   without them opened there with every rate field blank — and the next save

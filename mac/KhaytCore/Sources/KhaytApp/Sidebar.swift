@@ -148,12 +148,17 @@ private struct Provenance: View {
         VStack(alignment: .leading, spacing: 4) {
             Divider()
             if let tax = shop.taxSummary {
-                Label(tax, systemImage: "percent")
+                // Capped like every other line here. "VAT 15.00% included in
+                // the price" is thirty-one characters and this column is
+                // resizable, so without this its height depends on the width.
+                Label(tax, systemImage: "percent").lineLimit(1).help(tax)
             }
             if !shop.skipped.isEmpty {
-                Label("\(shop.skipped.count) records could not be read",
+                Label(shop.words.callIt("mac.unreadable_records",
+                                        ["n": .number(Double(shop.skipped.count))]),
                       systemImage: "exclamationmark.triangle")
                     .foregroundStyle(.orange)
+                    .lineLimit(1)
                     .help(shop.skipped.prefix(8).joined(separator: "\n"))
             }
             if let backupProblem = shop.backupProblem {
@@ -164,7 +169,7 @@ private struct Provenance: View {
                 // Quiet, and always there. A shop should be able to answer
                 // "when was this last backed up" by looking, not by trusting.
                 Label(shop.words.callIt("set.last_backup") + " " + day, systemImage: "clock.arrow.circlepath")
-                    .foregroundStyle(.tertiary).font(.caption)
+                    .foregroundStyle(.tertiary).font(.caption).lineLimit(1)
             }
             // Only for a book that expects to be in step with somewhere else.
             // A shop that has never connected to the cloud is not missing
@@ -194,14 +199,16 @@ private struct Provenance: View {
                     .lineLimit(1)
                     .help(engineProblem)
             }
-            Label(footerLabel, systemImage: footerSymbol)
+            Label(footerLabel, systemImage: footerSymbol).lineLimit(1)
             // Who else has it open. Only shown when somebody does — a line that
             // says "nobody else is using this" on every ordinary launch is a
             // line people stop reading.
             if let owner = shop.owner {
+                // The riskiest line here: this is another process's name, and
+                // nothing bounds how long one of those is.
                 Label(owner, systemImage: "person.badge.key")
-                    .help("Khayt serialises writes per process. While another app owns "
-                          + "this book, only it may change anything.")
+                    .lineLimit(1).truncationMode(.middle)
+                    .help(owner + "\n\n" + shop.words.callIt("mac.lock_why"))
             }
         }
         .font(.caption)

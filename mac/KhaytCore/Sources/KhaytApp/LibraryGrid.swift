@@ -110,7 +110,8 @@ struct LibraryGrid: View {
     @ViewBuilder private func cell(for file: LibraryFile) -> some View {
         Cell(file: file,
              thumbnail: shop.thumbnail(for: file),
-             selected: shop.fileSelection.contains(file.id))
+             selected: shop.fileSelection.contains(file.id),
+             words: shop.words)
             .onTapGesture {
                 // SwiftUI's tap gesture does not report modifiers, so they are
                 // read from the event that is arriving. Without this, ⌘-click
@@ -136,6 +137,9 @@ private struct Cell: View {
     let file: LibraryFile
     let thumbnail: ThumbnailSource?
     let selected: Bool
+    /// The words rather than the whole shop: a cell needs to say four things
+    /// and has no business being able to change the book to say them.
+    let words: Words
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -149,13 +153,13 @@ private struct Cell: View {
                             .foregroundStyle(.yellow)
                             .shadow(radius: 2)
                             .padding(6)
-                            .help("Marked a favourite")
+                            .help(words.callIt("mac.is_favourite"))
                     }
                 }
                 // The palette, on the image where the eye already is. Four
                 // filaments and three swaps is the difference between a print
                 // that runs unattended and one someone has to stand over.
-                .overlay(alignment: .bottomLeading) { Palette(file: file) }
+                .overlay(alignment: .bottomLeading) { Palette(file: file, words: words) }
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(file.title)
@@ -189,6 +193,7 @@ private struct Cell: View {
 /// The filament colours, and how many swaps the print needs.
 private struct Palette: View {
     let file: LibraryFile
+    let words: Words
 
     var body: some View {
         let swatches = file.palette.prefix(6)
@@ -207,7 +212,7 @@ private struct Palette: View {
                         .font(.system(size: 9, weight: .semibold))
                         .monospacedDigit()
                         .foregroundStyle(.white)
-                        .help("\(file.swaps) filament swaps")
+                        .help(words.callIt("mac.n_swaps", ["n": .number(Double(file.swaps))]))
                 }
             }
             .padding(.horizontal, 5)
@@ -224,13 +229,13 @@ private struct EmptyShelf: View {
     var body: some View {
         if let problem = shop.problem {
             ContentUnavailableView {
-                Label("This library will not open", systemImage: "exclamationmark.octagon")
+                Label(shop.words.callIt("mac.library_wont_open"), systemImage: "exclamationmark.octagon")
             } description: { Text(problem) }
         } else if !shop.search.isEmpty {
             ContentUnavailableView.search(text: shop.search)
         } else {
-            ContentUnavailableView("No models yet", systemImage: "cube",
-                                   description: Text("Print files added in Khayt appear here."))
+            ContentUnavailableView(shop.words.callIt("mac.no_models"), systemImage: "cube",
+                                   description: Text(shop.words.callIt("mac.no_models_hint")))
         }
     }
 }
