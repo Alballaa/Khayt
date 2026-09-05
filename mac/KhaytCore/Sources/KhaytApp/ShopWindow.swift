@@ -1,10 +1,13 @@
 import SwiftUI
+import QuickLook
 
 struct ShopWindow: View {
     @Bindable var shop: Shop
     // Both restored on relaunch. Reopening an app onto a different screen from
     // the one you left is a small thing that makes it feel like a web page.
     @SceneStorage("inspector.showing") private var showInspector = true
+    /// A request from the menu bar to put the caret in the search field.
+    @State private var searchWanted = false
     @SceneStorage("shelf") private var storedShelf = ""
     @SceneStorage("library.sort") private var storedSort = LibrarySort.khayt.rawValue
     /// Nil where a context has no undo, which the documentation says to expect
@@ -88,6 +91,8 @@ struct ShopWindow: View {
         }
         .searchable(text: $shop.search, placement: .toolbar,
                     prompt: searchPrompt)
+        .modifier(Reachable(shop: shop, showInspector: $showInspector,
+                            searchWanted: $searchWanted))
         // On the window rather than the board, because ⇧⌘H and the Job menu
         // reach a job from the table too, and the sheet has to be somewhere all
         // of them can raise it.
@@ -156,6 +161,32 @@ struct ShopWindow: View {
         }
         .navigationTitle(shop.shopName)
         .navigationSubtitle(subtitle)
+    }
+
+    /// The three things the menu bar reaches into this window for, in a
+    /// modifier of their own.
+    ///
+    /// Not tidiness: with these on the end of the body's chain the type-checker
+    /// gave up on the whole expression, which is the same wall `LibraryGrid`
+    /// hit. A `ViewModifier` is a separate expression, so it costs nothing to
+    /// check.
+    private struct Reachable: ViewModifier {
+        let shop: Shop
+        @Binding var showInspector: Bool
+        @Binding var searchWanted: Bool
+
+        func body(content: Content) -> some View {
+            @Bindable var shop = shop
+            return content
+                .focusSearchWhenAsked($searchWanted)
+                // On the window, not the grid: ⌘Y reaches a model from the menu
+                // bar too, and the panel has to be somewhere both can raise it.
+                .quickLookPreview($shop.previewing)
+                // Published from the window so the commands act on whichever
+                // one is frontmost.
+                .focusedSceneValue(\.inspectorShowing, $showInspector)
+                .focusedSceneValue(\.searchWanted, $searchWanted)
+        }
     }
 
     /// Says which book is open before it says anything else. The sample must

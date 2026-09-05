@@ -81,6 +81,24 @@ struct CustomersTable: View {
 
         }
         .tableStyle(.inset(alternatesRowBackgrounds: true))
+        // Right-click. The two things there are to do to a customer: write them
+        // down properly, and take a job for them.
+        .contextMenu(forSelectionType: Customer.ID.self) { ids in
+            if let id = ids.first, let person = shop.shownCustomers.first(where: { $0.id == id }),
+               shop.canMoveJobs {
+                Button(shop.words.callIt(person.record == nil
+                                         ? "mac.write_them_down" : "mac.edit_customer")) {
+                    shop.editingCustomer = person.record
+                        ?? Shop.newCustomer().with(\.nameEn, person.name)
+                }
+            }
+        } primaryAction: { ids in
+            // Double-click edits them, which is what a double-click does to a
+            // row everywhere else in this app.
+            guard shop.canMoveJobs, let id = ids.first,
+                  let person = shop.shownCustomers.first(where: { $0.id == id }) else { return }
+            shop.editingCustomer = person.record ?? Shop.newCustomer().with(\.nameEn, person.name)
+        }
         .overlay {
             if rows.isEmpty {
                 if !shop.search.isEmpty {

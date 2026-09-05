@@ -6,6 +6,16 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Changed
 
+- **The Mac app can be driven from the keyboard.** ⌘F puts the caret in the
+  search field, ⌥⌘I shows and hides the details pane, and Expenses, Waste and
+  Reports are in the Go menu at last — the sidebar had always had them and the
+  menu bar never did, so they had no keyboard route at all. Right-click works on
+  the jobs and customers tables, which every other table already answered.
+
+- **Space looks at a print file, the way it does in Finder.** ⌘Y as well, and a
+  Quick Look item in the model's own menu. A library of print files you cannot
+  look into without launching a slicer is a filing cabinet.
+
 - **A customer written down as a name and nothing else showed an empty CLIENT
   heading.** A heading with nothing under it reads as a screen that failed to
   load. There are three states, not two — nobody has written them down, they

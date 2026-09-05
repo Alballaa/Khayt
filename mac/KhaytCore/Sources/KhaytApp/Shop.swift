@@ -486,6 +486,24 @@ final class Shop {
         FileActions.open(url)
     }
 
+    /// The model the window is showing a Quick Look of, or nil.
+    ///
+    /// Set it and the panel opens; Quick Look puts it back to nil when the
+    /// panel is dismissed, which is why this is a plain var rather than
+    /// something with a close method.
+    var previewing: URL?
+
+    /// Space in the library, and ⌘Y in the menu — Finder's own two gestures.
+    ///
+    /// A print-file library where you cannot look at the file without launching
+    /// a slicer is a filing cabinet. This costs nothing: macOS already knows how
+    /// to draw an STL, an OBJ, a USDZ and a PDF, and for anything it does not it
+    /// shows the file's own icon and details rather than failing.
+    func quickLookSelection() {
+        guard let one = selectedFile, let url = modelFile(for: one) else { return }
+        previewing = url
+    }
+
     /// Mark a model a favourite, or stop. The first thing this app ever wrote.
     func toggleFavourite(_ file: LibraryFile) {
         let wanted = !file.isFavourite

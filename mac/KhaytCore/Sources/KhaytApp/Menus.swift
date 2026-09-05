@@ -42,7 +42,19 @@ struct KhaytCommands: Commands {
         // Into the View menu AppKit already puts there, beside Show Sidebar,
         // rather than a menu of our own: a shop looking for how a list is
         // ordered looks under View.
-        CommandGroup(after: .sidebar) { SortMenu().environment(shop) }
+        CommandGroup(after: .sidebar) {
+            DetailsCommand()
+            Divider()
+            SortMenu().environment(shop)
+        }
+
+        // Find, where every Mac app keeps it. `.searchable` puts the field in
+        // the toolbar and wires nothing to it — a search box you can only reach
+        // with the mouse is a search box in the wrong app.
+        CommandGroup(after: .pasteboard) {
+            Divider()
+            FindCommand()
+        }
 
         // `Words.upfront`, not `shop.words`: these titles are built with the
         // scene, before a book is open, and a menu title is never rewritten
@@ -52,6 +64,40 @@ struct KhaytCommands: Commands {
         CommandMenu(Text(Words.upfront("mac.menu_job"))) { JobMenu().environment(shop) }
         CommandMenu(Text(Words.upfront("mac.menu_model"))) { ModelMenu().environment(shop) }
     }
+}
+
+/// Show or hide the details pane.
+///
+/// ⌥⌘I, which is where macOS puts an inspector. The state belongs to the
+/// window, so this reads it through the focused scene value and disables itself
+/// when there is no window — rather than being a live menu item that does
+/// nothing.
+private struct DetailsCommand: View {
+    @FocusedValue(\.inspectorShowing) private var showing
+
+    var body: some View {
+        Button(Words.upfront(showing?.wrappedValue == false ? "mac.show_details" : "mac.hide_details")) {
+            showing?.wrappedValue.toggle()
+        }
+        .keyboardShortcut("i", modifiers: [.option, .command])
+        .disabled(showing == nil)
+    }
+}
+
+/// ⌘F puts the caret in the toolbar's search field.
+private struct FindCommand: View {
+    @FocusedValue(\.searchWanted) private var wanted
+
+    var body: some View {
+        Button(Words.upfront("mac.find")) { wanted?.wrappedValue = true }
+            .keyboardShortcut("f")
+            // macOS 15 brought `searchFocused`; on 14 there is no way to move
+            // focus into a `.searchable` field, so the item says so by being
+            // unavailable rather than by doing nothing when chosen.
+            .disabled(wanted == nil || !supported)
+    }
+
+    private var supported: Bool { if #available(macOS 15, *) { true } else { false } }
 }
 
 /// Each menu's items, as a View so the focused value arrives and the enabled
@@ -122,9 +168,21 @@ private struct GoMenu: View {
         Button(Words.upfront("mac.machines")) { shop.shelf = .machines }
             .keyboardShortcut("5", modifiers: .command)
         Button(Words.upfront("mac.inventory")) { shop.shelf = .inventory }
+            .keyboardShortcut("8", modifiers: .command)
         Button(Words.upfront("cat.title")) { shop.shelf = .catalogue }
             .keyboardShortcut("6", modifiers: .command)
-            
+
+        Divider()
+        // Three screens the sidebar has always had and this menu never listed,
+        // so the only way to reach them was to click. "Use the menu bar to give
+        // people easy access to all the commands they need to do things in your
+        // app" — and a screen you cannot get to from the menu bar is a screen
+        // with no keyboard route at all.
+        Button(Words.upfront("exp.title")) { shop.shelf = .expenses }
+            .keyboardShortcut("9", modifiers: .command)
+        Button(Words.upfront("waste.title")) { shop.shelf = .waste }
+        Button(Words.upfront("an.pnl_title")) { shop.shelf = .reports }
+            .keyboardShortcut("0", modifiers: .command)
     }
 }
 
@@ -263,6 +321,11 @@ private struct ModelMenu: View {
             .keyboardShortcut("d")
             .disabled(!canEdit)
         Divider()
+        // ⌘Y, and Space in the grid — the two gestures Finder uses, because a
+        // library of print files is a Finder window in everything but name.
+        Button(Words.upfront("mac.quick_look")) { shop.quickLookSelection() }
+            .keyboardShortcut("y")
+            .disabled(!canReach)
         Button(Words.upfront("mac.reveal_in_finder")) { shop.revealSelection() }
             .keyboardShortcut("r", modifiers: [.command, .shift])
             .disabled(!canReach)

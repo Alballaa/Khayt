@@ -415,6 +415,8 @@ final class Words {
                               "ar": "تظهر الأعمال هنا حين تبلغ هذه المرحلة."],
         // The window itself.
         "mac.details":       ["en": "Details",         "ar": "التفاصيل"],
+        "mac.find":          ["en": "Find\u{2026}",        "ar": "بحث\u{2026}"],
+        "mac.quick_look":    ["en": "Quick Look",     "ar": "نظرة سريعة"],
         "mac.details_toggle": ["en": "Show or hide the details", "ar": "إظهار التفاصيل أو إخفاؤها"],
         "mac.hide_details":  ["en": "Hide details",    "ar": "إخفاء التفاصيل"],
         "mac.show_details":  ["en": "Show details",    "ar": "إظهار التفاصيل"],
