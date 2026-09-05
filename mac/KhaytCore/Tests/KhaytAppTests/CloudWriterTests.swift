@@ -203,6 +203,52 @@ struct CloudWriterTests {
         #expect(!sent.wholeStore)
     }
 
+    /// THE ONE THAT KEEPS A SHOP'S CREDENTIALS OFF THE SERVER.
+    ///
+    /// The desktop's renderer is handed a store whose secrets are already
+    /// masks, so its pushes have always carried masks. This app reads the book
+    /// from disk and holds the real `__enc__` values — so it has to take them
+    /// out, and this checks the sealed body rather than the intention.
+    @Test("a whole store goes up with every credential masked")
+    func wholeStoreCarriesNoSecrets() async throws {
+        let engine = try KhaytEngine()
+        let book: [String: JSONValue] = [
+            "settings": .object([
+                "ai": .object(["apiKey": .string("__enc__AAA")]),
+                "cloud": .object(["token": .string("__enc__BBB"),
+                                  "url": .string("https://cloud.example")]),
+            ]),
+            "printLog": .array([.object(["id": .string("o1"), "rev": .number(1)])]),
+        ]
+        let forCloud = try await engine.storeForCloud(book)
+
+        var seen: URLRequest?
+        _ = try? await CloudWriter.sendWholeStore(
+            Self.connection, token: "t", store: forCloud, dek: Self.dek, baseRev: 1,
+            mergedFrom: Self.merged) { request in
+            seen = request
+            return (Data(#"{"rev":2}"#.utf8),
+                    HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!)
+        }
+        struct Body: Decodable { let ciphertext: SyncCrypto.Blob; let baseRev: Int }
+        let raw = try #require(seen?.httpBody)
+        let body = try JSONDecoder().decode(Body.self, from: raw)
+        let opened = try SyncCrypto.store(body.ciphertext, dek: Self.dek)
+
+        // Read the sealed bytes back and look for the secrets themselves.
+        // `.withoutEscapingSlashes`, or the address reads as `https:\/\/…` and an
+        // assertion about it fails for a reason that has nothing to do with
+        // secrets.
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .withoutEscapingSlashes
+        let text = String(decoding: try encoder.encode(JSONValue.object(opened)), as: UTF8.self)
+        #expect(!text.contains("__enc__AAA"), "the API key went up")
+        #expect(!text.contains("__enc__BBB"), "the sync token went up")
+        #expect(text.contains("__KHAYT_MASKED__"))
+        #expect(text.contains("https://cloud.example"), "and the address, which is not a secret, stayed")
+        #expect(text.contains("o1"), "and the records")
+    }
+
     // MARK: - End to end, through the real rules
 
     /// The proof that the parts fit: take two stores that disagree, build the

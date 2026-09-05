@@ -6,6 +6,14 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Changed
 
+- **A shop's credentials never go to the cloud, and now that is a step rather
+  than an accident.** The desktop's window is handed a store whose secrets are
+  already replaced with a mask, so what it uploads has always carried masks. An
+  app that reads the book straight from disk holds the real ones — so the Mac
+  masks every credential itself before a whole store is sent. The field list is
+  the same one that decides what is encrypted on disk, and a send refuses
+  outright if that list is missing rather than going up unmasked.
+
 - **The Mac app can send for a shop whose cloud will not take changes one at a
   time.** Khayt Cloud refuses a delta chain for a shop with any credential it
   cannot vouch for — including a token nobody has been seen using, which never

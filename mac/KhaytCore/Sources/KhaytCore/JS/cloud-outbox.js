@@ -189,7 +189,45 @@
     };
   }
 
-  const api = { changesToSend };
+  /**
+   * The whole store, as the cloud is allowed to hold it.
+   *
+   * THE CLOUD NEVER RECEIVES A SHOP'S CREDENTIALS, and on the desktop that is
+   * true by accident of layering rather than by an explicit step:
+   * `maskStoreSecretsForRenderer` replaces every secret before the renderer is
+   * handed the store, so the snapshot it pushes carries masks and always has.
+   * "A secret the renderer is handed in the clear is a secret in a devtools
+   * console, a screenshot and a bug report."
+   *
+   * A host that reads the store FROM DISK — the native Mac app — has the real
+   * `__enc__` values, and would put the shop's API key, its sync token and its
+   * S3 secret into the cloud blob. End-to-end encrypted, so the server could
+   * not read them; but anybody holding the passphrase then holds the shop's
+   * credentials too, which is a long way from holding its business data.
+   *
+   * So masking is an explicit step now, and it lives here rather than in the
+   * caller because "what may go up" is this module's subject. The field list is
+   * `lib/store-secret-paths.js` — the same one that decides what is encrypted
+   * on disk, because a secret on one list and not the other is exactly the bug
+   * that list was made to end.
+   *
+   * Deltas do not need this: `extractDeltas` carries array collections and
+   * tombstones, and every secret in the store is under `settings` or `machines`.
+   */
+  function forCloud(store) {
+    const paths = global.KhaytStoreSecretPaths;
+    if (!paths || typeof paths.forEachSecret !== 'function') {
+      throw new Error('cloud-outbox: the secret list is not loaded, refusing to send');
+    }
+    const copy = JSON.parse(JSON.stringify(store || {}));
+    paths.forEachSecret(copy, (value, set) => set(MASK_VALUE));
+    return copy;
+  }
+
+  /** What the cloud holds where a secret used to be. Mirrors `lib/store.js`. */
+  const MASK_VALUE = '__KHAYT_MASKED__';
+
+  const api = { changesToSend, forCloud };
   Object.assign(global, { KhaytCloudOutbox: api });
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof globalThis !== 'undefined' ? globalThis : window);
