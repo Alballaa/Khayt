@@ -162,7 +162,7 @@ struct CustomerInspector: View {
                     }
                     DetailSection(shop.words.callIt("mac.money")) {
                         DetailLine(shop.words.callIt("mac.billed"), Money.text(person.billed, shop.currency))
-                        DetailLine(shop.words.callIt("flow.paid"), Money.text(person.paid, shop.currency), dim: true)
+                        DetailLine(shop.words.callIt("mac.paid"), Money.text(person.paid, shop.currency), dim: true)
                         DetailLine(shop.words.callIt("flow.owed"), Money.text(person.owed, shop.currency),
                                    strong: !person.isSettled, warn: person.overdueCount > 0)
                         if person.overdueCount > 0 {

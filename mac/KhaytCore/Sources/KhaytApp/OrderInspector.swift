@@ -81,7 +81,7 @@ private struct Detail: View {
                 DetailLine(shop.taxSummary.map { String($0.prefix(while: { !$0.isNumber })).trimmingCharacters(in: .whitespaces) } ?? "Tax",
                      Money.text(split.taxTotal, job.currency), dim: true)
             }
-            DetailLine(shop.words.callIt("flow.paid"), Money.text(job.paidAmount, job.currency))
+            DetailLine(shop.words.callIt("mac.paid"), Money.text(job.paidAmount, job.currency))
             DetailLine(shop.words.callIt("flow.owed"), Money.text(job.owed, job.currency), strong: !job.isSettled)
             if shop.canMoveJobs {
                 // Where somebody is already reading what is owed. ⇧⌘P does the
@@ -122,7 +122,14 @@ private struct Detail: View {
                     Spacer(minLength: 8)
                     VStack(alignment: .trailing, spacing: 1) {
                         Text("×\(part.qty)").monospacedDigit()
-                        Text("\(Money.figure(part.printWeight)) g")
+                        // `grams`, not `figure`. The money formatter always
+                        // shows two decimals, which is what turned a 180g
+                        // failure into "180.00 grams" once already — and here
+                        // printed a 129.18g part where a shop reads 129.2.
+                        // "g", not the word: this sits beside "×1" in a narrow
+                        // column, and it is the symbol the invoice already
+                        // prints for every language.
+                        Text("\(Money.grams(part.printWeight)) g")
                             .font(.caption)
                             .monospacedDigit()
                             .foregroundStyle(.secondary)
