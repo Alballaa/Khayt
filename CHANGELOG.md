@@ -510,6 +510,18 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **Pasting a whole endpoint into the Region box now works instead of quietly
+  building an address that does not exist.** Setting up cloud storage for the
+  print library asks for one piece of your provider's endpoint — a region, an
+  account id — and builds the rest. Paste the entire endpoint from the
+  provider's dashboard into that box, as is easy to do, and Khayt built a
+  doubled address like
+  `https://s3.s3.us-west-001.backblazeb2.com.backblazeb2.com`, saved it, and
+  said nothing. Nothing between that screen and the first upload ever checked,
+  so the failure turned up much later as a storage error nobody could connect
+  to a settings page closed months before. Khayt now recognises a pasted
+  endpoint and takes the part it needs out of it.
+
 - **A PIN set in an old version of Khayt is quietly re-secured the next time it
   is typed.** Khayt moved to a much stronger way of storing PINs and recovery
   codes a while ago, and new ones have used it since — but a PIN set before that
