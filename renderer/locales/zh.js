@@ -807,6 +807,7 @@
   "doc.delivery_note": "送货单",
   "doc.no": "编号",
   "doc.time": "时间",
+  "doc.project": "项目",
   "doc.client_ref": "客户参考号",
   "doc.amount": "金额",
   "doc.subtotal": "小计",

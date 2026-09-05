@@ -807,6 +807,7 @@
   "doc.delivery_note": "Bon de livraison",
   "doc.no": "N°",
   "doc.time": "Heure",
+  "doc.project": "Projet",
   "doc.client_ref": "Réf. client",
   "doc.amount": "Montant",
   "doc.subtotal": "Sous-total",

@@ -807,6 +807,7 @@
   "doc.delivery_note": "İrsaliye",
   "doc.no": "No",
   "doc.time": "Saat",
+  "doc.project": "Proje",
   "doc.client_ref": "Müşteri ref.",
   "doc.amount": "Tutar",
   "doc.subtotal": "Ara toplam",

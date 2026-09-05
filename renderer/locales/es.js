@@ -807,6 +807,7 @@
   "doc.delivery_note": "Albarán",
   "doc.no": "N.º",
   "doc.time": "Hora",
+  "doc.project": "Proyecto",
   "doc.client_ref": "Ref. del cliente",
   "doc.amount": "Importe",
   "doc.subtotal": "Subtotal",
