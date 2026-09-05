@@ -6,6 +6,14 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Changed
 
+- **The Mac app now tells the cloud it can read a delta chain, and this
+  matters to every other device.** Khayt Cloud records what each credential is
+  capable of, and one device it believes cannot fold a chain closes delta sync
+  for the whole shop — every machine then uploads the entire store on each save
+  instead of the handful of records that changed. *Check the cloud* said nothing,
+  so it was counted as a device that could not, and the desktop only reopened
+  the gate the next time it synced. It folds chains and now says so.
+
 - **Installing the Mac app over a running copy is now refused.** The install
   step deleted the bundle and copied a new one in its place. A running app keeps
   the executable it launched with, so this never updated the app on screen — and
