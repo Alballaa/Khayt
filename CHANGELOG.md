@@ -201,6 +201,11 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **The Mac app listed customers in the wrong language.** An Arabic shop saw
+  "Tuwaiq Makerspace" on the Customers screen and "مساحة طويق للصناع" on the
+  Best page — the same record, two screens, two names. The table spelled names
+  itself, English first; it now asks the same reader every other screen asks.
+
 - **Telegram messages from the Mac app never went out.** The bot token is
   encrypted in the store, the app read it raw, and Telegram was handed
   `__enc__…` as a token — so every shop with Telegram configured was told the

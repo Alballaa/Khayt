@@ -1,4 +1,5 @@
 import Foundation
+import KhaytCore
 
 /// A customer, assembled from the jobs done for them.
 ///
@@ -52,12 +53,20 @@ struct Customer: Identifiable, Hashable, Sendable {
     /// what a new job will point at. A name-only customer is still shown —
     /// dropping them would hide most of the history of a shop that has never
     /// used the customer screen — but has no id to give.
-    static func from(_ orders: [Order], clients: [Client] = []) -> [Customer] {
+    /// - Parameter names: what the shop calls each customer, keyed by id —
+    ///   `KhaytContentLanguages`' answer, resolved once by `Shop` when the book
+    ///   loads. Empty when the engine could not be asked, and only then is
+    ///   `anyName` used: it is English-first, which is the shape the repo's own
+    ///   content-language guard forbids, and an Arabic shop saw its customers
+    ///   listed in English here while the Best page listed them in Arabic.
+    static func from(_ orders: [Order], clients: [Client] = [],
+                     names: [String: KhaytEngine.Named] = [:]) -> [Customer] {
         var out: [Customer] = []
         var claimed = Set<String>()          // order ids already attributed
 
         for client in clients {
-            let name = client.anyName
+            let resolved = names[client.id]?.name ?? ""
+            let name = resolved.isEmpty ? client.anyName : resolved
             let byId = orders.filter { $0.clientId == client.id }
             // A shop that has never linked a job to a client record still has
             // the name on the order, so match on that too rather than showing
