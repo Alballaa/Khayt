@@ -661,6 +661,29 @@ copy will use to read it — Arabic and all. macOS has no gzip, only raw DEFLATE
 so the container is written by hand and checked from the other side rather than
 against itself.
 
+### When the shop's chain is closed
+
+khayt-cloud will not take a delta chain for a shop unless it is sure every
+credential can read one. `deltaGateOpen` refuses on a device recorded as
+blob-only, and also on **any live token nobody has been seen using** — and a
+token with no expiry is live for ever, so one unused credential shuts the gate
+permanently. `POST /deltas` then answers 404, which is the documented "this
+server does not take deltas".
+
+This shop's gate is shut. Found by running the send against the live service:
+the pull, the decrypt, the fold and the outbox were all right, and the append
+was refused.
+
+So `sendToCloud` falls back the way the desktop does — **merge the cloud into
+this book, then replace the cloud with this book** — and the order is the whole
+safety argument. After the merge this book is a superset of what the cloud held
+at `baseRev`, so replacing it loses nothing; anything that arrived in between
+earns a 409 from that same `baseRev` and nothing is written. The two halves are
+one function so they cannot drift apart, `sendWholeStore` takes the merge
+report as an argument it does not use so the call cannot be written without
+naming it, and the screen says "the whole book was sent" rather than "one
+change", because they are different events.
+
 ### Bringing it down
 
 `pullFromCloud` is the only thing this app does that rewrites records the shop

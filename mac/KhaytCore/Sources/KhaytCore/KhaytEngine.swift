@@ -1373,6 +1373,15 @@ public actor KhaytEngine {
         /// Delete wins — but a shop is told, which is what this is for.
         public let conflicts: [JSONValue]
 
+        public init(store: [String: JSONValue], applied: Int, skipped: Int,
+                    removed: Int, conflicts: [JSONValue]) {
+            self.store = store
+            self.applied = applied
+            self.skipped = skipped
+            self.removed = removed
+            self.conflicts = conflicts
+        }
+
         public var changed: Int { applied + removed }
     }
 

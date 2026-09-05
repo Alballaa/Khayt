@@ -141,6 +141,68 @@ struct CloudWriterTests {
         #expect(sent.tombstones == 1)
     }
 
+    // MARK: - the whole store, for a shop whose chain is closed
+
+    static let merged = KhaytEngine.Merged(store: [:], applied: 0, skipped: 0,
+                                           removed: 0, conflicts: [])
+
+    /// A different route and a different verb. `POST /deltas` appends; this
+    /// REPLACES, and the service compacts the chain behind it.
+    @Test("the whole store goes by PUT, to the store, with the revision it was merged from")
+    func wholeStoreRoute() async throws {
+        var seen: URLRequest?
+        _ = try? await CloudWriter.sendWholeStore(
+            Self.connection, token: "t", store: ["orders": .array([])], dek: Self.dek,
+            baseRev: 16, mergedFrom: Self.merged) { request in
+            seen = request
+            return (Data(#"{"rev":17}"#.utf8),
+                    HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!)
+        }
+        #expect(seen?.httpMethod == "PUT")
+        #expect(seen?.url?.absoluteString
+                == "https://cloud.khayt.example/v1/shops/shop_282eb707/store")
+        #expect(seen?.value(forHTTPHeaderField: "x-delta-capable") == "1")
+
+        struct Body: Decodable { let ciphertext: SyncCrypto.Blob; let baseRev: Int }
+        let raw = try #require(seen?.httpBody)
+        let body = try JSONDecoder().decode(Body.self, from: raw)
+        // The revision the merge was folded from, so anything that arrived in
+        // between is a 409 rather than an overwrite.
+        #expect(body.baseRev == 16)
+        #expect(try SyncCrypto.store(body.ciphertext, dek: Self.dek)["orders"] == .array([]))
+    }
+
+    /// The guard that makes the whole thing safe. Without it, a book that is no
+    /// longer a superset of the cloud would replace it.
+    @Test("a cloud that moved while we were merging is refused, not overwritten")
+    func wholeStoreConflict() async throws {
+        await #expect(throws: CloudWriter.Failure.moved(21)) {
+            try await CloudWriter.sendWholeStore(
+                Self.connection, token: "t", store: [:], dek: Self.dek, baseRev: 16,
+                mergedFrom: Self.merged, fetch: Self.answer(409, #"{"rev":21}"#))
+        }
+    }
+
+    @Test("what went up is described as the whole book, not as one change")
+    func wholeStoreIsSaidPlainly() async throws {
+        let sent = try await CloudWriter.sendWholeStore(
+            Self.connection, token: "t", store: [:], dek: Self.dek, baseRev: 16,
+            mergedFrom: Self.merged, fetch: Self.answer(200, #"{"rev":17}"#))
+        #expect(sent.wholeStore)
+        #expect(sent.rev == 17)
+        #expect(sent.count == 0, "it is not a count of records")
+    }
+
+    /// A delta send says nothing about the whole store, so the screen can tell
+    /// the two apart.
+    @Test("an ordinary send is not marked as the whole book")
+    func deltaSendIsNotWholeStore() async throws {
+        let sent = try await CloudWriter.send(Self.connection, token: "t", payload: Self.payload,
+                                              dek: Self.dek, baseRev: 12,
+                                              fetch: Self.answer(200, #"{"rev":13}"#))
+        #expect(!sent.wholeStore)
+    }
+
     // MARK: - End to end, through the real rules
 
     /// The proof that the parts fit: take two stores that disagree, build the

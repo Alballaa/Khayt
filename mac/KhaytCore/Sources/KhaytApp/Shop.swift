@@ -1771,9 +1771,26 @@ final class Shop {
                 return
             }
 
-            cloudSent = try await CloudWriter.send(connection, token: token, payload: outbox,
-                                                   dek: dek, baseRev: reply.rev) { request in
-                try await session.data(for: request)
+            do {
+                cloudSent = try await CloudWriter.send(connection, token: token, payload: outbox,
+                                                       dek: dek, baseRev: reply.rev) { request in
+                    try await session.data(for: request)
+                }
+            } catch CloudWriter.Failure.notAccepted {
+                // THE SHOP'S CHAIN IS CLOSED, and this is not rare: khayt-cloud
+                // shuts it for a shop with any device it believes cannot fold a
+                // chain — or any live token nobody has been seen using, which
+                // never expires and so never stops counting. This shop's is
+                // shut, which is how the case was found.
+                //
+                // The desktop falls back to sending the whole store. That is
+                // only safe from a book that already holds everything the cloud
+                // has, so the merge below is not a courtesy — it is the thing
+                // that makes the push legal. Anything arriving in between comes
+                // back as a 409 from `baseRev`.
+                cloudSent = try await sendWholeBookAfterMerging(
+                    connection: connection, token: token, dek: dek, engine: engine,
+                    build: build, server: folded.store, baseRev: reply.rev, session: session)
             }
             // Say what is true NOW, not what was true before the send: fold the
             // payload onto the store that was just pulled, which is exactly
@@ -1887,6 +1904,47 @@ final class Shop {
             cloudProblem = locked.description
         } catch {
             cloudProblem = String(describing: error)
+        }
+    }
+
+    /// Merge the cloud into this book, then replace the cloud with this book.
+    ///
+    /// Only for a shop whose delta chain the service refuses. The order is the
+    /// whole safety argument and it is written as one function so the two
+    /// halves cannot drift apart: after the merge this book is a superset of
+    /// what the cloud held at `baseRev`, so replacing the cloud with it loses
+    /// nothing — and if the cloud moved while we were doing it, `baseRev` earns
+    /// a 409 and nothing is written at all.
+    private func sendWholeBookAfterMerging(
+        connection: CloudReader.Connection, token: String, dek: Data, engine: KhaytEngine,
+        build: StoreReader.Build, server: [String: JSONValue], baseRev: Int,
+        session: URLSession
+    ) async throws -> CloudWriter.Sent {
+        // A backup first, exactly as a pull takes one: this writes to the book.
+        await backUpNow()
+
+        var merged: KhaytEngine.Merged?
+        var book: [String: JSONValue] = [:]
+        try await StoreWriter.update(
+            storeURL: build.storeURL,
+            owns: { StoreLock.weOwnIt(build) },
+            whoHasIt: { StoreLock.describe(StoreLock.verdict(for: build)) }
+        ) { root in
+            let out = try await engine.mergeFromCloud(local: root, server: server)
+            root = out.store
+            merged = out
+            book = out.store
+        }
+        guard let report = merged else {
+            throw CloudWriter.Failure.malformed("the merge produced nothing to send")
+        }
+        cloudPulled = report
+        await load(source)
+
+        return try await CloudWriter.sendWholeStore(
+            connection, token: token, store: book, dek: dek, baseRev: baseRev,
+            mergedFrom: report) { request in
+            try await session.data(for: request)
         }
     }
 
