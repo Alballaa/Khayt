@@ -1779,9 +1779,20 @@ final class Shop {
             } catch CloudWriter.Failure.notAccepted {
                 // THE SHOP'S CHAIN IS CLOSED, and this is not rare: khayt-cloud
                 // shuts it for a shop with any device it believes cannot fold a
-                // chain — or any live token nobody has been seen using, which
-                // never expires and so never stops counting. This shop's is
-                // shut, which is how the case was found.
+                // chain, or any live token nobody has been seen using. This
+                // shop's is shut, which is how the case was found — a live
+                // POST /deltas answers 404 today.
+                //
+                // Both causes end by opening Khayt on the machine. A device on
+                // a build older than v3.6.0 sends no `x-delta-capable` header
+                // and is recorded as unable; its next sync after an update
+                // overwrites that with a yes. A token that has been issued and
+                // never used has no capability row at all, and unknown fails
+                // closed — one sync gives it one. (An abandoned login also ages
+                // out on its own: tokens carry a 90-day sliding expiry, and the
+                // migration that added the column backfilled the rows that
+                // predated it, so none of them is immortal. An earlier note
+                // here said they never expire. They do.)
                 //
                 // The desktop falls back to sending the whole store. That is
                 // only safe from a book that already holds everything the cloud

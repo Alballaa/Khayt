@@ -664,6 +664,19 @@ final class Words {
                                  "ar": "لا يستطيع هذا المحل إرسال التغييرات واحدًا تلو الآخر، لذا "
                                + "دُمجت نسخة السحابة هنا أولًا ثم أُرسل الدفتر كاملًا. سحابة خيط "
                                + "الآن عند المراجعة {rev}."],
+        // WHY it cannot, and what ends it. Without this the shop sees a
+        // permanent state with no cause and no way out of it: the whole book
+        // goes up every time, forever, and nothing on any screen says the
+        // reason is a device rather than a fault. Both remedies are the same
+        // gesture — open Khayt on each machine — so it is said as one.
+        "mac.cloud_sent_whole_why": ["en": "That happens when a device signed in to this shop has "
+                               + "not synced yet, or is running a Khayt older than 3.6. Open Khayt "
+                               + "on every machine that uses this shop, update it, and let it sync "
+                               + "once; after that, changes go up one at a time again.",
+                                     "ar": "يحدث ذلك عندما يكون أحد الأجهزة المسجَّلة في هذا المحل "
+                               + "لم يزامن بعد، أو يعمل بإصدار من خيط أقدم من 3.6. افتح خيط على كل "
+                               + "جهاز يستخدم هذا المحل، وحدّثه، ودعه يزامن مرة واحدة؛ بعدها تُرسل "
+                               + "التغييرات واحدًا تلو الآخر من جديد."],
         "mac.cloud_nothing_to_send": ["en": "Nothing left to send — the cloud already has it.",
                                       "ar": "لا شيء متبقٍّ للإرسال — السحابة تحتفظ به بالفعل."],
         // No "too". It said "Settings differ too" beside a result reporting that

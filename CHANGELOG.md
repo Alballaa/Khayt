@@ -13,6 +13,15 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   hung rather than waiting. It now happens off the main thread, and the window
   stays alive.
 
+- **The Mac app says why the cloud is taking whole copies instead of just the
+  changes.** Khayt Cloud stops sending a shop its changes one at a time as soon
+  as one device signed in to that shop looks unable to read them — a machine on
+  a Khayt older than 3.6, or one that signed in and has never synced. The Mac
+  app already handled it correctly and said "the whole book was sent", but not
+  why, so the state read as a fault and there was nothing to do about it. It now
+  names the cause and the way out, which is the same gesture for both: open
+  Khayt on every machine that uses the shop, update it, and let it sync once.
+
 - **And macOS stops asking after every single update.** The dialog kept coming
   back because the Mac app was signed ad hoc, which is to say with no identity
   at all: what macOS remembers about such an app is its own content hash, so
