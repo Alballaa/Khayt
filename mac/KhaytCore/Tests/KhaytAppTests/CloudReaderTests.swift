@@ -110,9 +110,11 @@ struct CloudReaderTests {
         let out = try await CloudReader.pull(Self.connection, token: "t", fetch: Self.reply(200, #"""
         {"rev":1,"deltas":[],"ciphertext":{"v":1,"iv":"EH03WcogAQtcxYpD","ct":"HaA1Zh8M7IJql2D+4JISicY=","tag":"KudXT8nGuzXk46FyILKA1g=="}}
         """#))
-        let store = try await CloudReader.store(out, dek: Data(repeating: 7, count: 32),
-                                                engine: try KhaytEngine())
-        #expect(store["hello"] == .string("world"))
+        let folded = try await CloudReader.store(out, dek: Data(repeating: 7, count: 32),
+                                                 engine: try KhaytEngine())
+        #expect(folded.store["hello"] == .string("world"))
+        #expect(folded.chain == 0, "no chain to fold, and it says so rather than implying one")
+        #expect(folded.applied == 0)
     }
 
     // MARK: - Which book is connected
@@ -205,6 +207,95 @@ struct CloudCompareTests {
     func missingRev() {
         let bare: JSONValue = .array([.object(["id": .string("A")])])
         let out = CloudCompare.compare(here: ["printLog": bare], there: ["printLog": bare],
+                                       collections: ["printLog"], cloudRev: 1)
+        #expect(out.agrees)
+    }
+}
+
+/// What the fold actually did.
+///
+/// THE REASON THIS EXISTS: the first version threw `applyDeltas`'s report away,
+/// so a chain that applied NOTHING was indistinguishable from one that worked —
+/// and the comparison built on it would have reported the whole book as "newer
+/// here" with no way to tell that from the truth. A number nobody can check is
+/// not evidence.
+@MainActor
+struct FoldReportTests {
+
+    static func record(_ id: String, rev: Double, extra: [String: JSONValue] = [:]) -> JSONValue {
+        var row: [String: JSONValue] = ["id": .string(id), "rev": .number(rev)]
+        for (k, v) in extra { row[k] = v }
+        return .object(row)
+    }
+
+    @Test("a chain that writes records says how many")
+    func appliedIsReported() async throws {
+        let base: [String: JSONValue] = ["printLog": .array([Self.record("O-1", rev: 1)])]
+        let payload: [String: JSONValue] = ["deltas": .array([
+            .object(["collection": .string("printLog"), "record": Self.record("O-1", rev: 5)]),
+            .object(["collection": .string("printLog"), "record": Self.record("O-2", rev: 1)]),
+        ])]
+        let out = try await KhaytEngine().foldDeltas(base: base, deltas: [payload])
+        #expect(out.applied == 2)
+        guard case .array(let rows)? = out.store["printLog"] else { Issue.record("no printLog"); return }
+        #expect(rows.count == 2, "the chain was folded onto the base, not dropped")
+    }
+
+    @Test("a chain the base already has is skipped, not applied")
+    func skippedIsNotApplied() async throws {
+        // Normal, and not a fault — but it must not read as work done.
+        let base: [String: JSONValue] = ["printLog": .array([Self.record("O-1", rev: 9)])]
+        let payload: [String: JSONValue] = ["deltas": .array([
+            .object(["collection": .string("printLog"), "record": Self.record("O-1", rev: 2)]),
+        ])]
+        let out = try await KhaytEngine().foldDeltas(base: base, deltas: [payload])
+        #expect(out.applied == 0)
+        #expect(out.skipped == 1)
+    }
+
+    @Test("a tombstone in the chain removes, and says so")
+    func removedIsReported() async throws {
+        let base: [String: JSONValue] = ["printFiles": .array([Self.record("PF-1", rev: 1)])]
+        let payload: [String: JSONValue] = ["tombstones": .array([
+            .object(["collection": .string("printFiles"), "id": .string("PF-1"), "rev": .number(2)]),
+        ])]
+        let out = try await KhaytEngine().foldDeltas(base: base, deltas: [payload])
+        #expect(out.removed == 1)
+    }
+
+    @Test("a fold that did nothing is visible as nothing")
+    func nothingIsVisible() async throws {
+        let base: [String: JSONValue] = ["printLog": .array([Self.record("O-1", rev: 1)])]
+        let out = try await KhaytEngine().foldDeltas(base: base, deltas: [["deltas": .array([])]])
+        #expect(out.applied == 0 && out.skipped == 0 && out.removed == 0)
+    }
+}
+
+/// A tombstone's id is not unique on its own.
+@MainActor
+struct TombstoneKeyTests {
+
+    @Test("two deletions with the same id in different collections are two")
+    func keyedByCollection() {
+        // `keyOf` in lib/sync.js keys them `collection:id` for exactly this
+        // reason. Keyed on the id alone, these collapse into one and the count
+        // is quietly halved.
+        let here: [String: JSONValue] = ["tombstones": .array([
+            .object(["id": .string("X-1"), "collection": .string("printFiles"), "rev": .number(1)]),
+            .object(["id": .string("X-1"), "collection": .string("printLog"), "rev": .number(1)]),
+        ])]
+        let out = CloudCompare.compare(here: here, there: [:],
+                                       collections: ["tombstones"], cloudRev: 1)
+        #expect(out.lines.first?.here == 2)
+        #expect(out.lines.first?.onlyHere == 2)
+    }
+
+    @Test("an ordinary collection is still keyed by id alone")
+    func othersUnchanged() {
+        let here: [String: JSONValue] = ["printLog": .array([
+            .object(["id": .string("O-1"), "collection": .string("ignored"), "rev": .number(1)]),
+        ])]
+        let out = CloudCompare.compare(here: here, there: here,
                                        collections: ["printLog"], cloudRev: 1)
         #expect(out.agrees)
     }

@@ -495,6 +495,8 @@ final class Words {
         "mac.cloud_apart":   ["en": "This Mac and the cloud are not the same",
                               "ar": "هذا الماك والسحابة ليسا متطابقين"],
         "mac.cloud_rev":     ["en": "Cloud revision",  "ar": "مراجعة السحابة"],
+        "mac.cloud_folded":  ["en": "{chain} changes after the base, {applied} applied",
+                              "ar": "{chain} تغييرات بعد الأساس، طُبّق منها {applied}"],
         "mac.only_here":     ["en": "Only here",       "ar": "هنا فقط"],
         "mac.only_there":    ["en": "Only in cloud",   "ar": "في السحابة فقط"],
         "mac.newer_here":    ["en": "Newer here",      "ar": "أحدث هنا"],
