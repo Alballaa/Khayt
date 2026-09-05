@@ -312,6 +312,9 @@ final class Shop {
             // else's network.
             printers.source = next.build
             if next.build != nil { printers.start(shop: self) } else { printers.stop() }
+            // The shop's published delivery dates. Not for the sample book,
+            // whose cloud settings belong to nobody.
+            if next.build != nil { startPublishingLeadTime() } else { stopPublishingLeadTime() }
         } catch {
             orders = []
             files = []
@@ -2046,6 +2049,128 @@ final class Shop {
 
     /// The live poll. Started when a book is opened and stopped with it, so a
     /// window showing the sample shop is not knocking on a shop's printers.
+    // MARK: - The shop's published delivery dates
+
+    private var leadTimeTask: Task<Void, Never>?
+
+    /// What the last successful publish said, so a withdrawal happens ONCE.
+    /// `.some(nil)` means "we published a withdrawal"; `nil` means we have not
+    /// published anything this session.
+    private var leadTimePublished: JSONValue??
+
+    /// What went wrong last, for the diagnostic pane. Never surfaced as an
+    /// alert: a promise nobody can read is better than a shop interrupted about
+    /// its storefront while it is trying to work.
+    private(set) var leadTimeProblem: String?
+
+    /// Electron's cadence, and for its reasons: once shortly after launch so a
+    /// shop that has just opened the app is answering, then every six hours —
+    /// comfortably inside the 24-hour default staleness window, so a storefront
+    /// keeps quoting even if one publish fails.
+    static let leadTimeFirst: Duration = .seconds(90)
+    static let leadTimeEvery: Duration = .seconds(6 * 60 * 60)
+
+    /// ALREADY RUNNING IS LEFT ALONE, and that is the whole point.
+    ///
+    /// `load` runs again every time the book changes on disk — a backup, a sync,
+    /// the shop typing into a sheet — and the first version of this restarted
+    /// the task each time. The task opens with a ninety-second wait, so a book
+    /// touched more often than that reset the clock before it ever expired and
+    /// this published NOTHING, for ever, on a machine where everything else
+    /// worked. It was watched doing exactly that for two minutes with a trace
+    /// attached and not one line came out.
+    ///
+    /// The task holds no snapshot of the shop; it reads the current state on
+    /// each tick. So the right lifetime is the book's, not the load's.
+    func startPublishingLeadTime() {
+        guard leadTimeTask == nil else { return }
+        leadTimeTask = Task { [weak self] in
+            try? await Task.sleep(for: Shop.leadTimeFirst)
+            while !Task.isCancelled {
+                await self?.publishLeadTime()
+                try? await Task.sleep(for: Shop.leadTimeEvery)
+            }
+        }
+    }
+
+    func stopPublishingLeadTime() {
+        leadTimeTask?.cancel()
+        leadTimeTask = nil
+    }
+
+    /// Build this shop's promise and send it — or withdraw the last one.
+    ///
+    /// ── WHY IT WAITS FOR THE PRINTERS ─────────────────────────────────────
+    ///
+    /// `lead-time-publish` asks the status cache what each machine is doing. A
+    /// machine it finds nothing about is a machine with nothing on it, so a
+    /// publish made before the first poll lands prices the shop's capacity as
+    /// though every printer were free — and it would overwrite a snapshot the
+    /// Electron app had published from a cache that DID know. Two apps, one
+    /// shop, and the one with less information wins by being later.
+    ///
+    /// So a shop with machines this app can watch publishes nothing until at
+    /// least one of them has answered. A shop with none publishes immediately:
+    /// there is nothing to wait for, and waiting for ever is how a feature
+    /// silently does nothing.
+    func publishLeadTime() async {
+        guard let engine, source.build != nil else { return note("no book open") }
+        let watchable = machines.contains { PrinterWatch.notWatched($0) == nil }
+        let cache = printers.statusCache
+        if watchable && cache.isEmpty { return note("waiting for the printers to answer") }
+
+        do {
+            let connection = try CloudReader.connection(settingsDict)
+            let snapshot = try await engine.leadTimeSnapshot(
+                settings: settingsDict, printLog: orderRows, machines: machineRows,
+                today: LeadTimePublisher.localDay(), nowIso: Self.isoNow(), statusCache: cache)
+
+            // Nothing to say and nothing said: a shop that has never turned
+            // this on must not be sent a withdrawal every six hours for ever.
+            if snapshot == nil, leadTimePublished == nil { return }
+
+            guard let build = source.build else { return }
+            let token = try await Secrets.open(connection.storedToken, for: build)
+            guard !token.isEmpty else { throw CloudReader.Failure.unauthorised }
+            let session = URLSession(configuration: .ephemeral)
+            try await LeadTimePublisher.publish(connection, token: token, snapshot: snapshot) {
+                try await session.data(for: $0)
+            }
+            leadTimePublished = .some(snapshot)
+            leadTimeProblem = nil
+            note(snapshot == nil ? "withdrawn" : "published")
+        } catch CloudReader.Failure.notConnected {
+            // Not an error. Most shops have no cloud, and saying so every six
+            // hours would fill a diagnostic pane with the absence of a feature.
+            leadTimeProblem = nil
+            note("this shop has no cloud")
+        } catch {
+            leadTimeProblem = String(describing: error)
+            note(String(describing: error))
+        }
+    }
+
+    /// The only trace this leaves.
+    ///
+    /// It runs on a timer, in the background, and writes nothing to the book —
+    /// so when it silently does nothing there is otherwise no way to tell
+    /// whether it never ran, refused, or was refused. That was the first
+    /// question asked of it and it could not be answered.
+    ///
+    /// `log stream --predicate 'process == "Khayt"'`, or run the binary
+    /// directly and read stderr.
+    private func note(_ what: String) {
+        FileHandle.standardError.write(Data("khayt: lead time — \(what)\n".utf8))
+    }
+
+    /// The injected clock, in the shape `lib/lead-time.js` records.
+    static func isoNow(_ now: Date = Date()) -> String {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime]
+        f.timeZone = TimeZone(secondsFromGMT: 0)
+        return f.string(from: now)
+    }
+
     let printers = PrinterWatch()
 
     // MARK: - Putting a backup back

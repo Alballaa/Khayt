@@ -13,6 +13,22 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   hung rather than waiting. It now happens off the main thread, and the window
   stays alive.
 
+- **Your storefront keeps quoting delivery dates when Khayt is closed on the
+  Mac.** The date a storefront quotes comes from a snapshot Khayt publishes of
+  its own queue, and it stops quoting once that snapshot goes stale — 24 hours,
+  by default. Only the Electron app published it, so a Mac running the native
+  app alone took the shop's delivery dates offline a day later, with nothing
+  anywhere saying so. The Mac app now publishes it too, on the same six-hour
+  cadence and from the same shared rules, so both apps make the same promise
+  from the same book.
+
+- **A printer that is mid-job now counts against what the Mac promises.** The
+  Mac knew how long each print had left and was not passing the number to the
+  part that works out capacity, so every busy machine was treated as "busy for
+  an unknown time" and dropped out of the calculation — a shop with one printer
+  running quoted as though it had none. On this shop's own book that was the
+  difference between promising work could start today and promising tomorrow.
+
 - **The Mac app says why the cloud is taking whole copies instead of just the
   changes.** Khayt Cloud stops sending a shop its changes one at a time as soon
   as one device signed in to that shop looks unable to read them — a machine on

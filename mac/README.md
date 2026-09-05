@@ -717,12 +717,56 @@ failed.
 
 ## Not yet built
 
-The rest of analytics, gift cards, the portfolio,
-the colour studio, the converter, the cloud portal, the LAN server, and the
-printer protocols. Merging what the cloud holds a newer copy of is Electron's
-still — this app can send, not reconcile. `KhaytCore` came first because the alternative, screens
-against a half-trusted engine, is how the two apps come to disagree about a
-shop's money.
+The rest of analytics, gift cards, the portfolio, the colour studio, the
+converter, the cloud portal, the LAN server, and four of the seven printer
+protocols. `KhaytCore` came first because the alternative, screens against a
+half-trusted engine, is how the two apps come to disagree about a shop's money.
+
+Two things this list used to name are done. **Merging** what the cloud holds a
+newer copy of is no longer Electron's alone — `lib/cloud-inbox.js` is the same
+fold, and `Check the cloud` brings a chain down. And the **delivery promise** a
+storefront quotes from is published from here now; see below.
+
+### The promise a storefront quotes
+
+`PUT /v1/shops/{id}/lead-time`, from `LeadTime.swift`, every six hours.
+
+This was the last thing only the Electron **main process** did, and it is the
+sharpest example of why "the Mac app is nearly there" was the wrong way to read
+this project. A storefront refuses to quote at all once the snapshot passes
+`staleAfterHours` — 24 by default — so a Mac where somebody shut Electron down
+took the shop's published delivery dates offline a day later, silently, with
+nothing on any screen in either app to say so. The feature broke by succeeding
+at the goal.
+
+`lib/lead-time.js` and `lib/lead-time-publish.js` are bundled rather than
+ported, so both apps make the same promise from the same book. Three things are
+worth knowing:
+
+* **The body is NOT encrypted.** Everything else this app sends the cloud is
+  sealed with the shop's DEK; a storefront holds no key. The discretion is in
+  the module instead — the snapshot carries `availableFrom` and a handling
+  allowance and deliberately never the queue, because hours of booked work
+  published hourly is a competitor's view of how busy a shop is.
+* **It waits for the printers.** `lead-time-publish` asks the status cache what
+  each machine is doing, and a machine it finds nothing about is a machine with
+  nothing on it. Publishing before the first poll lands would price the shop's
+  capacity as though every printer were free — and would overwrite a snapshot
+  Electron had published from a cache that DID know. Two apps, one shop, and the
+  one with less information wins by being later.
+* **`PrinterWatch.statusCache` carries `timeRemaining` because of this.** It did
+  not before, and the omission was not neutral: every printing machine fell into
+  "busy, duration unknown" and dropped out of the shop's capacity, so a shop with
+  one busy printer published a promise computed against no printers at all.
+  Measured on this bench the day it was wired up — the same book gave
+  `availableFrom: 2026-09-05` without the field and `2026-09-06` with it.
+
+The task's lifetime is the BOOK's, not the load's. `load` runs again every time
+the store changes on disk, and a version that restarted the timer there
+published nothing at all, for ever: the task opens with a ninety-second wait and
+a book touched more often than that resets the clock before it expires. It was
+watched doing exactly that, with a trace attached, before `startPublishingLeadTime`
+learned to leave a running task alone.
 
 ### The dashboard
 

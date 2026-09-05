@@ -229,6 +229,20 @@ public actor KhaytEngine {
         // which files are allowed to do that — the renderer learned the hard
         // way that a salvaging normaliser says yes to a package.json.
         "store-validate",
+        // When this shop could have a new order printed, finished and posted —
+        // and the snapshot a storefront quotes that from.
+        //
+        // ATTENTION IS ALREADY ABOVE and must be: the publisher asks it whether
+        // a machine is printing, and a machine reported idle is a lane a
+        // customer gets promised. `lead-time` before `lead-time-publish`, which
+        // reaches it through a global for the same reason.
+        //
+        // This is the one thing only the Electron main process did. Every six
+        // hours it published this shop's promise, and a storefront stops
+        // quoting when it goes stale — so a Mac with Electron shut down took
+        // the shop's delivery dates offline with it.
+        "lead-time",
+        "lead-time-publish",
     ]
 
     /// The languages whose strings are bundled.
@@ -385,6 +399,34 @@ public actor KhaytEngine {
     /// machine actually carries. It looked right on screen. Checked against the
     /// source, not inferred from the name, after `KhaytKpi.computeKpis` had
     /// already cost this app a screenful of zeros the same way.
+    // MARK: - What the shop can promise
+
+    /// The snapshot a storefront quotes this shop's delivery dates from — or
+    /// nil when the shop has not turned that on.
+    ///
+    /// Returned as RAW JSON rather than a Swift struct, deliberately. What
+    /// comes back goes straight into `PUT /v1/shops/{id}/lead-time` and is read
+    /// by a storefront this app knows nothing about; decoding it into named
+    /// Swift fields would quietly drop anything the module adds later, and the
+    /// symptom would be a storefront missing a field rather than a build error
+    /// here.
+    ///
+    /// `today` must be the shop's LOCAL day and `nowIso` the injected clock —
+    /// `lib/lead-time.js` never asks one. A UTC-derived day from a +03:00 shop
+    /// just after midnight promises yesterday.
+    public func leadTimeSnapshot(settings: [String: JSONValue], printLog: [JSONValue],
+                                 machines: [JSONValue], today: String, nowIso: String,
+                                 statusCache: [String: JSONValue] = [:]) throws -> JSONValue? {
+        let out = try runtime.call2(
+            "KhaytLeadTimePublish.buildSnapshot({settings: ARG0, printLog: ARG1, machines: ARG2,"
+          + " today: ARG3, nowIso: ARG4, statusCache: ARG5})",
+            [.object(settings), .array(printLog), .array(machines),
+             .string(today), .string(nowIso), .object(statusCache)],
+            as: JSONValue.self)
+        if case .null = out { return nil }
+        return out
+    }
+
     public func nozzleWear(orders: [JSONValue], machine: JSONValue,
                            settings: [String: JSONValue]) throws -> NozzleWear {
         try runtime.call2("KhaytNozzleWear.nozzleWear(ARG0, ARG1, ARG2)",
