@@ -20,6 +20,20 @@ struct Swatch: View {
     /// A circle for the small dots on a thumbnail, a rounded square in a list.
     var round = false
 
+    /// `#RRGGBB` → components, or nil.
+    ///
+    /// Lived on `LibraryFile.Colour` and is now here, because the filament
+    /// shelf needs the same reading and a second parser is how one screen comes
+    /// to show a colour the other calls unknown. An unparseable or absent value
+    /// is nil rather than black — black is a real filament choice and must not
+    /// be what "nobody said" looks like.
+    static func rgb(fromHex hex: String?) -> (r: Double, g: Double, b: Double)? {
+        guard var s = hex?.trimmingCharacters(in: .whitespaces), !s.isEmpty else { return nil }
+        if s.hasPrefix("#") { s.removeFirst() }
+        guard s.count == 6, let v = Int(s, radix: 16) else { return nil }
+        return (Double((v >> 16) & 0xFF) / 255, Double((v >> 8) & 0xFF) / 255, Double(v & 0xFF) / 255)
+    }
+
     /// Perceived brightness — the ITU-R BT.709 coefficients, which weight green
     /// far above blue because an eye does. A flat average calls #0000FF light.
     static func isPale(_ c: (r: Double, g: Double, b: Double)) -> Bool {

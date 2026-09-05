@@ -494,6 +494,14 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   subtly wrong: local stock before another branch, a chosen spool that has
   already run out, and a re-opened job never being charged twice.
 
+- **The board marks the column with machines running in it, and the filament
+  shelf shows colour.** On the Mac board the Printing column now carries the
+  same amber the dashboard uses for work in progress, so the eye lands on what
+  is on the machines — and only when there is something in it. The spool list
+  shows each filament's colour beside its name, because a shelf is read by
+  colour first; a spool with no colour recorded shows a dashed outline rather
+  than something that could be mistaken for one.
+
 - **The tax line in the Mac app is in Arabic when the app is.** The sidebar
   footer read the shop's tax name in Arabic followed by "included in the price"
   in English — the one sentence in the app that was welded together in code

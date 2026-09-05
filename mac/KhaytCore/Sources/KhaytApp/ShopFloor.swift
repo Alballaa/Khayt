@@ -182,7 +182,17 @@ struct Inventory: View {
     var body: some View {
         Table(shop.spools, selection: $selection, columnCustomization: $columns) {
             TableColumn(shop.words.callIt("plib.material")) { spool in
-                Text(spool.material.isEmpty ? "—" : spool.material).lineLimit(1)
+                // The colour, beside the name rather than in a column of its
+                // own. A filament shelf is read by colour first — it is how a
+                // spool is picked off a rack — and a column that is empty for
+                // every shop that has not filled it in is a column of nothing.
+                // Absent reads as a dashed outline, which is `Swatch`'s way of
+                // saying "not known" rather than showing a colour that happens
+                // to match the paper.
+                HStack(spacing: 7) {
+                    Swatch(rgb: Swatch.rgb(fromHex: spool.color), size: 12)
+                    Text(spool.material.isEmpty ? "—" : spool.material).lineLimit(1)
+                }
             }
             .width(min: 140, ideal: 200, max: 320)
 

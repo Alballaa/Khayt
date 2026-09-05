@@ -151,14 +151,21 @@ private struct Column: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
+            // The PRINTING column is the one with machines running in it, and
+            // amber is the app's word for that — the same colour the dashboard
+            // tile and the live progress bar wear. Only when it has something
+            // in it: a warm heading over an empty column says a machine is
+            // working when none is.
+            let working = stage == .printing && !jobs.isEmpty
             HStack(spacing: 6) {
-                Image(systemName: stage.symbol).foregroundStyle(.secondary)
+                Image(systemName: stage.symbol)
+                    .foregroundStyle(working ? AnyShapeStyle(Khayt.hot) : AnyShapeStyle(.secondary))
                 Text(shop.words.callIt(stage.key)).font(.headline)
                 Spacer(minLength: 6)
                 Text("\(jobs.count)")
                     .font(.caption)
                     .monospacedDigit()
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(working ? AnyShapeStyle(Khayt.hot) : AnyShapeStyle(.secondary))
             }
             .padding(.horizontal, 4)
 
