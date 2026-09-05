@@ -418,6 +418,15 @@ public actor KhaytEngine {
         public let name: String
         public let path: String
         public let args: String
+
+        /// Spelled out because `Decodable` alone synthesises only `init(from:)`,
+        /// and the settings pane builds these rather than decoding them.
+        public init(id: String, name: String, path: String, args: String = "") {
+            self.id = id
+            self.name = name
+            self.path = path
+            self.args = args
+        }
     }
 
     /// Every slicer this shop has set up, in `lib/slicers.js`'s reading of the
@@ -432,6 +441,16 @@ public actor KhaytEngine {
     public func defaultSlicer(settings: [String: JSONValue]) throws -> Slicer? {
         try runtime.call2("(KhaytSlicers.defaultSlicer(ARG0) || null)",
                           [.object(settings)], as: Slicer?.self)
+    }
+
+    /// A friendly name for a slicer, guessed from its path.
+    ///
+    /// `Snapmaker_Orca` → "Snapmaker Orca", `orca-slicer.exe` → "OrcaSlicer".
+    /// Shared because the name a shop is offered when Khayt finds a slicer and
+    /// the name the Mac offers must be the same name, or one shop's settings
+    /// read differently in its two apps.
+    public func slicerDisplayName(path: String) throws -> String {
+        try runtime.call2("KhaytSlicers.slicerDisplayName(ARG0)", [.string(path)], as: String.self)
     }
 
     /// MAY THIS PROGRAM BE LAUNCHED AS A SLICER?

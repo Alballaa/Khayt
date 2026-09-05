@@ -494,6 +494,13 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   subtly wrong: local stock before another branch, a chosen spool that has
   already run out, and a re-opened job never being charged twice.
 
+- **And you can set your slicers up from the Mac app.** A new Settings pane
+  lists them, marks the one models open in, and can find the ones already
+  installed on the Mac so nobody has to type a path like
+  `/Applications/Snapmaker Orca.app/Contents/MacOS/Snapmaker_Orca` into a
+  field. A program that does not look like a slicer is refused when you pick
+  it, not later when you try to print with it.
+
 - **The Mac app opens a model in your slicer, by name.** The library's *Open*
   handed the file to macOS, which gives a `.3mf` to whatever is registered for
   it — often a viewer rather than the slicer you print from. The menu now offers

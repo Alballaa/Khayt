@@ -606,6 +606,30 @@ final class Words {
         // after; the sentence that explains any of this lives in
         // `mac.sync_auto_why`, which is a tooltip and can be as long as it
         // needs to be.
+        // The slicers pane. Khayt calls the section "Slicer" already —
+        // `slicer.settings_title` — so the tab reuses it rather than inventing
+        // a second name for the same page in the same shop.
+        // The TAB, not the section. Khayt's own `slicer.settings_title` is
+        // "Slicer integration" — a fine heading for a page in a scrolling
+        // settings screen, and too long for a macOS tab, which it widened by
+        // half. The heading inside the pane still uses Khayt's wording.
+        "mac.nav_slicers":   ["en": "Slicers", "ar": "برامج التقطيع"],
+        "mac.no_slicers":    ["en": "No slicer set up yet. Khayt can look for the ones you already have.",
+                              "ar": "لم يُضبط أي برنامج شرائح بعد. يستطيع خيط البحث عمّا لديك."],
+        "mac.find_slicers":  ["en": "Find installed slicers", "ar": "ابحث عن البرامج المثبّتة"],
+        "mac.slicers_found": ["en": "Added {n}.", "ar": "أُضيف {n}."],
+        "mac.slicers_none_found": ["en": "Nothing new — everything found is already on the list.",
+                                   "ar": "لا جديد — كل ما وُجد موجود في القائمة بالفعل."],
+        "mac.slicer_add":    ["en": "Add\u{2026}", "ar": "إضافة\u{2026}"],
+        "mac.slicer_remove": ["en": "Remove from the list", "ar": "إزالة من القائمة"],
+        "mac.slicer_make_default": ["en": "Open models in this one",
+                                    "ar": "افتح النماذج بهذا"],
+        "mac.slicer_no_binary": ["en": "{name} does not carry a program Khayt can open.",
+                                 "ar": "{name} لا يحتوي على برنامج يستطيع خيط فتحه."],
+        "mac.slicer_why":    ["en": "The one with the mark is what a model opens in from the library. "
+                            + "The rest stay one menu away.",
+                              "ar": "البرنامج المعلَّم هو ما تُفتح به النماذج من المكتبة، والبقية على "
+                            + "بُعد قائمة واحدة."],
         // Opening a model in the shop's own slicer, and the two ways it does not.
         "mac.open_in":       ["en": "Open in {name}", "ar": "افتح في {name}"],
         "mac.open_in_other": ["en": "Open in", "ar": "افتح في"],
