@@ -59,6 +59,9 @@ struct Kanban: View {
                 ContentUnavailableView.search(text: shop.search)
             }
         }
+        // The same primary action the jobs table carries. A shop looking at a
+        // board of work should be able to add to it from there.
+        .toolbar { NewJobButton(shop: shop) }
     }
 }
 

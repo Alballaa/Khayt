@@ -88,6 +88,43 @@ struct OrdersTable: View {
         .overlay {
             if rows.isEmpty { EmptyBook(shop: shop) }
         }
+        .toolbar { NewJobButton(shop: shop) }
+    }
+}
+
+/// Taking a job, where a shop can see it.
+///
+/// The machines, spools, expense and waste screens all put their own "+" in the
+/// toolbar. The screen holding the shop's ACTUAL WORK had none: ⌘N and the File
+/// menu were the only ways in, so somebody who had not read the menus could not
+/// take a job at all.
+///
+/// NO `.buttonStyle(.borderedProminent)`, AND THAT WAS MEASURED.
+///
+/// The HIG says to use a prominent style for a key action, and I put one here
+/// first. On macOS 26 it renders the item PALE and breaks it out of the shared
+/// capsule the system draws around a toolbar group — the plus looked disabled
+/// beside an enabled Details button, which is how it was noticed. The same
+/// guidance says why, two paragraphs up: "Reduce the use of toolbar backgrounds
+/// and tinted controls. Any custom backgrounds and appearances you use might
+/// overlay or interfere with background effects that the system provides", and
+/// "prefer system-provided symbols without borders … the section provides a
+/// visible container".
+///
+/// So: a plain symbol, and the system groups and styles it. Checked by
+/// rendering all three versions and comparing the crops — with the style, and
+/// then with `.disabled` alone, to be sure which of the two was doing it.
+struct NewJobButton: ToolbarContent {
+    let shop: Shop
+
+    var body: some ToolbarContent {
+        ToolbarItem {
+            Button(shop.words.callIt("mac.new_job"), systemImage: "plus") {
+                shop.takingAJob = true
+            }
+            .disabled(!shop.canMoveJobs)
+            .help(shop.words.callIt("mac.new_job"))
+        }
     }
 }
 
