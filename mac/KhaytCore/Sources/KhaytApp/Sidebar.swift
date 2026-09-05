@@ -142,6 +142,14 @@ private struct Provenance: View {
                 Label(shop.words.callIt("set.last_backup") + " " + day, systemImage: "clock.arrow.circlepath")
                     .foregroundStyle(.tertiary).font(.caption)
             }
+            // Only for a book that expects to be in step with somewhere else.
+            // A shop that has never connected to the cloud is not missing
+            // anything, and a line telling it so is a line people stop reading.
+            if shop.cloudConnected {
+                Label(shop.words.callIt("mac.not_synced"), systemImage: "icloud.slash")
+                    .foregroundStyle(.tertiary).font(.caption).lineLimit(2)
+                    .help(shop.words.callIt("mac.not_synced_why"))
+            }
             if let engineProblem = shop.engineProblem {
                 // Above everything, in the one place that is on every screen.
                 Label(engineProblem, systemImage: "exclamationmark.octagon")

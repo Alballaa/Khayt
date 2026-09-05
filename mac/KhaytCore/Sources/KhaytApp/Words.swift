@@ -461,6 +461,16 @@ final class Words {
         "mac.alert_offline": ["en": "{machine} stopped answering", "ar": "{machine} توقفت عن الرد"],
         "mac.alert_stalled": ["en": "{machine} has stopped moving", "ar": "{machine} توقفت عن التقدم"],
         "mac.printer_trouble": ["en": "Printer trouble", "ar": "مشاكل الطابعة"],
+        // What this app does NOT do. Said quietly and always, because a shop
+        // with two machines drifting apart is the failure that costs most and
+        // announces itself least.
+        "mac.not_synced":    ["en": "Changes here reach the cloud when Khayt next runs",
+                              "ar": "تصل التغييرات هنا إلى السحابة عند تشغيل خيط في المرة القادمة"],
+        "mac.not_synced_why": ["en": "This app writes to the book on this Mac and marks every change. "
+                             + "It does not talk to Khayt Cloud yet, so another device sees your work "
+                             + "after the Khayt app runs here and syncs.",
+                               "ar": "يكتب هذا التطبيق في الدفتر على هذا الماك ويؤشّر كل تغيير. "
+                             + "لا يتصل بسحابة خيط بعد، لذا يرى جهاز آخر عملك بعد تشغيل تطبيق خيط هنا ومزامنته."],
         // The machine's own memory of what it has printed.
         "mac.read_history":  ["en": "Read the printer\u{2019}s history",
                               "ar": "قراءة سجل الطابعة"],

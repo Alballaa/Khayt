@@ -1489,6 +1489,30 @@ final class Shop {
         }
     }
 
+    /// Is this book connected to Khayt Cloud, and therefore expecting to be in
+    /// step with another device?
+    ///
+    /// THIS APP DOES NOT SYNC. It writes to the store on this Mac and stamps
+    /// every record so the Electron app's next sync picks the change up — which
+    /// is the mechanism, and it only runs when that app runs. A shop that keeps
+    /// its book on two machines and stops opening Khayt would have the two
+    /// drift apart with nothing said, which is the one failure worth putting on
+    /// screen before the feature exists.
+    var cloudConnected: Bool { Self.cloudConnected(settingsDict) }
+
+    /// The same, as a function of the settings alone — `settingsValue` is only
+    /// the model's to set, and a rule about a shop's data should be testable
+    /// without building one.
+    static func cloudConnected(_ settings: [String: JSONValue]) -> Bool {
+        guard case .object(let cloud)? = settings["cloud"] else { return false }
+        if case .bool(let on)? = cloud["enabled"], on == false { return false }
+        guard case .string(let shop)? = cloud["shopId"], !shop.isEmpty else { return false }
+        // A shop that started connecting and never finished is not connected,
+        // and telling it its changes are stranded would be a false alarm.
+        if case .bool(let verified)? = cloud["verified"] { return verified }
+        return false
+    }
+
     // MARK: - What the printers are doing
 
     /// Read the machine's own job history and keep it, for the nozzle counter.

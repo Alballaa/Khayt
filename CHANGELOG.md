@@ -6,6 +6,13 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Changed
 
+- **The Mac app says that it does not sync yet.** If your book is connected to
+  Khayt Cloud, the sidebar now says so plainly: changes made here reach the
+  cloud when the Khayt app next runs on this Mac. It writes to the book and
+  marks every change, which is what makes that sync pick them up — but a shop
+  with two machines that stopped opening Khayt would have had the two drift
+  apart with nothing said.
+
 - **The sample shop has customers and a catalogue.** It always said who each
   job was for and what it was, in free-text fields — but with no customer or
   product records behind them, the Customers screen and the new Best page
