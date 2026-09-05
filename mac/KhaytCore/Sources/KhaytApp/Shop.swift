@@ -20,11 +20,16 @@ final class Shop {
             case .store(let b): b.rawValue
             }
         }
-        var title: String {
+        /// Which book this is, in the shop's own language.
+        ///
+        /// Takes the words rather than reading a global: this is an enum, and
+        /// an enum that reaches for the interface language is one that cannot
+        /// be tested without one.
+        @MainActor func title(_ words: Words) -> String {
             switch self {
-            case .sample: "Sample shop"
-            case .store(.development): "This Mac — development"
-            case .store(.shipped): "This Mac — Khayt"
+            case .sample: words.callIt("mac.book_sample")
+            case .store(.development): words.callIt("mac.book_dev")
+            case .store(.shipped): words.callIt("mac.book_khayt")
             }
         }
         var symbol: String {
@@ -276,7 +281,7 @@ final class Shop {
             // in Khayt writes. Read as `shopName` for six weeks, this shop's
             // invoice would have been issued by "Khayt".
             shopName = await Self.shopName(from: Self.settings(root), engine: engine,
-                                           language: words.language) ?? next.title
+                                           language: words.language) ?? next.title(words)
             if case .array(let shelf)? = root["inventory"] { inventoryRows = shelf } else { inventoryRows = [] }
             if case .array(let jobs)? = root["printLog"] { orderRows = jobs } else { orderRows = [] }
             if case .array(let people)? = root["clients"] { clientRows = people } else { clientRows = [] }
@@ -484,7 +489,8 @@ final class Shop {
     /// Mark a model a favourite, or stop. The first thing this app ever wrote.
     func toggleFavourite(_ file: LibraryFile) {
         let wanted = !file.isFavourite
-        editFiles([file.id], named: wanted ? "Add to Favourites" : "Remove from Favourites") { record in
+        editFiles([file.id],
+                  named: words.callIt(wanted ? "mac.add_to_favourites" : "mac.remove_from_favourites")) { record in
             record["favorite"] = .bool(wanted)
         }
     }
@@ -501,10 +507,12 @@ final class Shop {
         // adopts that spelling rather than becoming a second chip holding part
         // of the same collection.
         guard let engine, let patch = try? await engine.fileUnderGroup(name, known: groups) else {
-            writeProblem = "Could not work out which group that is."
+            writeProblem = words.callIt("mac.group_unknown")
             return
         }
-        let named = name.isEmpty ? "Remove from Group" : "File in \(name)"
+        let named = name.isEmpty
+            ? words.callIt("mac.remove_from_group")
+            : words.callIt("mac.file_in", ["name": .string(name)])
         editFiles(ids, named: named) { record in
             for (key, value) in patch { record[key] = value }
         }

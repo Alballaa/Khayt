@@ -18,7 +18,8 @@ struct CustomersTable: View {
                     if person.overdueCount > 0 {
                         Image(systemName: "exclamationmark.triangle.fill")
                             .foregroundStyle(.orange)
-                            .help("\(person.overdueCount) unpaid jobs past their due date")
+                            .help(shop.words.callIt("mac.overdue_jobs",
+                                            ["n": .number(Double(person.overdueCount))]))
                     }
                     Text(person.name).lineLimit(1)
                 }
@@ -85,8 +86,9 @@ struct CustomersTable: View {
                 if !shop.search.isEmpty {
                     ContentUnavailableView.search(text: shop.search)
                 } else {
-                    ContentUnavailableView("No customers yet", systemImage: "person.2",
-                        description: Text("A customer appears here once a job is billed to them."))
+                    ContentUnavailableView(shop.words.callIt("mac.no_customers"),
+                        systemImage: "person.2",
+                        description: Text(shop.words.callIt("mac.no_customers_hint")))
                 }
             }
         }
@@ -111,7 +113,10 @@ struct CustomerInspector: View {
                         Text(person.name)
                             .font(.title3.weight(.semibold))
                             .textSelection(.enabled)
-                        Text("\(person.jobCount) job\(person.jobCount == 1 ? "" : "s")")
+                        // One is one, and Arabic does not make a plural by
+                        // appending an "s" — so the count picks the phrase.
+                        Text(shop.words.callIt(person.jobCount == 1 ? "mac.job_count_one" : "mac.job_count",
+                                               ["n": .number(Double(person.jobCount))]))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                         if shop.canMoveJobs {
@@ -161,7 +166,7 @@ struct CustomerInspector: View {
                         DetailLine(shop.words.callIt("flow.owed"), Money.text(person.owed, shop.currency),
                                    strong: !person.isSettled, warn: person.overdueCount > 0)
                         if person.overdueCount > 0 {
-                            DetailLine("Past due", "\(person.overdueCount)", warn: true)
+                            DetailLine(shop.words.callIt("mac.past_due"), "\(person.overdueCount)", warn: true)
                         }
                     }
                     Divider()

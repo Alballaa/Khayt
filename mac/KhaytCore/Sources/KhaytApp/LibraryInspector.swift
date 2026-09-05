@@ -78,7 +78,7 @@ struct LibraryInspector: View {
                                                              : AnyShapeStyle(.tertiary))
                     }
                     .buttonStyle(.plain)
-                    .help(file.isFavourite ? "Stop marking this a favourite" : "Mark a favourite")
+                    .help(shop.words.callIt(file.isFavourite ? "mac.unmake_favourite" : "mac.make_favourite"))
                 } else if file.isFavourite {
                     Image(systemName: "star.fill").foregroundStyle(.yellow)
                 }
@@ -144,7 +144,7 @@ struct LibraryInspector: View {
                             .strokeBorder(.separator, style: StrokeStyle(dash: [2, 2]))
                             .frame(width: 14, height: 14)
                     }
-                    Text(colour.label ?? "Filament \(i + 1)")
+                    Text(colour.label ?? shop.words.callIt("mac.filament_n", ["n": .number(Double(i + 1))]))
                         .font(.callout)
                     Spacer(minLength: 8)
                     if let g = colour.grams {

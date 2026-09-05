@@ -47,6 +47,39 @@ struct SidebarLayoutTests {
         }
     }
 
+    /// THE STRONGER FORM, AND THE ONE THAT WOULD HAVE CAUGHT IT.
+    ///
+    /// The check above forbids somebody *asking* for two lines. It says nothing
+    /// about a label that asks for nothing — and SwiftUI wraps by default, so a
+    /// `Label` with no cap at all is the same feedback loop written more
+    /// quietly. Two of them were sitting here: the tax line ("VAT 15.00%
+    /// included in the price", thirty-one characters) and the unreadable-records
+    /// line. Neither had ever wrapped at the width this app is photographed at.
+    @Test("every label in the footer is capped at one line")
+    func everyLabelIsCapped() {
+        let body = Self.footer
+        var uncapped: [String] = []
+        let parts = body.components(separatedBy: "Label(").dropFirst()
+        for (i, part) in parts.enumerated() {
+            // Up to the end of this label's modifier chain: the next `Label(`
+            // is already excluded by the split, so stop at the next statement
+            // that plainly is not one of ours.
+            let chain = part.prefix(400)
+            if !chain.contains(".lineLimit(1)") {
+                let head = chain.prefix(while: { $0 != "\n" })
+                uncapped.append("#\(i + 1)  Label(\(head))")
+            }
+        }
+        #expect(uncapped.isEmpty, """
+            \(uncapped.count) label(s) in the sidebar footer can wrap:
+
+            \(uncapped.joined(separator: "\n"))
+
+            Add `.lineLimit(1)` and put the long form in `.help`. A label whose
+            height depends on the column's width is what aborted the app.
+            """)
+    }
+
     @Test("a long sentence goes in help, where its length costs nothing")
     func longTextIsATooltip() {
         let body = Self.footer

@@ -115,11 +115,11 @@ struct ShopWindow: View {
                         Button {
                             Task { await shop.load(source) }
                         } label: {
-                            Label(source.title, systemImage: source.symbol)
+                            Label(source.title(shop.words), systemImage: source.symbol)
                         }
                     }
                 } label: {
-                    Label(shop.source.title, systemImage: shop.source.symbol)
+                    Label(shop.source.title(shop.words), systemImage: shop.source.symbol)
                 }
             }
             ToolbarItem(placement: .principal) {
@@ -129,13 +129,13 @@ struct ShopWindow: View {
                 Button {
                     showInspector.toggle()
                 } label: {
-                    Label("Details", systemImage: "sidebar.trailing")
+                    Label(shop.words.callIt("mac.details"), systemImage: "sidebar.trailing")
                 }
-                .help("Show or hide the details")
+                .help(shop.words.callIt("mac.details_toggle"))
                 // The label above is the button's title; VoiceOver reads this.
                 // "Don't include text that repeats information users already
                 // have" — it is already a button, so this does not say so.
-                .accessibilityLabel(showInspector ? "Hide details" : "Show details")
+                .accessibilityLabel(shop.words.callIt(showInspector ? "mac.hide_details" : "mac.show_details"))
             }
         }
         // No `.environment(\.layoutDirection, …)` here on purpose: that line
@@ -220,7 +220,8 @@ private struct OwedSummary: View {
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(.orange)
                     .labelStyle(.titleAndIcon)
-                    .help("\(shop.overdueCount) unpaid jobs are past their due date")
+                    .help(shop.words.callIt("mac.overdue_jobs",
+                                    ["n": .number(Double(shop.overdueCount))]))
             }
         }
         .padding(.horizontal, 4)

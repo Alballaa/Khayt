@@ -17,7 +17,7 @@ struct GroupMenu: View {
     var body: some View {
         Menu {
             if count == 0 {
-                Text("Select a model first")
+                Text(shop.words.callIt("mac.pick_a_model"))
             } else {
                 ForEach(shop.groups, id: \.self) { group in
                     Button {
@@ -31,22 +31,25 @@ struct GroupMenu: View {
                     }
                 }
                 if !shop.groups.isEmpty { Divider() }
-                Button("New Group…") { typed = ""; naming = true }
+                Button(shop.words.callIt("mac.new_group")) { typed = ""; naming = true }
                 if shop.selectedFiles.contains(where: { $0.groupName != nil }) {
-                    Button("Remove from Group") {
+                    Button(shop.words.callIt("mac.remove_from_group")) {
                         Task { await shop.fileSelection(under: "") }
                     }
                 }
             }
         } label: {
-            Label(count > 1 ? "Group \(count) Models" : "Group", systemImage: "square.stack")
+            Label(count > 1
+                  ? shop.words.callIt("mac.group_n_models", ["n": .number(Double(count))])
+                  : shop.words.callIt("mac.group"),
+                  systemImage: "square.stack")
         }
         .disabled(!shop.canWrite || count == 0)
         .help(shop.canWrite
-              ? "File the selected models under one name"
-              : "Another app has this book open, so nothing here can be changed")
+              ? shop.words.callIt("mac.group_why")
+              : shop.words.callIt("mac.group_locked"))
         .popover(isPresented: $naming, arrowEdge: .bottom) {
-            NameAGroup(typed: $typed) { name in
+            NameAGroup(words: shop.words, typed: $typed) { name in
                 naming = false
                 let wanted = name.trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !wanted.isEmpty else { return }
@@ -62,28 +65,29 @@ struct GroupMenu: View {
 }
 
 private struct NameAGroup: View {
+    let words: Words
     @Binding var typed: String
     let done: (String) -> Void
     @FocusState private var focused: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Name this group")
+            Text(words.callIt("mac.name_this_group"))
                 .font(.system(size: 10, weight: .semibold))
                 .textCase(.uppercase)
                 .tracking(0.6)
                 .foregroundStyle(.tertiary)
-            TextField("Saudi Kings", text: $typed)
+            TextField(words.callIt("mac.group_example"), text: $typed)
                 .textFieldStyle(.roundedBorder)
                 .frame(width: 220)
                 .focused($focused)
                 .onSubmit { done(typed) }
-            Text("A name already in use keeps its spelling.")
+            Text(words.callIt("mac.group_name_kept"))
                 .font(.caption)
                 .foregroundStyle(.secondary)
             HStack {
                 Spacer()
-                Button("File") { done(typed) }
+                Button(words.callIt("mac.file_it")) { done(typed) }
                     .keyboardShortcut(.defaultAction)
                     .disabled(typed.trimmingCharacters(in: .whitespaces).isEmpty)
             }
@@ -100,21 +104,22 @@ struct ManyModels: View {
     var body: some View {
         let chosen = shop.selectedFiles
         VStack(alignment: .leading, spacing: 16) {
-            Text("\(chosen.count) models")
+            Text(shop.words.callIt("mac.n_models", ["n": .number(Double(chosen.count))]))
                 .font(.title3.weight(.semibold))
-            DetailSection("Together") {
-                DetailLine("On disk", Format.bytes(chosen.compactMap(\.size).reduce(0, +)))
-                DetailLine("Printed", "\(chosen.reduce(0) { $0 + $1.printCount })×", dim: true)
+            DetailSection(shop.words.callIt("mac.together")) {
+                DetailLine(shop.words.callIt("mac.on_disk"), Format.bytes(chosen.compactMap(\.size).reduce(0, +)))
+                DetailLine(shop.words.callIt("mac.printed"), "\(chosen.reduce(0) { $0 + $1.printCount })×", dim: true)
                 let groups = Set(chosen.compactMap(\.groupName))
-                DetailLine("Group",
-                           groups.isEmpty ? "none"
+                DetailLine(shop.words.callIt("mac.group"),
+                           groups.isEmpty ? shop.words.callIt("mac.none")
                            : groups.count == 1 ? groups.first!
-                           : "\(groups.count) different",
+                           : shop.words.callIt("mac.n_different",
+                                               ["n": .number(Double(groups.count))]),
                            dim: groups.isEmpty)
                 let missing = chosen.filter { !shop.fileIsPresent($0) }.count
-                if missing > 0 { DetailLine("Not on this Mac", "\(missing)", warn: true) }
+                if missing > 0 { DetailLine(shop.words.callIt("mac.not_on_this_mac"), "\(missing)", warn: true) }
             }
-            Text("Use the Group button in the toolbar to file them together.")
+            Text(shop.words.callIt("mac.group_hint"))
                 .font(.caption)
                 .foregroundStyle(.secondary)
             Spacer()
