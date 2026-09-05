@@ -6,6 +6,11 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Changed
 
+- **There is a way to take a job that you can see.** The machines, spools,
+  expenses and waste screens all had a "+" in the toolbar; the two holding the
+  shop's actual work — the jobs table and the board — had none, so ⌘N and the
+  File menu were the only ways in.
+
 - **The Mac app can be driven from the keyboard.** ⌘F puts the caret in the
   search field, ⌥⌘I shows and hides the details pane, and Expenses, Waste and
   Reports are in the Go menu at last — the sidebar had always had them and the
