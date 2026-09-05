@@ -301,6 +301,7 @@ final class Shop {
             // Ask the machines what they are doing — but never for the sample
             // shop, whose printers are somebody else's addresses on somebody
             // else's network.
+            printers.source = next.build
             if next.build != nil { printers.start(shop: self) } else { printers.stop() }
         } catch {
             orders = []

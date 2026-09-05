@@ -6,6 +6,12 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Changed
 
+- **The Mac app speaks to OctoPrint and PrusaLink printers too.** Three of the
+  seven protocols now, up from one. Both send an API key, which the app opens at
+  the moment it sends it and holds nowhere. Duet and Repetier still say plainly
+  that this app does not poll them: both need a session handshake before the
+  first read, and there is no machine here to answer one.
+
 - **The Mac app can check the cloud.** *Book → Check the cloud* asks for your
   cloud passphrase, reads what Khayt Cloud holds and counts the difference —
   which records are only here, which are only there, and which are newer on each

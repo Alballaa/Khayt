@@ -174,6 +174,13 @@ public actor KhaytEngine {
         // would see 0% on every machine rather than an error.
         "printer-status",
         "moonraker",
+        // The two other HTTP protocols whose reading is a module. Duet and
+        // Repetier have modules too and are NOT here: both need a session
+        // handshake before the first read, and building a handshake against a
+        // machine nobody can point at is how a poller ships that has never
+        // once been answered.
+        "octoprint",
+        "prusalink",
         // What the machine itself remembers. The nozzle-wear counter reads
         // completed ORDERS, so a machine that has extruded twelve kilos while
         // nineteen of its jobs were customer orders reports a fraction of its
@@ -949,6 +956,30 @@ public actor KhaytEngine {
                           as: PrinterStatus.self)
     }
 
+    /// What an OctoPrint server is doing.
+    ///
+    /// `printer` is null when `/api/printer` answered 409 — which is not a
+    /// fault, it is OctoPrint running with the printer switched off, and
+    /// `/api/job` answers fine in exactly that state. `lib/octoprint.js`.
+    public func octoprintStatus(printer: [String: JSONValue]?,
+                                job: [String: JSONValue]) throws -> PrinterStatus {
+        try runtime.call2("KhaytOctoprint.readStatus(ARG0, ARG1)",
+                          [printer.map(JSONValue.object) ?? .null, .object(job)],
+                          as: PrinterStatus.self)
+    }
+
+    /// What a PrusaLink printer is doing.
+    ///
+    /// `job` is null when `/api/v1/job` answered 204 — nothing is printing, and
+    /// a missing filename must not cost the temperatures the first request did
+    /// return. `lib/prusalink.js`.
+    public func prusalinkStatus(status: [String: JSONValue],
+                                job: [String: JSONValue]?) throws -> PrinterStatus {
+        try runtime.call2("KhaytPrusalink.readStatus(ARG0, ARG1)",
+                          [.object(status), job.map(JSONValue.object) ?? .null],
+                          as: PrinterStatus.self)
+    }
+
     /// Is this string the address of a printer on the shop's own network?
     ///
     /// `lib/printer-host.js`, split out of the Electron app's host guard for
@@ -972,7 +1003,14 @@ public actor KhaytEngine {
         public let progress: Int
         /// `layers` or `bytes` — which signal the percentage came from, because
         /// bytes are not work and a shop reading an ETA deserves to know which.
-        public let progressSource: String
+        ///
+        /// NIL FOR EVERY OTHER PROTOCOL, and that is the honest answer rather
+        /// than a default: Moonraker is the only one that chooses between two
+        /// signals. OctoPrint's `completion` and PrusaLink's `progress` are
+        /// percentages their own servers computed, and labelling either "by
+        /// file position" would be inventing a fact about someone else's
+        /// firmware.
+        public let progressSource: String?
         public let filename: String
         public let timeRemaining: Double?
         public let tempNozzle: Double?

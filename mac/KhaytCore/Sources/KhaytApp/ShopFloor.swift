@@ -309,8 +309,16 @@ private struct Live: View {
                 // work: on a relief whose detail is all in its upper layers,
                 // file position read 0.7% when the job was 19% done. A shop
                 // deciding whether to wait is owed that distinction.
-                Text(shop.words.callIt(status.progressSource == "layers" ? "mac.by_layers" : "mac.by_bytes"))
-                    .font(.caption2).foregroundStyle(.tertiary)
+                //
+                // Only where there IS a distinction. Moonraker is the one
+                // adapter that chooses between two signals; the others report a
+                // percentage their own server computed, and captioning that
+                // "by file position" would be a claim about somebody else's
+                // firmware.
+                if let source = status.progressSource {
+                    Text(shop.words.callIt(source == "layers" ? "mac.by_layers" : "mac.by_bytes"))
+                        .font(.caption2).foregroundStyle(.tertiary)
+                }
             }
             HStack(spacing: 14) {
                 if let nozzle = status.tempNozzle {
