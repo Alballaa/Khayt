@@ -67,12 +67,31 @@ final class PrinterWatch {
         var out: [String: JSONValue] = [:]
         for (id, seen) in readings {
             if let status = seen.status {
-                out[id] = .object([
+                var entry: [String: JSONValue] = [
                     "state": .string(status.state),
                     "progress": .number(Double(status.progress)),
                     "filename": .string(status.filename),
                     "lastUpdated": .number(seen.at.timeIntervalSince1970 * 1000),
-                ])
+                ]
+                // SECONDS LEFT, when the printer gave one — and the delivery
+                // promise is what needs it. `lead-time-publish` reads exactly
+                // this field to decide between "this lane is busy for 3.5
+                // hours" and "this lane is busy and nobody can say for how
+                // long", and the second answer drops the lane out of the
+                // shop's capacity altogether.
+                //
+                // Leaving it out was not neutral. Every printing machine fell
+                // into the second case, so a shop with one busy printer
+                // published a promise computed against no printers at all. It
+                // errs late rather than early, which is why it would never have
+                // been reported — main.js keeps the whole status object in its
+                // cache and has always had the number.
+                //
+                // Absent, not zero, when the printer did not say: Klipper
+                // reports no usable estimate for the first ~1% of a job, and a
+                // zero there would read as "finishing now".
+                if let left = status.timeRemaining { entry["timeRemaining"] = .number(left) }
+                out[id] = .object(entry)
             } else if seen.problem != nil {
                 // A machine that did not answer is offline, which is a fact the
                 // fleet tile has to count — not an absence.
