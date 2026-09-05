@@ -177,10 +177,10 @@ struct ShopWindow: View {
         }
         if shop.showingDashboard || shop.showingBoard { return provenance }
         if shop.showingMachines {
-            return "\(shop.machines.count) \(shop.words.callIt("mac.machines")) · \(provenance)"
+            return "\(shop.machines.count) \(shop.words.callIt("mac.machines_count")) · \(provenance)"
         }
         if shop.showingInventory {
-            return "\(shop.spools.count) \(shop.words.callIt("mac.inventory")) · \(provenance)"
+            return "\(shop.spools.count) \(shop.words.callIt("mac.spools_count")) · \(provenance)"
         }
         return provenance
     }

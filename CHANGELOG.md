@@ -6,6 +6,13 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Changed
 
+- **Three things the Mac app said awkwardly.** A part weighed "129.18 g",
+  because the money formatter was being used for grams — two decimals of a gram
+  is a precision no filament scale has. The job inspector labelled a row "paid"
+  in lower case between "Total" and "Owed", because it borrowed Khayt's status
+  word rather than using a label. And the window said "6 Filament" and
+  "3 Machines", because the counts reused the sidebar's headings.
+
 - **An invoice is addressed to the customer now, not to the job.** BILLED TO
   read `project` — the field the order editor calls "Description" and the print
   log calls "Project / Client" — so a job linked to a customer printed the

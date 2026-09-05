@@ -352,6 +352,11 @@ final class Words {
         "mac.no_customers_hint": ["en": "A customer appears here once a job is billed to them.",
                                   "ar": "يظهر العميل هنا بعد أن يُحرَّر له حساب على عمل."],
         "mac.past_due":      ["en": "Past due",        "ar": "متأخر السداد"],
+        // Khayt's `flow.paid` is the STATUS word — lowercase "paid", which is
+        // right beside a job and wrong as a row label between "Total" and
+        // "Owed". A borrowed key wins over this app's own, so the label needs a
+        // key of its own rather than a different value under the same one.
+        "mac.paid":          ["en": "Paid",           "ar": "مدفوع"],
         "mac.overdue_jobs":  ["en": "{n} unpaid jobs past their due date",
                               "ar": "{n} أعمال غير مدفوعة تجاوزت موعدها"],
         "mac.job_count":     ["en": "{n} jobs",        "ar": "{n} أعمال"],
@@ -477,6 +482,11 @@ final class Words {
         "mac.no_customer_hint": ["en": "Pick a row to see their jobs and their balance.", "ar": "اختر صفاً لعرض أعماله ورصيده."],
         "mac.models_count": ["en": "models", "ar": "مجسمات"],
         "mac.customers_count": ["en": "customers", "ar": "عملاء"],
+        // Counting words, not the sidebar's labels. Reusing those gave the
+        // window "6 Filament" and "3 Machines" — a nav label has a capital and
+        // is a heading, and neither is a thing you can put a number in front of.
+        "mac.spools_count":  ["en": "spools",   "ar": "بكرات"],
+        "mac.machines_count": ["en": "machines", "ar": "طابعات"],
         // What the shop spent, and what it wasted
         "mac.search_expenses": ["en": "Note, category or job", "ar": "ملاحظة أو تصنيف أو عمل"],
         "mac.search_waste":  ["en": "Material, reason or failure", "ar": "خامة أو سبب أو نوع العطل"],
