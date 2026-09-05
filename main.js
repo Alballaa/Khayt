@@ -110,7 +110,7 @@ let bedreadyLinkNonce = '';
 const { registerZatcaCrypto } = require('./lib/zatca-crypto');
 const { wrapHubIpc } = require('./lib/ipc-guard');
 const { sanitizeHtmlForFile, redactStatusHtmlClientRow } = require('./lib/status-html');
-const { hashPin: hashPinSalted, verifyPin, isManagedHash } = require('./lib/pin-hash');
+const { hashPin: hashPinSalted, verifyPin, isManagedHash, needsUpgrade } = require('./lib/pin-hash');
 
 // FLAVOR / isBedReady / FLAVOR_NAME are resolved at the top of this file (needed
 // before the Sentry block). 'bedready' = the standalone maker app (no business
@@ -3662,7 +3662,12 @@ ipcMain.handle('hub:verify-operator-pin', async (_event, { operatorId, pin } = {
   // Unrecognized formats (the very old base64 scheme) report legacy_pin so the
   // renderer re-prompts to set a fresh PIN.
   if (!isManagedHash(op.pinHash)) return { ok: false, error: 'legacy_pin' };
-  return { ok: verifyPin(String(pin || ''), op.pinHash) };
+  const ok = verifyPin(String(pin || ''), op.pinHash);
+  // A correct PIN against a LEGACY hash is the moment to replace it — the only
+  // moment, because it is the only time the plaintext is in hand. See the note
+  // on `hub:verify-pin`. The caller writes it; this cannot, because the store's
+  // write chain is not here.
+  return { ok, upgraded: ok && needsUpgrade(op.pinHash) ? hashPinSalted(String(pin || '')) : null };
 });
 
 // Hash a PIN/secret in the salted PBKDF2 format (renderer delegates here so all
@@ -3671,7 +3676,25 @@ ipcMain.handle('hub:hash-pin', async (_e, pin) => hashPinSalted(String(pin ?? ''
 
 // Verify a plaintext against a stored hash (salted PBKDF2 or legacy SHA-256),
 // using the salt embedded in the stored hash. Used for admin-PIN + recovery-code.
-ipcMain.handle('hub:verify-pin', async (_e, plain, stored) => verifyPin(String(plain ?? ''), stored));
+//
+// ── AND UPGRADE THE HASH WHILE THE PLAINTEXT IS IN HAND ──────────────────
+//
+// `lib/pin-hash.js` has always exported `needsUpgrade`, documented as "should
+// this stored hash be upgraded to the salted format on next successful auth?".
+// Nothing called it. So a shop that set its PIN before PBKDF2 shipped kept an
+// unsalted SHA-256 hash for ever — verified happily on every unlock, upgraded
+// never — and a four-to-eight digit PIN under unsalted SHA-256 is a lookup, not
+// a search. That hash travels in backups and through cloud sync.
+//
+// A successful verify is the only moment the plaintext exists, so it is the
+// only moment an upgrade is possible. The new hash is RETURNED rather than
+// written: this handler does not know which record the caller read it from —
+// an operator's `pinHash`, `settings.recoveryCodeHash` — and guessing would be
+// worse than handing it back to the one place that does know.
+ipcMain.handle('hub:verify-pin', async (_e, plain, stored) => {
+  const ok = verifyPin(String(plain ?? ''), stored);
+  return { ok, upgraded: ok && needsUpgrade(stored) ? hashPinSalted(String(plain ?? '')) : null };
+});
 
 ipcMain.handle('hub:write-status-page', async (_event, { html, orderId }) => {
   const safeId = path.basename(String(orderId || '')).replace(/[^a-zA-Z0-9_-]/g, '_');

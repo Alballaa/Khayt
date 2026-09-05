@@ -51,12 +51,32 @@
   // Verify a plaintext against a stored hash. Salted PBKDF2 can't be checked by
   // re-hashing (random salt), so delegate to the main process which uses the
   // embedded salt; fall back to legacy 64-hex SHA-256 only if the bridge is gone.
-  async function verifyHash(plain, hash) {
+  /**
+   * @param {function(string):void} [onUpgraded] Called with a replacement hash
+   *   when the stored one was the old unsalted SHA-256 and the plaintext was
+   *   correct. The caller supplies it because only the caller knows which
+   *   record the hash came from — and without one, a shop keeps a hash that a
+   *   four-digit PIN can be read straight out of, for ever.
+   */
+  async function verifyHash(plain, hash, onUpgraded) {
     if (typeof hash !== 'string' || !hash) return false;
     if (window.hubAPI?.verifyPin) {
       try {
-        const ok = await window.hubAPI.verifyPin(String(plain), hash);
-        if (typeof ok === 'boolean') return ok;
+        const answer = await window.hubAPI.verifyPin(String(plain), hash);
+        // `{ ok, upgraded }` since the handler learned to re-hash. A plain
+        // boolean is still accepted: this file also runs against an older main
+        // process during a partial update, and refusing a correct PIN because
+        // the reply changed shape is the worst possible way to be strict.
+        if (typeof answer === 'boolean') return answer;
+        if (answer && typeof answer.ok === 'boolean') {
+          if (answer.ok && answer.upgraded && typeof onUpgraded === 'function') {
+            // Never fail the unlock over the upgrade. The PIN was right; if the
+            // book cannot be written this moment, the next correct PIN tries
+            // again.
+            try { onUpgraded(answer.upgraded); } catch (e) { console.warn('pin upgrade:', e); }
+          }
+          return answer.ok;
+        }
       } catch (_) { /* fall through to legacy */ }
     }
     if (/^[0-9a-f]{64}$/i.test(hash) && typeof sha256Hex === 'function') {
@@ -66,9 +86,9 @@
     return false;
   }
 
-  async function verifyRecoveryCode(code, hash) {
+  async function verifyRecoveryCode(code, hash, onUpgraded) {
     if (!hash || !isValidRecoveryCode(code)) return false;
-    return verifyHash(normalizeRecoveryCode(code), hash);
+    return verifyHash(normalizeRecoveryCode(code), hash, onUpgraded);
   }
 
   function isValidPin(pin) {
@@ -137,7 +157,10 @@
     const admin = getAdminOperator();
     if (!admin?.pinHash) return false;
     if (isLegacyPin?.(admin.pinHash)) return false; // very-old base64 → re-prompt
-    return verifyHash(String(pin || ''), admin.pinHash);
+    return verifyHash(String(pin || ''), admin.pinHash, (upgraded) => {
+      admin.pinHash = upgraded;
+      if (typeof saveAll === 'function') saveAll();
+    });
   }
 
   function promptTypeConfirmModal(message, confirmPhrase, { title, danger = true, extraHtml = '' } = {}) {
@@ -203,7 +226,10 @@
           const err = overlay.querySelector('#secVerifyError');
           let ok = false;
           if (mode === 'pin') ok = await verifyAdminPin(val);
-          else ok = await verifyRecoveryCode(val, settings.recoveryCodeHash);
+          else ok = await verifyRecoveryCode(val, settings.recoveryCodeHash, (upgraded) => {
+            settings.recoveryCodeHash = upgraded;
+            if (typeof saveAll === 'function') saveAll();
+          });
           if (ok) { overlay.remove(); resolve(true); return; }
           if (err) err.textContent = mode === 'pin' ? t('sec.pin_invalid') : t('sec.recovery_invalid');
         });

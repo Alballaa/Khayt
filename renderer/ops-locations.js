@@ -487,6 +487,10 @@ function openPinPadModal(afterUnlock) {
         if (disp) disp.textContent = '';
         return;
       }
+      // The PIN was right. If it was checked against the old unsalted hash,
+      // main has handed back a salted replacement — this is the only moment it
+      // can be made, because it is the only moment the PIN itself is in hand.
+      if (verified.upgraded) op.pinHash = verified.upgraded;
       settings.activeOperatorId = op.id;
       saveAll();
       closePinPad();
