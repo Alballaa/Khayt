@@ -470,15 +470,20 @@ final class Words {
         "mac.alert_offline": ["en": "{machine} stopped answering", "ar": "{machine} توقفت عن الرد"],
         "mac.alert_stalled": ["en": "{machine} has stopped moving", "ar": "{machine} توقفت عن التقدم"],
         "mac.printer_trouble": ["en": "Printer trouble", "ar": "مشاكل الطابعة"],
-        // What this app does NOT do. Said quietly and always, because a shop
+        // How far this app's sync goes. Said quietly and always, because a shop
         // with two machines drifting apart is the failure that costs most and
         // announces itself least.
+        //
+        // It read "Not synced from here" until this app could send, and then it
+        // was simply false. "Automatically" is the word carrying the meaning:
+        // nothing happens in the background, and nothing comes DOWN at all.
         // SHORT ENOUGH FOR ONE LINE — see the note on `Provenance`. The
         // sentence that explains it lives in `mac.not_synced_why`, which is a
         // tooltip and can be as long as it needs to be.
-        "mac.not_synced":    ["en": "Not synced from here", "ar": "لا تُزامَن من هنا"],
-        // Asking the cloud what it holds. Read only, and the sheet says so
-        // before it asks for a passphrase.
+        "mac.not_synced":    ["en": "Not synced automatically", "ar": "لا تُزامَن تلقائيًا"],
+        // Asking the cloud what it holds, and offering to send what is only
+        // here. The check itself writes nothing and the sheet says so before it
+        // asks for a passphrase; sending is a second, deliberate press.
         "mac.check_cloud":   ["en": "Check the cloud", "ar": "فحص السحابة"],
         "mac.check_cloud_do": ["en": "Check",        "ar": "فحص"],
         "mac.check_cloud_reads": ["en": "This reads what Khayt Cloud holds and counts the difference. "

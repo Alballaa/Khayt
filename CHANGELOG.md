@@ -6,6 +6,12 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Changed
 
+- **The Mac app's sidebar stopped claiming it cannot sync.** It said "Not
+  synced from here" under a struck-through cloud, which became false the moment
+  *Check the cloud* learned to send. It now says "Not synced automatically" —
+  the true part, which is that nothing happens in the background and nothing
+  comes down from the cloud at all.
+
 - **The Mac app said money to a customer differently from the desktop.** A
   Telegram message about a finished job built its price by hand — the figure,
   a space, the currency code — instead of using the shop's own currency table.
