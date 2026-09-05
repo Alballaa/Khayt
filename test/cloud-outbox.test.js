@@ -117,6 +117,46 @@ test('settings that match in a different key order do not count as a change', ()
 });
 
 /**
+ * THE CLOUD DOES NOT CARRY SECRETS, AND THAT IS NOT A DIFFERENCE.
+ *
+ * `redactSettingsForExport` in lib/store.js replaces every credential with
+ * `__KHAYT_MASKED__` before the store is pushed. So the API key, the sync token
+ * and the print library's S3 secret are all masks up there and encrypted blobs
+ * down here — and comparing them as values made "your settings differ" true for
+ * ever for any shop that has configured anything at all.
+ *
+ * Found against the real service: this shop's three differing settings keys
+ * were `ai`, `cloud` and `printLibrary`, and every one of them differed ONLY in
+ * a masked field.
+ */
+test('a secret the cloud masks is not a settings change', () => {
+  const M = require('../lib/store.js').SECRET_MASK;
+  const out = changesToSend(
+    { settings: { ai: { apiKey: '__enc__abc' }, printLibrary: { s3: { secretAccessKey: '__enc__d' } } } },
+    { settings: { ai: { apiKey: M }, printLibrary: { s3: { secretAccessKey: M } } } });
+  assert.equal(out.settingsDiffer, false);
+});
+
+test('a real change sitting beside a masked secret is still seen', () => {
+  const M = require('../lib/store.js').SECRET_MASK;
+  const out = changesToSend(
+    { settings: { currency: 'SAR', ai: { apiKey: '__enc__abc' } } },
+    { settings: { currency: 'USD', ai: { apiKey: M } } });
+  assert.equal(out.settingsDiffer, true);
+});
+
+/**
+ * The earlier fix excluded the whole `cloud` subtree, which would have hidden
+ * this. Only the one bookkeeping field is exempt now.
+ */
+test('a changed cloud address is still a settings change', () => {
+  const out = changesToSend(
+    { settings: { cloud: { url: 'https://a.example', lastServerRev: 1 } } },
+    { settings: { cloud: { url: 'https://b.example', lastServerRev: 9 } } });
+  assert.equal(out.settingsDiffer, true);
+});
+
+/**
  * THE ONE THAT WAS WRONG ON A REAL SHOP'S SCREEN.
  *
  * The desktop writes `settings.cloud.lastServerRev` AFTER a successful push, so
