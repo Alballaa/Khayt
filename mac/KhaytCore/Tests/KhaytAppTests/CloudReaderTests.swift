@@ -50,6 +50,26 @@ struct CloudReaderTests {
         #expect(seen?.url?.query == nil)
     }
 
+    /// Not a courtesy header. khayt-cloud's `recordDeviceCap` writes the
+    /// capability of every credential it hears from, and `deltaGateOpen`
+    /// refuses the whole shop the moment one row says `delta_capable = 0`:
+    ///
+    ///     if ($c['no'] > 0) return false;   // a device we know cannot read a chain
+    ///
+    /// So a pull that says nothing does not merely fail to help — it takes
+    /// delta sync away from every other device in the shop, which then sends
+    /// the entire store on every save. This app folds chains; it must say so.
+    @Test("the pull says it can read a delta chain")
+    func announcesDeltaCapability() async throws {
+        var seen: URLRequest?
+        _ = try? await CloudReader.pull(Self.connection, token: "t") { request in
+            seen = request
+            return (Data("{}".utf8), HTTPURLResponse(url: request.url!, statusCode: 200,
+                                                     httpVersion: nil, headerFields: nil)!)
+        }
+        #expect(seen?.value(forHTTPHeaderField: "x-delta-capable") == "1")
+    }
+
     @Test("only https")
     func refusesPlainHttp() async throws {
         // The token is a shop-wide credential and it goes in a header.

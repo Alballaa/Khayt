@@ -106,6 +106,18 @@ enum CloudReader {
         request.httpMethod = "GET"
         request.timeoutInterval = 30
         request.setValue("Bearer " + token, forHTTPHeaderField: "Authorization")
+        // Say out loud that this app can read a delta chain. Silence is not
+        // neutral: the service records the capability of every credential it
+        // hears from, and one device it believes cannot fold a chain closes the
+        // gate for the WHOLE shop — `deltaGateOpen` returns false the moment a
+        // single `delta_capable = 0` row exists. Every other device then falls
+        // back to sending the entire store on every save.
+        //
+        // It is true, and that is what earns the header: `store(_:dek:engine:)`
+        // below folds `base + deltas` through `KhaytSync.applyDeltas`, the same
+        // rule the desktop uses. The header must come off again if that ever
+        // stops being so.
+        request.setValue("1", forHTTPHeaderField: "x-delta-capable")
 
         let (data, response) = try await fetch(request)
         let code = (response as? HTTPURLResponse)?.statusCode ?? 0
