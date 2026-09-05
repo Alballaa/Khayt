@@ -1120,6 +1120,26 @@ public actor KhaytEngine {
                           [client, .string(language), .object(settings)], as: String.self)
     }
 
+    /// Which jobs are late — the attention engine's answer, as a set of ids.
+    ///
+    /// NOT "unpaid and past its due date", which is what this app worked out
+    /// for itself and which is a different question with a much larger answer.
+    /// A job that is completed and delivered is not late because its invoice is
+    /// unpaid, and a QUOTE has no deadline to miss at all: on the sample book
+    /// the Swift rule said eleven and `attention` says two, and both numbers
+    /// were on screen at once — the badges from one, the dashboard tile from
+    /// the other.
+    public func lateOrders(_ orders: [JSONValue], machines: [JSONValue],
+                           settings: [String: JSONValue], now: Date = Date()) throws -> Set<String> {
+        let ids: [String] = try runtime.call2(
+            "Array.from(KhaytDashboardFacts.dashboardFacts({orders: ARG0, machines: ARG1,"
+          + " settings: ARG2, now: ARG3, attention: globalThis.KhaytAttention}).lateIds)",
+            [.array(orders), .array(machines), .object(settings),
+             .number(now.timeIntervalSince1970 * 1000)],
+            as: [String].self)
+        return Set(ids)
+    }
+
     /// What every order still owes, in the shop's base currency, keyed by id.
     ///
     /// ONE CROSSING for the whole book. `orderOwedBase` is the rule that

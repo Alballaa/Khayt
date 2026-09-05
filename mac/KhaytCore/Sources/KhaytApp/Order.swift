@@ -135,9 +135,24 @@ struct Order: Identifiable, Decodable, Hashable, Sendable {
 
     var isSettled: Bool { owed < 0.005 }
 
-    /// Absent, unparseable and future dates all mean "not overdue". A red badge
-    /// on a job that is fine is worse than no badge at all.
+    /// Whether the attention engine calls this job late, resolved once per
+    /// load by `Shop` — the same answer the dashboard's Late tile shows.
+    var isLateResolved: Bool?
+
+    /// Late, as the badges and the title bar report it.
+    ///
+    /// The fallback below was the whole rule until now: "not settled and past
+    /// its due date". That is a DIFFERENT QUESTION — a job completed and
+    /// delivered is not late because its invoice is unpaid, and a quote has no
+    /// deadline to miss — and it answers much larger. On the sample book it
+    /// said eleven where `attention` says two, and both numbers were on screen
+    /// at once: the badges from this, the dashboard's tile from the engine.
+    ///
+    /// Kept only for a dead engine. Absent, unparseable and future dates all
+    /// mean "not overdue" there: a red badge on a job that is fine is worse
+    /// than no badge at all.
     func isOverdue(now: Date = Date()) -> Bool {
+        if let isLateResolved { return isLateResolved }
         guard !isSettled, let due = Self.day(dueDate) else { return false }
         return due < now
     }

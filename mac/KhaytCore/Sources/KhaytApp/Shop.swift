@@ -345,6 +345,22 @@ final class Shop {
         for i in orders.indices {
             if let amount = owed[orders[i].id] { orders[i].owedResolved = amount }
         }
+        await resolveLate(root)
+    }
+
+    /// Ask the attention engine which jobs are late, and put it on the rows.
+    ///
+    /// The same answer the dashboard's Late tile already showed, so the badges
+    /// and the count stop being two numbers about one book.
+    private func resolveLate(_ root: [String: JSONValue]) async {
+        guard let engine else { return }
+        let rows: [JSONValue]
+        if case .array(let jobs)? = root["printLog"] { rows = jobs } else { rows = [] }
+        let fleet: [JSONValue]
+        if case .array(let m)? = root["machines"] { fleet = m } else { fleet = [] }
+        guard let late = try? await engine.lateOrders(
+            rows, machines: fleet, settings: Self.settings(root)) else { return }
+        for i in orders.indices { orders[i].isLateResolved = late.contains(orders[i].id) }
     }
 
     /// One call per load, not one per tile. Building the arguments means
