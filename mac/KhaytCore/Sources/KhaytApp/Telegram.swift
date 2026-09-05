@@ -38,7 +38,11 @@ enum Telegram {
         guard let chat = KhaytTelegram.chatId(chatId) else { throw Failure.badChatId }
         // Percent-encoded into the path, as the Electron handler does: a token
         // is not a path component a URL should be trusted to parse.
-        let escaped = botToken.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? botToken
+        // The same set `encodeURIComponent` uses, which is what the Electron
+        // handler builds this path with. A bot token carries `:` and often `-`
+        // and `_`; escaping more than Telegram's own clients do is a difference
+        // with nothing to gain.
+        let escaped = botToken.uriComponent
         guard let url = URL(string: "https://api.telegram.org/bot\(escaped)/sendMessage") else {
             throw Failure.badToken
         }

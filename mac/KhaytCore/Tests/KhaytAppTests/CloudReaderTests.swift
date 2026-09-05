@@ -37,7 +37,12 @@ struct CloudReaderTests {
             return (Data("{}".utf8), HTTPURLResponse(url: request.url!, statusCode: 200,
                                                      httpVersion: nil, headerFields: nil)!)
         }
-        #expect(seen?.url?.path == "/v1/shops/shop_282eb707/store")
+        // ON `absoluteString`, NOT ON `path`. `URL.path` decodes, so it read
+        // back `/v1/shops/shop_282eb707/store` for a URL that actually carried
+        // `shop%5F282eb707` — and khayt-cloud, whose route is
+        // `[A-Za-z0-9_\-]+`, answered 404. The test agreed with the bug.
+        #expect(seen?.url?.absoluteString
+                == "https://cloud.khayt.example/v1/shops/shop_282eb707/store")
         #expect(seen?.value(forHTTPHeaderField: "Authorization") == "Bearer the-real-token")
         #expect(seen?.httpMethod == "GET")
         // No `?since=`: this app holds no server view, so it is behind
