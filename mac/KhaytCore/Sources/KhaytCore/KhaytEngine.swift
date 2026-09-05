@@ -1541,6 +1541,69 @@ public actor KhaytEngine {
                            machine ?? .null, preset ?? .null], as: CostParts.self)
     }
 
+    /// Everything about what a part costs, in ONE crossing: the figure, the four
+    /// buckets, and **the rates it was worked out at**.
+    ///
+    /// The rates come back because they have to be written down. The Electron
+    /// calculator stores all seven on every part it saves, and its editor reads
+    /// them straight back into the form — `$('#wearRate').value = part.wearRate
+    /// || ''`. A part saved without them opens there with every rate field
+    /// blank, and the next save re-costs it at nothing. So a job taken on this
+    /// Mac and edited in Khayt would have lost its price, quietly, on somebody
+    /// else's machine.
+    public func costPart(_ part: JSONValue, inventory: [JSONValue],
+                         settings: [String: JSONValue],
+                         machine: JSONValue? = nil, preset: JSONValue? = nil) throws -> CostedPart {
+        try runtime.call2("""
+            (function (part, inventory, settings, machine, preset) {
+              var rates = KhaytPrintRates.ratesFor({ machine: machine, preset: preset });
+              // The part's own values beat the rates, and this merged object is
+              // what BOTH the figure and the record are made from — so what gets
+              // written down is what was charged, not a second guess at it.
+              var costed = Object.assign({}, rates, part);
+              var ctx = { inventory: inventory, settings: settings };
+              return {
+                cost: KhaytCalculatorCost.computePartBaseCost(costed, ctx),
+                parts: KhaytCalculatorCost.computePartBreakdown(costed, ctx),
+                rates: {
+                  wearRate: +costed.wearRate || 0, powerDraw: +costed.powerDraw || 0,
+                  elecRate: +costed.elecRate || 0, prepTime: +costed.prepTime || 0,
+                  postTime: +costed.postTime || 0, laborRate: +costed.laborRate || 0,
+                  failureRate: +costed.failureRate || 0
+                }
+              };
+            })(ARG0, ARG1, ARG2, ARG3, ARG4)
+            """,
+                          [part, .array(inventory), .object(settings),
+                           machine ?? .null, preset ?? .null], as: CostedPart.self)
+    }
+
+    public struct CostedPart: Decodable, Sendable, Hashable {
+        public let cost: Double
+        public let parts: CostParts
+        public let rates: Rates
+    }
+
+    /// The seven figures a part is costed at, in the shape the book stores them
+    /// — the same seven `renderer/build.js` writes on every part it saves.
+    public struct Rates: Decodable, Sendable, Hashable {
+        public let wearRate: Double
+        public let powerDraw: Double
+        public let elecRate: Double
+        public let prepTime: Double
+        public let postTime: Double
+        public let laborRate: Double
+        public let failureRate: Double
+
+        /// As a record writes them down.
+        public var fields: [String: JSONValue] {
+            ["wearRate": .number(wearRate), "powerDraw": .number(powerDraw),
+             "elecRate": .number(elecRate), "prepTime": .number(prepTime),
+             "postTime": .number(postTime), "laborRate": .number(laborRate),
+             "failureRate": .number(failureRate)]
+        }
+    }
+
     /// What a part costs, split the way the calculator splits it.
     public struct CostParts: Decodable, Sendable, Hashable {
         /// Filament, plus any extra materials and the packaging share.

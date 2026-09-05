@@ -55,6 +55,10 @@ struct NewJobSheet: View {
         /// Where that cost went. Held per part so the sheet can add up the cart
         /// without asking the engine again for each one.
         var parts: KhaytEngine.CostParts?
+        /// What it was costed AT. Written onto the saved part, because Khayt's
+        /// own editor reads these back and a part without them re-costs to
+        /// nothing the next time somebody presses save there.
+        var rates: KhaytEngine.Rates?
 
         var isComplete: Bool { (Double(grams) ?? 0) > 0 || (Double(hours) ?? 0) > 0 }
     }
@@ -309,16 +313,16 @@ struct NewJobSheet: View {
 
     private func addPart() async {
         var next = draft
-        let grams = Double(next.grams) ?? 0
-        let hours = Double(next.hours) ?? 0
-        next.cost = await shop.costOfPart(spoolId: next.spoolId, grams: grams,
-                                          hours: hours, qty: next.qty)
-        // Two crossings rather than one, and only when a part is added — never
-        // per keystroke. Asking for the split separately keeps `partCost` the
-        // single answer to "what does this cost": the four figures are a view
-        // of it, and the module guarantees they sum to it.
-        next.parts = await shop.breakdownOfPart(spoolId: next.spoolId, grams: grams,
-                                                hours: hours, qty: next.qty)
+        // One crossing for all three: the figure, where it went, and what it was
+        // worked out at. They have to agree, so they are asked for together
+        // rather than computed twice from the same inputs.
+        let costed = await shop.costedPart(spoolId: next.spoolId,
+                                           grams: Double(next.grams) ?? 0,
+                                           hours: Double(next.hours) ?? 0,
+                                           qty: next.qty)
+        next.cost = costed?.cost ?? 0
+        next.parts = costed?.parts
+        next.rates = costed?.rates
         parts.append(next)
         draft = Draft()
     }
