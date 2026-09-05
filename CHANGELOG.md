@@ -6,6 +6,12 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Changed
 
+- **A customer written down as a name and nothing else showed an empty CLIENT
+  heading.** A heading with nothing under it reads as a screen that failed to
+  load. There are three states, not two — nobody has written them down, they
+  are written down with a phone number, or they are written down and that is
+  all — and the third had nowhere to go.
+
 - **A white filament had no swatch at all.** The library outlined every colour
   in the hairline meant for sitting on the window background, which is visible
   around a black filament and invisible around a white one. On this shop's own

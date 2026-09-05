@@ -29,6 +29,16 @@ struct Client: Identifiable, Hashable, Sendable, Decodable {
         case id, nameEn, nameAr, phone, email, cr, vat, notes, defaultDiscount, createdAt
     }
 
+    /// Is there anything under the heading?
+    ///
+    /// A client written down in a hurry has a name and nothing else — the very
+    /// case the initialiser below exists for — and the customer screen printed
+    /// a CLIENT heading with nothing beneath it for exactly those. The name is
+    /// not counted: it is the title of the pane, said above.
+    var hasContactDetails: Bool {
+        !phone.isEmpty || !email.isEmpty || !cr.isEmpty || !vat.isEmpty || !notes.isEmpty
+    }
+
     /// Every field but the id is optional, because a client written down in a
     /// hurry has a name and nothing else — and a row this app refuses to read
     /// is a customer who disappears.

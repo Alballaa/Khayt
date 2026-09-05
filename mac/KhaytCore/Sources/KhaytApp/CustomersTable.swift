@@ -136,7 +136,17 @@ struct CustomerInspector: View {
                     // What the shop actually wrote down. Absent entirely before
                     // this app read the `clients` collection, so a customer's
                     // phone number lived only in the Electron window.
-                    if let record = person.record {
+                    //
+                    // THREE STATES, NOT TWO. There is the customer nobody has
+                    // written down, the one written down with a phone number,
+                    // and — the one this got wrong — the one written down as a
+                    // name and nothing else. That last is ordinary, and it took
+                    // the second branch: an empty CLIENT heading, which reads
+                    // as a screen that failed to load (the same rule the
+                    // machine card states). Told to take the first branch
+                    // instead it would say "Not written down yet" about
+                    // somebody who is.
+                    if let record = person.record, record.hasContactDetails {
                         DetailSection(shop.words.callIt("doc.client")) {
                             if !record.phone.isEmpty {
                                 DetailLine(shop.words.callIt("ce.phone"), record.phone)
@@ -155,7 +165,7 @@ struct CustomerInspector: View {
                             }
                         }
                         Divider()
-                    } else {
+                    } else if person.record == nil {
                         Label(shop.words.callIt("mac.no_record"), systemImage: "person.crop.circle.badge.questionmark")
                             .font(.caption).foregroundStyle(.secondary)
                         Divider()
