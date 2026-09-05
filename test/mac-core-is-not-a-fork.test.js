@@ -27,13 +27,30 @@ const ROOT = path.join(__dirname, '..');
 const JS_DIR = path.join(ROOT, 'mac/KhaytCore/Sources/KhaytCore/JS');
 const ENGINE = path.join(ROOT, 'mac/KhaytCore/Sources/KhaytCore/KhaytEngine.swift');
 
-/** The module list, read out of the Swift source rather than kept twice. */
+/**
+ * The module list, read out of the Swift source rather than kept twice.
+ *
+ * The block ends at the closing bracket ON ITS OWN LINE. Ending it at the first
+ * `]` after the opening one — which is what this did — meant a comment inside
+ * the list mentioning `settings.slicers[]` cut the list in half, and everything
+ * below that comment stopped being seen by this guard AND by sync-js.sh at the
+ * same moment. Both read the list the same wrong way, so the two halves of the
+ * drift guard agreed with each other about a list that was not the one the
+ * Swift compiler saw.
+ *
+ * The entries are matched line by line for the same reason: a quoted word
+ * inside a comment is not a module.
+ */
 function declaredModules() {
   const src = fs.readFileSync(ENGINE, 'utf8');
   const at = src.indexOf('static let modules = [');
   assert.ok(at > 0, 'KhaytEngine.modules is gone');
-  const block = src.slice(at, src.indexOf(']', at));
-  return [...block.matchAll(/"([a-z-]+)"/g)].map((m) => m[1]);
+  const end = src.indexOf('\n    ]', at);
+  assert.ok(end > at, 'KhaytEngine.modules has no closing bracket on its own line');
+  return src.slice(at, end).split('\n')
+    .map((line) => line.match(/^\s*"([a-z0-9-]+)",\s*$/))
+    .filter(Boolean)
+    .map((m) => m[1]);
 }
 
 /** The languages listed in KhaytEngine.locales. */
@@ -41,9 +58,38 @@ function bundledLocales() {
   const src = fs.readFileSync(path.join(ROOT, 'mac/KhaytCore/Sources/KhaytCore/KhaytEngine.swift'), 'utf8');
   const at = src.indexOf('static let locales = [');
   assert.ok(at > 0, 'KhaytEngine.locales is gone');
+  // One line, so the first `]` is the right one — but only because it is one
+  // line. See the note on `declaredModules`.
   const block = src.slice(at, src.indexOf(']', at));
   return [...block.matchAll(/"([a-zA-Z-]+)"/g)].map((m) => m[1]);
 }
+
+test('the module list is read whole, not up to the first bracket in a comment', () => {
+  const src = fs.readFileSync(ENGINE, 'utf8');
+  const at = src.indexOf('static let modules = [');
+  const end = src.indexOf('\n    ]', at);
+  const block = src.slice(at, end);
+
+  // The comments in that list explain why each module is there and in that
+  // order, and one of them mentions `settings.slicers[]`. A reader that stopped
+  // at the first `]` therefore saw 59 of 62 modules — and BOTH halves of this
+  // guard read it that way, so they agreed with each other about a list the
+  // Swift compiler did not have. The app would have failed at startup loading a
+  // file the sync script had stopped copying.
+  //
+  // This asserts the hazard still exists in the source, so the test is not
+  // quietly passing because somebody removed the comment.
+  const firstBracket = block.indexOf(']');
+  assert.ok(firstBracket > 0, 'no bracket inside the list — this test is no longer testing anything');
+
+  const declared = declaredModules();
+  const afterTheBracket = [...block.slice(firstBracket).matchAll(/^\s*"([a-z0-9-]+)",\s*$/gm)]
+    .map((m) => m[1]);
+  assert.ok(afterTheBracket.length > 0, 'no modules listed after that bracket');
+  for (const name of afterTheBracket) {
+    assert.ok(declared.includes(name), `${name} is listed after a bracket in a comment and was not read`);
+  }
+});
 
 test("every locale the Mac app bundles is identical to the renderer's", () => {
   // Same argument as the modules, with a sharper edge: a stale copy here does

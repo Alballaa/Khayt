@@ -316,6 +316,7 @@ final class Shop {
             // whose cloud settings belong to nobody.
             if next.build != nil { startPublishingLeadTime() } else { stopPublishingLeadTime() }
             refreshSyncStatus()
+            await readSlicers()
         } catch {
             orders = []
             files = []
@@ -2069,6 +2070,40 @@ final class Shop {
 
     /// The live poll. Started when a book is opened and stopped with it, so a
     /// window showing the sample shop is not knocking on a shop's printers.
+    // MARK: - The shop's slicers
+
+    /// The slicers this shop has configured, read by the shared rule.
+    private(set) var slicers: [KhaytEngine.Slicer] = []
+    /// The one to reach for when nobody has said which.
+    private(set) var defaultSlicer: KhaytEngine.Slicer?
+    /// What the last attempt to open a model in a slicer had to say.
+    var slicerProblem: String?
+
+    /// Read them when the book loads. Two crossings, once, rather than one per
+    /// model in a context menu that is built while a grid of four hundred draws.
+    func readSlicers() async {
+        guard let engine else { slicers = []; defaultSlicer = nil; return }
+        slicers = (try? await engine.slicers(settings: settingsDict)) ?? []
+        defaultSlicer = try? await engine.defaultSlicer(settings: settingsDict)
+    }
+
+    /// Open a model in a named slicer.
+    func openInSlicer(_ url: URL, slicer: KhaytEngine.Slicer) async {
+        slicerProblem = nil
+        guard let engine else { return }
+        let allowed = (try? await engine.mayLaunchAsSlicer(path: slicer.path)) ?? false
+        let refusal = FileActions.openInSlicer(url, slicerPath: slicer.path) { _ in allowed }
+        switch refusal {
+        case nil: return
+        case "notAllowed":
+            // Named as a refusal rather than a failure. A shop whose settings
+            // arrived from somewhere else deserves to know this was a decision.
+            slicerProblem = words.callIt("mac.slicer_not_allowed", ["name": .string(slicer.name)])
+        default:
+            slicerProblem = words.callIt("mac.slicer_missing", ["name": .string(slicer.name)])
+        }
+    }
+
     // MARK: - Syncing without being asked
 
     /// What the sidebar says about sync.
