@@ -6,6 +6,14 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Changed
 
+- **The Mac app no longer freezes solid while macOS asks about your Keychain.**
+  The first time a new build reaches for a saved credential, macOS puts a
+  permission dialog in front of it — and the app is signed in a way that makes
+  every update a new application, so this happens after each one. The read was
+  happening on the main thread, so the window drew nothing at all until somebody
+  found the dialog: it looked hung rather than waiting. It now happens off the
+  main thread, and the window stays alive.
+
 - **A shop's credentials never go to the cloud, and now that is a step rather
   than an accident.** The desktop's window is handed a store whose secrets are
   already replaced with a mask, so what it uploads has always carried masks. An

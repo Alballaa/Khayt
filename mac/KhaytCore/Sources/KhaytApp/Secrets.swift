@@ -37,7 +37,8 @@ enum Secrets {
     /// waits on it for ever — which is exactly what the first version of
     /// `SecretsTests` did, with no output and no timeout until it was killed by
     /// hand. Nothing under test may reach the real Keychain.
-    static var keySource: (StoreReader.Build) -> Data? = { build in
+    /// `@Sendable`, because the lookup runs OFF THE MAIN ACTOR. See `key(for:)`.
+    static var keySource: @Sendable (StoreReader.Build) -> Data? = { build in
         StoreReader.keychainPassword(for: build).map(SafeStorage.key(fromPassword:))
     }
 
@@ -64,23 +65,40 @@ enum Secrets {
     /// `decryptStoreField` in `lib/store-io.js` does exactly the same. Empty
     /// stays empty, so "the shop has not set this up" is not reported as a
     /// Keychain fault.
-    static func open(_ value: String, for build: StoreReader.Build) throws -> String {
+    static func open(_ value: String, for build: StoreReader.Build) async throws -> String {
         guard !value.isEmpty else { return value }
         guard value.hasPrefix(SafeStorage.marker) else { return value }
-        guard let key = key(for: build) else { throw Failure.noKeychain }
+        guard let key = await key(for: build) else { throw Failure.noKeychain }
         do { return try SafeStorage.open(value, key: key) }
         catch { throw Failure.unreadable(String(describing: error)) }
     }
 
     /// The same, for a book this app is only reading (the sample has none).
-    static func open(_ value: String, for source: Shop.Source) throws -> String {
+    static func open(_ value: String, for source: Shop.Source) async throws -> String {
         guard let build = source.build else { return value }
-        return try open(value, for: build)
+        return try await open(value, for: build)
     }
 
-    private static func key(for build: StoreReader.Build) -> Data? {
+    /// OFF THE MAIN ACTOR, and that is the whole point of this being async.
+    ///
+    /// `SecItemCopyMatching` blocks until it returns, and macOS puts a
+    /// SecurityAgent dialog in front of the first read by an application it has
+    /// not seen before. On the main actor that freezes the entire window: no
+    /// spinner, no message, nothing drawn, at 0% CPU, until somebody finds the
+    /// dialog and answers it. Watched it happen twice, for twenty minutes each
+    /// time, and the app looked hung rather than waiting.
+    ///
+    /// This app is ad-hoc signed, so its identity is its own content hash and
+    /// every update is a new application as far as the Keychain is concerned.
+    /// The dialog is therefore not a one-off — it is once per update, for every
+    /// shop.
+    ///
+    /// The cache above still means one ASK per book per session; this means the
+    /// window stays alive while it is being answered.
+    private static func key(for build: StoreReader.Build) async -> Data? {
         if let cached = keys[build] { return cached }
-        let key = keySource(build)
+        let source = keySource
+        let key = await Task.detached(priority: .userInitiated) { source(build) }.value
         keys[build] = key
         return key
     }

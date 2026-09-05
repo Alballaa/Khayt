@@ -1678,7 +1678,7 @@ final class Shop {
         }
         do {
             let connection = try CloudReader.connection(settingsDict)
-            let token = try Secrets.open(connection.storedToken, for: build)
+            let token = try await Secrets.open(connection.storedToken, for: build)
             guard !token.isEmpty else { throw CloudReader.Failure.unauthorised }
 
             let reply = try await CloudReader.pull(connection, token: token) { request in
@@ -1744,7 +1744,7 @@ final class Shop {
         }
         do {
             let connection = try CloudReader.connection(settingsDict)
-            let token = try Secrets.open(connection.storedToken, for: build)
+            let token = try await Secrets.open(connection.storedToken, for: build)
             guard !token.isEmpty else { throw CloudReader.Failure.unauthorised }
 
             let session = URLSession(configuration: .ephemeral)
@@ -1860,7 +1860,7 @@ final class Shop {
         }
         do {
             let connection = try CloudReader.connection(settingsDict)
-            let token = try Secrets.open(connection.storedToken, for: build)
+            let token = try await Secrets.open(connection.storedToken, for: build)
             guard !token.isEmpty else { throw CloudReader.Failure.unauthorised }
 
             let session = URLSession(configuration: .ephemeral)
@@ -2525,7 +2525,7 @@ final class Shop {
             // Telegram configured was told its message did not go out — every
             // time, since the day this shipped. Opened here, at the point of
             // use, and never held anywhere.
-            let token = try Secrets.open(message.botToken, for: source)
+            let token = try await Secrets.open(message.botToken, for: source)
             try await Telegram.send(botToken: token, chatId: message.chatId,
                                     message: message.message)
             moveNotices.append(words.callIt("mac.telegram_sent"))
