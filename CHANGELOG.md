@@ -503,6 +503,16 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **The window now reports ZATCA invoices through the same rules the tests
+  cover.** Khayt had two copies of four Phase 2 rules — which invoices may be
+  reported, what counter value the next one gets, whether ZATCA accepted it, and
+  the submission log. The tested copy was in `lib/`; the Electron window ran its
+  own. They agreed, checked line by line, so no invoice was wrong — but an
+  invoice counter that ZATCA requires to be unbroken should not depend on two
+  copies staying in step by luck. There is one copy now, and the window and the
+  main process also encode the invoice XML with the same function rather than
+  with two that happened to produce the same bytes.
+
 - **A slicer path from a restored backup or a cloud sync can no longer run
   something that is not a slicer.** Khayt launches the slicer you configured,
   and both its path and its arguments live in your settings — which travel in a
