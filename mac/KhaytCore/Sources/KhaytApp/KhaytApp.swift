@@ -121,6 +121,19 @@ final class Activator: NSObject, NSApplicationDelegate {
         // whole run and says nothing at all — 31 "wrote …" lines and no files.
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         Task { @MainActor in
+            // BEFORE the window settles, if this run is the dark one.
+            //
+            // Flipping the appearance afterwards left the sidebar light: its
+            // list is an `NSTableView` whose cells were already built with
+            // light label colours, and a change of appearance does not rebuild
+            // them without a real redisplay. The content area flipped fine,
+            // which is what made it look like the capture rather than the app.
+            // Built dark from the outset, the whole window is dark.
+            let dark = ProcessInfo.processInfo.environment["KHAYT_SNAPSHOT_DARK"] != "0"
+            if dark {
+                NSApp.appearance = NSAppearance(named: .darkAqua)
+                for window in NSApp.windows { window.appearance = NSAppearance(named: .darkAqua) }
+            }
             // The window has to have laid out and drawn once. Two seconds is
             // generous; capturing an unlaid-out window yields a blank sheet.
             try? await Task.sleep(for: .seconds(2))
@@ -135,6 +148,34 @@ final class Activator: NSObject, NSApplicationDelegate {
                 let line = "backup: " + (shop.lastBackup ?? "none")
                     + (shop.backupProblem.map { " — \($0)" } ?? "") + "\n"
                 FileHandle.standardError.write(Data(line.utf8))
+            }
+            // DARK FIRST, then light, then everything else in light.
+            //
+            // A Mac app is used in both and every screenshot this runner has
+            // ever taken was light, so the dark side of it was never once
+            // looked at. Two screens is enough to catch the failure that
+            // matters — a colour written as a literal rather than taken from
+            // the system, which is invisible against one background and only
+            // one.
+            if dark {
+                capture(named: "00-dark-dashboard", into: dir)
+                // Panes as well as the whole window: the sidebar is an AppKit
+                // visual-effect view and does not draw into the window's own
+                // bitmap, so in the composite it comes out as bare white — in
+                // light mode that looks right by accident and in dark mode it
+                // looks like a bug the app does not have.
+                capturePanes(named: "00-dark-dashboard", into: dir)
+                subject?.shelf = .library(nil)
+                try? await Task.sleep(for: .milliseconds(700))
+                capture(named: "03-dark-library", into: dir)
+                capturePanes(named: "03-dark-library", into: dir)
+                subject?.shelf = .jobs(nil)
+                try? await Task.sleep(for: .milliseconds(700))
+                capture(named: "01-dark-jobs", into: dir)
+                NSApp.appearance = NSAppearance(named: .aqua)
+                for window in NSApp.windows { window.appearance = NSAppearance(named: .aqua) }
+                subject?.shelf = .dashboard
+                try? await Task.sleep(for: .seconds(1))
             }
             capture(named: "00-dashboard", into: dir)
             // Again once the printers have answered: the live strip is the one
@@ -441,7 +482,9 @@ final class Activator: NSObject, NSApplicationDelegate {
             let bounds = target.bounds
             guard bounds.width > 1, bounds.height > 1,
                   let rep = target.bitmapImageRepForCachingDisplay(in: bounds) else { continue }
-            target.cacheDisplay(in: bounds, to: rep)
+            target.effectiveAppearance.performAsCurrentDrawingAppearance {
+                target.cacheDisplay(in: bounds, to: rep)
+            }
             guard let png = rep.representation(using: .png, properties: [:]) else { continue }
             try? png.write(to: dir.appending(path: "\(name)-pane\(i).png"))
             FileHandle.standardError.write(Data(
@@ -476,7 +519,17 @@ final class Activator: NSObject, NSApplicationDelegate {
         // host a WKWebView — so the shots below show a sheet's LAYOUT, and
         // `SnapshotTests` renders the same views through `ImageRenderer` to
         // show its words.
-        view.cacheDisplay(in: view.bounds, to: rep)
+        // INSIDE THE APPEARANCE, and this is not a detail.
+        //
+        // `cacheDisplay` draws with whatever `NSAppearance.current` happens to
+        // be, and outside a real draw cycle that is aqua — so every dynamic
+        // system colour resolved LIGHT no matter what the app was set to. The
+        // first dark-mode screenshot this runner ever took came back with a
+        // white sidebar and black text, which is a picture of the capture
+        // rather than of the app.
+        view.effectiveAppearance.performAsCurrentDrawingAppearance {
+            view.cacheDisplay(in: view.bounds, to: rep)
+        }
         guard let png = rep.representation(using: .png, properties: [:]) else { return }
         try? png.write(to: dir.appending(path: name + ".png"))
         FileHandle.standardError.write(Data(

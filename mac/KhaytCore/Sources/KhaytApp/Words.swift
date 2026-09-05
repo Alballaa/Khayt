@@ -417,6 +417,16 @@ final class Words {
         "mac.details":       ["en": "Details",         "ar": "التفاصيل"],
         "mac.find":          ["en": "Find\u{2026}",        "ar": "بحث\u{2026}"],
         "mac.quick_look":    ["en": "Quick Look",     "ar": "نظرة سريعة"],
+        // ── The sidebar's own names for three screens ────────────────────────
+        //
+        // Khayt calls them "Expense Tracker", "Failed Prints & Waste Log" and
+        // "Profit & Loss by Quarter", which are good names for a screen and too
+        // long for a 190pt column: two of the three were truncated mid-word in
+        // every launch. Under a heading that already says "Money", the short
+        // form loses nothing — and the screens keep their full titles.
+        "mac.nav_expenses":  ["en": "Expenses",       "ar": "المصروفات"],
+        "mac.nav_waste":     ["en": "Waste",          "ar": "الهدر"],
+        "mac.nav_reports":   ["en": "Profit & Loss",  "ar": "الأرباح والخسائر"],
         "mac.details_toggle": ["en": "Show or hide the details", "ar": "إظهار التفاصيل أو إخفاؤها"],
         "mac.hide_details":  ["en": "Hide details",    "ar": "إخفاء التفاصيل"],
         "mac.show_details":  ["en": "Show details",    "ar": "إظهار التفاصيل"],

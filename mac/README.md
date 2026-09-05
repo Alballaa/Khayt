@@ -843,6 +843,28 @@ simply loses — SwiftUI drops the shortcut on the second claimant, and the item
 ends up with no key at all. The grid handles the standard command when it has
 focus, which is how a Finder window does it.
 
+### Photographing it in the dark
+
+The runner takes three shots in dark mode before the light pass, and it took
+three attempts to make them true.
+
+`cacheDisplay` draws with whatever `NSAppearance.current` happens to be, and
+outside a real draw cycle that is aqua — so every dynamic system colour resolved
+LIGHT however the app was set. Drawing inside
+`view.effectiveAppearance.performAsCurrentDrawingAppearance { … }` fixes that.
+And the appearance has to be set on the WINDOWS as well as on `NSApp`, before
+the window settles: flipping it afterwards leaves the sidebar's `NSTableView`
+holding cells that were already built with light label colours.
+
+**The sidebar still does not photograph in dark mode**, and that is a limit of
+the camera rather than a bug in the app: it is a vibrant view, and a
+`cacheDisplay` of one has no backdrop to blend against. The content area — which
+is where every custom colour in this app lives — does render correctly, and the
+library grid in dark is the shot worth looking at. For the sidebar, read the
+source: `grep` for `.white`, `.black` and `Color(red:` finds two hits, both the
+palette capsule over a thumbnail, which is over a photograph rather than over
+the window and is right in both appearances.
+
 ### Reading the menu bar in a snapshot run
 
 `KHAYT_SNAPSHOT_DIR` runs print the menu bar as AppKit built it — titles and

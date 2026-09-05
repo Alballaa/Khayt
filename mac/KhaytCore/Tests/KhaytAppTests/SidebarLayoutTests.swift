@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import KhaytCore
 @testable import KhaytApp
 
 /// The sidebar footer must not wrap.
@@ -89,6 +90,43 @@ struct SidebarLayoutTests {
         #expect(body.contains(".help(engineProblem)"))
         #expect(body.contains(".help(shop.lastCrash ?? \"\")"))
         #expect(body.contains("mac.not_synced_why"))
+    }
+
+    /// A NAVIGATION LABEL IS NOT A SCREEN TITLE.
+    ///
+    /// Khayt calls three of these "Expense Tracker", "Failed Prints & Waste
+    /// Log" and "Profit & Loss by Quarter" — good names for a screen, and too
+    /// long for a column that holds at 190pt. Two of the three were truncated
+    /// mid-word on every launch, in both languages, and nothing said so.
+    ///
+    /// Both languages, because Arabic is not the shorter one: "سجل المطبوعات
+    /// الفاشلة والهدر" is twenty-eight characters where the English is
+    /// twenty-five.
+    @MainActor
+    @Test("every name in the sidebar fits the column it is in")
+    func sidebarNamesFit() async throws {
+        let engine = try KhaytEngine()
+        let sidebar = Self.sidebar
+        // The keys the sidebar actually asks for, read from it rather than
+        // listed here — a list would go stale the moment a row was added.
+        var keys: Set<String> = []
+        var rest = sidebar[...]
+        while let at = rest.range(of: "Row(title: shop.words.callIt(\"") {
+            let after = rest[at.upperBound...]
+            rest = after
+            if let end = after.firstIndex(of: "\"") { keys.insert(String(after[..<end])) }
+        }
+        #expect(keys.count >= 8, "found \(keys.count) sidebar names — the scan is wrong")
+
+        for language in ["en", "ar"] {
+            let words = Words()
+            await words.load(language, engine: engine)
+            for key in keys.sorted() {
+                let said = words.callIt(key)
+                #expect(said.count <= 22,
+                        "\(language): \"\(said)\" is \(said.count) characters and will truncate")
+            }
+        }
     }
 
     @Test("the label the crash shipped with is short again")
