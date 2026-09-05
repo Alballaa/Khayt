@@ -129,7 +129,8 @@ private struct Work: View {
                 // always on is a dashboard where it stops being noticed.
                 Tile(value: "\(facts.printingCount)", label: shop.words.callIt("queue.printing"),
                      symbol: "printer",
-                     tint: facts.printingCount > 0 ? Khayt.hot : Color.secondary)
+                     tint: facts.printingCount > 0 ? Khayt.hot : Color.secondary,
+                     alive: facts.printingCount > 0)
                 Tile(value: "\(facts.activeCount)", label: shop.words.callIt("mac.open_count"),
                      symbol: "tray.full", tint: .secondary)
                 Tile(value: "\(facts.lateCount)", label: shop.words.callIt("mac.late_tile"),
@@ -193,10 +194,16 @@ private struct RunningNow: View {
                     }
                     Text("\(status.progress)%")
                         .font(.callout.weight(.semibold)).monospacedDigit()
+                        .foregroundStyle(Khayt.hot)
                         .frame(width: 46, alignment: .trailing)
                 }
+                // THE ONE WARM THING ON THE SCREEN, and the app's own reason
+                // for having a warm colour at all: the icon's drop of filament
+                // is exactly this moment. Everything else on the dashboard is a
+                // number about the past; this is the machine, now.
                 ProgressView(value: Double(status.progress) / 100)
                     .progressViewStyle(.linear)
+                    .tint(Khayt.hot)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -312,6 +319,15 @@ private struct Tile: View {
     let label: String
     let symbol: String
     let tint: Color
+    /// Set on the one tile that is describing something happening RIGHT NOW.
+    var alive = false
+
+    /// Somebody who has asked the system for less movement gets none.
+    ///
+    /// The HIG: "Make motion optional. Not everyone can or wants to experience
+    /// the motion in your app." The symbol still turns amber and the number
+    /// still counts, so nothing is only said by the movement.
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -320,6 +336,14 @@ private struct Tile: View {
                 .foregroundStyle(.secondary)
                 .labelStyle(.titleAndIcon)
                 .lineLimit(1)
+                // ONE piece of motion in the whole app, on the one thing that
+                // is actually moving. The HIG asks for motion that is
+                // purposeful and brief and warns against adding it to anything
+                // frequent; a printer laying down plastic is neither frequent
+                // nor decorative, and a shop glancing across the room should be
+                // able to tell from here that the machine is still going.
+                .symbolEffect(.variableColor.iterative.dimInactiveLayers,
+                              isActive: alive && !reduceMotion)
             Text(value)
                 .font(.system(size: 24, weight: .medium))
                 .monospacedDigit()
