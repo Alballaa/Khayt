@@ -13,6 +13,20 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   hung rather than waiting. It now happens off the main thread, and the window
   stays alive.
 
+- **The Mac app now sends what you change to Khayt Cloud on its own.** It used
+  to send only when you opened *Check the cloud* and pressed *Send*, so an edit
+  made on the Mac stayed on the Mac until somebody remembered — and two machines
+  quietly drifting apart is the kind of problem you find out about a week later.
+  It now pushes a few seconds after each change, retries on its own when the
+  connection is bad, and the sidebar says what it is doing instead of always
+  saying "Not synced automatically".
+
+  It asks for your cloud passphrase **once per launch**, and then works in the
+  background. The passphrase itself is still never stored anywhere — that is
+  what keeps the cloud copy readable only by you — so opening the app on a new
+  day means unlocking it once. *Lock Khayt Cloud* in the File menu takes it back
+  whenever you want, and the sidebar shows "Cloud locked" until you unlock again.
+
 - **Your storefront keeps quoting delivery dates when Khayt is closed on the
   Mac.** The date a storefront quotes comes from a snapshot Khayt publishes of
   its own queue, and it stops quoting once that snapshot goes stale — 24 hours,

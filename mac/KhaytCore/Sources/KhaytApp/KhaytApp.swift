@@ -28,6 +28,10 @@ struct KhaytApp: App {
                 .frame(minWidth: 900, minHeight: 480)
                 .task {
                     Snapshot.subject = shop
+                    // Before the book is opened, so the very first write is
+                    // heard. Every path that changes the store lands in one
+                    // place and this listens there — see `StoreWriter.didWrite`.
+                    shop.listenForOwnWrites()
                     // The shop's own book if there is one, the sample only when
                     // there is not. Reading is safe, the source is named in the
                     // toolbar, and an app that opens on invented data when real

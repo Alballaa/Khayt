@@ -24,6 +24,26 @@ import KhaytCore
 /// could take over is the width of one serialisation rather than a whole edit.
 enum StoreWriter {
 
+    /// Told after every successful write, with the store that was written.
+    ///
+    /// ── WHY A HOOK HERE AND NOT A CALL AT EACH WRITE ─────────────────────
+    ///
+    /// Twenty-one places in `Shop` change the book, each followed by its own
+    /// reload. Automatic sync has to hear about all of them and about the
+    /// twenty-second somebody adds next month — and a trigger a new write path
+    /// can simply forget to call is the shape of bug this repo keeps finding:
+    /// correct code with no caller.
+    ///
+    /// `atomicWrite` is the one place every write actually lands, both the
+    /// synchronous `update` and the async one, so hearing about it here cannot
+    /// be bypassed by adding a path. Fired only after the swap succeeds: a
+    /// refused or failed write did not change the book and must not schedule a
+    /// push of something that is not there.
+    ///
+    /// Hopped to the main actor because the synchronous `update` is not on it
+    /// and the listener — `Shop` — is.
+    @MainActor static var didWrite: (@MainActor (URL) -> Void)?
+
     /// Matches `MAX_STORE_BYTES` in lib/store-io.js. Every safety net — the
     /// daily backup, the iCloud copy, the pre-update snapshot — is built to that
     /// number, so writing past it produces a store nothing can protect.
@@ -168,6 +188,8 @@ enum StoreWriter {
             try? fm.removeItem(at: tmp)           // never leave a stray temp behind
             throw error
         }
+        // AFTER the swap, and only on success. See `didWrite`.
+        Task { @MainActor in StoreWriter.didWrite?(url) }
     }
 
     // MARK: - Stamping

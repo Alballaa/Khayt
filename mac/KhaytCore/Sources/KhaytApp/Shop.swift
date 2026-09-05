@@ -315,6 +315,7 @@ final class Shop {
             // The shop's published delivery dates. Not for the sample book,
             // whose cloud settings belong to nobody.
             if next.build != nil { startPublishingLeadTime() } else { stopPublishingLeadTime() }
+            refreshSyncStatus()
         } catch {
             orders = []
             files = []
@@ -1641,18 +1642,34 @@ final class Shop {
     /// Whether the last comparison found a settings change this app cannot send.
     var cloudSettingsStay = false
 
-    /// The shop's data key, held only while the check sheet is open.
+    /// The shop's data key, held for as long as this app runs.
     ///
-    /// Kept at all so that pressing *Send* does not mean typing the passphrase
-    /// again and waiting through a second scrypt — which at N=32768 is most of
-    /// a minute. It is the key itself and not the passphrase, it is never
-    /// written anywhere, and `forgetCloudKey()` drops it when the sheet closes.
+    /// ── IT USED TO GO WHEN THE SHEET DID, AND THAT IS WHY NOTHING SYNCED ──
+    ///
+    /// The key was dropped in `onDisappear`, which was right while the only
+    /// thing that could use it was a button on that sheet. Automatic sync
+    /// cannot work that way: it runs after a save, minutes later, with nothing
+    /// on screen — and a background push that stops to ask for a passphrase is
+    /// a background push nobody has consented to.
+    ///
+    /// So the lifetime is now the app's, which is exactly Khayt's: the desktop
+    /// configures its sync controller "after unlock" and keeps the backend for
+    /// the session. This is not a loosening of the end-to-end story. The
+    /// PASSPHRASE is still never kept and still never written; this is the
+    /// unwrapped key, in memory, dropped when the app quits or the shop locks
+    /// it — and re-earning it costs a scrypt at N=32768, most of a minute.
     private var cloudDek: Data?
 
-    /// Drop the data key. Called when the check sheet goes away.
+    /// Has somebody unlocked the cloud this session?
+    var cloudUnlocked: Bool { cloudDek != nil }
+
+    /// Lock the cloud again: drop the data key and stop syncing until somebody
+    /// unlocks it. The shop's own choice, from the menu bar.
     func forgetCloudKey() {
         cloudDek = nil
         cloudSent = nil
+        cancelPendingSync()
+        syncStatus = Self.cloudConnected(settingsDict) ? .locked : .off
     }
 
     /// Is there anything this Mac could send, and the key to send it with?
@@ -1698,6 +1715,9 @@ final class Shop {
             }
             let dek = try SyncCrypto.unwrapDek(secret: passphrase, wrapped: wrapped)
             cloudDek = dek
+            // Unlocked. From here on this app pushes on its own, and the first
+            // push carries whatever was changed while it was locked.
+            if case .locked = syncStatus { syncStatus = .idle }
             let folded = try await CloudReader.store(reply, dek: dek, engine: engine)
 
             // Read from disk rather than from what this app is holding: the
@@ -2049,6 +2069,160 @@ final class Shop {
 
     /// The live poll. Started when a book is opened and stopped with it, so a
     /// window showing the sample shop is not knocking on a shop's printers.
+    // MARK: - Syncing without being asked
+
+    /// What the sidebar says about sync.
+    private(set) var syncStatus: AutoSync.Status = .off
+
+    private var syncTask: Task<Void, Never>?
+    /// How many attempts have failed in a row, for the backoff.
+    private var syncFailures = 0
+    /// A change arrived while a push was in flight — run once more after.
+    private var syncAgainAfter = false
+    private var syncInFlight = false
+    /// When the whole book last went up, for the floor. See `AutoSync`.
+    private var lastWholeBookPush: Date?
+    /// Set once the service has refused a delta for this shop. The desktop
+    /// remembers the same 404 for the same reason: one probe per session.
+    private var chainIsClosed = false
+
+    /// Start listening for this app's own writes.
+    ///
+    /// Called once, from the app's entry point. Every path that changes the
+    /// book lands in `StoreWriter.atomicWrite`, so this hears about all of them
+    /// — including the ones written after this comment.
+    func listenForOwnWrites() {
+        StoreWriter.didWrite = { [weak self] url in
+            guard let self, self.source.build?.storeURL == url else { return }
+            self.bookChanged()
+        }
+    }
+
+    /// This app just changed the book. Push it, shortly.
+    func bookChanged() {
+        guard AutoSync.shouldSyncOnWrite(unlocked: cloudUnlocked,
+                                         connected: Self.cloudConnected(settingsDict),
+                                         canWrite: canMoveJobs) else {
+            noteSync("a change was not sent — "
+                   + (!Self.cloudConnected(settingsDict) ? "no cloud on this book"
+                      : !cloudUnlocked ? "the cloud is locked"
+                      : "another app owns this book"))
+            return
+        }
+        if syncInFlight { syncAgainAfter = true; return }
+        // A fresh edit supersedes a pending backoff and resets it — the same
+        // rule `scheduleSync` applies, and for the same reason: the shop has
+        // just told us the situation changed.
+        syncFailures = 0
+        scheduleSync(after: AutoSync.debounce)
+    }
+
+    private func scheduleSync(after delay: Duration) {
+        syncTask?.cancel()
+        syncStatus = .waiting
+        syncTask = Task { [weak self] in
+            try? await Task.sleep(for: delay)
+            guard !Task.isCancelled else { return }
+            await self?.autoSyncNow()
+        }
+    }
+
+    private func cancelPendingSync() {
+        syncTask?.cancel()
+        syncTask = nil
+        syncAgainAfter = false
+    }
+
+    /// One automatic push.
+    ///
+    /// It reuses `sendToCloud()` rather than having its own opinion about how
+    /// to send. That matters more than the duplication it saves: `sendToCloud`
+    /// is where the whole-book fallback is made legal by merging the cloud in
+    /// first, and a second, quieter path to `PUT /store` is precisely the thing
+    /// `CloudWriter`'s own comment says must not exist.
+    ///
+    /// A 409 needs no special handling here. `sendToCloud` begins with a fresh
+    /// pull, so the retry below measures against the head the cloud actually
+    /// has — which is what Khayt's pull-merge-repush achieves by a longer road.
+    ///
+    /// ── IT PUSHES A BOOK IT IS ABOUT TO WRITE TO, AND THAT TERMINATES ─────
+    ///
+    /// The whole-book path merges the cloud into this book before it uploads,
+    /// which is a write, which the listener hears — so a push schedules a push.
+    /// It settles rather than spinning: `bookChanged` sees the sync in flight
+    /// and only sets `syncAgainAfter`, and the one follow-up finds an empty
+    /// outbox and returns before sending anything. A gated shop pays one extra
+    /// GET a quarter of an hour later, which is the floor doing its job.
+    func autoSyncNow() async {
+        guard cloudDek != nil, Self.cloudConnected(settingsDict), canMoveJobs else {
+            syncStatus = Self.cloudConnected(settingsDict) ? .locked : .off
+            return
+        }
+        guard !syncInFlight, !cloudBusy else { syncAgainAfter = true; return }
+
+        // The expensive path has a floor. Checked BEFORE the pull, so a gated
+        // shop inside its floor costs nothing at all rather than a request.
+        if chainIsClosed, !AutoSync.mayPushWholeBook(lastAt: lastWholeBookPush) {
+            let wait = AutoSync.wholeBookFloor
+                - Date().timeIntervalSince(lastWholeBookPush ?? .distantPast)
+            scheduleSync(after: .seconds(Int(max(1, wait.rounded(.up)))))
+            return
+        }
+
+        syncInFlight = true
+        syncStatus = .syncing
+        await sendToCloud()
+        syncInFlight = false
+
+        if cloudSent?.wholeStore == true {
+            chainIsClosed = true
+            lastWholeBookPush = Date()
+        }
+
+        if let problem = cloudProblem {
+            syncStatus = .failing(problem)
+            noteSync("failed — \(problem)")
+            let delay = AutoSync.retryDelay(attempt: syncFailures)
+            syncFailures += 1
+            scheduleSync(after: delay)
+            return
+        }
+
+        syncFailures = 0
+        syncStatus = .synced(Date())
+        noteSync(cloudSent.map { $0.wholeStore ? "sent the whole book" : "sent \($0.count)" }
+                 ?? "nothing to send")
+        if syncAgainAfter {
+            syncAgainAfter = false
+            scheduleSync(after: AutoSync.debounce)
+        }
+    }
+
+    /// The only trace this leaves, for the same reason `note` exists beside the
+    /// lead-time publisher: it runs on a timer with nothing on screen, and when
+    /// it silently does nothing there is otherwise no way to tell whether it
+    /// never ran, declined, or was refused.
+    private func noteSync(_ what: String) {
+        FileHandle.standardError.write(Data("khayt: sync — \(what)\n".utf8))
+    }
+
+    /// Say where sync stands, without pushing anything.
+    ///
+    /// Called when the book is loaded: a shop that has not unlocked the cloud
+    /// this session should read "Locked", not "Not synced automatically", and
+    /// certainly not silence.
+    func refreshSyncStatus() {
+        // A push reloads the book when it merges, and this runs on every load.
+        // Without this line a whole-book push would overwrite its own
+        // "Sending…" with "Syncing automatically" halfway through.
+        guard !syncInFlight else { return }
+        guard Self.cloudConnected(settingsDict) else { syncStatus = .off; return }
+        if cloudDek == nil { syncStatus = .locked; return }
+        if case .synced = syncStatus { return }
+        if case .failing = syncStatus { return }
+        syncStatus = .idle
+    }
+
     // MARK: - The shop's published delivery dates
 
     private var leadTimeTask: Task<Void, Never>?

@@ -117,6 +117,42 @@ struct Sidebar: View {
 /// whether anything in it was skipped. "The list looks short today" is not a
 /// thing a shop should be left to notice on its own.
 private struct Provenance: View {
+
+    /// One line for every state sync can be in.
+    ///
+    /// Locked is the one worth reading twice: it is not a fault, it is a shop
+    /// that has not typed its passphrase since the app opened, and the data key
+    /// deliberately lives no longer than that.
+    static func syncLine(_ shop: Shop) -> (String, String, AnyShapeStyle) {
+        switch shop.syncStatus {
+        case .off:
+            return (shop.words.callIt("mac.sync_off"), "icloud.slash", AnyShapeStyle(.tertiary))
+        case .locked:
+            return (shop.words.callIt("mac.sync_locked"), "lock.icloud", AnyShapeStyle(.secondary))
+        case .idle:
+            return (shop.words.callIt("mac.sync_on"), "icloud", AnyShapeStyle(.tertiary))
+        case .syncing:
+            return (shop.words.callIt("mac.sync_sending"), "icloud.and.arrow.up",
+                    AnyShapeStyle(.secondary))
+        case .waiting:
+            return (shop.words.callIt("mac.sync_waiting"), "clock.arrow.circlepath",
+                    AnyShapeStyle(.tertiary))
+        case .synced(let when):
+            return (shop.words.callIt("mac.sync_done", ["time": .string(Self.clock(when))]),
+                    "checkmark.icloud", AnyShapeStyle(.tertiary))
+        case .failing:
+            // Orange, not red: it is going to be tried again, and nothing has
+            // been lost — the change is still in the book.
+            return (shop.words.callIt("mac.sync_retrying"), "exclamationmark.icloud",
+                    AnyShapeStyle(.orange))
+        }
+    }
+
+    /// The time of day, in the shop's own locale.
+    static func clock(_ when: Date) -> String {
+        when.formatted(date: .omitted, time: .shortened)
+    }
+
     let shop: Shop
 
     private var footerLabel: String {
@@ -174,13 +210,14 @@ private struct Provenance: View {
             // Only for a book that expects to be in step with somewhere else.
             // A shop that has never connected to the cloud is not missing
             // anything, and a line telling it so is a line people stop reading.
+            // This line used to read "Not synced automatically" and never
+            // changed. It is now what sync is actually doing, because the
+            // sentence it replaced was a standing apology rather than a status.
             if shop.cloudConnected {
-                // Not `icloud.slash`: the cloud is not switched off, and a
-                // struck-through cloud beside a book this app can send from
-                // says the opposite of what is true.
-                Label(shop.words.callIt("mac.not_synced"), systemImage: "icloud.and.arrow.up")
-                    .foregroundStyle(.tertiary).font(.caption).lineLimit(1)
-                    .help(shop.words.callIt("mac.not_synced_why"))
+                let (text, symbol, tint) = Self.syncLine(shop)
+                Label(text, systemImage: symbol)
+                    .foregroundStyle(tint).font(.caption).lineLimit(1)
+                    .help(shop.words.callIt("mac.sync_auto_why"))
             }
             // What the app said as it died last time. One line, like every
             // other line here; the reason is in the tooltip, and clicking it
