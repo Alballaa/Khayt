@@ -73,9 +73,56 @@ struct OrdersTable: View {
             .alignment(.trailing)
         }
         .tableStyle(.inset(alternatesRowBackgrounds: true))
+        // Right-click, which every other table in this app already answered and
+        // the one holding the shop's jobs did not. Same actions as the Job
+        // menu, reached where the hand already is.
+        .contextMenu(forSelectionType: Order.ID.self) { ids in
+            if let id = ids.first, let job = shop.orders.first(where: { $0.id == id }) {
+                JobActions(shop: shop, job: job)
+            }
+        } primaryAction: { ids in
+            // Double-click opens what a double-click opens everywhere else
+            // here: the thing itself.
+            if let id = ids.first { shop.showInvoice(id) }
+        }
         .overlay {
             if rows.isEmpty { EmptyBook(shop: shop) }
         }
+    }
+}
+
+/// What can be done to a job, wherever it is asked for.
+///
+/// The Job menu's items are built with the menu bar and their titles are frozen
+/// there (see `ModelMenu`); these are built fresh each time the menu opens, so
+/// they can say which job they are about.
+struct JobActions: View {
+    let shop: Shop
+    let job: Order
+
+    var body: some View {
+        Button(shop.words.callIt("mac.edit_job")) {
+            shop.pendingEdit = Shop.PendingHold(id: job.id, project: job.project)
+        }
+        .disabled(!shop.canMoveJobs)
+        Button(shop.words.callIt("pay.modal_title")) {
+            shop.pendingPayment = Shop.PendingHold(id: job.id, project: job.project)
+        }
+        .disabled(!shop.canMoveJobs)
+        Button(shop.words.callIt("ord.hold_btn")) {
+            shop.pendingHold = Shop.PendingHold(id: job.id, project: job.project)
+        }
+        .disabled(!shop.canMoveJobs || job.status == "on_hold")
+        Divider()
+        Button(shop.words.callIt("queue.delivered")) {
+            Task { await shop.markDelivered(job.id) }
+        }
+        .disabled(!shop.canMoveJobs || job.status != "completed" || job.deliveredAt != nil)
+        Divider()
+        // Not gated on the book being ours: showing a shop what it would hand a
+        // customer changes nothing, and refusing to draw the sample's invoice
+        // would hide the thing this app is for.
+        Button(shop.words.callIt("doc.invoice")) { shop.showInvoice(job.id) }
     }
 }
 

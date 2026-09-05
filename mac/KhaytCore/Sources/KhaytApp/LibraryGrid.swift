@@ -69,6 +69,14 @@ struct LibraryGrid: View {
                 shop.openSelection()
                 return .handled
             }
+            // Space, as it does in Finder. Handled by the grid rather than by a
+            // menu shortcut: a bare Space in the menu bar would be swallowed
+            // before it ever reached a text field.
+            .onKeyPress(.space) {
+                guard shop.selectionIsOnThisMac else { return .ignored }
+                shop.quickLookSelection()
+                return .handled
+            }
             .onKeyPress(.escape) {
                 guard !shop.fileSelection.isEmpty else { return .ignored }
                 shop.fileSelection = []

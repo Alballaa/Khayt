@@ -34,6 +34,8 @@ struct ModelActions: View {
 
     var body: some View {
         if let url = shop.modelFile(for: file) {
+            Button(shop.words.callIt("mac.quick_look")) { shop.previewing = url }
+            Divider()
             Button(shop.words.callIt("mac.reveal_in_finder")) { FileActions.reveal(url) }
             Button(shop.words.callIt("mac.open")) { FileActions.open(url) }
             Divider()
