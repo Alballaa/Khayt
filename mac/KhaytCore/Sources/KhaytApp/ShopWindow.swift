@@ -28,6 +28,7 @@ struct ShopWindow: View {
                 // too, and there a refusal appeared nowhere at all. A move that
                 // did not happen and said nothing is the worst of the three
                 // possible outcomes.
+                EngineBanner(shop: shop)
                 MoveBanners(shop: shop)
                 SpendBanner(shop: shop)
 
