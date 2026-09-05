@@ -206,3 +206,83 @@ test('the renderer is handed a resolved link, never the referral table', () => {
     assert.ok(!('REFERRALS' in p));
   }
 });
+
+/**
+ * THE WHOLE ENDPOINT, PASTED INTO THE FIELD THAT WANTS ONE PIECE OF IT.
+ *
+ * Backblaze's template is `https://s3.{region}.backblazeb2.com`, and the hint
+ * on the Region box says "In your bucket's endpoint, e.g. us-west-004". A shop
+ * copied the endpoint out of the B2 dashboard and pasted all of it, which
+ * composed a host that does not exist:
+ *
+ *     https://s3.s3.us-west-001.backblazeb2.com.backblazeb2.com
+ *
+ * It was saved with enabled:true and sat there. Nothing between the settings
+ * page and the first upload asks whether the address resolves, so the failure
+ * arrives as an S3 error in a background job months later — found by reading a
+ * real shop's settings, not by a report.
+ *
+ * The hint already tried to prevent this and did not, so the fix is not a
+ * better hint.
+ */
+test('resolveEndpoint: a pasted endpoint in a variable field is read as one', () => {
+  const plain = SP.resolveEndpoint('b2', { region: 'us-west-001' });
+  const pasted = SP.resolveEndpoint('b2', { region: 's3.us-west-001.backblazeb2.com' });
+  const withScheme = SP.resolveEndpoint('b2', { region: 'https://s3.us-west-001.backblazeb2.com' });
+
+  assert.equal(plain.endpoint, 'https://s3.us-west-001.backblazeb2.com');
+  assert.deepEqual(pasted, plain, 'the pasted endpoint must land where the plain region does');
+  assert.deepEqual(withScheme, plain, 'and so must one copied with its scheme');
+
+  // The region is signed against, not just addressed — B2 rejects 'auto' with a
+  // signature error that reads to a shop like a wrong secret key.
+  assert.equal(pasted.region, 'us-west-001');
+});
+
+test('resolveEndpoint: the same recovery works for every templated provider', () => {
+  for (const [id, key, value, whole] of [
+    ['r2', 'account', 'abc123', 'abc123.r2.cloudflarestorage.com'],
+    ['b2', 'region', 'us-west-004', 's3.us-west-004.backblazeb2.com'],
+    ['do', 'region', 'fra1', 'fra1.digitaloceanspaces.com'],
+    ['wasabi', 'region', 'us-east-1', 's3.us-east-1.wasabisys.com'],
+  ]) {
+    assert.deepEqual(SP.resolveEndpoint(id, { [key]: whole }), SP.resolveEndpoint(id, { [key]: value }),
+      `${id}: a pasted endpoint should resolve like the bare ${key}`);
+  }
+});
+
+test('resolveEndpoint: an ordinary value is left exactly alone', () => {
+  // No dot, so nothing is even attempted.
+  assert.equal(SP.resolveEndpoint('b2', { region: 'us-west-004' }).endpoint,
+    'https://s3.us-west-004.backblazeb2.com');
+  assert.equal(SP.resolveEndpoint('r2', { account: 'deadbeef0123' }).endpoint,
+    'https://deadbeef0123.r2.cloudflarestorage.com');
+
+  // A dot that is NOT this provider's endpoint is not touched either: the
+  // recovery only fires when the value matches the whole template. Nonsense in
+  // still comes out as nonsense, which is the honest outcome — silently
+  // rewriting a value nobody can explain would be worse than a wrong address.
+  const odd = SP.resolveEndpoint('b2', { region: 'us.west.004' });
+  assert.equal(odd.endpoint, 'https://s3.us.west.004.backblazeb2.com');
+  assert.equal(odd.region, 'us.west.004');
+
+  // Another provider's endpoint in this provider's field is not this
+  // provider's template, so it stands.
+  const crossed = SP.resolveEndpoint('b2', { region: 'fra1.digitaloceanspaces.com' });
+  assert.equal(crossed.region, 'fra1.digitaloceanspaces.com');
+});
+
+test('resolveEndpoint: still refuses when the field is empty', () => {
+  const r = SP.resolveEndpoint('b2', {});
+  assert.equal(r.ok, false);
+  assert.deepEqual(r.missing, ['region']);
+});
+
+test('resolveEndpoint: a provider with no template keeps what was typed', () => {
+  // IDrive e2 issues every account its own host; 'custom' is whatever a shop
+  // has. Neither may be rewritten by any of the above.
+  const r = SP.resolveEndpoint('custom', { endpoint: 'https://minio.local:9000', region: 'eu' });
+  assert.equal(r.ok, true);
+  assert.equal(r.endpoint, 'https://minio.local:9000');
+  assert.equal(r.region, 'eu');
+});
