@@ -8,11 +8,20 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 - **The Mac app no longer freezes solid while macOS asks about your Keychain.**
   The first time a new build reaches for a saved credential, macOS puts a
-  permission dialog in front of it — and the app is signed in a way that makes
-  every update a new application, so this happens after each one. The read was
-  happening on the main thread, so the window drew nothing at all until somebody
-  found the dialog: it looked hung rather than waiting. It now happens off the
-  main thread, and the window stays alive.
+  permission dialog in front of it. The read was happening on the main thread,
+  so the window drew nothing at all until somebody found the dialog: it looked
+  hung rather than waiting. It now happens off the main thread, and the window
+  stays alive.
+
+- **And macOS stops asking after every single update.** The dialog kept coming
+  back because the Mac app was signed ad hoc, which is to say with no identity
+  at all: what macOS remembers about such an app is its own content hash, so
+  every rebuild was a different application and the permission granted to the
+  last one was granted to nothing. The build now signs with a real certificate
+  when the machine has one — a Developer ID for preference, an Apple Development
+  certificate otherwise — and the identity macOS records is then the same on the
+  next build and the next. Permission given once holds. A Mac with neither
+  certificate still builds; it signs ad hoc as before and says so.
 
 - **A shop's credentials never go to the cloud, and now that is a step rather
   than an accident.** The desktop's window is handed a store whose secrets are
