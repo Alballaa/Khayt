@@ -606,6 +606,26 @@ final class Words {
         // after; the sentence that explains any of this lives in
         // `mac.sync_auto_why`, which is a tooltip and can be as long as it
         // needs to be.
+        // Six months of takings on the dashboard, and the sentence over them.
+        //
+        // A SENTENCE, not the word "Revenue" over an axis. The HIG asks a chart
+        // to carry "brief descriptive text that serves as a headline or summary
+        // … helping people grasp essential information at a glance", and
+        // Weather's "Chance of light rain in the next hour" is the model. Three
+        // of them, because "your best month" and "up 8%" are different news and
+        // a shop should be told the more interesting one.
+        "mac.takings":       ["en": "Takings", "ar": "الإيرادات"],
+        "mac.takings_month": ["en": "{month} · {amount}", "ar": "{month} · {amount}"],
+        "mac.takings_best":  ["en": "{month} was your best month of the six.",
+                              "ar": "{month} كان أفضل شهورك الستة."],
+        "mac.takings_up":    ["en": "Trending up — next month looks like {amount}, {pct}% above last.",
+                              "ar": "الاتجاه صاعد — الشهر القادم يبدو نحو {amount}، أي {pct}% فوق الماضي."],
+        "mac.takings_down":  ["en": "Trending down — next month looks like {amount}, {pct}% below last.",
+                              "ar": "الاتجاه هابط — الشهر القادم يبدو نحو {amount}، أي {pct}% دون الماضي."],
+        // Not enough of a run to call it either way, said rather than left to a
+        // flat line the reader has to interpret.
+        "mac.takings_flat":  ["en": "Six months, side by side.",
+                              "ar": "ستة أشهر، جنبًا إلى جنب."],
         // The slicers pane. Khayt calls the section "Slicer" already —
         // `slicer.settings_title` — so the tab reuses it rather than inventing
         // a second name for the same page in the same shop.

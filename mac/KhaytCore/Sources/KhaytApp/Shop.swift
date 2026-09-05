@@ -406,8 +406,17 @@ final class Shop {
         kpiClients = clients
         kpiSettings = settings
         await recomputeKpis()
-
+        // Six whole months and what the next one looks like. Not part of
+        // `recomputeKpis`: that one changes with the period buttons, and the
+        // trend deliberately does not — it is the same six months whichever
+        // period the tiles above are showing.
+        outlook = try? await engine.revenueOutlook(orders: orders, clients: clients,
+                                                   settings: settings,
+                                                   now: Date().timeIntervalSince1970 * 1000)
     }
+
+    /// The shop's last six months of takings, and next month on that evidence.
+    private(set) var outlook: KhaytEngine.RevenueOutlook?
 
     private var kpiOrders: [JSONValue] = []
     private var kpiClients: [JSONValue] = []

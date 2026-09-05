@@ -186,6 +186,48 @@ one error this app must not allow.
 A store that is not on this Mac is not offered: a menu item that leads nowhere
 is a dead end dressed up as a choice.
 
+### Six months of takings
+
+The dashboard was eight tiles and then two thirds of a window of nothing. Tiles
+answer "what is it now"; none of them answers "is that good", which is the
+question a shop opens this screen with.
+
+`lib/forecast.js` is bundled and `KhaytEngine.revenueOutlook` calls it with the
+same money function `renderer/analytics.js` uses, so the Mac's dashboard and
+Khayt's analytics screen read the same numbers rather than two opinions about
+revenue. `RevenueOutlookTests` compares the whole answer against Node.
+
+The headline is a **sentence** — "Trending up — next month looks like 17,979
+SAR, 78.3% above last." The HIG asks a chart to carry "brief descriptive text
+that serves as a headline or summary … helping people grasp essential
+information at a glance", and Weather's "Chance of light rain in the next hour"
+is the model. There are three of them, because "your best month" and "up 8%" are
+different news and a shop should be told the more interesting one. Hovering a
+bar replaces the headline with that month's figure, in a fixed-height row so
+the section cannot jump while it is being read.
+
+**Not Swift Charts.** This is six bars; the framework's axes, marks and gesture
+handling are a lot of machinery for a rounded rectangle scaled by a number — and
+it draws nothing at all into the offline bitmap the snapshot runner uses, which
+would make the one screen nobody could review the one that had just been
+redesigned.
+
+Two things it deliberately does:
+
+* **Nothing at all when there is nothing to say.** `method == "none"` means too
+  little history for a trend, and the section is absent rather than six flat
+  zeros with a confident line across them. This shop's own book is in that state
+  — nineteen jobs, every one priced at zero — so the chart correctly does not
+  appear there.
+* **Full colour at rest.** Written the other way first, everything muted until
+  hovered, which made the resting state — the one anybody actually sees — the
+  washed-out one. A chart is dimmed relative to the thing being pointed at, not
+  relative to nothing.
+
+Months are labelled from the module's `key` rather than its `label`: the module
+answers `2026-08`, which is a sortable key and not a thing to show somebody, and
+formatting from the key is what gets Arabic month names in Arabic.
+
 ### The colours, and where they came from
 
 `Palette.swift`. Before it, every screen picked its own: `.orange` sat on a

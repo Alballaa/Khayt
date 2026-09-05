@@ -229,6 +229,12 @@ public actor KhaytEngine {
         // which files are allowed to do that — the renderer learned the hard
         // way that a salvaging normaliser says yes to a package.json.
         "store-validate",
+        // What the shop has earned month by month, and what next month looks
+        // like on that evidence. ORDER-MONEY IS ALREADY ABOVE and must be: the
+        // series is built by handing `forecast` a money function, and one that
+        // read `o.price` instead would count a foreign job at its face value
+        // and every credit note at nothing.
+        "forecast",
         // The shop's slicers, and which programs may be launched as one.
         //
         // The allowlist matters more than the list. A slicer path and its
@@ -410,6 +416,73 @@ public actor KhaytEngine {
     /// machine actually carries. It looked right on screen. Checked against the
     /// source, not inferred from the name, after `KhaytKpi.computeKpis` had
     /// already cost this app a screenful of zeros the same way.
+    // MARK: - What the shop has earned, month by month
+
+    /// One month of the shop's takings.
+    public struct RevenueMonth: Decodable, Sendable, Equatable, Identifiable {
+        /// `year * 12 + month`, from the module — a sortable key that does not
+        /// go through a date and cannot pick up a timezone on the way.
+        public let key: Int
+        /// Already formatted by the module, so both apps label a month the same.
+        public let label: String
+        public let revenue: Double
+        public var id: Int { key }
+    }
+
+    public struct RevenueOutlook: Decodable, Sendable, Equatable {
+        public let history: [RevenueMonth]
+        public let projection: [Projected]
+        public let nextMonth: Double
+        /// How next month compares with last, as a percentage — nil when there
+        /// is no last month to compare with. A shop's first month has no trend
+        /// and saying "up 100%" would be inventing one.
+        public let trendPct: Double?
+        /// `trend`, `average` or `none`. `none` means too little to say
+        /// anything, and the screen says nothing rather than drawing a flat line
+        /// through two points and calling it a forecast.
+        public let method: String
+
+        public struct Projected: Decodable, Sendable, Equatable, Identifiable {
+            public let key: Int
+            public let label: String
+            public let projected: Double
+            public var id: Int { key }
+        }
+    }
+
+    /// The last `months` complete months of revenue, and what the next ones look
+    /// like on that evidence.
+    ///
+    /// `renderer/analytics.js` draws its own chart from this exact call, with
+    /// this exact money function — so the Mac's dashboard and Khayt's analytics
+    /// screen are reading the same numbers rather than two opinions about
+    /// revenue.
+    ///
+    /// The money function is written in JavaScript inside the bridge for the
+    /// same reason `kpis` does it: a function cannot cross the JSON bridge, and
+    /// the alternative is this app having its own idea of what an order earned.
+    ///
+    /// `now` is milliseconds. The module buckets by month in UTC and never asks
+    /// a clock.
+    public func revenueOutlook(orders: [JSONValue], clients: [JSONValue],
+                               settings: [String: JSONValue],
+                               now: Double, months: Int = 6,
+                               periods: Int = 1) throws -> RevenueOutlook {
+        try runtime.call2("""
+        (function () {
+          var ctx = { settings: ARG2, clients: ARG1 };
+          var M = globalThis.KhaytOrderMoney;
+          return globalThis.KhaytForecast.forecast(ARG0, {
+            now: ARG3, months: ARG4, periods: ARG5,
+            revenueOf: function (o) { return M.orderNetRevenueBase(o, ctx); }
+          });
+        })()
+        """,
+        [.array(orders), .array(clients), .object(settings),
+         .number(now), .number(Double(months)), .number(Double(periods))],
+        as: RevenueOutlook.self)
+    }
+
     // MARK: - The shop's slicers
 
     /// One slicer as the shop has it configured.
