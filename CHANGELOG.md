@@ -201,6 +201,12 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **The Mac app said "11 late" and "2 late" at the same time.** The badges on
+  the jobs table and the kanban cards — and the count beside OWED — called a job
+  late if it was unpaid and past its date, which marked finished work and even
+  quotes as late. The dashboard's Late tile asked the shared rule and said two.
+  Everything asks the shared rule now.
+
 - **The Mac app was short by a credit note and by a gift card.** "Owed" in the
   title bar, on the customers table, on the jobs table and on every kanban card
   was `price − paid` worked out in Swift, so a job with a 300 credit note

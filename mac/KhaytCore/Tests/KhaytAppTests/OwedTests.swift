@@ -106,3 +106,100 @@ struct OwedTests {
         #expect(tables.lowerBound < resolve.lowerBound)
     }
 }
+
+/// Which jobs are late.
+///
+/// THE DEFECT THIS EXISTS FOR: the badges, the kanban card and the title bar
+/// asked `isOverdue()` — "not settled and past its due date" — while the
+/// dashboard's Late tile asked the attention engine. Two numbers about one
+/// book, on screen at the same time: eleven and two on the sample shop.
+///
+/// The Swift rule answers a DIFFERENT question. A job completed and delivered
+/// is not late because its invoice is unpaid, and a quote has no deadline to
+/// miss at all — those were nine of the eleven.
+@MainActor
+struct LateTests {
+
+    static func job(_ id: String, status: String, due: String,
+                    price: Double = 1000, paid: Double = 0) -> JSONValue {
+        .object([
+            "id": .string(id), "date": .string("2026-08-01"), "status": .string(status),
+            "project": .string("Lid"), "client": .string("A shop"),
+            "price": .number(price), "paidAmount": .number(paid),
+            "paymentStatus": .string(paid >= price ? "paid" : "unpaid"),
+            "printTime": .number(1), "priority": .bool(false), "notes": .string(""),
+            "dueDate": .string(due),
+        ])
+    }
+
+    static let now = Date(timeIntervalSince1970: 1_788_566_400)   // 2026-09-05
+
+    @Test("a job still on the floor and past its date is late")
+    func genuinelyLate() async throws {
+        let late = try await KhaytEngine().lateOrders(
+            [Self.job("O-1", status: "printing", due: "2026-08-25")],
+            machines: [], settings: [:], now: Self.now)
+        #expect(late.contains("O-1"))
+    }
+
+    @Test("a completed job is not late, whatever its invoice says")
+    func completedIsNotLate() async throws {
+        // Most of the difference between eleven and two. A job the shop has
+        // finished is not late work; the money being outstanding is the
+        // receivables screen's business, and it has an aged one.
+        let late = try await KhaytEngine().lateOrders(
+            [Self.job("O-2", status: "completed", due: "2026-08-25")],
+            machines: [], settings: [:], now: Self.now)
+        #expect(late.isEmpty, "a job that is done was being badged as late work")
+    }
+
+    @Test("a delivered job past its date IS flagged, and that is Khayt's answer")
+    func deliveredIsFlagged() async throws {
+        // Recorded rather than argued with. `attention` treats an unpaid
+        // delivery past its date as wanting attention and a completed one as
+        // not, which reads oddly beside the case above — but it is the shared
+        // rule, both apps now say the same thing, and changing what a shop is
+        // shown to chase is not a change to make on the way past.
+        let late = try await KhaytEngine().lateOrders(
+            [Self.job("O-3", status: "delivered", due: "2026-08-20")],
+            machines: [], settings: [:], now: Self.now)
+        #expect(late.contains("O-3"))
+    }
+
+    @Test("a quote has no deadline to miss")
+    func quotesAreNotLate() async throws {
+        let late = try await KhaytEngine().lateOrders(
+            [Self.job("O-4", status: "quote", due: "2026-08-25")],
+            machines: [], settings: [:], now: Self.now)
+        #expect(late.isEmpty)
+    }
+
+    @Test("the row carries the engine's answer")
+    func theRowUsesIt() throws {
+        var job = try JSONDecoder().decode(
+            Order.self, from: JSONEncoder().encode(Self.job("O-5", status: "completed", due: "2026-08-25")))
+        #expect(job.isOverdue(now: Self.now), "unresolved, this is the old rule — and it says late")
+        job.isLateResolved = false
+        #expect(!job.isOverdue(now: Self.now))
+        job.isLateResolved = true
+        #expect(job.isOverdue(now: Self.now))
+    }
+
+    @Test("with no engine a badge is still possible, by the older rule")
+    func fallsBack() throws {
+        let job = try JSONDecoder().decode(
+            Order.self, from: JSONEncoder().encode(Self.job("O-6", status: "printing", due: "2026-08-25")))
+        #expect(job.isLateResolved == nil)
+        #expect(job.isOverdue(now: Self.now))
+    }
+
+    @Test("the book resolves it on load")
+    func theBookIsWired() throws {
+        let shop = try String(contentsOf: URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appending(path: "Sources/KhaytApp/Shop.swift"), encoding: .utf8)
+        #expect(shop.contains("await resolveLate(root)"))
+        #expect(shop.contains("engine.lateOrders("))
+    }
+}

@@ -15,7 +15,7 @@ import KhaytCore
 struct TopListsTests {
 
     /// A day, `n` days before the fixed now these tests use.
-    static let now = Date(timeIntervalSince1970: 1_757_030_400)  // 2026-09-05
+    static let now = Date(timeIntervalSince1970: 1_788_566_400)  // 2026-09-05, checked
     static func day(_ back: Int) -> String {
         let d = Calendar.current.date(byAdding: .day, value: -back, to: now)!
         return Shop.today(d)
