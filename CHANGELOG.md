@@ -6,6 +6,15 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Changed
 
+- **"A setting differs from the cloud's copy" was still wrong, for a second
+  reason.** Khayt masks every credential before pushing a store, so the API key,
+  the sync token and the print library's S3 secret are `__KHAYT_MASKED__` in the
+  cloud and encrypted here. Compared as values, that made the warning true for
+  ever for any shop that has configured anything at all. A masked field is now
+  read as "the cloud does not carry this" rather than as a difference — checked
+  against a real shop's live cloud, where all three of its differing settings
+  keys differed only in a mask.
+
 - **"Settings differ too" was telling every synced shop something untrue.** The
   desktop writes `settings.cloud.lastServerRev` after a successful push, so the
   copy that went up carries the previous value and the local one is permanently

@@ -88,13 +88,46 @@
    * shop actually changes is somewhere else in this object.
    */
   function settingsDiffer(mine, theirs) {
-    const without = (s) => {
-      if (!s || typeof s !== 'object') return s || null;
-      const out = {};
-      for (const k of Object.keys(s)) if (k !== 'cloud') out[k] = s[k];
-      return out;
-    };
-    return stable(without(mine)) !== stable(without(theirs));
+    return !sameIgnoringWhatTheCloudDoesNotCarry(mine || {}, theirs || {}, '');
+  }
+
+  /**
+   * What the cloud puts where a device secret used to be. `lib/store.js` owns
+   * it; read at comparison time rather than at load, because module order is
+   * not something this file gets to depend on — and a stale copy of a mask
+   * would mean comparing a secret against a sentinel again.
+   */
+  const mask = () => (global.KhaytStore && global.KhaytStore.SECRET_MASK) || '__KHAYT_MASKED__';
+
+  /**
+   * The sync's own bookkeeping, which is not a setting anybody edits.
+   *
+   * `lastServerRev` is written AFTER a successful push, so the copy that went
+   * up carries the previous value and the local one is a step ahead of it —
+   * permanently, for every shop that has ever synced.
+   */
+  const NOT_A_SETTING = ['cloud.lastServerRev'];
+
+  function sameIgnoringWhatTheCloudDoesNotCarry(mine, theirs, path) {
+    if (NOT_A_SETTING.includes(path)) return true;
+    // THE CLOUD DOES NOT CARRY SECRETS. `redactSettingsForExport` replaces every
+    // credential with a mask before the store is pushed, so the API key, the
+    // sync token and the print library's S3 secret are all `__KHAYT_MASKED__`
+    // up there and encrypted blobs down here. Comparing those as values made
+    // "your settings differ" true for ever for any shop that has configured
+    // anything at all — which was three of this shop's three differences.
+    if (theirs === mask()) return true;
+    if (mine === theirs) return true;
+    if (!mine || !theirs || typeof mine !== 'object' || typeof theirs !== 'object') {
+      return stable(mine === undefined ? null : mine) === stable(theirs === undefined ? null : theirs);
+    }
+    if (Array.isArray(mine) !== Array.isArray(theirs)) return false;
+    const keys = new Set(Object.keys(mine).concat(Object.keys(theirs)));
+    for (const key of keys) {
+      const next = path ? path + '.' + key : key;
+      if (!sameIgnoringWhatTheCloudDoesNotCarry(mine[key], theirs[key], next)) return false;
+    }
+    return true;
   }
 
   /**
