@@ -82,7 +82,7 @@ struct SaveBar: View {
         HStack {
             if let problem = shop.settingsProblem {
                 Label(problem, systemImage: "exclamationmark.triangle")
-                    .foregroundStyle(.orange).font(.callout).lineLimit(2)
+                    .foregroundStyle(Khayt.attention).font(.callout).lineLimit(2)
             } else if let note = shop.settingsNote, !dirty {
                 Text(note).foregroundStyle(.secondary).font(.callout)
             }

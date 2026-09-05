@@ -70,7 +70,7 @@ private struct NeedsAttention: View {
                 ForEach(items) { item in
                     HStack(spacing: 10) {
                         Image(systemName: symbol(item.kind))
-                            .foregroundStyle(item.severity == "bad" ? .red : .orange)
+                            .foregroundStyle(item.severity == "bad" ? Khayt.late : Khayt.attention)
                             .frame(width: 18)
                         VStack(alignment: .leading, spacing: 1) {
                             Text(item.name ?? item.id).lineLimit(1)
@@ -88,7 +88,7 @@ private struct NeedsAttention: View {
                                 of: "{n}", with: "\(late)"))
                                 .font(.callout)
                                 .monospacedDigit()
-                                .foregroundStyle(.orange)
+                                .foregroundStyle(Khayt.attention)
                         }
                     }
                     .padding(.vertical, 7)
@@ -117,13 +117,18 @@ private struct Work: View {
     var body: some View {
         DetailSection(shop.words.callIt("mac.the_floor")) {
             HStack(spacing: 14) {
+                // Amber only when something IS printing. A colour that means
+                // "being made right now" sitting on a zero says the opposite of
+                // what it means, and a dashboard where the warm colour is
+                // always on is a dashboard where it stops being noticed.
                 Tile(value: "\(facts.printingCount)", label: shop.words.callIt("queue.printing"),
-                     symbol: "printer", tint: .blue)
+                     symbol: "printer",
+                     tint: facts.printingCount > 0 ? Khayt.hot : Color.secondary)
                 Tile(value: "\(facts.activeCount)", label: shop.words.callIt("mac.open_count"),
                      symbol: "tray.full", tint: .secondary)
                 Tile(value: "\(facts.lateCount)", label: shop.words.callIt("mac.late_tile"),
                      symbol: "exclamationmark.triangle",
-                     tint: facts.lateCount > 0 ? .orange : .secondary)
+                     tint: facts.lateCount > 0 ? Khayt.attention : Color.secondary)
                 Tile(value: "\(facts.fleet.live)/\(facts.fleet.total)",
                      label: shop.words.callIt("mac.machines"),
                      symbol: "server.rack", tint: .secondary)
@@ -209,7 +214,7 @@ private struct WentWrong: View {
                         HStack(alignment: .firstTextBaseline, spacing: 8) {
                             Image(systemName: notice.kind == "stall"
                                   ? "pause.circle" : "exclamationmark.triangle.fill")
-                                .foregroundStyle(.orange)
+                                .foregroundStyle(Khayt.attention)
                             VStack(alignment: .leading, spacing: 1) {
                                 Text(notice.title).font(.body)
                                 if !notice.body.isEmpty {

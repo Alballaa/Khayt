@@ -23,7 +23,7 @@ struct OrdersTable: View {
                 HStack(spacing: 6) {
                     if job.priority {
                         Image(systemName: "flag.fill")
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(Khayt.attention)
                             .help(shop.words.callIt("mac.is_urgent"))
                     }
                     VStack(alignment: .leading, spacing: 1) {
@@ -177,7 +177,7 @@ private struct DueDate: View {
             let late = job.isOverdue()
             Text(due, format: .dateTime.day().month(.abbreviated))
                 .monospacedDigit()
-                .foregroundStyle(late ? AnyShapeStyle(.orange) : AnyShapeStyle(.secondary))
+                .foregroundStyle(late ? AnyShapeStyle(Khayt.attention) : AnyShapeStyle(.secondary))
                 .help(late
                       ? words.callIt("mac.overdue_unpaid")
                       : words.callIt("mac.due_on",
@@ -220,7 +220,7 @@ private struct Owed: View {
                     .overlay(alignment: .leading) {
                         GeometryReader { geo in
                             Capsule()
-                                .fill(job.isOverdue() ? AnyShapeStyle(.orange) : AnyShapeStyle(.tint))
+                                .fill(job.isOverdue() ? AnyShapeStyle(Khayt.attention) : AnyShapeStyle(.tint))
                                 .frame(width: geo.size.width * paidFraction)
                         }
                     }

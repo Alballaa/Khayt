@@ -279,7 +279,7 @@ struct NewJobSheet: View {
         HStack {
             if let problem {
                 Label(problem, systemImage: "exclamationmark.triangle")
-                    .font(.caption).foregroundStyle(.orange).lineLimit(2)
+                    .font(.caption).foregroundStyle(Khayt.attention).lineLimit(2)
             }
             Spacer()
             Button(shop.words.callIt("common.cancel")) { shop.takingAJob = false }

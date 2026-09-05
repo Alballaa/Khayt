@@ -80,7 +80,7 @@ struct LibraryInspector: View {
                     .buttonStyle(.plain)
                     .help(shop.words.callIt(file.isFavourite ? "mac.unmake_favourite" : "mac.make_favourite"))
                 } else if file.isFavourite {
-                    Image(systemName: "star.fill").foregroundStyle(.yellow)
+                    Image(systemName: "star.fill").foregroundStyle(Khayt.marked)
                 }
                 Text(file.title)
                     .font(.title3.weight(.semibold))
@@ -89,7 +89,7 @@ struct LibraryInspector: View {
             if let problem = shop.writeProblem {
                 Label(problem, systemImage: "exclamationmark.triangle")
                     .font(.caption)
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(Khayt.attention)
                     .textSelection(.enabled)
             }
             if let group = file.groupName {

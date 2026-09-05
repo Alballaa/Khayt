@@ -50,7 +50,7 @@ struct DetailLine: View {
                 .font(.callout.weight(strong ? .semibold : .regular))
                 .monospacedDigit()
                 .multilineTextAlignment(.trailing)
-                .foregroundStyle(warn ? AnyShapeStyle(.orange)
+                .foregroundStyle(warn ? AnyShapeStyle(Khayt.attention)
                                  : dim ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary))
         }
     }

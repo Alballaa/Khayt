@@ -186,6 +186,39 @@ one error this app must not allow.
 A store that is not on this Mac is not offered: a menu item that leads nowhere
 is a dead end dressed up as a choice.
 
+### The colours, and where they came from
+
+`Palette.swift`. Before it, every screen picked its own: `.orange` sat on a
+printer alert, a sync retry and a lost-edits warning — three unrelated things
+wearing one colour, which is the first thing the HIG's colour guidance says not
+to do. They were also not Khayt's colours, and not contrast-checked; SwiftUI's
+`.green` is 2.4:1 on white.
+
+**Nothing in the palette was invented.** The app icon is a printed Arabic khaa
+on a near-black ground: the letter and the diamond above it are cyan `#2BCDE4`,
+and the one warm thing in the whole mark is the drop of filament leaving the
+nozzle. So the app's colour is that cyan, and amber means exactly one thing —
+something is being made right now. The status hues are
+`renderer/themes/command/tokens.css` for light and `renderer/styles.css` for
+dark, unchanged, so "done" is the same green in both of a shop's apps. Khayt's
+light themes already darken those to clear WCAG AA on white and `styles.css`
+says so in as many words; that work is taken rather than redone.
+
+`PaletteTests` measures all of it — every colour, both appearances, against the
+surface it actually sits on, at 4.5:1. `marked` (the favourite star) is the one
+held to 3:1 instead, and only because it is never text: a gold dark enough for
+4.5:1 on white is brown, and a brown star is not a star.
+
+The app tints itself cyan **only when this Mac's owner has not chosen an accent
+colour of their own**, because the HIG says a chosen accent replaces an app's.
+An app with an asset catalog gets that free; this bundle is assembled by hand,
+so `Khayt.appTint` asks. `AppleAccentColor` is absent for multicolour and 0–7
+for a choice — and 0 is red, so reading it with `integer(forKey:)` would treat
+"not set" as a deliberate choice of red and never apply the app's colour at all.
+
+`PaletteTests.noRawColours` walks every source file and fails on a hue picked by
+name. The palette only means anything if it is the only place colour comes from.
+
 ### Photographing it
 
 Judging a design by reading its source is guessing.

@@ -1,0 +1,132 @@
+import SwiftUI
+import AppKit
+
+/// The colours this app is allowed to use, and where each of them came from.
+///
+/// ── WHY NOT JUST `.blue`, `.green`, `.orange` ─────────────────────────────
+///
+/// That is what was here, picked at each call site. Three problems, in order of
+/// how much they cost:
+///
+/// 1. **They mean nothing.** `.orange` appeared on a printer alert, on a sync
+///    retry and on a lost-edits warning — three unrelated things wearing one
+///    colour, which is the first thing the HIG's colour guidance tells you not
+///    to do: "avoid using the same color to mean different things".
+/// 2. **They are not Khayt's.** A shop looking at its two apps side by side saw
+///    a different green for the same "done".
+/// 3. **They are not contrast-checked.** SwiftUI's `.green` is 2.4:1 on white.
+///
+/// ── WHERE THE COLOURS COME FROM ──────────────────────────────────────────
+///
+/// The app icon, and Khayt's own theme tokens. Nothing here was invented.
+///
+/// The icon is a printed Arabic khaa on a near-black ground: the letter and the
+/// diamond above it are **cyan `#2BCDE4`**, and the one warm thing in the whole
+/// mark is the **drop of filament** leaving the nozzle. That is the identity —
+/// cyan, with amber reserved for the moment something is actually being made —
+/// and it is the identity this app should wear rather than the system's blue.
+///
+/// The status hues are `renderer/themes/command/tokens.css` for light and
+/// `renderer/styles.css` for dark, unchanged, so "done" is the same green in
+/// both apps. Khayt's light themes already darken these to clear WCAG AA on a
+/// white surface — `styles.css` says so in as many words — and that work is
+/// taken rather than redone.
+///
+/// Measured on this palette, foreground on the surface it sits on:
+///
+///     done  5.35   attention 5.29   late 5.50   note 5.54   cyan 4.88   (light)
+///     done  6.38   attention 8.23   late 4.68   note 4.98   cyan 8.70   (dark)
+///
+/// ── COLOUR IS NEVER THE ONLY SIGNAL ──────────────────────────────────────
+///
+/// Every use of these is paired with a word or an SF Symbol. A shop reading a
+/// screen in bright workshop light, or reading it colour-blind, gets the same
+/// answer either way.
+enum Khayt {
+
+    /// A colour that is one thing in light appearance and another in dark.
+    ///
+    /// `NSColor(name:dynamicProvider:)` rather than two static colours picked by
+    /// a `@Environment(\.colorScheme)` read: the dynamic provider is consulted
+    /// again whenever the appearance changes, including inside a view AppKit
+    /// draws for itself — a printed page, a menu, a cached bitmap — where the
+    /// SwiftUI environment is not what decides.
+    static func adaptive(light: Int, dark: Int, name: String) -> Color {
+        Color(nsColor: NSColor(name: NSColor.Name(name)) { appearance in
+            let isDark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+            return NSColor(hex: isDark ? dark : light)
+        })
+    }
+
+    /// The app's own colour: the letter in the icon.
+    ///
+    /// Darkened for light appearance — `#2BCDE4` is 1.9:1 on white, which is
+    /// fine for a large filled shape and unreadable as a label.
+    static let cyan = adaptive(light: 0x0B7C91, dark: 0x2BCDE4, name: "khaytCyan")
+
+    /// The drop of filament, and the ONE thing it is allowed to mean: something
+    /// is being made right now.
+    ///
+    /// Not "warning" — that is `attention` below and it is a different idea. A
+    /// printer mid-job is not a problem, it is the good state, and it is the
+    /// one thing on any of these screens worth looking up at.
+    static let hot = adaptive(light: 0x9A6200, dark: 0xFFD27A, name: "khaytHot")
+
+    /// Finished, paid, sent, agreed. `--cmd-ok` / `--success`.
+    static let done = adaptive(light: 0x157A4F, dark: 0x2BB673, name: "khaytDone")
+
+    /// Wants a person, and will keep working if it does not get one: low stock,
+    /// a nozzle near its life, a sync that will retry. `--warning`.
+    static let attention = adaptive(light: 0x906300, dark: 0xF5A623, name: "khaytAttention")
+
+    /// Late, failed, refused. `--danger`.
+    static let late = adaptive(light: 0xC32F47, dark: 0xEF4D5E, name: "khaytLate")
+
+    /// Worth reading, not worth acting on. `--info`.
+    static let note = adaptive(light: 0x1F66C8, dark: 0x8A7DF0, name: "khaytNote")
+
+    /// A model the shop has starred.
+    ///
+    /// Gold, because a star is gold everywhere and fighting that would cost
+    /// recognition for nothing. Deliberately NOT `hot`: amber already means
+    /// "being made right now", and a favourite is not that.
+    ///
+    /// The only colour here held to 3:1 rather than 4.5:1, and it is allowed to
+    /// be because it is only ever a FILLED GLYPH — `star.fill`, over a
+    /// thumbnail, with a shadow under it — and never text. The graphical
+    /// threshold is the one that applies. A gold dark enough for 4.5:1 on white
+    /// is brown, and a brown star is not a star.
+    static let marked = adaptive(light: 0xB8860B, dark: 0xF0C040, name: "khaytMarked")
+
+    /// Has this Mac's owner chosen an accent colour of their own?
+    ///
+    /// The HIG is explicit: "If people set their accent color setting to a value
+    /// other than multicolor, the system applies their chosen color to the
+    /// relevant items throughout your app, replacing your accent color." An app
+    /// bundled with an asset catalog gets that for free; this one is assembled
+    /// by hand, so the question is asked here and the tint is only applied when
+    /// the answer is no.
+    ///
+    /// `AppleAccentColor` is absent for multicolour and 0–7 for a choice, which
+    /// is why this reads the object rather than an integer — `integer(forKey:)`
+    /// returns 0 for absent, and 0 is red.
+    static var systemAccentIsChosen: Bool {
+        UserDefaults.standard.object(forKey: "AppleAccentColor") != nil
+    }
+
+    /// The tint to apply to the whole app, or nil to leave the system's alone.
+    static var appTint: Color? { systemAccentIsChosen ? nil : cyan }
+}
+
+extension NSColor {
+    /// `0xRRGGBB`, in sRGB. The palette above is written as hex because that is
+    /// how both CSS files it was taken from are written, and a number that can
+    /// be compared to its source by eye is one fewer place to introduce a
+    /// difference.
+    convenience init(hex: Int) {
+        self.init(srgbRed: CGFloat((hex >> 16) & 0xFF) / 255,
+                  green: CGFloat((hex >> 8) & 0xFF) / 255,
+                  blue: CGFloat(hex & 0xFF) / 255,
+                  alpha: 1)
+    }
+}

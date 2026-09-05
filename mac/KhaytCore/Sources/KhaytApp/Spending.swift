@@ -113,13 +113,13 @@ struct Expenses: View {
                                         Text(Money.text(row.spent, shop.currency) + " / "
                                              + Money.text(row.budget, shop.currency))
                                             .monospacedDigit()
-                                            .foregroundStyle(row.over ? AnyShapeStyle(.orange) : AnyShapeStyle(.secondary))
+                                            .foregroundStyle(row.over ? AnyShapeStyle(Khayt.attention) : AnyShapeStyle(.secondary))
                                     }
                                     ProgressView(value: row.pct, total: 100)
-                                        .tint(row.over ? .orange : .accentColor)
+                                        .tint(row.over ? Khayt.attention : .accentColor)
                                     if row.over {
                                         Text(shop.words.callIt("exp.over_budget"))
-                                            .font(.caption).foregroundStyle(.orange)
+                                            .font(.caption).foregroundStyle(Khayt.attention)
                                     }
                                 }
                                 .font(.callout)
@@ -302,7 +302,7 @@ struct SpendBanner: View {
 
     var body: some View {
         if let problem = shop.spendProblem {
-            Banner(text: problem, symbol: "exclamationmark.triangle", tint: .orange) {
+            Banner(text: problem, symbol: "exclamationmark.triangle", tint: Khayt.attention) {
                 shop.spendProblem = nil
             }
         } else if let note = shop.spendNote {

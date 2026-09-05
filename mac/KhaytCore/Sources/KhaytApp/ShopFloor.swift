@@ -115,14 +115,14 @@ private struct Card: View {
                                 .monospacedDigit()
                             Spacer()
                             if wear.over {
-                                Text(shop.words.callIt("mac.nozzle_due")).foregroundStyle(.orange)
+                                Text(shop.words.callIt("mac.nozzle_due")).foregroundStyle(Khayt.attention)
                             } else {
                                 Text("\(Int(wear.pct))%").monospacedDigit().foregroundStyle(.secondary)
                             }
                         }
                         .font(.caption)
                     }
-                    .tint(wear.over ? .orange : .accentColor)
+                    .tint(wear.over ? Khayt.attention : .accentColor)
                     if let installed = nozzle.installedAt, let day = Order.day(installed) {
                         DetailLine(shop.words.callIt("mac.installed"),
                                    day.formatted(date: .abbreviated, time: .omitted), dim: true)
@@ -275,7 +275,7 @@ private struct Live: View {
                 // In the vocabulary of the person who has to fix it, not the
                 // socket's. `explainPrinterHttp` exists for the same reason.
                 Text(problem)
-                    .font(.caption).foregroundStyle(.orange)
+                    .font(.caption).foregroundStyle(Khayt.attention)
                     .fixedSize(horizontal: false, vertical: true)
             }
         } else {

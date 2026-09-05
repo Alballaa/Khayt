@@ -141,10 +141,12 @@ private struct Provenance: View {
             return (shop.words.callIt("mac.sync_done", ["time": .string(Self.clock(when))]),
                     "checkmark.icloud", AnyShapeStyle(.tertiary))
         case .failing:
-            // Orange, not red: it is going to be tried again, and nothing has
-            // been lost — the change is still in the book.
+            // `attention`, not `late`: it is going to be tried again and
+            // nothing has been lost — the change is still in the book. Those
+            // two colours are the difference between "this needs you when you
+            // have a moment" and "this has failed".
             return (shop.words.callIt("mac.sync_retrying"), "exclamationmark.icloud",
-                    AnyShapeStyle(.orange))
+                    AnyShapeStyle(Khayt.attention))
         }
     }
 
@@ -193,13 +195,13 @@ private struct Provenance: View {
                 Label(shop.words.callIt("mac.unreadable_records",
                                         ["n": .number(Double(shop.skipped.count))]),
                       systemImage: "exclamationmark.triangle")
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(Khayt.attention)
                     .lineLimit(1)
                     .help(shop.skipped.prefix(8).joined(separator: "\n"))
             }
             if let backupProblem = shop.backupProblem {
                 Label(shop.words.callIt("mac.backup_failed"), systemImage: "exclamationmark.triangle")
-                    .foregroundStyle(.orange).font(.caption).lineLimit(1)
+                    .foregroundStyle(Khayt.attention).font(.caption).lineLimit(1)
                     .help(backupProblem)
             } else if let day = shop.lastBackup {
                 // Quiet, and always there. A shop should be able to answer
@@ -224,14 +226,14 @@ private struct Provenance: View {
             // says it has been read.
             if shop.lastCrash != nil {
                 Label(shop.words.callIt("mac.last_crash"), systemImage: "exclamationmark.bubble")
-                    .foregroundStyle(.orange).font(.caption).lineLimit(1)
+                    .foregroundStyle(Khayt.attention).font(.caption).lineLimit(1)
                     .help(shop.lastCrash ?? "")
                     .onTapGesture { shop.forgetLastCrash() }
             }
             if let engineProblem = shop.engineProblem {
                 // Above everything, in the one place that is on every screen.
                 Label(shop.words.callIt("mac.engine_failed"), systemImage: "exclamationmark.octagon")
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(Khayt.attention)
                     .font(.caption)
                     .lineLimit(1)
                     .help(engineProblem)

@@ -158,7 +158,7 @@ private struct Cell: View {
                     if file.isFavourite {
                         Image(systemName: "star.fill")
                             .font(.system(size: 11))
-                            .foregroundStyle(.yellow)
+                            .foregroundStyle(Khayt.marked)
                             .shadow(radius: 2)
                             .padding(6)
                             .help(words.callIt("mac.is_favourite"))

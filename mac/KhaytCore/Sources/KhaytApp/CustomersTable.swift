@@ -17,7 +17,7 @@ struct CustomersTable: View {
                 HStack(spacing: 6) {
                     if person.overdueCount > 0 {
                         Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(Khayt.attention)
                             .help(shop.words.callIt("mac.overdue_jobs",
                                             ["n": .number(Double(person.overdueCount))]))
                     }
@@ -44,7 +44,7 @@ struct CustomersTable: View {
                         .frame(maxWidth: .infinity, alignment: .trailing)
                 } else {
                     Text(Money.figure(person.owed))
-                        .foregroundStyle(person.overdueCount > 0 ? AnyShapeStyle(.orange)
+                        .foregroundStyle(person.overdueCount > 0 ? AnyShapeStyle(Khayt.attention)
                                                                  : AnyShapeStyle(.primary))
                         .moneyStyle()
                 }

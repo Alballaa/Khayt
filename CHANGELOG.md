@@ -494,6 +494,16 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   subtly wrong: local stock before another branch, a chosen spool that has
   already run out, and a re-opened job never being charged twice.
 
+- **The Mac app wears Khayt's own colours.** It was using whatever colours
+  SwiftUI ships with, which meant the same orange marked a printer alert, a sync
+  retrying and a warning that an edit had been overwritten — three different
+  things, one colour — and a "done" green that did not match the one in Khayt.
+  The app now uses the cyan from its own icon, keeps amber for the one thing the
+  icon reserves it for (something being printed right now), and takes its
+  green, amber and red straight from Khayt's own theme so a colour means the
+  same in both apps. All of them are checked for legibility in light and dark.
+  If you have picked an accent colour in System Settings, yours still wins.
+
 - **And you can set your slicers up from the Mac app.** A new Settings pane
   lists them, marks the one models open in, and can find the ones already
   installed on the Mac so nobody has to type a path like
