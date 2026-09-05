@@ -229,6 +229,17 @@ public actor KhaytEngine {
         // which files are allowed to do that — the renderer learned the hard
         // way that a salvaging normaliser says yes to a package.json.
         "store-validate",
+        // The shop's slicers, and which programs may be launched as one.
+        //
+        // The allowlist matters more than the list. A slicer path and its
+        // argument template both live in `settings.slicers[]`, which arrives in
+        // a restored backup and through cloud sync — so an entry somebody else
+        // wrote decides what this app executes. `isAllowedSlicerBinary` is the
+        // rule that says no, and it is shared rather than rewritten here for
+        // exactly the reason a second, more forgiving copy in Swift is the way
+        // two apps come to disagree about what they are willing to run. The
+        // Electron app spent months not calling it at all.
+        "slicers",
         // When this shop could have a new order printed, finished and posted —
         // and the snapshot a storefront quotes that from.
         //
@@ -399,6 +410,44 @@ public actor KhaytEngine {
     /// machine actually carries. It looked right on screen. Checked against the
     /// source, not inferred from the name, after `KhaytKpi.computeKpis` had
     /// already cost this app a screenful of zeros the same way.
+    // MARK: - The shop's slicers
+
+    /// One slicer as the shop has it configured.
+    public struct Slicer: Decodable, Sendable, Equatable, Identifiable {
+        public let id: String
+        public let name: String
+        public let path: String
+        public let args: String
+    }
+
+    /// Every slicer this shop has set up, in `lib/slicers.js`'s reading of the
+    /// settings — including the legacy single `settings.slicer`, which shops
+    /// that predate the list still carry.
+    public func slicers(settings: [String: JSONValue]) throws -> [Slicer] {
+        try runtime.call2("KhaytSlicers.listSlicers(ARG0)", [.object(settings)], as: [Slicer].self)
+    }
+
+    /// The one to reach for when nobody has said which: `defaultSlicerId`, or
+    /// the first configured.
+    public func defaultSlicer(settings: [String: JSONValue]) throws -> Slicer? {
+        try runtime.call2("(KhaytSlicers.defaultSlicer(ARG0) || null)",
+                          [.object(settings)], as: Slicer?.self)
+    }
+
+    /// MAY THIS PROGRAM BE LAUNCHED AS A SLICER?
+    ///
+    /// Asked of every path before it is run, never assumed from the fact that
+    /// it is in the settings. The path arrives in a restored backup or a cloud
+    /// sync, so it is somebody else's input; the argument template beside it is
+    /// too. Positive allowlist — the name has to look like a slicer — because a
+    /// denylist of interpreters cannot be complete: `awk`, `find`, `xargs`,
+    /// `make`, `git` and `busybox` each run an arbitrary command from their own
+    /// arguments and not one of them is a shell.
+    public func mayLaunchAsSlicer(path: String) throws -> Bool {
+        try runtime.call2("KhaytSlicers.isAllowedSlicerBinary(ARG0)",
+                          [.string(path)], as: Bool.self)
+    }
+
     // MARK: - What the shop can promise
 
     /// The snapshot a storefront quotes this shop's delivery dates from — or

@@ -727,6 +727,33 @@ newer copy of is no longer Electron's alone — `lib/cloud-inbox.js` is the same
 fold, and `Check the cloud` brings a chain down. And the **delivery promise** a
 storefront quotes from is published from here now; see below.
 
+### Opening a model in the shop's slicer
+
+The library's *Open* handed the file to `NSWorkspace`, which gives it to
+whatever macOS has registered for the extension — for a `.3mf` as likely a
+viewer as the thing the shop prints from. This shop has four slicers installed
+and has already told Khayt which it means, so the menu now offers that one by
+name, with the rest behind *Open in*.
+
+`lib/slicers.js` is bundled: the list, the default, and `isAllowedSlicerBinary`.
+
+**The path is not trusted, even though it is in the settings.**
+`settings.slicers[]` arrives in a restored backup and through cloud sync, so the
+executable named there was chosen by whoever wrote that book, and the `args`
+template beside it too. The allowlist — the program's name has to look like a
+slicer — is *asked* before every launch rather than assumed from the entry
+existing. That distinction is not academic: the Electron app carried the same
+rule for months and called it from nowhere, using a denylist of interpreter
+names instead, so `awk`, `find`, `xargs`, `make`, `git` and `busybox` were all
+accepted as slicers. Fixed in the same change.
+
+**It launches the bundle, not the binary.** The stored path points inside the
+`.app` because that is what a slicer wants on a command line; running it that
+way gives a second, dockless copy of an app the shop may already have open.
+`appBundle(containing:)` walks up to the **outermost** `.app` — the first one
+found going up is a helper the slicer ships inside itself, and launching an
+updater instead of the slicer would have reported success.
+
 ### Syncing without being asked
 
 Khayt pushes to the cloud at the end of every save — `renderer/app-state.js`

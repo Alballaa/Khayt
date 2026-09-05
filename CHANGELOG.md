@@ -494,6 +494,13 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   subtly wrong: local stock before another branch, a chosen spool that has
   already run out, and a re-opened job never being charged twice.
 
+- **The Mac app opens a model in your slicer, by name.** The library's *Open*
+  handed the file to macOS, which gives a `.3mf` to whatever is registered for
+  it — often a viewer rather than the slicer you print from. The menu now offers
+  your default slicer by name, with the others behind *Open in*, read from the
+  same settings Khayt uses. It opens the app you already have running rather
+  than starting a second copy of it.
+
 ### Fixed
 
 - **A slicer path from a restored backup or a cloud sync can no longer run

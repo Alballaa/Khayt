@@ -606,6 +606,19 @@ final class Words {
         // after; the sentence that explains any of this lives in
         // `mac.sync_auto_why`, which is a tooltip and can be as long as it
         // needs to be.
+        // Opening a model in the shop's own slicer, and the two ways it does not.
+        "mac.open_in":       ["en": "Open in {name}", "ar": "افتح في {name}"],
+        "mac.open_in_other": ["en": "Open in", "ar": "افتح في"],
+        // A refusal, not a failure — and said as one. The path came from the
+        // shop's settings, which travel in a backup and through the cloud.
+        "mac.slicer_not_allowed": ["en": "Khayt will not launch \u{201C}{name}\u{201D}: that program "
+                                 + "does not look like a slicer, and the path came from your settings, "
+                                 + "which travel in backups and through the cloud.",
+                                   "ar": "لن يشغّل خيط \u{201C}{name}\u{201D}: هذا البرنامج لا يبدو "
+                                 + "شرائحيًا، والمسار جاء من إعداداتك التي تنتقل في النسخ الاحتياطية "
+                                 + "وعبر السحابة."],
+        "mac.slicer_missing": ["en": "{name} is not where your settings say it is.",
+                               "ar": "{name} ليس في المكان الذي تشير إليه إعداداتك."],
         "mac.sync_off":      ["en": "Cloud off", "ar": "السحابة متوقفة"],
         "mac.sync_locked":   ["en": "Cloud locked", "ar": "السحابة مقفلة"],
         "mac.sync_on":       ["en": "Syncing automatically", "ar": "تُزامَن تلقائيًا"],
