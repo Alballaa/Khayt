@@ -186,6 +186,23 @@ one error this app must not allow.
 A store that is not on this Mac is not offered: a menu item that leads nowhere
 is a dead end dressed up as a choice.
 
+### The one warm thing, and the one moving thing
+
+Amber means exactly one state: a printer is laying down plastic right now. The
+icon's drop of filament is that moment, and it is the only warm colour in the
+mark. So it is the progress bar and the percentage on *Right now*, and the
+Printing tile — and the tile is amber **only when the count is not zero**,
+because a warm colour sitting on a zero says the opposite of what it means and a
+dashboard where the warm colour is always on is one where it stops being seen.
+
+There is exactly one piece of motion in the app: the printer symbol on that tile
+cycles while something is printing. The HIG asks for motion that is purposeful
+and brief and warns against adding it to anything frequent — a machine laying
+down plastic is neither frequent nor decorative, and a shop glancing across the
+room can tell from here that it is still going. It is off entirely under Reduce
+Motion, and nothing is said by the movement alone: the symbol still turns amber
+and the number still counts.
+
 ### Six months of takings
 
 The dashboard was eight tiles and then two thirds of a window of nothing. Tiles
