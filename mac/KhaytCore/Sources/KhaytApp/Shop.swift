@@ -1941,8 +1941,14 @@ final class Shop {
         cloudPulled = report
         await load(source)
 
+        // MASKED, and this is the last thing before it is sealed. The desktop's
+        // renderer is handed a store whose secrets are already masks; this app
+        // reads the book from disk and holds the real ones, so it has to take
+        // them out itself or the shop's API key, sync token and S3 secret go up
+        // with everything else.
+        let forCloud = try await engine.storeForCloud(book)
         return try await CloudWriter.sendWholeStore(
-            connection, token: token, store: book, dek: dek, baseRev: baseRev,
+            connection, token: token, store: forCloud, dek: dek, baseRev: baseRev,
             mergedFrom: report) { request in
             try await session.data(for: request)
         }

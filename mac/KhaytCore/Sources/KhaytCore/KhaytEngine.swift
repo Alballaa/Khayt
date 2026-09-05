@@ -1337,6 +1337,16 @@ public actor KhaytEngine {
     /// `changesSincePush`, which measures against a cursor this app never
     /// wrote and would happily send a stale record over a newer one. See the
     /// module's own note.
+    /// The whole store, with every credential masked, as the cloud may hold it.
+    ///
+    /// Not a courtesy: a host that reads the store from DISK holds the real
+    /// `__enc__` secrets, where the desktop's renderer is handed masks and has
+    /// always pushed masks. See `forCloud` in `lib/cloud-outbox.js`.
+    public func storeForCloud(_ store: [String: JSONValue]) throws -> [String: JSONValue] {
+        try runtime.call2("KhaytCloudOutbox.forCloud(ARG0)", [.object(store)],
+                          as: [String: JSONValue].self)
+    }
+
     public func changesToSend(local: [String: JSONValue],
                               server: [String: JSONValue]) throws -> Outbox {
         try runtime.call2("KhaytCloudOutbox.changesToSend(ARG0, ARG1)",

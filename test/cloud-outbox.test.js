@@ -15,7 +15,8 @@
  */
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { changesToSend } = require('../lib/cloud-outbox.js');
+require('../lib/store-secret-paths.js');
+const { changesToSend, forCloud } = require('../lib/cloud-outbox.js');
 const sync = require('../lib/sync.js');
 
 const clone = (o) => JSON.parse(JSON.stringify(o));
@@ -229,4 +230,72 @@ test('the payload folds the cloud into agreement without losing its newer record
   const again = changesToSend(local, folded);
   assert.deepEqual(again.deltas, []);
   assert.deepEqual(again.tombstones, []);
+});
+
+/* ── What may go up ──────────────────────────────────────────────────────────
+   The cloud never receives a shop's credentials. On the desktop that is true
+   by layering — `maskStoreSecretsForRenderer` replaces every secret before the
+   renderer sees the store, so the snapshot it pushes has always carried masks.
+   A host that reads the store from DISK holds the real `__enc__` values, and
+   would put the shop's API key, sync token and S3 secret in the blob. */
+
+const { SECRET_PATHS } = require('../lib/store-secret-paths.js');
+
+test('every credential is masked before a whole store goes up', () => {
+  const store = {
+    settings: {
+      ai: { apiKey: '__enc__AAA' },
+      cloud: { token: '__enc__BBB', url: 'https://cloud.example' },
+      printLibrary: { s3: { secretAccessKey: '__enc__CCC' } },
+    },
+    printLog: [{ id: 'o1', rev: 1 }],
+  };
+  const out = forCloud(store);
+  assert.equal(out.settings.ai.apiKey, '__KHAYT_MASKED__');
+  assert.equal(out.settings.cloud.token, '__KHAYT_MASKED__');
+  assert.equal(out.settings.printLibrary.s3.secretAccessKey, '__KHAYT_MASKED__');
+  // Not everything — an address is not a secret.
+  assert.equal(out.settings.cloud.url, 'https://cloud.example');
+  assert.deepEqual(out.printLog, [{ id: 'o1', rev: 1 }]);
+});
+
+test('the caller\'s own store is not touched', () => {
+  // It is the book on disk. Masking it in place would blank the shop's own
+  // credentials the next time anything wrote it back.
+  const store = { settings: { ai: { apiKey: '__enc__AAA' } } };
+  forCloud(store);
+  assert.equal(store.settings.ai.apiKey, '__enc__AAA');
+});
+
+test('no path in the secret list survives a round through forCloud', () => {
+  // Driven from the list itself, so a credential added there cannot be
+  // forgotten here.
+  assert.ok(SECRET_PATHS.length > 10, `only ${SECRET_PATHS.length} secret paths`);
+  const store = {};
+  const put = (path) => {
+    let node = store;
+    const parts = String(path).split('.');
+    for (const part of parts.slice(0, -1)) {
+      if (part === '[]') return null;              // array paths need a shape
+      node = node[part] = node[part] || {};
+    }
+    node[parts[parts.length - 1]] = '__enc__SECRET';
+    return node;
+  };
+  const simple = SECRET_PATHS.filter((p) => !String(p).includes('[]'));
+  for (const path of simple) put(path);
+  const out = forCloud(store);
+  const readable = JSON.stringify(out);
+  assert.ok(!readable.includes('__enc__SECRET'),
+    'a secret survived: ' + readable.slice(0, 200));
+});
+
+test('a send refuses outright when the secret list is missing', () => {
+  // Failing closed. Sending with an unmasked store would be worse than not
+  // sending at all.
+  const saved = globalThis.KhaytStoreSecretPaths;
+  try {
+    globalThis.KhaytStoreSecretPaths = undefined;
+    assert.throws(() => forCloud({}), /secret list is not loaded, refusing to send/);
+  } finally { globalThis.KhaytStoreSecretPaths = saved; }
 });
