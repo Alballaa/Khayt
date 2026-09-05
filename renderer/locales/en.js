@@ -807,6 +807,7 @@
   "doc.delivery_note": "Delivery Note",
   "doc.no": "No.",
   "doc.time": "Time",
+  "doc.project": "Project",
   "doc.client_ref": "Client Ref.",
   "doc.amount": "Amount",
   "doc.subtotal": "Subtotal",

@@ -808,6 +808,7 @@
   "doc.delivery_note": "Nota de entrega",
   "doc.no": "N.º",
   "doc.time": "Hora",
+  "doc.project": "Projeto",
   "doc.client_ref": "Ref. do cliente",
   "doc.amount": "Valor",
   "doc.subtotal": "Subtotal",

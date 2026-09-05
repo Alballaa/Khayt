@@ -807,6 +807,7 @@
   "doc.delivery_note": "納品書",
   "doc.no": "番号",
   "doc.time": "時刻",
+  "doc.project": "プロジェクト",
   "doc.client_ref": "顧客参照番号",
   "doc.amount": "金額",
   "doc.subtotal": "小計",

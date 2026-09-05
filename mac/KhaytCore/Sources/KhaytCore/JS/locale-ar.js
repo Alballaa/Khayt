@@ -931,6 +931,7 @@
   "doc.delivery_note": "إشعار تسليم",
   "doc.no": "رقم",
   "doc.time": "الوقت",
+  "doc.project": "المشروع",
   "doc.client_ref": "مرجع العميل",
   "doc.amount": "الإجمالي",
   "doc.subtotal": "الإجمالي الفرعي",

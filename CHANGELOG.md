@@ -6,6 +6,15 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Changed
 
+- **An invoice is addressed to the customer now, not to the job.** BILLED TO
+  read `project` — the field the order editor calls "Description" and the print
+  log calls "Project / Client" — so a job linked to a customer printed the
+  job's name with that customer's own phone and email underneath it, on a tax
+  document. It is now their name, read in the language the shop writes in, and
+  the job moves to a *Project* line beside the invoice number so nothing is
+  lost. A job with no customer prints exactly as it always did: nine of the ten
+  invoice fixtures did not move by a byte.
+
 - **Forty-five things the Mac app said only in English now speak Arabic too.**
   "No jobs yet", "Reveal in Finder", "Marked urgent", the whole grouping menu,
   every empty screen and every tooltip — all of them reached a shop running

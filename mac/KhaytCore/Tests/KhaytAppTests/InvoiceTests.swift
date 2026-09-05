@@ -73,6 +73,16 @@ struct InvoiceTests {
             timestamp: "2026-07-02T14:32:00.000Z")
     }
 
+    /// Just the bill-to block. `contains` over the whole page cannot tell the
+    /// difference between a name in the right place and the same characters
+    /// somewhere else entirely — which is exactly the mistake this test made.
+    static func billToBlock(_ html: String) -> String {
+        guard let start = html.range(of: "<div class=\"bill-to\">") else { return "" }
+        let rest = html[start.upperBound...]
+        guard let end = rest.range(of: "<table class=\"lines\">") else { return String(rest) }
+        return String(rest[..<end.lowerBound])
+    }
+
     static func build(_ paper: Invoice.Ingredients) async throws -> InvoiceDocument {
         let engine = try KhaytEngine()
         let words = Words()
@@ -91,8 +101,18 @@ struct InvoiceTests {
         // app's sheet header and its saved filename have to say the same thing
         // the paper says, and they used to say the other one.
         #expect(doc.html.contains("J1"), "its own number, as the shared document states it")
-        #expect(doc.html.contains("Turbine bracket"), "what was made, billed to")
+        #expect(doc.html.contains("Turbine bracket"), "what was made")
         #expect(doc.html.contains("PETG-CF"), "and what it was made of")
+
+        // WHO IT IS ADDRESSED TO, checked inside the bill-to block rather than
+        // anywhere on the page. This assertion used to read
+        // `contains("Turbine bracket"), "what was made, billed to"` — and it
+        // was right about the document and wrong about the document being
+        // right: `order.project` is the JOB, and it was printed over this
+        // customer's own phone number.
+        let billTo = Self.billToBlock(doc.html)
+        #expect(billTo.contains("Acme Metalworks"), "the customer, not the job")
+        #expect(!billTo.contains("Turbine bracket"), "and the job is not standing in for them")
 
         // The customer's contact line. The Mac app printed a blank here until
         // the rule moved into the document itself — every host that built its
@@ -106,6 +126,28 @@ struct InvoiceTests {
         #expect(doc.html.contains("75.00"), "and the tax inside it")
         #expect(doc.html.contains("Total due"), "said in words, not only in figures")
         #expect(doc.html.contains("VAT (15%)"), "at the rate that was applied")
+    }
+
+    /// The Mac builds its own context for the shared document, so a field it
+    /// forgets to pass is a field the paper simply does not have. It printed
+    /// six invoices with a blank contact line that way. `clients` is the one
+    /// that decides who the invoice is addressed to.
+    @Test("the customer reaches the paper through this app's own context")
+    func theCustomerIsPassed() async throws {
+        var paper = Self.paper()
+        // The same job with nobody to bill it to: the dual-purpose field takes
+        // over, exactly as it always has, and the Project row is not printed
+        // twice.
+        paper.clients = []
+        let orphan = try await Self.build(paper)
+        #expect(Self.billToBlock(orphan.html).contains("Turbine bracket"))
+        #expect(!orphan.html.contains(">Project<"), "not said twice")
+
+        // And with the customer there, the job moves to its own line rather
+        // than being dropped off the document.
+        let addressed = try await Self.build(Self.paper())
+        #expect(addressed.html.contains("Turbine bracket"), "still says what was made")
+        #expect(Self.billToBlock(addressed.html).contains("Acme Metalworks"))
     }
 
     @Test("a registered shop gets a QR, drawn as an image the document carries")

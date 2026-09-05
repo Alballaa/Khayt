@@ -168,13 +168,39 @@ function invoiceHtml(order, ctx) {
     ? `<span class="sub ${isAr ? 'ltr' : 'ar'}">${escapeHtml(i18n.tIn(docLang.secondary, key))}</span>`
     : '');
 
-  // Bill-to: real client name, OR generic walk-in label
+  /* Bill-to: the CUSTOMER, and this used to be the job.
+   *
+   * The comment here said "real client name" and the code read `order.project`,
+   * which is the free-text field the order editor labels "Description" and the
+   * print log labels "Project / Client". So a job linked to a customer printed
+   * BILLED TO: Turbine bracket, with that customer's phone and email underneath
+   * — their contact details under somebody else's name, on a tax document.
+   *
+   * The fallback chain keeps every invoice that was already right, right:
+   *
+   *   1. the linked client's name, read through the content-language rule, so a
+   *      shop writing Arabic bills in Arabic rather than in the stale English
+   *      left over from setup. Same rule as `localName` in the renderer.
+   *   2. `order.project`, which is what a shop that types its customer's name
+   *      into that dual-purpose field has always relied on, and is unchanged
+   *      for every order with no `clientId` at all.
+   *   3. the walk-in label.
+   *
+   * Nine of the ten invoice fixtures did not move by a single byte.
+   */
   const linkedClient = order.clientId ? clients.find(c => c.id === order.clientId) : null;
-  const hasName = (order.project || '').trim().length > 0;
-  const billToName = hasName ? order.project : t('inv.walk_in');
-  const billToSub  = hasName
-    ? (linkedClient ? renderClientSub(linkedClient) : '')
-    : `<div class="name-sub">${t("doc.no_specific_client")}</div>`;
+  const clientName = (linkedClient && typeof KhaytContentLanguages !== 'undefined')
+    ? (KhaytContentLanguages.read(linkedClient, 'name', i18n.current, settings) || '').trim()
+    : ((linkedClient && linkedClient.name) || '').trim();
+  const project = (order.project || '').trim();
+  const billToName = clientName || project || t('inv.walk_in');
+  const billToSub  = billToName === t('inv.walk_in')
+    ? `<div class="name-sub">${t("doc.no_specific_client")}</div>`
+    : (linkedClient ? renderClientSub(linkedClient) : '');
+  // The job's own name, when the bill-to is now the customer rather than it.
+  // Dropping it would take the one line saying WHAT was made off a document
+  // whose line items are individual parts.
+  const projectRef = (clientName && project && project !== clientName) ? project : '';
 
   // Lines
   const orderExtraLines = order.extraLines || [];
@@ -350,6 +376,10 @@ function invoiceHtml(order, ctx) {
             <div class="meta-row">
               <span class="k">${escapeHtml(L.time[0])}</span>
               <span class="v">${escapeHtml(num(issuedTime))}</span>
+            </div>` : ''}${projectRef ? `
+            <div class="meta-row">
+              <span class="k">${escapeHtml(t("doc.project"))}</span>
+              <span class="v">${escapeHtml(projectRef)}</span>
             </div>` : ''}
             ${order.clientRef ? `
             <div class="meta-row">

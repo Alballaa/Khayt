@@ -807,6 +807,7 @@
   "doc.delivery_note": "Lieferschein",
   "doc.no": "Nr.",
   "doc.time": "Uhrzeit",
+  "doc.project": "Projekt",
   "doc.client_ref": "Kundenreferenz",
   "doc.amount": "Betrag",
   "doc.subtotal": "Zwischensumme",
