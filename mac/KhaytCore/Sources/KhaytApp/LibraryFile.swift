@@ -203,10 +203,5 @@ extension LibraryFile {
 extension LibraryFile.Colour {
     /// The swatch colour. An unparseable or absent hex shows as nothing rather
     /// than as black, which would read as a real filament choice.
-    var rgb: (r: Double, g: Double, b: Double)? {
-        guard var s = hex?.trimmingCharacters(in: .whitespaces), !s.isEmpty else { return nil }
-        if s.hasPrefix("#") { s.removeFirst() }
-        guard s.count == 6, let v = Int(s, radix: 16) else { return nil }
-        return (Double((v >> 16) & 0xFF) / 255, Double((v >> 8) & 0xFF) / 255, Double(v & 0xFF) / 255)
-    }
+    var rgb: (r: Double, g: Double, b: Double)? { Swatch.rgb(fromHex: hex) }
 }
