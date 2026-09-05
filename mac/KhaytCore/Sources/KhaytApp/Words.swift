@@ -130,6 +130,16 @@ final class Words {
         return key
     }
 
+    /// One of a thing, or several.
+    ///
+    /// Two keys rather than an "(s)": Khayt writes `{n} order(s)` in English
+    /// and `{n} طلب` in Arabic, which works because that string is one
+    /// sentence. These are a COUNT and a NOUN assembled by the window, and
+    /// "1 machines" is what assembling them without asking gives you.
+    func counting(_ n: Int, _ key: String) -> String {
+        "\(n) " + callIt(n == 1 ? key + "_one" : key)
+    }
+
     /// The same, with the placeholders filled.
     ///
     /// Khayt's strings carry `{name}` placeholders and `renderer/i18n.js`
@@ -359,8 +369,8 @@ final class Words {
         "mac.paid":          ["en": "Paid",           "ar": "مدفوع"],
         "mac.overdue_jobs":  ["en": "{n} unpaid jobs past their due date",
                               "ar": "{n} أعمال غير مدفوعة تجاوزت موعدها"],
-        "mac.job_count":     ["en": "{n} jobs",        "ar": "{n} أعمال"],
-        "mac.job_count_one": ["en": "1 job",           "ar": "عمل واحد"],
+        "mac.jobs_word":     ["en": "jobs",           "ar": "أعمال"],
+        "mac.jobs_word_one": ["en": "job",            "ar": "عمل"],
         // The library's grouping menu.
         "mac.pick_a_model":  ["en": "Select a model first", "ar": "اختر نموذجًا أولًا"],
         "mac.new_group":     ["en": "New Group\u{2026}", "ar": "مجموعة جديدة\u{2026}"],
@@ -482,11 +492,17 @@ final class Words {
         "mac.no_customer_hint": ["en": "Pick a row to see their jobs and their balance.", "ar": "اختر صفاً لعرض أعماله ورصيده."],
         "mac.models_count": ["en": "models", "ar": "مجسمات"],
         "mac.customers_count": ["en": "customers", "ar": "عملاء"],
+        // One of a thing. English needs the singular and Arabic reads better
+        // with it, and the window said "1 machines" until it had one.
+        "mac.models_count_one": ["en": "model", "ar": "مجسم"],
+        "mac.customers_count_one": ["en": "customer", "ar": "عميل"],
         // Counting words, not the sidebar's labels. Reusing those gave the
         // window "6 Filament" and "3 Machines" — a nav label has a capital and
         // is a heading, and neither is a thing you can put a number in front of.
         "mac.spools_count":  ["en": "spools",   "ar": "بكرات"],
         "mac.machines_count": ["en": "machines", "ar": "طابعات"],
+        "mac.spools_count_one": ["en": "spool",   "ar": "بكرة"],
+        "mac.machines_count_one": ["en": "machine", "ar": "طابعة"],
         // What the shop spent, and what it wasted
         "mac.search_expenses": ["en": "Note, category or job", "ar": "ملاحظة أو تصنيف أو عمل"],
         "mac.search_waste":  ["en": "Material, reason or failure", "ar": "خامة أو سبب أو نوع العطل"],

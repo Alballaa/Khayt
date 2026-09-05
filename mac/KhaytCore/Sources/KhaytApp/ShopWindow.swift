@@ -169,18 +169,18 @@ struct ShopWindow: View {
             : shop.words.callIt("mac.not_real_shop")
         if shop.showingLibrary {
             let n = shop.shownFiles.count
-            return "\(n) \(shop.words.callIt("mac.models_count")) · \(provenance)"
+            return shop.words.counting(n, "mac.models_count") + " · " + provenance
         }
         if shop.showingCustomers {
             let n = shop.shownCustomers.count
-            return "\(n) \(shop.words.callIt("mac.customers_count")) · \(provenance)"
+            return shop.words.counting(n, "mac.customers_count") + " · " + provenance
         }
         if shop.showingDashboard || shop.showingBoard { return provenance }
         if shop.showingMachines {
-            return "\(shop.machines.count) \(shop.words.callIt("mac.machines_count")) · \(provenance)"
+            return shop.words.counting(shop.machines.count, "mac.machines_count") + " · " + provenance
         }
         if shop.showingInventory {
-            return "\(shop.spools.count) \(shop.words.callIt("mac.spools_count")) · \(provenance)"
+            return shop.words.counting(shop.spools.count, "mac.spools_count") + " · " + provenance
         }
         return provenance
     }
