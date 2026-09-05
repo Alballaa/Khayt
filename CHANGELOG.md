@@ -6,6 +6,13 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Changed
 
+- **Three names in the Mac app's sidebar were cut off mid-word.** Khayt calls
+  them "Expense Tracker", "Failed Prints & Waste Log" and "Profit & Loss by
+  Quarter" — good names for a screen, too long for the column. Under a heading
+  that already says "Money" they are Expenses, Waste and Profit & Loss, and the
+  screens keep their full titles. A test now measures every sidebar name in both
+  languages; Arabic is not the shorter one.
+
 - **If the Mac app's shared rules fail to load, it now says so where the figures
   are.** It said it in one caption at the foot of the sidebar — the one place
   Apple's guidance says not to put critical information, because people move a

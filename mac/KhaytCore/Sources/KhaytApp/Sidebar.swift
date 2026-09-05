@@ -57,14 +57,14 @@ struct Sidebar: View {
             // because both are read at the end of a month rather than during a
             // day's work.
             Section(shop.words.callIt("mac.money")) {
-                Row(title: shop.words.callIt("exp.title"), symbol: "creditcard",
+                Row(title: shop.words.callIt("mac.nav_expenses"), symbol: "creditcard",
                     count: shop.expenses.count, selected: shop.shelf == .expenses)
                     .tag(Shop.Shelf.expenses)
-                Row(title: shop.words.callIt("waste.title"), symbol: "trash",
+                Row(title: shop.words.callIt("mac.nav_waste"), symbol: "trash",
                     count: shop.wasteLog.count, selected: shop.shelf == .waste)
                     .tag(Shop.Shelf.waste)
                 // No count: a quarter is not a thing a shop has a number of.
-                Row(title: shop.words.callIt("an.pnl_title"), symbol: "chart.bar.doc.horizontal",
+                Row(title: shop.words.callIt("mac.nav_reports"), symbol: "chart.bar.doc.horizontal",
                     count: 0, selected: shop.shelf == .reports)
                     .tag(Shop.Shelf.reports)
             }
