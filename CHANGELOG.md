@@ -233,6 +233,18 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **The Mac app could stop unexpectedly after a minute or two.** The sidebar's
+  bottom strip had a line long enough to wrap, and the sidebar is a column you
+  can drag — so the strip's height depended on the column's width, which is a
+  loop AppKit ends by quitting. It only appeared for a book connected to Khayt
+  Cloud, which is why it was never seen here. Every line in that strip is one
+  line now, with the long text moved into its tooltip.
+
+- **The app now says why it stopped.** macOS crash reports for this kind of
+  fault carry a backtrace and no reason at all, which is what made the one above
+  expensive to find. It writes `last-crash.txt` beside your book and tells you,
+  once, the next time it opens.
+
 - **The Mac app's dashboard never warned about a worn nozzle or a dead
   printer.** Both are things the attention engine reports only when it is given
   what it needs, and it was given neither: the nozzle rule wants the wear module
