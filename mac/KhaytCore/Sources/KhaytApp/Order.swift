@@ -117,10 +117,21 @@ struct Order: Identifiable, Decodable, Hashable, Sendable {
         }
     }
 
-    /// What the shop is still owed. Not a Swift opinion about money — the
-    /// arithmetic that decides whether a customer gets chased lives in the
-    /// shared core, and this is only the difference the table sorts on.
-    var owed: Double { max(0, price - paidAmount) }
+    /// What the shop is still owed — `lib/order-money.js`'s answer, resolved
+    /// once per load by `Shop` and stored here so a table can sort on it.
+    ///
+    /// This USED to be the Swift subtraction below, and the comment above it
+    /// claimed money was not a Swift opinion while being exactly that. It is
+    /// short by a credit note and by a gift card: a job priced at 1,000 with a
+    /// 300 credit note read as 1,000 still owed on the Mac and 700 in Khayt,
+    /// in the title bar, the customers table and on the card. Neither book on
+    /// this machine has either field, which is why nothing showed.
+    var owedResolved: Double?
+
+    /// The shared answer when there is one, and a subtraction when there is
+    /// not. A dead engine must not blank the money column — but it is the LAST
+    /// resort, and it is wrong in the two ways above.
+    var owed: Double { owedResolved ?? max(0, price - paidAmount) }
 
     var isSettled: Bool { owed < 0.005 }
 

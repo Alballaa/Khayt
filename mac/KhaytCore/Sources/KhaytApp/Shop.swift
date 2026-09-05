@@ -290,6 +290,13 @@ final class Shop {
             if case .array(let rows)? = root["wasteLog"] { wasteRows = rows } else { wasteRows = [] }
             taxSummary = await describeTax(root["settings"])
             await readSettingsTables(root)
+            // What each job still owes is `order-money`'s answer, not a
+            // subtraction — a credit note and a gift card both pay an order
+            // down, and the title bar, the customers table and the card all
+            // read this number. AFTER the settings tables: the rule resolves an
+            // order's currency against them, and a book whose rows had not been
+            // read yet would price a foreign job against the previous shop's.
+            await resolveOwed(root)
             await computeDashboard(root)
             // Ask the machines what they are doing — but never for the sample
             // shop, whose printers are somebody else's addresses on somebody
@@ -319,6 +326,25 @@ final class Shop {
         facts = try? await engine.dashboardFacts(orders: orderRows, machines: machineRows,
                                                  settings: kpiSettings.isEmpty ? settingsDict : kpiSettings,
                                                  statusCache: printers.statusCache)
+    }
+
+    /// Ask the shared rule what every job still owes, and put it on the rows.
+    ///
+    /// One crossing for the whole book rather than one per row: `orderOwedBase`
+    /// is cheap, the bridge is not, and a table of hundreds of jobs would pay
+    /// for it on every redraw otherwise.
+    private func resolveOwed(_ root: [String: JSONValue]) async {
+        guard let engine else { return }
+        let rows: [JSONValue]
+        if case .array(let jobs)? = root["printLog"] { rows = jobs } else { rows = [] }
+        let clients: [JSONValue]
+        if case .array(let people)? = root["clients"] { clients = people } else { clients = [] }
+        guard let owed = try? await engine.owedByOrder(
+            rows, settings: Self.settings(root), clients: clients,
+            currencies: Invoice.currencyTable(self)) else { return }
+        for i in orders.indices {
+            if let amount = owed[orders[i].id] { orders[i].owedResolved = amount }
+        }
     }
 
     /// One call per load, not one per tile. Building the arguments means
