@@ -90,9 +90,40 @@ codesign --verify --deep --strict "$APP" 2>&1 | sed 's/^/  /' || true
 echo "Built $APP"
 du -sh "$APP" | sed 's/^/  /'
 
+# Installing over a RUNNING app is not safe, and it is quiet about it.
+#
+# `rm -rf` deletes the bundle a running process is still reading from. The
+# executable itself survives — the kernel holds the inode — so the app carries
+# on, and every resource it has not paged in yet is simply gone: the bundled
+# business rules, the locale catalogues, the sample shop, the invoice
+# stylesheet. What that produces is not a clean failure, it is whatever the
+# first missing file happens to break, and it looks exactly like a bug in
+# whatever the shop was doing at the time.
+#
+# It also does not do what the person running it thinks. A running app keeps
+# the build it launched with; replacing the bundle changes what the NEXT launch
+# gets and nothing about the one on screen.
+installed="/Applications/Khayt Native.app"
+install_app() {
+  if pgrep -f "Khayt Native.app/Contents/MacOS/Khayt" >/dev/null 2>&1; then
+    if [ "${2:-}" = "--force" ]; then
+      echo "Khayt Native is running — installing over it anyway, as asked." >&2
+    else
+      echo "Khayt Native is RUNNING. Not installing over it." >&2
+      echo "  Quit it first, then run this again. The running app would keep the" >&2
+      echo "  build it launched with in any case, and replacing the bundle under" >&2
+      echo "  it can break it in ways that look like something else." >&2
+      echo "  ./mac/make-app.sh --install --force  overrides this." >&2
+      exit 1
+    fi
+  fi
+  rm -rf "$installed"
+  cp -R "$APP" "$installed"
+  echo "Installed to $installed"
+  echo "If it was open, quit and reopen it — a running app keeps the build it started with."
+}
+
 case "${1:-}" in
   --open)    open "$APP" ;;
-  --install) rm -rf "/Applications/Khayt Native.app"
-             cp -R "$APP" "/Applications/Khayt Native.app"
-             echo "Installed to /Applications/Khayt Native.app" ;;
+  --install) install_app "$@" ;;
 esac

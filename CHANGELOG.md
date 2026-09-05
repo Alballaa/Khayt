@@ -6,6 +6,15 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Changed
 
+- **Installing the Mac app over a running copy is now refused.** The install
+  step deleted the bundle and copied a new one in its place. A running app keeps
+  the executable it launched with, so this never updated the app on screen — and
+  it removed, from underneath it, every file it had not read yet: the business
+  rules, the locale catalogues, the invoice stylesheet. The failure that follows
+  looks like a bug in whatever the shop was doing at the time. It now stops and
+  says to quit the app first (`--force` overrides), and says after any install
+  that a running app must be reopened.
+
 - **Check the cloud now shows its working.** Beside the cloud revision it says
   how many changes came after the base and how many of them were applied —
   because "19 jobs are newer here" means one thing if the chain was folded and
