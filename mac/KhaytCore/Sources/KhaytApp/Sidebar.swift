@@ -170,7 +170,10 @@ private struct Provenance: View {
             // A shop that has never connected to the cloud is not missing
             // anything, and a line telling it so is a line people stop reading.
             if shop.cloudConnected {
-                Label(shop.words.callIt("mac.not_synced"), systemImage: "icloud.slash")
+                // Not `icloud.slash`: the cloud is not switched off, and a
+                // struck-through cloud beside a book this app can send from
+                // says the opposite of what is true.
+                Label(shop.words.callIt("mac.not_synced"), systemImage: "icloud.and.arrow.up")
                     .foregroundStyle(.tertiary).font(.caption).lineLimit(1)
                     .help(shop.words.callIt("mac.not_synced_why"))
             }
