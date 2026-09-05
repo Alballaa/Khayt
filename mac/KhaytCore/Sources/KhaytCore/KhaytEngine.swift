@@ -345,11 +345,12 @@ public actor KhaytEngine {
     /// cannot cross the JSON bridge — and because these are the same calls the
     /// renderer makes, from the same module.
     public func kpis(orders: [JSONValue], clients: [JSONValue],
-                     settings: [String: JSONValue], range: String) throws -> Kpis {
+                     settings: [String: JSONValue], range: String,
+                     language: String) throws -> Kpis {
         let script = KPI_SCRIPT
         return try runtime.call2(script,
                                  [.array(orders), .array(clients), .object(settings),
-                                  .string(range), .string("\u{2014}")],
+                                  .string(range), .string("\u{2014}"), .string(language)],
                                  as: Kpis.self)
     }
 
@@ -848,9 +849,26 @@ public actor KhaytEngine {
     public func telegramMessage(order: JSONValue, newStatus: String,
                                 settings: [String: JSONValue],
                                 currency: String) throws -> TelegramMessage? {
-        try runtime.call2(
-            "KhaytTelegramMessage.forStatus(ARG0, ARG1, {settings: ARG2,"
-          + " fmtPrice: function (n) { return (+n || 0).toFixed(2) + ' ' + ARG3; }})",
+        // `fmtPrice` is the renderer's, moved here rather than approximated.
+        // This message goes to a CUSTOMER, so "9.69 SAR" from one device and
+        // "$ 9.69" from another is the shop speaking with two voices about the
+        // same job — and a currency whose symbol sits in front was printed
+        // behind by the old one-liner, for every shop not using riyals.
+        try runtime.call2("""
+            KhaytTelegramMessage.forStatus(ARG0, ARG1, {
+              settings: ARG2,
+              fmtPrice: function (n) {
+                var table = (globalThis.KhaytCurrencies || {}).CURRENCIES || {};
+                var cur = table[ARG3] || table.SAR || { symbol: ARG3, pos: 'after' };
+                var num = (Math.round((+n || 0) * 100) / 100).toFixed(2);
+                // U+202F, the narrow no-break space renderer/currency.js uses:
+                // it keeps the symbol against the figure across a line break.
+                return cur.pos === 'before'
+                  ? cur.symbol + '\u{202F}' + num
+                  : num + '\u{202F}' + cur.symbol;
+              }
+            })
+            """,
             [order, .string(newStatus), .object(settings), .string(currency)],
             as: TelegramMessage?.self)
     }
@@ -1237,6 +1255,11 @@ public actor KhaytEngine {
                   name: KhaytContentLanguages.read(p, 'name', lang, settings) || '',
                   description: KhaytContentLanguages.read(p, 'description', lang, settings) || '',
                   base: price.base, final: price.final, source: price.source,
+                  // The module picks the key; this app translates it. Passing a
+                  // translator that returns its own argument is what turns
+                  // `describe` from a sentence into a decision — and the
+                  // decision is the part that must not be made twice.
+                  reason: KhaytProductPrice.describe(price, function (k) { return k; }),
                   margin: p.defaultMargin == null ? null : +p.defaultMargin,
                   printHours: specs.printHours, weightGrams: specs.weightGrams,
                   material: specs.material,
@@ -1256,6 +1279,9 @@ public actor KhaytEngine {
         public let base: Double
         public let final: Double
         public let source: String
+        /// The locale key for why this price and not another, chosen by
+        /// `lib/product-price.js`'s own `describe` — not re-derived here.
+        public let reason: String
         public let margin: Double?
         public let printHours: Double?
         public let weightGrams: Double?
@@ -1263,10 +1289,11 @@ public actor KhaytEngine {
         public let parts: Int
 
         public init(id: String, name: String, description: String, base: Double, final: Double,
-                    source: String, margin: Double?, printHours: Double?, weightGrams: Double?,
-                    material: String, parts: Int) {
+                    source: String, reason: String, margin: Double?, printHours: Double?,
+                    weightGrams: Double?, material: String, parts: Int) {
             self.id = id; self.name = name; self.description = description
             self.base = base; self.final = final; self.source = source
+            self.reason = reason
             self.margin = margin; self.printHours = printHours; self.weightGrams = weightGrams
             self.material = material; self.parts = parts
         }
@@ -1759,7 +1786,27 @@ private let KPI_SCRIPT = """
         outstanding: M.orderOwedBase(o, ctx)
       };
     },
-    clientName: function (o) { return o.client || ""; },
+    // Resolved from `clientId` through the content-language rule, exactly as
+    // `renderer/analytics.js` does it. This used to read `o.client`, a
+    // free-text field a job may carry INSTEAD of a link, which grouped a shop's
+    // customers by whatever was typed and in whichever language it was typed
+    // in.
+    //
+    // Nothing on screen shows it yet: `Kpis` decodes the ten figures and drops
+    // `topClients`, and the shop's real top-customer list comes from
+    // `topLists` below, which rolls up by `clientId` inside the module. This is
+    // corrected rather than left wrong so that surfacing the list later is a
+    // decoding change and not a silent one — the trap is a field that looks
+    // populated and is not.
+    clientName: function (o) {
+      if (!o.clientId) return "";
+      var c = null;
+      for (var i = 0; i < ARG1.length; i++) {
+        if (ARG1[i] && ARG1[i].id === o.clientId) { c = ARG1[i]; break; }
+      }
+      if (!c) return "";
+      return globalThis.KhaytContentLanguages.read(c, 'name', ARG5, ARG2) || "";
+    },
     unassigned: ARG4
   }));
 })()

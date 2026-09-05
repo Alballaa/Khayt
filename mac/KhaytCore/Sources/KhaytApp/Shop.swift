@@ -408,7 +408,8 @@ final class Shop {
     private func recomputeKpis() async {
         guard let engine, !kpiOrders.isEmpty else { kpis = nil; return }
         kpis = try? await engine.kpis(orders: kpiOrders, clients: kpiClients,
-                                      settings: kpiSettings, range: kpiRange)
+                                      settings: kpiSettings, range: kpiRange,
+                                      language: words.language)
     }
 
     enum Failure: Error { case missingSample }

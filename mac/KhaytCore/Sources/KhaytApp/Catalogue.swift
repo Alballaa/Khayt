@@ -83,16 +83,13 @@ struct Catalogue: View {
     }
 
     /// Khayt's own words for where a price came from.
-    static func reason(_ row: KhaytEngine.CatalogueRow) -> String {
-        switch row.source {
-        case "override": return "pe.price_is_override"
-        case "rounded":
-            // `describe` in the module makes exactly this distinction: a
-            // rounded price that did not move IS the calculated one.
-            return abs(row.final - row.base) < 0.005 ? "pe.price_is_base" : "pe.price_is_rounded"
-        default: return "pe.price_is_base"
-        }
-    }
+    ///
+    /// The choice is `lib/product-price.js`'s `describe`, made once and carried
+    /// on the row. It used to be made again here in Swift, correctly — and that
+    /// is the problem with it: a rule written down twice is a rule that can
+    /// disagree with itself later, and the copy that drifts is the one nobody
+    /// is looking at.
+    static func reason(_ row: KhaytEngine.CatalogueRow) -> String { row.reason }
 }
 
 extension KhaytEngine.CatalogueRow {

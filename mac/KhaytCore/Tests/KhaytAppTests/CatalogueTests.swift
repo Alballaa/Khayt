@@ -54,23 +54,50 @@ struct CatalogueTests {
         #expect(price.source == "base")
     }
 
-    @Test("a rounded price that did not move reads as calculated, not rounded")
-    func roundedButUnmoved() {
-        // `describe` in the module makes exactly this distinction, and saying
-        // "rounded" of a figure that is identical is noise on a screen.
-        let unmoved = KhaytEngine.CatalogueRow(
-            id: "P", name: "N", description: "", base: 50, final: 50, source: "rounded",
-            margin: nil, printHours: nil, weightGrams: nil, material: "", parts: 0)
-        #expect(Catalogue.reason(unmoved) == "pe.price_is_base")
+    /// Driven through the real products, not through hand-built rows.
+    ///
+    /// It used to construct a `CatalogueRow` with the fields it wanted and check
+    /// the Swift that read them, which proved only that the test and the Swift
+    /// agreed — and they would have gone on agreeing if `describe` in the module
+    /// had changed its mind. The reason now comes from the module, so the test
+    /// has to come from a product.
+    @Test("why a price is what it is comes from the module, for real products")
+    func priceReason() async throws {
+        let engine = try KhaytEngine()
+        let round = JSONValue.object(["step": .number(5), "mode": .string("up")])
+        let rows = try await engine.catalogue([
+            // Rounded, and it moved: 46.69 → 50.
+            Self.product(["id": .string("moved"), "basePrice": .number(46.69),
+                          "priceRound": round]),
+            // Rounded, and it did not move. Saying "rounded" of an identical
+            // figure is noise, and the module is where that is decided.
+            Self.product(["id": .string("unmoved"), "basePrice": .number(50),
+                          "priceRound": round]),
+            // A typed price beats everything, rounding included.
+            Self.product(["id": .string("typed"), "basePrice": .number(46.69),
+                          "priceOverride": .number(41), "priceRound": round]),
+            // Nothing set at all.
+            Self.product(["id": .string("plain"), "basePrice": .number(46.69)]),
+        ], language: "en", settings: [:])
 
-        let moved = KhaytEngine.CatalogueRow(
-            id: "P", name: "N", description: "", base: 46.69, final: 50, source: "rounded",
-            margin: nil, printHours: nil, weightGrams: nil, material: "", parts: 0)
-        #expect(Catalogue.reason(moved) == "pe.price_is_rounded")
-        #expect(Catalogue.reason(KhaytEngine.CatalogueRow(
-            id: "P", name: "N", description: "", base: 1, final: 2, source: "override",
-            margin: nil, printHours: nil, weightGrams: nil, material: "", parts: 0))
-            == "pe.price_is_override")
+        let reason = Dictionary(uniqueKeysWithValues: rows.map { ($0.id, $0.reason) })
+        #expect(reason["moved"] == "pe.price_is_rounded")
+        #expect(reason["unmoved"] == "pe.price_is_base")
+        #expect(reason["typed"] == "pe.price_is_override")
+        #expect(reason["plain"] == "pe.price_is_base")
+        // And the screen shows what the row carries, rather than deciding again.
+        for row in rows { #expect(Catalogue.reason(row) == row.reason) }
+    }
+
+    /// Every key the module can choose must be a key this app can say. A reason
+    /// that reaches the screen untranslated reads as `pe.price_is_rounded`.
+    @Test("every reason the module returns is a word this app knows")
+    func everyReasonIsTranslated() async throws {
+        let words = Words()
+        await words.load("en", engine: try KhaytEngine())
+        for key in ["pe.price_is_base", "pe.price_is_rounded", "pe.price_is_override"] {
+            #expect(words.callIt(key) != key, "\(key) reaches the screen as its own key")
+        }
     }
 
     // MARK: - What its parts add up to
@@ -134,10 +161,12 @@ struct CatalogueTests {
         // A product with no margin set is not the cheapest.
         let none = KhaytEngine.CatalogueRow(
             id: "A", name: "A", description: "", base: 0, final: 0, source: "base",
-            margin: nil, printHours: nil, weightGrams: nil, material: "", parts: 0)
+            reason: "pe.price_is_base", margin: nil, printHours: nil, weightGrams: nil,
+            material: "", parts: 0)
         let zero = KhaytEngine.CatalogueRow(
             id: "B", name: "B", description: "", base: 0, final: 0, source: "base",
-            margin: 0, printHours: nil, weightGrams: 0, material: "", parts: 0)
+            reason: "pe.price_is_base", margin: 0, printHours: nil, weightGrams: 0,
+            material: "", parts: 0)
         #expect(none.marginSort < zero.marginSort)
         #expect(none.weightSort < zero.weightSort)
     }
