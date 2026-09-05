@@ -6,6 +6,14 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Changed
 
+- **The Mac app can send for a shop whose cloud will not take changes one at a
+  time.** Khayt Cloud refuses a delta chain for a shop with any credential it
+  cannot vouch for — including a token nobody has been seen using, which never
+  expires and so never stops counting. For such a shop the Mac's send simply
+  failed. It now does what the desktop does: merges the cloud's copy into this
+  book first, then sends the whole book, with the revision guard making anything
+  that arrives in between a refusal rather than an overwrite.
+
 - **"A setting differs from the cloud's copy" was still wrong, for a second
   reason.** Khayt masks every credential before pushing a store, so the API key,
   the sync token and the print library's S3 secret are `__KHAYT_MASKED__` in the

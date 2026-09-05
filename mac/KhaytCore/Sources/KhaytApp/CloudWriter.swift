@@ -63,6 +63,9 @@ enum CloudWriter {
         let rev: Int
         let deltas: Int
         let tombstones: Int
+        /// True when the shop's chain was closed and the whole book went up
+        /// instead. Worth saying on screen: it is a different thing.
+        var wholeStore = false
         var count: Int { deltas + tombstones }
     }
 
@@ -105,6 +108,50 @@ enum CloudWriter {
             throw Failure.malformed("it carried no revision")
         }
         return Sent(rev: rev, deltas: payload.deltas.count, tombstones: payload.tombstones.count)
+    }
+
+    /// Replace the cloud's whole store with this book.
+    ///
+    /// THE DANGEROUS ONE, and the doc comment at the top of this file says why:
+    /// a whole store from a device that has not merged is that device's records
+    /// and nobody else's, and the server takes it. So this is deliberately NOT
+    /// reachable on its own. `Shop.sendToCloud` calls it in exactly one place —
+    /// after `POST /deltas` has been refused for the shop, and after the cloud
+    /// has been MERGED INTO THIS BOOK — which is the same order the desktop
+    /// uses when the chain is unavailable to it.
+    ///
+    /// `mergedFrom` is not used; it is there so the call site cannot be written
+    /// without naming the merge that makes it safe, and so this comment is read
+    /// by whoever tries.
+    ///
+    /// `baseRev` is the revision the merge was folded from. The server compares
+    /// it against the head and answers 409 if anything arrived in between, so a
+    /// book that is no longer a superset of the cloud cannot overwrite it.
+    static func sendWholeStore(_ connection: CloudReader.Connection, token: String,
+                               store: [String: JSONValue], dek: Data, baseRev: Int,
+                               mergedFrom: KhaytEngine.Merged,
+                               fetch: (URLRequest) async throws -> (Data, URLResponse)) async throws -> Sent {
+        _ = mergedFrom
+        var request = try CloudReader.request(connection, token: token,
+                                              method: "PUT", tail: "/store")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let blob = try SyncCrypto.seal(store, dek: dek)
+        request.httpBody = try JSONEncoder().encode(Body(ciphertext: blob, baseRev: baseRev))
+
+        let (data, response) = try await fetch(request)
+        switch (response as? HTTPURLResponse)?.statusCode ?? 0 {
+        case 200: break
+        case 401, 403: throw Failure.unauthorised
+        case 409:
+            let head = (try? JSONDecoder().decode(Conflict.self, from: data))?.rev ?? 0
+            throw Failure.moved(head)
+        case let code:
+            throw Failure.http(code, String(decoding: data.prefix(200), as: UTF8.self))
+        }
+        guard let reply = try? JSONDecoder().decode(Reply.self, from: data), let rev = reply.rev else {
+            throw Failure.malformed("it carried no revision")
+        }
+        return Sent(rev: rev, deltas: 0, tombstones: 0, wholeStore: true)
     }
 
     private struct Body: Encodable {

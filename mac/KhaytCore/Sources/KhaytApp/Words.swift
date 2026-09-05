@@ -656,6 +656,14 @@ final class Words {
                                  "ar": "أُلغيت {n} تغييرات أُجريت هنا: كان السجل قد حُذف على جهاز آخر."],
         "mac.cloud_sent":    ["en": "{n} sent. Khayt Cloud is now at revision {rev}.",
                               "ar": "أُرسل {n}. سحابة خيط الآن عند المراجعة {rev}."],
+        // A shop whose delta chain the service refuses. Said plainly, because
+        // "the whole book went up" is a different event from "one change did".
+        "mac.cloud_sent_whole": ["en": "This shop cannot send changes one at a time, so the cloud's "
+                               + "copy was merged in here first and the whole book sent. Khayt Cloud "
+                               + "is now at revision {rev}.",
+                                 "ar": "لا يستطيع هذا المحل إرسال التغييرات واحدًا تلو الآخر، لذا "
+                               + "دُمجت نسخة السحابة هنا أولًا ثم أُرسل الدفتر كاملًا. سحابة خيط "
+                               + "الآن عند المراجعة {rev}."],
         "mac.cloud_nothing_to_send": ["en": "Nothing left to send — the cloud already has it.",
                                       "ar": "لا شيء متبقٍّ للإرسال — السحابة تحتفظ به بالفعل."],
         // No "too". It said "Settings differ too" beside a result reporting that

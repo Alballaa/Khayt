@@ -165,9 +165,12 @@ struct CloudCheckSheet: View {
                 }
             }
             if let sent = shop.cloudSent {
-                Label(shop.words.callIt("mac.cloud_sent",
-                                        ["n": .number(Double(sent.count)),
-                                         "rev": .number(Double(sent.rev))]),
+                Label(sent.wholeStore
+                      ? shop.words.callIt("mac.cloud_sent_whole",
+                                          ["rev": .number(Double(sent.rev))])
+                      : shop.words.callIt("mac.cloud_sent",
+                                          ["n": .number(Double(sent.count)),
+                                           "rev": .number(Double(sent.rev))]),
                       systemImage: "arrow.up.circle")
                     .font(.callout).foregroundStyle(.green)
                     .fixedSize(horizontal: false, vertical: true)
