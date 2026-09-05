@@ -1551,6 +1551,29 @@ final class Shop {
     var checkingCloud = false
     /// True while the request is in flight.
     var cloudBusy = false
+    /// What the last send put up, if there was one.
+    var cloudSent: CloudWriter.Sent?
+    /// Whether the last comparison found a settings change this app cannot send.
+    var cloudSettingsStay = false
+
+    /// The shop's data key, held only while the check sheet is open.
+    ///
+    /// Kept at all so that pressing *Send* does not mean typing the passphrase
+    /// again and waiting through a second scrypt — which at N=32768 is most of
+    /// a minute. It is the key itself and not the passphrase, it is never
+    /// written anywhere, and `forgetCloudKey()` drops it when the sheet closes.
+    private var cloudDek: Data?
+
+    /// Drop the data key. Called when the check sheet goes away.
+    func forgetCloudKey() {
+        cloudDek = nil
+        cloudSent = nil
+    }
+
+    /// Is there anything this Mac could send, and the key to send it with?
+    var canSendToCloud: Bool {
+        cloudDek != nil && !cloudBusy && (cloudCheck?.sendable ?? 0) > 0
+    }
 
     /// Ask Khayt Cloud what it holds and say how far apart the two books are.
     ///
@@ -1589,6 +1612,7 @@ final class Shop {
                 throw CloudReader.Failure.malformed("the keyset has no passphrase-wrapped key")
             }
             let dek = try SyncCrypto.unwrapDek(secret: passphrase, wrapped: wrapped)
+            cloudDek = dek
             let folded = try await CloudReader.store(reply, dek: dek, engine: engine)
 
             // Read from disk rather than from what this app is holding: the
@@ -1600,6 +1624,89 @@ final class Shop {
             cloudCheck = CloudCompare.compare(here: mine, there: folded.store,
                                               collections: collections, cloudRev: reply.rev,
                                               chain: folded.chain, applied: folded.applied)
+            // Asked here rather than on the send, so a shop is told about a
+            // setting this app cannot carry BEFORE it presses a button that
+            // will not carry it.
+            cloudSettingsStay = (try? await engine.changesToSend(local: mine, server: folded.store))?
+                .settingsDiffer ?? false
+        } catch let failure as CloudReader.Failure {
+            cloudProblem = failure.description
+        } catch let failure as SyncCrypto.Failure {
+            cloudProblem = failure.description
+        } catch let locked as Secrets.Failure {
+            cloudProblem = locked.description
+        } catch {
+            cloudProblem = String(describing: error)
+        }
+    }
+
+    /// Send the half of the difference that is only on this Mac.
+    ///
+    /// It **pulls again first**, and that is not politeness — it is the whole
+    /// safety property. The payload has to be measured against the store the
+    /// cloud holds at the moment of sending, and `baseRev` has to be that same
+    /// pull's revision, or the service's optimistic guard is guarding nothing.
+    /// Anything that arrived between the check and the button then shows up as
+    /// a 409 and this refuses, instead of appending a change computed against
+    /// a store that no longer exists.
+    ///
+    /// It appends and never replaces. See `CloudWriter` for why that line is
+    /// where the danger lives.
+    func sendToCloud() async {
+        cloudProblem = nil
+        cloudSent = nil
+        cloudBusy = true
+        defer { cloudBusy = false }
+        guard let build = source.build, let engine, let dek = cloudDek else {
+            cloudProblem = words.callIt("mac.move_sample"); return
+        }
+        do {
+            let connection = try CloudReader.connection(settingsDict)
+            let token = try Secrets.open(connection.storedToken, for: build)
+            guard !token.isEmpty else { throw CloudReader.Failure.unauthorised }
+
+            let session = URLSession(configuration: .ephemeral)
+            let reply = try await CloudReader.pull(connection, token: token) { request in
+                try await session.data(for: request)
+            }
+            let folded = try await CloudReader.store(reply, dek: dek, engine: engine)
+            // From disk, for the same reason the comparison reads from disk:
+            // the screens hold two collections out of thirty-three, and a
+            // payload built from those would claim the other thirty-one are
+            // gone.
+            let mine = (try? Data(contentsOf: build.storeURL))
+                .flatMap { try? JSONDecoder().decode([String: JSONValue].self, from: $0) } ?? [:]
+            let outbox = try await engine.changesToSend(local: mine, server: folded.store)
+            cloudSettingsStay = outbox.settingsDiffer
+
+            let collections = (try? await engine.storeCollections()) ?? []
+            guard !outbox.isEmpty else {
+                // Nothing to do is not a failure. Show the fresh comparison so
+                // the screen stops offering a button that would do nothing.
+                cloudCheck = CloudCompare.compare(here: mine, there: folded.store,
+                                                  collections: collections, cloudRev: reply.rev,
+                                                  chain: folded.chain, applied: folded.applied)
+                return
+            }
+
+            cloudSent = try await CloudWriter.send(connection, token: token, payload: outbox,
+                                                   dek: dek, baseRev: reply.rev) { request in
+                try await session.data(for: request)
+            }
+            // Say what is true NOW, not what was true before the send: fold the
+            // payload onto the store that was just pulled, which is exactly
+            // what every other device will do when it next pulls the chain.
+            let after = try await engine.foldDeltas(base: folded.store, deltas: [outbox.wire])
+            cloudCheck = CloudCompare.compare(here: mine, there: after.store,
+                                              collections: collections,
+                                              cloudRev: cloudSent?.rev ?? reply.rev,
+                                              chain: folded.chain + 1,
+                                              applied: folded.applied + after.applied)
+        } catch let failure as CloudWriter.Failure {
+            cloudProblem = failure.description
+            // A 409 means the comparison on screen is stale. Take it away
+            // rather than leave a table that no longer describes anything.
+            if case .moved = failure { cloudCheck = nil }
         } catch let failure as CloudReader.Failure {
             cloudProblem = failure.description
         } catch let failure as SyncCrypto.Failure {

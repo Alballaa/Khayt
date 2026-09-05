@@ -574,11 +574,58 @@ sidebar, `EngineStartTests` asserts the runtime starts and that a handful of
 labels are not their own keys, and the loader's exception list has a comment
 saying a NEW module should be named for its global instead.
 
+## The cloud
+
+Two operations, and the line between them is the design.
+
+**Check** (`CloudReader`, `CloudCompare`) pulls `GET /v1/shops/{id}/store`,
+unwraps the data key from the shop's own keyset with scrypt, opens the base with
+AES-GCM, folds the delta chain through `KhaytSync.applyDeltas` — the same rule
+the desktop folds with — and counts the difference. It writes nothing.
+
+**Send** (`CloudWriter`, `lib/cloud-outbox.js`) appends to the chain with
+`POST /v1/shops/{id}/deltas`. Three things make it safe, and each of them is
+load-bearing:
+
+* **It never puts a whole store.** `PUT /store` uploads a book and compacts the
+  chain behind it. From the desktop that is safe, because the desktop merges
+  what it pulled before it pushes. This app does not merge, so its "whole store"
+  would be this Mac's book *and nothing else* — and the server would take it,
+  because `baseRev` guards against a concurrent write, not against an incomplete
+  one. `POST /deltas` can only ever add.
+* **It sends one direction only.** `changesToSend` ships a record the cloud has
+  never seen, or one whose local `rev` is *strictly higher*. A record that is
+  newer in the cloud is one this Mac is behind on, and the only safe thing to do
+  with it is nothing. This is where it differs from the desktop's
+  `changesSincePush`, which measures against a cursor — right for a process that
+  pushes on every save, wrong for an app that opens, pulls once and offers.
+* **It pulls again immediately before sending**, and `baseRev` is that pull's
+  revision. Anything that arrived between the check and the button is then a
+  409, and a 409 refuses.
+
+What it cannot send is a **settings** change: settings are one object rather
+than revisioned records, so a delta has nowhere to put them. `Outbox` reports
+that as `settingsDiffer` and the sheet says so, rather than dropping it quietly.
+
+Both routes send `x-delta-capable: 1`, from one shared request builder. That is
+not a courtesy: khayt-cloud records the capability of every credential it hears
+from and the gate is unanimous — one `delta_capable = 0` row closes delta sync
+for the whole shop, and every device falls back to uploading the entire store on
+each save. Leaving it off the send path would also defeat the send, since
+`recordDeviceCap` runs before `shopTakesDeltas`.
+
+`SyncCrypto.seal` is pinned against Node in `SealTests`: the blob this app
+produces is opened by `lib/sync-crypto.js` itself — the exact code every desktop
+copy will use to read it — Arabic and all. macOS has no gzip, only raw DEFLATE,
+so the container is written by hand and checked from the other side rather than
+against itself.
+
 ## Not yet built
 
-The rest of analytics, the catalog, gift cards, the portfolio,
+The rest of analytics, gift cards, the portfolio,
 the colour studio, the converter, the cloud portal, the LAN server, and the
-printer protocols. `KhaytCore` came first because the alternative, screens
+printer protocols. Merging what the cloud holds a newer copy of is Electron's
+still — this app can send, not reconcile. `KhaytCore` came first because the alternative, screens
 against a half-trusted engine, is how the two apps come to disagree about a
 shop's money.
 

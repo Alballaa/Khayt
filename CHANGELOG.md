@@ -6,6 +6,17 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Changed
 
+- **The Mac app can send what is only on this Mac to the cloud.** Until now
+  *Check the cloud* could tell a shop the two were apart and could do nothing
+  about it — the only way to close the gap was to open the Khayt app and let it
+  sync. There is now a *Send what is only here* button beside the difference.
+  It appends to the cloud's chain and never replaces it, and it goes one way
+  only: a record the cloud has never seen, or one this Mac has edited more
+  recently. Anything the cloud holds a newer copy of is left exactly as it is,
+  because this app does not merge and pretending otherwise is how a shop loses
+  work. Settings still need the Khayt app, and the screen says so rather than
+  dropping them without a word.
+
 - **The Mac app now tells the cloud it can read a delta chain, and this
   matters to every other device.** Khayt Cloud records what each credential is
   capable of, and one device it believes cannot fold a chain closes delta sync
