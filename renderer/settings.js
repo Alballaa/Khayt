@@ -1909,7 +1909,10 @@ function showVerifyEmailModal(url, email, sender) {
 
 // ---- Stage C: auto-sync wiring -------------------------------------------
 // Append-only collections (ledgers/logs) are unioned, never overwritten, on merge.
-const CLOUD_APPEND_ONLY = ['loyaltyLedger', 'wasteLog', 'machMaintLog', 'envLogs', 'shiftLogs', 'timeEntries', 'auditLog', '_auditLog'];
+// Which collections are ledgers now lives in lib/cloud-inbox.js, beside the
+// merge that uses it, so the native Mac app cannot hold a different opinion
+// about it. Nothing here needs the list any more.
+
 
 /** I/O the auto-sync controller needs, bound to the live app + cloud IPC. */
 /**
@@ -2118,7 +2121,6 @@ async function putCloudKeyset({ url, shopId, token, keyset }, whatFailed) {
 
 function cloudSyncDeps() {
   return {
-    appendOnly: CLOUD_APPEND_ONLY,
     buildSnapshot: () => buildStoreSnapshot(),
     applySnapshot: (snap) => applyStoreFromSnapshot(snap),
     save: () => saveAll(),

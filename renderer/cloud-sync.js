@@ -22,7 +22,7 @@
   const DEFAULT_RETRY_BASE_MS = 5000;       // first auto-retry after a failed sync
   const DEFAULT_RETRY_MAX_MS = 5 * 60 * 1000; // backoff ceiling (5 min)
 
-  let deps = null;          // { push, pull, buildSnapshot, applySnapshot, save, appendOnly?, debounceMs?, retryBaseMs?, retryMaxMs? }
+  let deps = null;          // { push, pull, buildSnapshot, applySnapshot, save, debounceMs?, retryBaseMs?, retryMaxMs? }
   let timer = null;
   let retryTimer = null;    // pending auto-retry after an offline/error failure
   let retryAttempt = 0;     // backoff exponent; reset on success / new edit / flush
@@ -155,8 +155,11 @@
     if (!r || !r.ok) return { ok: false, error: (r && r.error) || 'pull failed' };
     if (!r.store) return { ok: true, rev: r.rev || 0, empty: true }; // nothing on the server yet
     const local = deps.buildSnapshot();
-    const payload = global.KhaytSync.extractDeltas(r.store, { rev: 0, ts: '' });
-    const merged = global.KhaytSync.applyDeltas(local, payload, { appendOnly: deps.appendOnly || [] });
+    // `lib/cloud-inbox.js`, so the native Mac app merges by the same rule
+    // rather than by a second copy of these three lines. `deps.appendOnly` is
+    // no longer consulted: the list is the module's, which is the only way two
+    // hosts cannot disagree about which collections are ledgers.
+    const merged = global.KhaytCloudInbox.merge(local, r.store);
     // A merge can discard a local edit whose record was deleted on another
     // device (delete wins, but no longer silently). Hand those to the host so it
     // can tell the user; kept as an injected hook so this module stays UI-free.
