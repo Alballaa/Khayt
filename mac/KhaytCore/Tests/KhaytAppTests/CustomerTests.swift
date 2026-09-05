@@ -127,3 +127,91 @@ struct CustomerTests {
         #expect(edited["commLog"] != nil)
     }
 }
+
+/// What the shop calls its customers.
+///
+/// THE DEFECT THIS EXISTS FOR: the customers table spelled names itself, with
+/// `Client.anyName` — English first, then Arabic, then the id. That is exactly
+/// the shape `test/content-languages.test.js` forbids in JavaScript, written in
+/// Swift where that guard cannot see it. `customerName` and `customerAltName`
+/// were on the engine, correct, and called by nothing.
+///
+/// Photographed to find it: an Arabic run listed "Tuwaiq Makerspace" on the
+/// Customers screen and "مساحة طويق للصناع" on the Best page — same shop, same
+/// record, two screens, two names.
+@MainActor
+struct CustomerNameTests {
+
+    static let clients: [JSONValue] = [
+        .object(["id": .string("C-1"), "nameEn": .string("Tuwaiq Makerspace"),
+                 "nameAr": .string("مساحة طويق للصناع")]),
+        .object(["id": .string("C-2"), "nameEn": .string("Hail Motors")]),
+    ]
+
+    @Test("an Arabic shop is given its Arabic names")
+    func arabicShop() async throws {
+        let names = try await KhaytEngine().customerNames(
+            Self.clients, language: "ar", settings: ["contentLangs": .array([.string("ar"), .string("en")])])
+        #expect(names["C-1"]?.name == "مساحة طويق للصناع")
+        // …and one with no Arabic name still has a name, rather than an id.
+        #expect(names["C-2"]?.name == "Hail Motors")
+    }
+
+    @Test("an English shop is given its English names")
+    func englishShop() async throws {
+        let names = try await KhaytEngine().customerNames(
+            Self.clients, language: "en", settings: ["contentLangs": .array([.string("en")])])
+        #expect(names["C-1"]?.name == "Tuwaiq Makerspace")
+    }
+
+    @Test("the other language goes on the second line, and only when there is one")
+    func altName() async throws {
+        let names = try await KhaytEngine().customerNames(
+            Self.clients, language: "ar", settings: ["contentLangs": .array([.string("ar"), .string("en")])])
+        #expect(names["C-1"]?.alt == "Tuwaiq Makerspace")
+        // `readAlt` returns the SAME string for a record with one name filled
+        // in — the fallback has already put that field in both, and the
+        // renderer does not dedupe either. `customerNames` blanks it, so a
+        // second line can be rendered without checking.
+        #expect(names["C-2"]?.alt == "", "the only name would have been printed twice")
+    }
+
+    @Test("the table shows the resolved name, not the English one")
+    func theTableUsesIt() throws {
+        let client = try JSONDecoder().decode(Client.self, from: JSONEncoder().encode(Self.clients[0]))
+        let resolved: [String: KhaytEngine.Named] = ["C-1": .init(name: "مساحة طويق للصناع", alt: "Tuwaiq Makerspace")]
+        let rows = Customer.from([], clients: [client], names: resolved)
+        #expect(rows.first?.name == "مساحة طويق للصناع")
+    }
+
+    @Test("with no engine the list still has names, and says which it used")
+    func fallsBackOnlyWhenItMust() throws {
+        // A dead engine is silent — that lesson cost a day. The list must still
+        // show something, and `anyName` is the last resort rather than the
+        // first: nothing else in the app is allowed to reach for it.
+        let client = try JSONDecoder().decode(Client.self, from: JSONEncoder().encode(Self.clients[0]))
+        let rows = Customer.from([], clients: [client], names: [:])
+        #expect(rows.first?.name == "Tuwaiq Makerspace")
+    }
+
+    @Test("a resolved name that is empty does not blank the row")
+    func emptyResolvedIsNotAName() throws {
+        let client = try JSONDecoder().decode(Client.self, from: JSONEncoder().encode(Self.clients[0]))
+        let rows = Customer.from([], clients: [client], names: ["C-1": .init(name: "", alt: "")])
+        #expect(rows.first?.name == "Tuwaiq Makerspace")
+    }
+
+    @Test("the screen is wired to the resolved names")
+    func theScreenIsWired() throws {
+        // A source guard: `customers` is a computed property on an @Observable
+        // model and there is no seam. What it catches is the exact regression —
+        // dropping the argument and going back to spelling names in Swift.
+        let shop = try String(contentsOf: URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appending(path: "Sources/KhaytApp/Shop.swift"), encoding: .utf8)
+        #expect(shop.contains("Customer.from(orders, clients: clients, names: clientNames)"))
+        #expect(shop.contains("engine?.customerNames("),
+                "the names must be resolved when the book loads")
+    }
+}

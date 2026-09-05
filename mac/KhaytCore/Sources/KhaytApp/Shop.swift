@@ -281,6 +281,8 @@ final class Shop {
             if case .array(let catalog)? = root["products"] { productRows = catalog } else { productRows = [] }
             if case .array(let fleet)? = root["machines"] { machineRows = fleet } else { machineRows = [] }
             clients = Self.decodeClients(root)
+            clientNames = (try? await engine?.customerNames(
+                clientRows, language: words.language, settings: Self.settings(root))) ?? [:]
             await keepTheDaysBackup()
             expenses = Self.decode(root, "expenses", as: Expense.self)
             wasteLog = Self.decode(root, "wasteLog", as: WasteEntry.self)
@@ -2510,7 +2512,13 @@ final class Shop {
 
     // MARK: - What the customers screen shows
 
-    var customers: [Customer] { Customer.from(orders, clients: clients) }
+    var customers: [Customer] { Customer.from(orders, clients: clients, names: clientNames) }
+
+    /// What the shop calls each of its customers, in its own language.
+    ///
+    /// Resolved once when the book loads — thirty-one rows asking the engine
+    /// one at a time would be thirty-one bridge crossings for one screen.
+    private(set) var clientNames: [String: KhaytEngine.Named] = [:]
 
     var shownCustomers: [Customer] {
         let q = search.trimmingCharacters(in: .whitespaces).lowercased()

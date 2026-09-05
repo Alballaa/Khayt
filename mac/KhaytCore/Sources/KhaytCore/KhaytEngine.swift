@@ -1108,13 +1108,58 @@ public actor KhaytEngine {
                           [client, .string(language), .object(settings)], as: String.self)
     }
 
-    /// The other language's name, for the second line. Empty for a
-    /// single-language shop, and empty when that field was left blank — where
-    /// repeating the primary name would just look like a bug.
+    /// The other language's name, straight from the module.
+    ///
+    /// NOT deduped: a record with one name filled in comes back with the SAME
+    /// string, because the fallback has already put that one field in both.
+    /// `customerNames` blanks it for a caller that wants a second line;
+    /// this one hands back what the module said.
     public func customerAltName(_ client: JSONValue, language: String,
                                 settings: [String: JSONValue]) throws -> String {
         try runtime.call2("(KhaytContentLanguages.readAlt(ARG0, 'name', ARG1, ARG2) || '')",
                           [client, .string(language), .object(settings)], as: String.self)
+    }
+
+    /// Every customer's name at once, in the shop's own language.
+    ///
+    /// ONE CROSSING, not one per row. The two functions above take a single
+    /// client and were written for a sheet; a table of thirty-one customers
+    /// asking thirty-one times is the reason the list had a Swift fallback
+    /// instead — and that fallback was `nameEn` first, which is the shape the
+    /// repo's own content-language guard exists to forbid. An Arabic shop saw
+    /// its customers listed in English on one screen and in Arabic on another.
+    ///
+    /// Returned keyed by id, so a caller can look up whatever it is holding.
+    public func customerNames(_ clients: [JSONValue], language: String,
+                              settings: [String: JSONValue]) throws -> [String: Named] {
+        try runtime.call2("""
+            (function (rows, lang, settings) {
+              var out = {};
+              for (var i = 0; i < rows.length; i++) {
+                var c = rows[i];
+                if (!c || !c.id) continue;
+                var name = KhaytContentLanguages.read(c, 'name', lang, settings) || '';
+                var alt = KhaytContentLanguages.readAlt(c, 'name', lang, settings) || '';
+                // A record with one name filled in reads the SAME string twice:
+                // `readAlt` returns the other content language's field, and the
+                // fallback has already put that one field in both. The renderer
+                // does not dedupe either — it simply has nowhere that shows
+                // both. Empty here means "no second line", so a view can render
+                // `alt` without checking.
+                out[c.id] = { name: name, alt: alt === name ? '' : alt };
+              }
+              return out;
+            })(ARG0, ARG1, ARG2)
+            """,
+                          [.array(clients), .string(language), .object(settings)],
+                          as: [String: Named].self)
+    }
+
+    /// A record's name, and the other language's if the shop writes two.
+    public struct Named: Decodable, Sendable, Hashable {
+        public let name: String
+        public let alt: String
+        public init(name: String, alt: String) { self.name = name; self.alt = alt }
     }
 
     // MARK: - Taking a job
