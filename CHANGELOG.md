@@ -6,6 +6,14 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Changed
 
+- **A white filament had no swatch at all.** The library outlined every colour
+  in the hairline meant for sitting on the window background, which is visible
+  around a black filament and invisible around a white one. On this shop's own
+  four-colour helmet, three colours showed a square and the fourth showed a
+  gap. Swatches are now outlined from their own colour — a dark line round a
+  pale one, a pale line round a dark one — which is the only version that works
+  in both themes and over a photograph.
+
 - **"1 machines".** The Mac app's window counted things by putting a number in
   front of the plural, so a shop with one printer read "1 machines", one spool
   "1 spools", and a customer with one job "1 job" on one screen and "1 jobs" on

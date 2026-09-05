@@ -134,16 +134,7 @@ struct LibraryInspector: View {
         DetailSection(shop.words.callIt("mac.filament")) {
             ForEach(Array(file.palette.enumerated()), id: \.offset) { i, colour in
                 HStack(spacing: 8) {
-                    if let rgb = colour.rgb {
-                        RoundedRectangle(cornerRadius: 3)
-                            .fill(Color(red: rgb.r, green: rgb.g, blue: rgb.b))
-                            .frame(width: 14, height: 14)
-                            .overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(.separator))
-                    } else {
-                        RoundedRectangle(cornerRadius: 3)
-                            .strokeBorder(.separator, style: StrokeStyle(dash: [2, 2]))
-                            .frame(width: 14, height: 14)
-                    }
+                    Swatch(rgb: colour.rgb)
                     Text(colour.label ?? shop.words.callIt("mac.filament_n", ["n": .number(Double(i + 1))]))
                         .font(.callout)
                     Spacer(minLength: 8)

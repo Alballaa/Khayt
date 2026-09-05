@@ -200,11 +200,8 @@ private struct Palette: View {
         if !swatches.isEmpty {
             HStack(spacing: 3) {
                 ForEach(Array(swatches.enumerated()), id: \.offset) { _, colour in
-                    if let rgb = colour.rgb {
-                        Circle()
-                            .fill(Color(red: rgb.r, green: rgb.g, blue: rgb.b))
-                            .frame(width: 9, height: 9)
-                            .overlay(Circle().strokeBorder(.white.opacity(0.55), lineWidth: 0.5))
+                    if colour.rgb != nil {
+                        Swatch(rgb: colour.rgb, size: 9, round: true)
                     }
                 }
                 if file.swaps > 0 {
