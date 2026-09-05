@@ -294,8 +294,24 @@ public actor KhaytEngine {
     public func dashboardFacts(orders: [JSONValue], machines: [JSONValue],
                                settings: [String: JSONValue],
                                statusCache: [String: JSONValue] = [:]) throws -> DashboardFacts {
+        // `nozzleWear` IS PASSED IN, and the whole nozzle category depends on
+        // it: `attention` is pure and refuses to reach for a global, so a
+        // caller that does not supply it gets no nozzle warnings at all — not
+        // an error, just silence. That module's own comment says the warning
+        // exists because it "existed on the machine card and NOWHERE on any
+        // dashboard, which is the one screen a shop leaves open", and this app
+        // had reproduced exactly that.
         try runtime.call2("KhaytDashboardFacts.dashboardFacts({orders: ARG0, machines: ARG1,"
-                        + " settings: ARG2, statusCache: ARG3, attention: globalThis.KhaytAttention})",
+                        + " settings: ARG2, statusCache: ARG3,"
+                        // THE MODULE, not a function. `dashboardFacts` reads
+                        // `inp.nozzleWear.nozzleWear` and wraps it itself; the
+                        // renderer calls `selectAttention` DIRECTLY and passes
+                        // a function, which is that module's contract. Same
+                        // parameter name, two shapes, and handing over the
+                        // wrong one produces no error — just no nozzle
+                        // warnings, for ever.
+                        + " nozzleWear: globalThis.KhaytNozzleWear,"
+                        + " attention: globalThis.KhaytAttention})",
                           [.array(orders), .array(machines), .object(settings), .object(statusCache)],
                           as: DashboardFacts.self)
     }
