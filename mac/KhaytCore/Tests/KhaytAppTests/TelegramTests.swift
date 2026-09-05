@@ -14,7 +14,7 @@ import KhaytCore
 @MainActor
 struct TelegramTests {
 
-    static func book(_ telegram: [String: JSONValue]) -> [String: JSONValue] {
+    static func book(_ telegram: [String: JSONValue], currency: String = "SAR") -> [String: JSONValue] {
         [
             "printLog": .array([.object([
                 "id": .string("J1"), "project": .string("Bracket"), "status": .string("printing"),
@@ -22,7 +22,7 @@ struct TelegramTests {
             ])]),
             "inventory": .array([]), "consumables": .array([]), "machines": .array([]),
             "clients": .array([]),
-            "settings": .object(["currency": .string("SAR"), "telegram": .object(telegram)]),
+            "settings": .object(["currency": .string(currency), "telegram": .object(telegram)]),
         ]
     }
 
@@ -48,8 +48,39 @@ struct TelegramTests {
         let out = try await Self.move(&root, .completed)
         let message = try #require(out.telegram, "the move should have carried a message")
         #expect(message.message.contains("Bracket"))
-        #expect(message.message.contains("400.00 SAR"), "in the shop's own currency")
+        // U+202F between the figure and the symbol, exactly as
+        // `renderer/currency.js` writes it — see `currencyFollowsTheShopsTable`.
+        #expect(message.message.contains("400.00\u{202F}SAR"), "in the shop's own currency")
         #expect(message.chatId == "-100123456")
+    }
+
+    /// This message goes to a CUSTOMER, so it has to read the same whichever
+    /// app sent it. The price used to be assembled here as
+    /// `toFixed(2) + " " + code`, which put the symbol of every
+    /// symbol-before currency on the wrong side of the number — "400.00 USD"
+    /// where the desktop says "$ 400.00" — and never used the shop's own
+    /// currency table at all.
+    @Test("the currency follows the shop's own table, on the side it belongs")
+    func currencyFollowsTheShopsTable() async throws {
+        var dollars = Self.book(Self.configured, currency: "USD")
+        let usd = try #require(try await Self.move(&dollars, .completed).telegram)
+        #expect(usd.message.contains("$\u{202F}400.00"), "a symbol that goes in front, in front")
+        #expect(!usd.message.contains("400.00 USD"))
+
+        var euros = Self.book(Self.configured, currency: "EUR")
+        let eur = try #require(try await Self.move(&euros, .completed).telegram)
+        #expect(eur.message.contains("€\u{202F}400.00"))
+
+        // A currency the table has never heard of falls back to riyals — and
+        // that is asserted here because it is what `renderer/currency.js` and
+        // `lib/invoice-document.js` both already do, not because it is good.
+        // Relabelling money is a poor failure, but fixing it HERE would put a
+        // third opinion on the wire beside an invoice that still says SAR.
+        // Khayt's settings only ever offer currencies from the table, so this
+        // is reachable by an import rather than by the app.
+        var invented = Self.book(Self.configured, currency: "ZZZ")
+        let zzz = try #require(try await Self.move(&invented, .completed).telegram)
+        #expect(zzz.message.contains("400.00\u{202F}SAR"), "matches the invoice, warts and all")
     }
 
     @Test("a shop that has not asked for one gets none, and the move still happens")

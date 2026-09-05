@@ -6,6 +6,19 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Changed
 
+- **The Mac app said money to a customer differently from the desktop.** A
+  Telegram message about a finished job built its price by hand — the figure,
+  a space, the currency code — instead of using the shop's own currency table.
+  A shop in dollars was told "400.00 USD" by one app and "$ 400.00" by the
+  other, about the same job. It now formats exactly as `renderer/currency.js`
+  does, symbol on the side that currency puts it.
+
+- **Why a product's price is what it is now comes from the rule that decides
+  it.** The Mac's catalogue read `lib/product-price.js`'s answer and then
+  worked out the explanation again in Swift. It agreed — and a rule written
+  down twice is one that can stop agreeing later, with nobody watching the
+  copy that drifts.
+
 - **The Mac app can send what is only on this Mac to the cloud.** Until now
   *Check the cloud* could tell a shop the two were apart and could do nothing
   about it — the only way to close the gap was to open the Khayt app and let it
