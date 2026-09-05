@@ -963,28 +963,34 @@ function tokenizeSliceArgs(template) {
 // Slice a model with the user's installed slicer. Returns { ok, gcodePath, outDir,
 // meta, error } WITHOUT cleaning up outDir — the caller decides (parse only, or
 // also upload to a printer, then remove outDir).
-// Reject shells/interpreters posing as a "slicer" executable. The slicer path
-// comes from settings.slicers[] which can arrive via a restored/synced snapshot,
-// so a poisoned path (e.g. /bin/bash with an -c arg template) must not become
-// arbitrary code execution when the user clicks Slice / Open-in-slicer. spawn is
-// already shell:false (no metachar injection); this blocks the interpreter path.
-const DISALLOWED_SLICER_BINARIES = new Set([
-  'bash', 'sh', 'zsh', 'dash', 'ksh', 'csh', 'tcsh', 'fish', 'cmd', 'command',
-  'powershell', 'pwsh', 'python', 'python2', 'python3', 'node', 'nodejs', 'deno',
-  'bun', 'ruby', 'perl', 'php', 'osascript', 'wscript', 'cscript', 'env', 'sudo',
-  'doas', 'xterm', 'open', 'start', 'rundll32', 'regsvr32', 'mshta',
-]);
-function isSafeSlicerBinary(p) {
-  const base = path.basename(String(p || '')).toLowerCase()
-    .replace(/\.(exe|app|appimage|bat|cmd|com|scr|ps1)$/i, '');
-  return base.length > 0 && !DISALLOWED_SLICER_BINARIES.has(base);
-}
+// Is this path allowed to be launched as a slicer?
+//
+// THE ANSWER LIVES IN lib/slicers.js, and this used to answer it a second time.
+//
+// The slicer path and its argument template both come from settings.slicers[],
+// which can arrive in a restored backup or a cloud sync. A poisoned entry must
+// not become arbitrary code execution the moment somebody clicks Slice, Test or
+// Open in slicer. `spawn` runs shell:false, which stops metacharacter injection
+// into a shell and does nothing about the binary itself.
+//
+// What stood here was a DENYLIST of interpreter names — bash, python, node, and
+// thirty more. `lib/slicers.js` replaced it with a positive allowlist and wrote
+// down why: a denylist cannot be complete. find, awk, gawk, xargs, gdb, make,
+// tclsh, lua, busybox, git and expect each run an arbitrary command from their
+// own arguments and not one of them is a shell. GTFOBins is the catalogue and it
+// does not fit in a Set.
+//
+// That module, its reasoning and its tests all shipped. Nothing ever called it:
+// all three call sites here kept the denylist, so every one of the binaries
+// above was accepted as a slicer for as long as it existed. Measured, not
+// assumed — the denylist said yes to all ten.
+const { isAllowedSlicerBinary } = require('./lib/slicers');
 
 async function runSlice({ modelPath, slicerPath, args, densityGPerCm3 }) {
   const { spawn } = require('node:child_process');
   const os = require('os');
   if (!slicerPath || !fs.existsSync(slicerPath)) return { ok: false, error: 'Slicer not found — set its path in Settings → Slicer.' };
-  if (!isSafeSlicerBinary(slicerPath)) return { ok: false, error: 'That program is not allowed as a slicer.' };
+  if (!isAllowedSlicerBinary(slicerPath)) return { ok: false, error: 'That program is not allowed as a slicer.' };
   if (!modelPath || !fs.existsSync(modelPath)) return { ok: false, error: 'Model file not found.' };
   const outDir = fs.mkdtempSync(path.join(os.tmpdir(), 'khayt-slice-'));
   const outPath = path.join(outDir, 'out.gcode');
@@ -1032,7 +1038,7 @@ ipcMain.handle('hub:slice-test', async (_e, { slicerPath } = {}) => {
   try {
     const { spawn } = require('node:child_process');
     if (!slicerPath || !fs.existsSync(slicerPath)) return { ok: false, error: 'Slicer not found at that path.' };
-    if (!isSafeSlicerBinary(slicerPath)) return { ok: false, error: 'That program is not allowed as a slicer.' };
+    if (!isAllowedSlicerBinary(slicerPath)) return { ok: false, error: 'That program is not allowed as a slicer.' };
     return await new Promise((resolve) => {
       let out = '';
       let child;
@@ -1075,9 +1081,6 @@ function detectInstalledSlicers() {
   };
   const plat = process.platform;
 
-  // Any .app whose name looks like a slicer — catches vendor OrcaSlicer forks (Snapmaker Orca,
-  // QIDIStudio, Elegoo, Anker, Creality/Bambu variants…) and Cura builds that aren't in the list below.
-  const SLICER_APP_RE = /(slic|orca|snapmaker|bambu|prusa|cura|creality|chitubox|lychee|flashprint|ideamaker|simplify|qidi|elegoo|anycubic|anker|eufymake|photon|satellite|voxeldance|icesl|kisslicer|sovol)/i;
   if (plat === 'darwin') {
     // macOS Contents/MacOS/ executable names verified from each project's build config / bundle.
     // Orca/Bambu C++ forks use a CamelCase app-key on macOS (OrcaSlicer, BambuStudio, QIDIStudio,
@@ -1112,7 +1115,15 @@ function detectInstalledSlicers() {
       let entries = [];
       try { entries = fs.readdirSync(d); } catch (_) {}
       for (const e of entries) {
-        if (!/\.app$/i.test(e) || !SLICER_APP_RE.test(e)) continue;
+        // Any .app whose name looks like a slicer — vendor OrcaSlicer forks
+        // (Snapmaker Orca, QIDIStudio, Elegoo, Anker, Creality/Bambu) and Cura
+        // builds that are not in the list below.
+        //
+        // The SAME test that decides whether a path may be LAUNCHED, not a
+        // second copy of the token list beside it. Two copies is how a scanner
+        // comes to offer a shop a slicer the guard then refuses to run;
+        // detection and permission have to be one answer.
+        if (!/\.app$/i.test(e) || !isAllowedSlicerBinary(e)) continue;
         const stem = e.replace(/\.app$/i, '');
         add((displayName && displayName(e)) || stem, macAppBinary(path.join(d, e)));
       }
@@ -3136,7 +3147,7 @@ ipcMain.handle('hub:printlib-open-in-slicer', async (_e, { filePath, filePaths, 
     if (!fs.existsSync(safe)) return { ok: false, error: `File not found: ${path.basename(safe)}` };
     safes.push(safe);
   }
-  if (slicerPath && fs.existsSync(slicerPath) && isSafeSlicerBinary(slicerPath)) {
+  if (slicerPath && fs.existsSync(slicerPath) && isAllowedSlicerBinary(slicerPath)) {
     try {
       const { spawn } = require('node:child_process');
       const child = spawn(slicerPath, safes, { detached: true, stdio: 'ignore', windowsHide: false });
