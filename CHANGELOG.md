@@ -6,6 +6,11 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Changed
 
+- **Groundwork for cloud sync on the Mac.** The Mac app can now read what
+  Khayt Cloud holds: scrypt, AES-256-GCM and gunzip, matching `sync-crypto.js`
+  byte for byte. Nothing uses it yet and it cannot write — this is the piece
+  that had to be proved correct before anything is allowed to depend on it.
+
 - **The Mac app says that it does not sync yet.** If your book is connected to
   Khayt Cloud, the sidebar now says so plainly: changes made here reach the
   cloud when the Khayt app next runs on this Mac. It writes to the book and
