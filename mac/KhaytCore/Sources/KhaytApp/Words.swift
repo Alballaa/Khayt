@@ -482,9 +482,11 @@ final class Words {
         "mac.check_cloud":   ["en": "Check the cloud", "ar": "فحص السحابة"],
         "mac.check_cloud_do": ["en": "Check",        "ar": "فحص"],
         "mac.check_cloud_reads": ["en": "This reads what Khayt Cloud holds and counts the difference. "
-                               + "Nothing is sent, merged or changed on either side.",
+                               + "Nothing is sent, merged or changed on either side. Sending is a "
+                               + "separate button, after you have seen the difference.",
                                   "ar": "يقرأ هذا ما تحتفظ به سحابة خيط ويحسب الفرق. "
-                               + "لا يُرسل أو يُدمج أو يُغيَّر شيء في أيٍّ من الجهتين."],
+                               + "لا يُرسل أو يُدمج أو يُغيَّر شيء في أيٍّ من الجهتين. والإرسال زر "
+                               + "منفصل، بعد أن ترى الفرق."],
         "mac.cloud_passphrase": ["en": "Cloud passphrase", "ar": "عبارة مرور السحابة"],
         "mac.cloud_passphrase_why": ["en": "Khayt stores this nowhere — that is what makes the cloud "
                                    + "copy readable only by you. It is used once here and not kept.",
@@ -500,13 +502,29 @@ final class Words {
         "mac.only_here":     ["en": "Only here",       "ar": "هنا فقط"],
         "mac.only_there":    ["en": "Only in cloud",   "ar": "في السحابة فقط"],
         "mac.newer_here":    ["en": "Newer here",      "ar": "أحدث هنا"],
-        "mac.cloud_apart_why": ["en": "Run the Khayt app on this Mac to send what is only here.",
-                                "ar": "شغّل تطبيق خيط على هذا الماك لإرسال ما هو موجود هنا فقط."],
+        "mac.cloud_apart_why": ["en": "Sending puts up what is only here and what is newer here. "
+                              + "Anything the cloud holds a newer copy of is left exactly as it is — "
+                              + "open Khayt on this Mac to bring those down.",
+                                "ar": "يرفع الإرسال ما هو هنا فقط وما هو أحدث هنا. "
+                              + "أما ما تحتفظ السحابة بنسخة أحدث منه فيُترك كما هو تمامًا — "
+                              + "افتح خيط على هذا الماك لجلبه."],
+        "mac.cloud_send":    ["en": "Send what is only here", "ar": "أرسل ما هو هنا فقط"],
+        "mac.cloud_sent":    ["en": "{n} sent. Khayt Cloud is now at revision {rev}.",
+                              "ar": "أُرسل {n}. سحابة خيط الآن عند المراجعة {rev}."],
+        "mac.cloud_nothing_to_send": ["en": "Nothing left to send — the cloud already has it.",
+                                      "ar": "لا شيء متبقٍّ للإرسال — السحابة تحتفظ به بالفعل."],
+        "mac.cloud_settings_stay": ["en": "Settings differ too, and this app cannot send those: a "
+                                  + "setting is one thing rather than a list of records, so there is "
+                                  + "nowhere to put it in a change. Open Khayt on this Mac for those.",
+                                    "ar": "الإعدادات مختلفة أيضًا، ولا يستطيع هذا التطبيق إرسالها: "
+                                  + "الإعداد شيء واحد لا قائمة سجلات، فلا موضع له في التغيير. "
+                                  + "افتح خيط على هذا الماك من أجلها."],
         "mac.not_synced_why": ["en": "This app writes to the book on this Mac and marks every change. "
-                             + "It does not talk to Khayt Cloud yet, so another device sees your work "
-                             + "after the Khayt app runs here and syncs.",
+                             + "Check the cloud will send what is only here; a change the cloud holds "
+                             + "a newer copy of still needs the Khayt app to merge.",
                                "ar": "يكتب هذا التطبيق في الدفتر على هذا الماك ويؤشّر كل تغيير. "
-                             + "لا يتصل بسحابة خيط بعد، لذا يرى جهاز آخر عملك بعد تشغيل تطبيق خيط هنا ومزامنته."],
+                             + "و«تحقّق من السحابة» يرسل ما هو هنا فقط؛ أما ما تحتفظ السحابة بنسخة "
+                             + "أحدث منه فيحتاج تطبيق خيط لدمجه."],
         // The machine's own memory of what it has printed.
         "mac.read_history":  ["en": "Read the printer\u{2019}s history",
                               "ar": "قراءة سجل الطابعة"],

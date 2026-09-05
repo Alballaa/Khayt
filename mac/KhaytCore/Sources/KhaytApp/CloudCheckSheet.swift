@@ -1,10 +1,14 @@
 import SwiftUI
 import KhaytCore
 
-/// Asking the cloud what it holds.
+/// Asking the cloud what it holds, and offering to send the half that is only
+/// here.
 ///
-/// Read only, and the sheet says so before it asks for anything: a shop typing
-/// its cloud passphrase deserves to know that nothing is about to be sent.
+/// Two steps, never one. The check is read-only and the sheet says so before it
+/// asks for anything — a shop typing its cloud passphrase deserves to know that
+/// nothing is about to be sent. Sending is a second, deliberate press, made
+/// after the difference is on screen, and it only ever goes one way: what is
+/// only here, and what is newer here. See `CloudWriter`.
 struct CloudCheckSheet: View {
     let shop: Shop
     @Environment(\.dismiss) private var dismiss
@@ -39,12 +43,23 @@ struct CloudCheckSheet: View {
                     }
                     .keyboardShortcut(.defaultAction)
                     .disabled(passphrase.isEmpty || shop.cloudBusy)
+                } else if shop.canSendToCloud {
+                    // Not the default action. Return dismisses this sheet; a
+                    // send is a press somebody meant to make.
+                    Button(shop.words.callIt("mac.cloud_send")) {
+                        Task { await shop.sendToCloud() }
+                    }
+                    .disabled(shop.cloudBusy)
                 }
             }
         }
         .padding(20)
         .frame(width: 520)
         .onAppear { focused = true }
+        // The data key is held only while this sheet is up — that is the whole
+        // bargain that lets Send work without a second passphrase and a second
+        // minute of scrypt.
+        .onDisappear { shop.forgetCloudKey() }
     }
 
     private var ask: some View {
@@ -105,6 +120,22 @@ struct CloudCheckSheet: View {
                 }
                 Text(shop.words.callIt("mac.cloud_apart_why"))
                     .font(.caption).foregroundStyle(.tertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            // Said whether or not there is anything else to send: a setting
+            // this app cannot carry is exactly the thing a shop would otherwise
+            // assume had gone up with the rest.
+            if shop.cloudSettingsStay {
+                Label(shop.words.callIt("mac.cloud_settings_stay"), systemImage: "gearshape")
+                    .font(.caption).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if let sent = shop.cloudSent {
+                Label(shop.words.callIt("mac.cloud_sent",
+                                        ["n": .number(Double(sent.count)),
+                                         "rev": .number(Double(sent.rev))]),
+                      systemImage: "arrow.up.circle")
+                    .font(.callout).foregroundStyle(.green)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }

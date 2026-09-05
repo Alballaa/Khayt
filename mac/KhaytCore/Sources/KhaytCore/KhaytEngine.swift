@@ -212,6 +212,11 @@ public actor KhaytEngine {
         // with — a second opinion about which of two edits wins is the one
         // thing sync must never have.
         "sync",
+        // What this device holds that the cloud does not — the rule behind
+        // "send what is only here". It sits beside `sync` because it builds the
+        // payload `sync.applyDeltas` folds, and gets the answer wrong in a way
+        // that costs a shop data if the two ever disagree about a rev.
+        "cloud-outbox",
         // What counts as a Khayt store at all. Restoring a backup REPLACES a
         // shop's book, so the one thing that must not be a second opinion is
         // which files are allowed to do that — the renderer learned the hard
@@ -1291,6 +1296,19 @@ public actor KhaytEngine {
     /// comparison built on it would have reported the whole book as "newer
     /// here" with nothing to say otherwise. A number nobody can check is not
     /// evidence.
+    /// What this device holds that the cloud does not, ready to send.
+    ///
+    /// One crossing, and the rule on the other side of it is
+    /// `lib/cloud-outbox.js` — deliberately NOT the desktop's
+    /// `changesSincePush`, which measures against a cursor this app never
+    /// wrote and would happily send a stale record over a newer one. See the
+    /// module's own note.
+    public func changesToSend(local: [String: JSONValue],
+                              server: [String: JSONValue]) throws -> Outbox {
+        try runtime.call2("KhaytCloudOutbox.changesToSend(ARG0, ARG1)",
+                          [.object(local), .object(server)], as: Outbox.self)
+    }
+
     public func foldDeltas(base: [String: JSONValue],
                            deltas: [[String: JSONValue]]) throws -> Folded {
         try runtime.call2("""
@@ -1310,6 +1328,36 @@ public actor KhaytEngine {
     }
 
     /// The folded store, and what folding it changed.
+    /// A delta payload, in the shape `KhaytSync.applyDeltas` consumes.
+    ///
+    /// `settingsDiffer` is not part of the payload and never goes on the wire:
+    /// settings are one object rather than revisioned records, so a delta has
+    /// nowhere to put them. It is here so the screen can say that out loud
+    /// instead of dropping a shop's setting change without a word.
+    public struct Outbox: Codable, Sendable {
+        public let deltas: [JSONValue]
+        public let tombstones: [JSONValue]
+        public let cursor: JSONValue
+        public let settingsDiffer: Bool
+
+        public init(deltas: [JSONValue], tombstones: [JSONValue],
+                    cursor: JSONValue, settingsDiffer: Bool) {
+            self.deltas = deltas
+            self.tombstones = tombstones
+            self.cursor = cursor
+            self.settingsDiffer = settingsDiffer
+        }
+
+        public var isEmpty: Bool { deltas.isEmpty && tombstones.isEmpty }
+        public var count: Int { deltas.count + tombstones.count }
+
+        /// Only the three fields the fold reads. Sending `settingsDiffer` would
+        /// put a fact about this device into a payload every other device folds.
+        public var wire: [String: JSONValue] {
+            ["deltas": .array(deltas), "tombstones": .array(tombstones), "cursor": cursor]
+        }
+    }
+
     public struct Folded: Decodable, Sendable {
         public let store: [String: JSONValue]
         /// Records the chain wrote into the base.

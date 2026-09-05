@@ -83,13 +83,22 @@ enum CloudReader {
 
     // MARK: - The request
 
-    /// One cold pull.
+    /// Every request this app makes to the service, built in one place.
     ///
-    /// `fetch` is a seam so the whole path can be exercised without a network
-    /// or a shop's real credentials — every test in `CloudReaderTests` uses it,
-    /// and none of them has ever spoken to the service.
-    static func pull(_ connection: Connection, token: String,
-                     fetch: (URLRequest) async throws -> (Data, URLResponse)) async throws -> Reply {
+    /// One place because of the header. khayt-cloud records the delta
+    /// capability of each credential it hears from, on **every** route, and the
+    /// gate is unanimous — `deltaGateOpen` returns false the moment one
+    /// `delta_capable = 0` row exists, which closes delta sync for the whole
+    /// shop and sends every other device back to uploading the entire store on
+    /// each save. A second call site that forgot it would do that silently, and
+    /// on the send path it would also defeat itself: `POST /deltas` answers 404
+    /// to a shop whose gate it has just closed.
+    ///
+    /// The claim is true and that is what earns it — `store(_:dek:engine:)`
+    /// folds `base + deltas` through `KhaytSync.applyDeltas`, the same rule the
+    /// desktop folds with. It comes off again if that ever stops being so.
+    static func request(_ connection: Connection, token: String,
+                        method: String, tail: String) throws -> URLRequest {
         guard let base = URL(string: connection.url), base.scheme == "https" else {
             // Not a preference: the token goes in a header, and http would put
             // a shop's shop-wide credential on the wire in the clear.
@@ -98,27 +107,26 @@ enum CloudReader {
         // `uriComponent`, not `.alphanumerics` — see the note there. Every shop
         // id Khayt issues contains an underscore, and escaping it produced a
         // path the server has no route for.
-        let path = "/v1/shops/" + connection.shopId.uriComponent + "/store"
+        let path = "/v1/shops/" + connection.shopId.uriComponent + tail
         guard let url = URL(string: base.absoluteString.trimmingTrailingSlash + path) else {
             throw Failure.badAddress(connection.url)
         }
         var request = URLRequest(url: url)
-        request.httpMethod = "GET"
+        request.httpMethod = method
         request.timeoutInterval = 30
         request.setValue("Bearer " + token, forHTTPHeaderField: "Authorization")
-        // Say out loud that this app can read a delta chain. Silence is not
-        // neutral: the service records the capability of every credential it
-        // hears from, and one device it believes cannot fold a chain closes the
-        // gate for the WHOLE shop — `deltaGateOpen` returns false the moment a
-        // single `delta_capable = 0` row exists. Every other device then falls
-        // back to sending the entire store on every save.
-        //
-        // It is true, and that is what earns the header: `store(_:dek:engine:)`
-        // below folds `base + deltas` through `KhaytSync.applyDeltas`, the same
-        // rule the desktop uses. The header must come off again if that ever
-        // stops being so.
         request.setValue("1", forHTTPHeaderField: "x-delta-capable")
+        return request
+    }
 
+    /// One cold pull.
+    ///
+    /// `fetch` is a seam so the whole path can be exercised without a network
+    /// or a shop's real credentials — every test in `CloudReaderTests` uses it,
+    /// and none of them has ever spoken to the service.
+    static func pull(_ connection: Connection, token: String,
+                     fetch: (URLRequest) async throws -> (Data, URLResponse)) async throws -> Reply {
+        let request = try self.request(connection, token: token, method: "GET", tail: "/store")
         let (data, response) = try await fetch(request)
         let code = (response as? HTTPURLResponse)?.statusCode ?? 0
         switch code {

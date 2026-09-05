@@ -41,6 +41,11 @@ enum CloudCompare {
         var applied: Int = 0
         var differing: [Line] { lines.filter { !$0.agrees } }
         var agrees: Bool { differing.isEmpty }
+        /// Records this Mac could send: the ones the cloud has never seen, plus
+        /// the ones it holds an older copy of. Deliberately NOT the whole
+        /// difference — a record that is newer in the cloud is one this Mac is
+        /// behind on, and behind is not something you send.
+        var sendable: Int { lines.reduce(0) { $0 + $1.onlyHere + $1.newerHere } }
     }
 
     /// Every collection worth comparing — `ARRAY_COLLECTIONS` from

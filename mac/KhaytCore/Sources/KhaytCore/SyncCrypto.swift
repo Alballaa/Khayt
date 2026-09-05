@@ -39,7 +39,10 @@ public enum SyncCrypto {
     }
 
     /// One encrypted blob, as the wire and the keyset both carry it.
-    public struct Blob: Decodable, Sendable {
+    /// Encodable as well as Decodable: the same shape goes back up when this app
+    /// sends a change, and inventing a second struct for the outbound half is
+    /// how the two drift.
+    public struct Blob: Codable, Sendable {
         public let v: Int?
         public let z: String?
         public let iv: String
@@ -47,6 +50,10 @@ public enum SyncCrypto {
         public let tag: String
         /// Present on a passphrase-wrapped key and absent on a key-wrapped one.
         public let salt: String?
+
+        public init(v: Int?, z: String?, iv: String, ct: String, tag: String, salt: String?) {
+            self.v = v; self.z = z; self.iv = iv; self.ct = ct; self.tag = tag; self.salt = salt
+        }
     }
 
     public static let storeBlobVersion = 1
@@ -109,7 +116,79 @@ public enum SyncCrypto {
         return out
     }
 
+    /// The other direction: an object, sealed with the DEK, in exactly the shape
+    /// `decryptStore` in `lib/sync-crypto.js` reads back.
+    ///
+    /// Compressed, because that is what every current writer emits and matching
+    /// them keeps one shape on the wire — but the `z` marker is written from the
+    /// same fact that does the compressing, so the two can never disagree.
+    ///
+    /// The nonce comes from `AES.GCM.seal`'s own generator and is never reused:
+    /// a repeated nonce under one key is the failure that hands an attacker the
+    /// keystream, and it is not a thing to economise on.
+    public static func seal(_ object: [String: JSONValue], dek: Data) throws -> Blob {
+        guard dek.count == 32 else { throw Failure.malformed("the key is \(dek.count) bytes, not 32") }
+        let json = try JSONEncoder().encode(object)
+        let packed = try gzip(json)
+        let box = try AES.GCM.seal(packed, using: SymmetricKey(data: dek))
+        return Blob(v: storeBlobVersion, z: compression,
+                    iv: Data(box.nonce).base64EncodedString(),
+                    ct: box.ciphertext.base64EncodedString(),
+                    tag: box.tag.base64EncodedString(),
+                    salt: nil)
+    }
+
     // MARK: - gzip
+
+    /// `zlib.gzipSync`, from the same pieces `gunzip` takes apart.
+    ///
+    /// The ten-byte header carries no name, no time and no extra fields, so the
+    /// reader's optional-field handling is never exercised by our own output —
+    /// deliberately, because a writer should emit the plainest thing its readers
+    /// accept. The trailer is the CRC-32 of the ORIGINAL bytes and their length
+    /// mod 2^32, little-endian, and both are what `gunzip` checks.
+    public static func gzip(_ data: Data) throws -> Data {
+        var out = Data([0x1f, 0x8b, 0x08, 0x00,   // magic, DEFLATE, no flags
+                        0x00, 0x00, 0x00, 0x00,   // mtime 0 — a timestamp would leak and buys nothing
+                        0x00, 0xff])              // no extra flags, OS unknown
+        out.append(try deflate(data))
+        var trailer = crc32(data).littleEndian
+        withUnsafeBytes(of: &trailer) { out.append(contentsOf: $0) }
+        var size = UInt32(truncatingIfNeeded: data.count).littleEndian
+        withUnsafeBytes(of: &size) { out.append(contentsOf: $0) }
+        return out
+    }
+
+    /// Raw DEFLATE, with room for the case where compressing makes it bigger.
+    ///
+    /// `compression_encode_buffer` returns 0 for "it did not fit" and gives no
+    /// way to ask how much it needed, exactly as its decoding twin does. Random
+    /// or already-compressed bytes come out LARGER than they went in — stored
+    /// blocks add about five bytes per 64 KB — so a destination sized at the
+    /// input length is not merely tight, it is wrong.
+    private static func deflate(_ data: Data) throws -> Data {
+        guard !data.isEmpty else {
+            // `compression_encode_buffer` writes nothing for no input, which is
+            // indistinguishable from failure. An empty DEFLATE stream is one
+            // final empty stored block, and every inflater reads it.
+            return Data([0x03, 0x00])
+        }
+        var capacity = data.count + (data.count / 100) + 1024
+        for _ in 0..<6 {
+            var out = Data(count: capacity)
+            let written = out.withUnsafeMutableBytes { dst -> Int in
+                data.withUnsafeBytes { src -> Int in
+                    compression_encode_buffer(
+                        dst.baseAddress!.assumingMemoryBound(to: UInt8.self), capacity,
+                        src.baseAddress!.assumingMemoryBound(to: UInt8.self), data.count,
+                        nil, COMPRESSION_ZLIB)
+                }
+            }
+            if written > 0 { return out.prefix(written) }
+            capacity *= 4
+        }
+        throw Failure.corruptGzip("the payload did not compress into any reasonable size")
+    }
 
     /// `zlib.gunzipSync`, from the pieces macOS gives.
     ///
