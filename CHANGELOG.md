@@ -503,6 +503,17 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **A PIN set in an old version of Khayt is quietly re-secured the next time it
+  is typed.** Khayt moved to a much stronger way of storing PINs and recovery
+  codes a while ago, and new ones have used it since — but a PIN set before that
+  kept its old form for ever. It still worked, so nothing looked wrong; the old
+  form is weak enough that a four-digit PIN can be read straight back out of it,
+  and that stored value travels in backups and through the cloud. Khayt already
+  knew how to replace it and simply never did. Now, the first time the correct
+  PIN or recovery code is entered — the only moment it can be done — the stored
+  value is replaced with the strong form. Nothing to do, and nothing changes on
+  screen. A wrong PIN replaces nothing.
+
 - **The window now reports ZATCA invoices through the same rules the tests
   cover.** Khayt had two copies of four Phase 2 rules — which invoices may be
   reported, what counter value the next one gets, whether ZATCA accepted it, and
