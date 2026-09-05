@@ -1119,6 +1119,14 @@ struct NewJobTests {
                   "materialType": .string("resin"), "cost": .number(300), "weight": .number(1000)])]
     }
 
+    /// THIS TEST USED TO ASSERT 30, AND ITS NAME WAS ALREADY WRONG.
+    ///
+    /// Thirty is the material plus a quarter hour of labour — which is what you
+    /// get when wear, power, the rest of the labour and the failure allowance
+    /// are all missing. They were: this app read them from five
+    /// `settings.default*` keys Khayt has never written, so every one of them
+    /// came out zero and `computePartBaseCost` said so without complaining. The
+    /// test agreed with the bug, under the very heading that claimed parity.
     @Test("a job taken here is costed the way the calculator costs it")
     func partCostMatchesTheSharedModel() async throws {
         let engine = try KhaytEngine()
@@ -1128,8 +1136,73 @@ struct NewJobTests {
             "laborRate": .number(40), "prepTime": .number(0.25),
         ])
         let cost = try await engine.partCost(part, inventory: Self.shelf(), settings: [:])
-        // 250g of an 80-per-kilo spool is 20, plus a quarter hour at 40 is 10.
-        #expect(abs(cost - 30) < 0.0001)
+        //   material  250g of an 80-per-kilo spool      20
+        //   wear      4h at Khayt's 0.75 an hour         3
+        //   power     4h at 150W and 0.18 a kWh          0.108
+        //   labour    this part's own 40 an hour, over
+        //             its own 0.25 prep and the 0.5
+        //             finishing Khayt assumes           30
+        //   buffer    10% of all of it                   5.3108
+        #expect(abs(cost - 58.4188) < 0.0001)
+    }
+
+    /// The one that would have caught it. A part that says nothing about rates
+    /// must not be costed as though every rate were nought.
+    @Test("a part that names no rates is not quoted at material alone")
+    func ratesAreNeverSilentlyZero() async throws {
+        let engine = try KhaytEngine()
+        // This shop's own job: 272 grams and just under fifteen hours.
+        let part: JSONValue = .object([
+            "spoolCost": .number(75), "spoolWeight": .number(1000),
+            "printWeight": .number(272), "printTime": .number(14.9), "qty": .number(1),
+        ])
+        let cost = try await engine.partCost(part, inventory: [], settings: [:])
+        let material = 0.075 * 272
+        #expect(abs(material - 20.4) < 0.0001)
+        #expect(cost > material * 4, "material was \(material) and the job costs \(cost)")
+        #expect(abs(cost - 109.43) < 0.01, "the figure Khayt's own calculator quotes")
+    }
+
+    /// The two rates a printer knows about itself, and only those two.
+    @Test("the machine the job is on supplies its own power draw and wear")
+    func machineRatesReachTheCost() async throws {
+        let engine = try KhaytEngine()
+        let part: JSONValue = .object([
+            "spoolCost": .number(0), "spoolWeight": .number(1000),
+            "printWeight": .number(0), "printTime": .number(10), "qty": .number(1),
+            // Isolate the machine: no labour, no allowance.
+            "laborRate": .number(0), "failureRate": .number(0),
+        ])
+        let onDefaults = try await engine.partCost(part, inventory: [], settings: [:])
+        // 10h × 0.75 wear + 10h × 0.150kW × 0.18 = 7.5 + 0.27
+        #expect(abs(onDefaults - 7.77) < 0.0001)
+
+        // This shop's U1: 140W, and no wear rate of its own.
+        let u1: JSONValue = .object(["id": .string("M1"), "name": .string("Snapmaker U1"),
+                                     "powerDraw": .number(140)])
+        let onTheU1 = try await engine.partCost(part, inventory: [], settings: [:], machine: u1)
+        #expect(abs(onTheU1 - 7.752) < 0.0001, "7.5 wear, and 140W rather than 150")
+
+        let thirsty: JSONValue = .object(["id": .string("M2"), "powerDraw": .number(600),
+                                          "wearRate": .number(2)])
+        let onThat = try await engine.partCost(part, inventory: [], settings: [:], machine: thirsty)
+        #expect(abs(onThat - 21.08) < 0.0001, "20 wear, 1.08 power")
+    }
+
+    /// The four figures the sheet shows have to add up to the one it charges,
+    /// or the screen is explaining a different number from the one on it.
+    @Test("the breakdown sums to the cost, exactly")
+    func breakdownSumsToCost() async throws {
+        let engine = try KhaytEngine()
+        let part: JSONValue = .object([
+            "filamentId": .string("S1"), "spoolCost": .number(80), "spoolWeight": .number(1000),
+            "printWeight": .number(250), "printTime": .number(4), "qty": .number(1),
+        ])
+        let cost = try await engine.partCost(part, inventory: Self.shelf(), settings: [:])
+        let split = try await engine.partBreakdown(part, inventory: Self.shelf(), settings: [:])
+        #expect(abs(split.total - cost) < 0.0001)
+        #expect(split.material > 0 && split.machine > 0 && split.labor > 0 && split.buffer > 0,
+                "every bucket earns its place on the screen")
     }
 
     /// Resin is priced per kilo and filament per spool, and the difference is
@@ -1143,9 +1216,19 @@ struct NewJobTests {
             "filamentId": .string("R1"), "spoolCost": .number(300), "spoolWeight": .number(1000),
             "printWeight": .number(100), "printTime": .number(0), "qty": .number(1),
         ])
-        let asResin = try await engine.partCost(part, inventory: Self.shelf(), settings: [:])
+        // Rates zeroed ON THE PART, which beats the defaults — this test is
+        // about which side of a division the weight goes, and sixty-seven
+        // riyals of assumed labour on top of it proves nothing either way.
+        guard case .object(var bare) = part else { Issue.record("part"); return }
+        bare["laborRate"] = .number(0)
+        bare["wearRate"] = .number(0)
+        bare["powerDraw"] = .number(0)
+        bare["failureRate"] = .number(0)
+        let materialOnly = JSONValue.object(bare)
+
+        let asResin = try await engine.partCost(materialOnly, inventory: Self.shelf(), settings: [:])
         let withoutTheFlag = try await engine.partCost(
-            part,
+            materialOnly,
             inventory: [.object(["id": .string("R1"), "material": .string("Resin"),
                                  "cost": .number(300), "weight": .number(1000)])],
             settings: [:])

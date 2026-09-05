@@ -6,6 +6,16 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Changed
 
+- **The Mac app was quoting jobs at a fifth of what they cost.** Everything but
+  the filament — machine wear, electricity, labour and the allowance for prints
+  that fail — was read from five settings Khayt has never written anywhere, so
+  every one of them came out as nothing and the price was the material and no
+  more. On a real 272-gram, fifteen-hour job that is 20.40 where Khayt's own
+  calculator says 109.43. The rates now come from the figures that calculator
+  opens on, a machine supplies its own power draw and wear, and the New Job
+  sheet shows the four parts of the cost so a shop can see what is in the
+  number — including when one of them is zero.
+
 - **The Mac app's sidebar stopped claiming it cannot sync.** It said "Not
   synced from here" under a struck-through cloud, which became false the moment
   *Check the cloud* learned to send. It now says "Not synced automatically" —

@@ -765,15 +765,11 @@ final class Shop {
         return 30
     }
 
-    /// What one part costs to make, through the shared cost model.
+    /// One part, in the shape the cost model reads it.
     ///
     /// The spool supplies the material and what it cost — the shelf already
-    /// knows, and asking a shop to retype it is asking twice. Everything the
-    /// screen does not ask for (wear, power, labour, the failure allowance) is
-    /// the shop's own default, so a job taken here is costed exactly as the same
-    /// job typed into Electron.
-    func costOfPart(spoolId: String?, grams: Double, hours: Double, qty: Int) async -> Double {
-        guard let engine else { return 0 }
+    /// knows, and asking a shop to retype it is asking twice.
+    private func partFor(spoolId: String?, grams: Double, hours: Double, qty: Int) -> JSONValue {
         var part: [String: JSONValue] = [
             "printWeight": .number(max(0, grams)),
             "printTime": .number(max(0, hours)),
@@ -786,15 +782,50 @@ final class Shop {
             // At least one gram: the cost model divides by this.
             part["spoolWeight"] = .number(max(1, spool.weight ?? 1000))
         }
-        for (key, setting) in ["wearRate": "defaultWearRate", "powerDraw": "defaultPowerDraw",
-                               "elecRate": "defaultElecRate", "laborRate": "defaultLaborRate",
-                               "failureRate": "defaultFailureRate"] {
-            if case .object(let all) = settingsValue, case .number(let v)? = all[setting] {
-                part[key] = .number(v)
-            }
+        return .object(part)
+    }
+
+    /// What one part costs to make, through the shared cost model.
+    ///
+    /// WHAT THIS USED TO DO, AND WHY IT WAS EXPENSIVE. Wear, power, labour and
+    /// the failure allowance were read from `settings.defaultWearRate` and four
+    /// siblings — five keys **Khayt has never written anywhere**. The fallback
+    /// branch was therefore the only branch, every one of those came out zero,
+    /// and `computePartBaseCost` returned the material cost without complaint.
+    /// On a real 272g / 14.9h job that is 20.40 against the 109.43 the Electron
+    /// calculator quotes for the same work: a job taken here was priced at
+    /// under a fifth of what it costs the shop to make.
+    ///
+    /// The rates now come from `lib/print-rates.js`, which holds the figures
+    /// the calculator form actually opens on, tied to the HTML by a test.
+    func costOfPart(spoolId: String?, grams: Double, hours: Double, qty: Int,
+                    machineId: String? = nil) async -> Double {
+        guard let engine else { return 0 }
+        return (try? await engine.partCost(partFor(spoolId: spoolId, grams: grams,
+                                                   hours: hours, qty: qty),
+                                           inventory: inventoryRows, settings: settingsDict,
+                                           machine: machineRow(machineId))) ?? 0
+    }
+
+    /// The same figure, in the four parts a shop can argue with.
+    func breakdownOfPart(spoolId: String?, grams: Double, hours: Double, qty: Int,
+                         machineId: String? = nil) async -> KhaytEngine.CostParts? {
+        guard let engine else { return nil }
+        return try? await engine.partBreakdown(partFor(spoolId: spoolId, grams: grams,
+                                                       hours: hours, qty: qty),
+                                               inventory: inventoryRows, settings: settingsDict,
+                                               machine: machineRow(machineId))
+    }
+
+    /// A machine as the book holds it, for the two rates a printer knows about
+    /// itself. Nil for a job on no particular machine, which is the usual case
+    /// at the moment somebody is quoting it.
+    private func machineRow(_ id: String?) -> JSONValue? {
+        guard let id, !id.isEmpty else { return nil }
+        return machineRows.first {
+            if case .object(let m) = $0 { return m["id"] == .string(id) }
+            return false
         }
-        return (try? await engine.partCost(.object(part), inventory: inventoryRows,
-                                           settings: settingsDict)) ?? 0
     }
 
     /// What the cart comes to, before anything is written.
