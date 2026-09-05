@@ -6,6 +6,13 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Changed
 
+- **A job taken on the Mac now records what it was priced at.** Khayt's own
+  job editor reads a part's rates straight back into its form, so a part saved
+  without them opened there with every rate field blank — and the next save
+  re-costed the job at nothing. A job taken on the Mac would have lost its
+  price on somebody else's machine, with neither app saying a word. The seven
+  figures now travel with the part, exactly as the calculator writes them.
+
 - **The Mac app was quoting jobs at a fifth of what they cost.** Everything but
   the filament — machine wear, electricity, labour and the allowance for prints
   that fail — was read from five settings Khayt has never written anywhere, so

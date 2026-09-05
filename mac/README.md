@@ -601,6 +601,15 @@ then a saved printer preset, then the MACHINE for the two rates a printer
 knows about itself — its power draw and its wear. Anything typed on the part
 beats all of it, so a zero somebody meant stays zero.
 
+**And the rates travel with the part.** `renderer/build.js` loads a part into
+its editor with `$('#wearRate').value = part.wearRate || ''` and saves with
+`clampPositive(...)`, so a part with no rates on it opens in Khayt with every
+rate field blank and re-costs to nothing on the next save. A job taken here
+would have lost its price on somebody else's machine. `costPart` returns the
+figure, the four buckets and the seven rates from ONE crossing — made from the
+same merged object, so what is written down is what was charged rather than a
+second guess at it.
+
 The New Job sheet shows the four buckets under the total. Not decoration: this
 screen asks for grams and hours and nothing else, so most of what a print costs
 is invisible unless it is said out loud — and a bucket reading nought is

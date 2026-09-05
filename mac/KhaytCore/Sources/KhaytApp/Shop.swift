@@ -807,14 +807,16 @@ final class Shop {
                                            machine: machineRow(machineId))) ?? 0
     }
 
-    /// The same figure, in the four parts a shop can argue with.
-    func breakdownOfPart(spoolId: String?, grams: Double, hours: Double, qty: Int,
-                         machineId: String? = nil) async -> KhaytEngine.CostParts? {
+    /// What a part costs, where it went, and what it was costed AT — one
+    /// crossing, because all three are wanted at the same moment and the third
+    /// has to be written down with the job.
+    func costedPart(spoolId: String?, grams: Double, hours: Double, qty: Int,
+                    machineId: String? = nil) async -> KhaytEngine.CostedPart? {
         guard let engine else { return nil }
-        return try? await engine.partBreakdown(partFor(spoolId: spoolId, grams: grams,
-                                                       hours: hours, qty: qty),
-                                               inventory: inventoryRows, settings: settingsDict,
-                                               machine: machineRow(machineId))
+        return try? await engine.costPart(partFor(spoolId: spoolId, grams: grams,
+                                                  hours: hours, qty: qty),
+                                          inventory: inventoryRows, settings: settingsDict,
+                                          machine: machineRow(machineId))
     }
 
     /// A machine as the book holds it, for the two rates a printer knows about
@@ -851,13 +853,17 @@ final class Shop {
     }
 
     /// The cart and the money, in the shape `lib/order-new.js` takes.
-    func newJobInput(parts: [NewJobSheet.Draft], project: String, clientId: String?,
-                     margin: Double, discountPct: Double, shippingCost: Double,
-                     deposit: Double, rush: Bool, asQuote: Bool) -> [String: JSONValue] {
+    /// The parts of a job, as the book records them.
+    ///
+    /// Pulled out of `newJobInput` so a test can call THIS rather than restate
+    /// it: what a saved part carries is the whole question, and the answer has
+    /// to be checkable without standing up a window.
+    static func partRows(_ parts: [NewJobSheet.Draft], spools: [Spool],
+                         unnamed: String) -> [JSONValue] {
         var rows: [JSONValue] = []
         for p in parts {
             var row: [String: JSONValue] = [
-                "name": .string(p.name.isEmpty ? words.callIt("mac.a_part") : p.name),
+                "name": .string(p.name.isEmpty ? unnamed : p.name),
                 "printWeight": .number(Double(p.grams) ?? 0),
                 "printTime": .number(Double(p.hours) ?? 0),
                 "qty": .number(Double(max(1, p.qty))),
@@ -866,6 +872,17 @@ final class Shop {
                 "unitCost": .number(p.cost),
                 "baseCost": .number(p.cost * Double(max(1, p.qty))),
             ]
+            // The rates this part was costed at, written down beside the cost.
+            //
+            // Not bookkeeping. `renderer/build.js` reads them straight back into
+            // its form — `$('#wearRate').value = part.wearRate || ''` — so a
+            // part saved without them opens in Khayt's editor with every rate
+            // field blank, and the next save re-costs the job at nothing. A job
+            // taken here would have lost its price on somebody else's machine,
+            // with nothing said on either.
+            if let rates = p.rates {
+                for (key, value) in rates.fields { row[key] = value }
+            }
             if let spoolId = p.spoolId, let spool = spools.first(where: { $0.id == spoolId }) {
                 row["filamentId"] = .string(spool.id)
                 row["material"] = .string(spool.material)
@@ -874,8 +891,15 @@ final class Shop {
             }
             rows.append(.object(row))
         }
+        return rows
+    }
+
+    func newJobInput(parts: [NewJobSheet.Draft], project: String, clientId: String?,
+                     margin: Double, discountPct: Double, shippingCost: Double,
+                     deposit: Double, rush: Bool, asQuote: Bool) -> [String: JSONValue] {
         var input: [String: JSONValue] = [
-            "parts": .array(rows),
+            "parts": .array(Self.partRows(parts, spools: spools,
+                                          unnamed: words.callIt("mac.a_part"))),
             "project": .string(project),
             "margin": .number(margin),
             "discountPct": .number(discountPct),

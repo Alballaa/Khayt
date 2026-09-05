@@ -1189,6 +1189,95 @@ struct NewJobTests {
         #expect(abs(onThat - 21.08) < 0.0001, "20 wear, 1.08 power")
     }
 
+    /// THE ONE THAT REACHES THE OTHER APP.
+    ///
+    /// `renderer/build.js` loads a part into its editor with
+    /// `$('#wearRate').value = part.wearRate || ''`, and saves with
+    /// `clampPositive($('#wearRate').value)`. So a part with no rates on it
+    /// opens there with every rate field blank and re-costs to nothing on the
+    /// next save. A job taken on this Mac would have lost its price on
+    /// somebody else's machine, silently, and this app would never have known.
+    @Test("a costed part carries the rates it was costed at")
+    func costedPartCarriesItsRates() async throws {
+        let engine = try KhaytEngine()
+        let part: JSONValue = .object([
+            "filamentId": .string("S1"), "spoolCost": .number(80), "spoolWeight": .number(1000),
+            "printWeight": .number(250), "printTime": .number(4), "qty": .number(1),
+        ])
+        let costed = try await engine.costPart(part, inventory: Self.shelf(), settings: [:])
+
+        // The seven Khayt's own form opens on.
+        #expect(costed.rates.wearRate == 0.75)
+        #expect(costed.rates.powerDraw == 150)
+        #expect(costed.rates.elecRate == 0.18)
+        #expect(costed.rates.prepTime == 0.25)
+        #expect(costed.rates.postTime == 0.5)
+        #expect(costed.rates.laborRate == 90)
+        #expect(costed.rates.failureRate == 10)
+        // All seven, with the names the book uses — a missing one is a blank
+        // field in the other app's editor.
+        #expect(Set(costed.rates.fields.keys) == ["wearRate", "powerDraw", "elecRate",
+                                                  "prepTime", "postTime", "laborRate",
+                                                  "failureRate"])
+
+        // And they are the rates the figure was actually made from: costing the
+        // part again with them written on it has to give the same number.
+        guard case .object(var withRates) = part else { Issue.record("part"); return }
+        for (key, value) in costed.rates.fields { withRates[key] = value }
+        let again = try await engine.partCost(.object(withRates), inventory: Self.shelf(),
+                                              settings: [:])
+        #expect(abs(again - costed.cost) < 0.0001)
+        #expect(abs(costed.parts.total - costed.cost) < 0.0001)
+    }
+
+    /// The wiring proof: the rates have to reach the RECORD, not merely exist.
+    ///
+    /// `Shop.partRows` is what `newJobInput` builds a job's parts with, called
+    /// here rather than restated — a test that assembles its own row would go
+    /// green against a `newJobInput` that dropped every one of these.
+    @Test("a saved part carries the seven rates the other app reads back")
+    func savedPartCarriesTheRates() async throws {
+        let engine = try KhaytEngine()
+        let spools = try JSONDecoder().decode([Spool].self, from: Data("""
+            [{"id":"S1","material":"PLA","cost":80,"weight":1000}]
+            """.utf8))
+        let costed = try await engine.costPart(
+            .object(["spoolCost": .number(80), "spoolWeight": .number(1000),
+                     "printWeight": .number(250), "printTime": .number(4),
+                     "qty": .number(1)]),
+            inventory: [], settings: [:])
+
+        var draft = NewJobSheet.Draft()
+        draft.name = "Bracket"
+        draft.spoolId = "S1"
+        draft.grams = "250"
+        draft.hours = "4"
+        draft.cost = costed.cost
+        draft.rates = costed.rates
+
+        let rows = Shop.partRows([draft], spools: spools, unnamed: "A part")
+        guard case .object(let row)? = rows.first else { Issue.record("no row"); return }
+
+        for (key, expected) in costed.rates.fields {
+            #expect(row[key] == expected, "\(key) is missing from the saved part")
+        }
+        #expect(row["unitCost"] == .number(costed.cost))
+        #expect(row["spoolCost"] == .number(80), "and the spool still fills itself in")
+    }
+
+    /// A machine's rates are the ones recorded, not the defaults it replaced.
+    @Test("the rates recorded are the machine's own where it has them")
+    func recordedRatesFollowTheMachine() async throws {
+        let engine = try KhaytEngine()
+        let part: JSONValue = .object([
+            "printWeight": .number(100), "printTime": .number(3), "qty": .number(1),
+        ])
+        let u1: JSONValue = .object(["id": .string("M1"), "powerDraw": .number(140)])
+        let costed = try await engine.costPart(part, inventory: [], settings: [:], machine: u1)
+        #expect(costed.rates.powerDraw == 140, "and not the 150 it started from")
+        #expect(costed.rates.wearRate == 0.75, "which the U1 says nothing about")
+    }
+
     /// The four figures the sheet shows have to add up to the one it charges,
     /// or the screen is explaining a different number from the one on it.
     @Test("the breakdown sums to the cost, exactly")
