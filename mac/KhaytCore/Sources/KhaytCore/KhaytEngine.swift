@@ -1120,6 +1120,31 @@ public actor KhaytEngine {
                           [client, .string(language), .object(settings)], as: String.self)
     }
 
+    /// What every order still owes, in the shop's base currency, keyed by id.
+    ///
+    /// ONE CROSSING for the whole book. `orderOwedBase` is the rule that
+    /// decides whether a customer gets chased, and it subtracts more than a
+    /// Swift `price - paidAmount` does: a credit note and a gift-card
+    /// redemption both pay an order down, and a foreign-currency order is
+    /// converted rather than reported at its face value.
+    public func owedByOrder(_ orders: [JSONValue], settings: [String: JSONValue],
+                            clients: [JSONValue],
+                            currencies: [String: JSONValue]) throws -> [String: Double] {
+        try runtime.call2("""
+            (function (rows, ctx, known) {
+              var out = {};
+              for (var i = 0; i < rows.length; i++) {
+                var o = rows[i];
+                if (!o || !o.id) continue;
+                out[o.id] = KhaytOrderMoney.orderOwedBase(o, ctx, known);
+              }
+              return out;
+            })(ARG0, {settings: ARG1, clients: ARG2}, ARG3)
+            """,
+                          [.array(orders), .object(settings), .array(clients), .object(currencies)],
+                          as: [String: Double].self)
+    }
+
     /// Every customer's name at once, in the shop's own language.
     ///
     /// ONE CROSSING, not one per row. The two functions above take a single

@@ -201,6 +201,12 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **The Mac app was short by a credit note and by a gift card.** "Owed" in the
+  title bar, on the customers table, on the jobs table and on every kanban card
+  was `price − paid` worked out in Swift, so a job with a 300 credit note
+  against 1,000 read as 1,000 still owed — while the Receivables page, which
+  asks the shared rule, said 700. It now asks the same rule everywhere.
+
 - **The Mac app listed customers in the wrong language.** An Arabic shop saw
   "Tuwaiq Makerspace" on the Customers screen and "مساحة طويق للصناع" on the
   Best page — the same record, two screens, two names. The table spelled names
