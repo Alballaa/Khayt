@@ -44,6 +44,8 @@ struct ShopWindow: View {
                     Waste(shop: shop)
                 } else if shop.showingReports {
                     Reports(shop: shop)
+                } else if shop.showingCatalogue {
+                    Catalogue(shop: shop)
                 } else if shop.showingCustomers {
                     CustomersTable(shop: shop)
                 } else {
@@ -63,12 +65,14 @@ struct ShopWindow: View {
         .inspector(isPresented: Binding(
             get: { showInspector && !shop.showingDashboard && !shop.showingBoard
                    && !shop.showingMachines && !shop.showingInventory
-                   && !shop.showingExpenses && !shop.showingWaste && !shop.showingReports },
+                   && !shop.showingExpenses && !shop.showingWaste && !shop.showingReports
+                   && !shop.showingCatalogue },
             set: { showInspector = $0 }
         )) {
             Group {
                 if shop.showingMachines || shop.showingInventory || shop.showingBoard
-                    || shop.showingExpenses || shop.showingWaste || shop.showingReports {
+                    || shop.showingExpenses || shop.showingWaste || shop.showingReports
+                    || shop.showingCatalogue {
                     // Both screens carry their own detail — a card and a table
                     // wide enough to read. A panel beside them would repeat.
                     EmptyView()
@@ -242,6 +246,7 @@ private struct OwedSummary: View {
         case .expenses: "expenses"
         case .waste: "waste"
         case .reports: "reports"
+        case .catalogue: "catalogue"
         case .library(nil): "library"
         case .library(let group?): "library:\(group)"
         }
@@ -270,6 +275,11 @@ private struct OwedSummary: View {
             return .waste
         case "reports":
             return .reports
+        case "catalogue":
+            // Only if the shop still has one — a catalogue that was emptied
+            // since would restore to a screen with nothing on it and no way
+            // back, because the sidebar row is gone too.
+            return shop.catalogueRows.isEmpty ? nil : .catalogue
         case "library":
             guard parts.count == 2 else { return .library(nil) }
             // Only if it is still a group this shop has.

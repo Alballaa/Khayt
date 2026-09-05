@@ -6,6 +6,12 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Changed
 
+- **The Mac app shows the catalogue.** What the shop sells, with the price
+  Khayt computes and — beside it — why that number: your own price, rounded, or
+  calculated. Weight, materials and margin come from the product's own parts.
+  The sidebar row appears only for a shop that has a catalogue; making and
+  photographing products is still Khayt's.
+
 - **The Mac app speaks to OctoPrint and PrusaLink printers too.** Three of the
   seven protocols now, up from one. Both send an API key, which the app opens at
   the moment it sends it and holds nowhere. Duet and Repetier still say plainly

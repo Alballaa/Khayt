@@ -44,6 +44,14 @@ struct Sidebar: View {
                 Row(title: shop.words.callIt("mac.inventory"), symbol: "shippingbox",
                     count: shop.spools.count, selected: shop.shelf == .inventory)
                     .tag(Shop.Shelf.inventory)
+                // Only for a shop that has one. A catalogue is a decision a
+                // shop makes, not a screen everybody needs, and an empty row
+                // on every launch is a row people stop seeing.
+                if !shop.catalogueRows.isEmpty {
+                    Row(title: shop.words.callIt("cat.title"), symbol: "tag",
+                        count: shop.catalogueRows.count, selected: shop.shelf == .catalogue)
+                        .tag(Shop.Shelf.catalogue)
+                }
             }
             // What the shop spends and what it throws away. Below the floor,
             // because both are read at the end of a month rather than during a
