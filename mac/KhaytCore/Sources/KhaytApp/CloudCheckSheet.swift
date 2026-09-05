@@ -174,6 +174,15 @@ struct CloudCheckSheet: View {
                       systemImage: "arrow.up.circle")
                     .font(.callout).foregroundStyle(.green)
                     .fixedSize(horizontal: false, vertical: true)
+                // The cause, under the result that reports it. A shop in this
+                // state stays in it — the whole book goes up on every sync,
+                // every time — and until this line existed nothing anywhere
+                // said why or how it ends.
+                if sent.wholeStore {
+                    Text(shop.words.callIt("mac.cloud_sent_whole_why"))
+                        .font(.caption).foregroundStyle(.tertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
         }
     }
