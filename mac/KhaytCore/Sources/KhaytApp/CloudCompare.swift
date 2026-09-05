@@ -34,6 +34,11 @@ enum CloudCompare {
         let lines: [Line]
         /// The head revision the cloud reported.
         let cloudRev: Int
+        /// How many encrypted changes came after the base, and how many records
+        /// they wrote — shown, because "nineteen jobs are newer here" means one
+        /// thing if the chain was folded and another entirely if it was not.
+        var chain: Int = 0
+        var applied: Int = 0
         var differing: [Line] { lines.filter { !$0.agrees } }
         var agrees: Bool { differing.isEmpty }
     }
@@ -41,11 +46,12 @@ enum CloudCompare {
     /// Every collection worth comparing — `ARRAY_COLLECTIONS` from
     /// `lib/store-validate.js`, read from the engine rather than listed again.
     static func compare(here: [String: JSONValue], there: [String: JSONValue],
-                        collections: [String], cloudRev: Int) -> Result {
+                        collections: [String], cloudRev: Int,
+                        chain: Int = 0, applied: Int = 0) -> Result {
         var lines: [Line] = []
         for name in collections {
-            let mine = index(here[name])
-            let theirs = index(there[name])
+            let mine = index(here[name], keyedByCollection: name == "tombstones")
+            let theirs = index(there[name], keyedByCollection: name == "tombstones")
             // A collection neither side has is not a difference, and a line of
             // zeroes for each of thirty-one collections is a screen nobody
             // reads.
@@ -63,7 +69,7 @@ enum CloudCompare {
                               onlyHere: onlyHere, onlyThere: onlyThere,
                               newerHere: newerHere, newerThere: newerThere))
         }
-        return Result(lines: lines, cloudRev: cloudRev)
+        return Result(lines: lines, cloudRev: cloudRev, chain: chain, applied: applied)
     }
 
     /// `id` → `rev`, for one collection.
@@ -71,15 +77,25 @@ enum CloudCompare {
     /// A row with no id cannot be compared with anything and is skipped rather
     /// than counted as a difference — sync itself keys on the id, so a row
     /// without one was never going to travel.
-    private static func index(_ value: JSONValue?) -> [String: Double] {
+    private static func index(_ value: JSONValue?,
+                              keyedByCollection: Bool = false) -> [String: Double] {
         guard case .array(let rows)? = value else { return [:] }
         var out: [String: Double] = [:]
         for row in rows {
             guard case .object(let record) = row,
                   case .string(let id)? = record["id"], !id.isEmpty else { continue }
+            // A TOMBSTONE'S ID IS NOT UNIQUE ON ITS OWN. It is the id of the
+            // record that was deleted, so two tombstones for different
+            // collections can share one — `keyOf` in lib/sync.js keys them
+            // `collection:id` for exactly that reason, and keying on the id
+            // alone would silently collapse two deletions into one.
+            var key = id
+            if keyedByCollection, case .string(let collection)? = record["collection"] {
+                key = collection + ":" + id
+            }
             var rev: Double = 0
             if case .number(let n)? = record["rev"] { rev = n }
-            out[id] = rev
+            out[key] = rev
         }
         return out
     }

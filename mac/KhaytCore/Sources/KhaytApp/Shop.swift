@@ -1589,7 +1589,7 @@ final class Shop {
                 throw CloudReader.Failure.malformed("the keyset has no passphrase-wrapped key")
             }
             let dek = try SyncCrypto.unwrapDek(secret: passphrase, wrapped: wrapped)
-            let theirs = try await CloudReader.store(reply, dek: dek, engine: engine)
+            let folded = try await CloudReader.store(reply, dek: dek, engine: engine)
 
             // Read from disk rather than from what this app is holding: the
             // screens decode two collections out of thirty-three, and a
@@ -1597,8 +1597,9 @@ final class Shop {
             let mine = (try? Data(contentsOf: build.storeURL))
                 .flatMap { try? JSONDecoder().decode([String: JSONValue].self, from: $0) } ?? [:]
             let collections = (try? await engine.storeCollections()) ?? []
-            cloudCheck = CloudCompare.compare(here: mine, there: theirs,
-                                              collections: collections, cloudRev: reply.rev)
+            cloudCheck = CloudCompare.compare(here: mine, there: folded.store,
+                                              collections: collections, cloudRev: reply.rev,
+                                              chain: folded.chain, applied: folded.applied)
         } catch let failure as CloudReader.Failure {
             cloudProblem = failure.description
         } catch let failure as SyncCrypto.Failure {

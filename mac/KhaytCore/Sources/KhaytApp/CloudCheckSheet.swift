@@ -76,7 +76,13 @@ struct CloudCheckSheet: View {
                 Label(shop.words.callIt("mac.cloud_apart"), systemImage: "arrow.triangle.branch")
                     .foregroundStyle(.orange)
             }
-            Text(shop.words.callIt("mac.cloud_rev") + " \(result.cloudRev)")
+            // What the answer is built on, said out loud. Without it "nineteen
+            // jobs are newer here" cannot be told apart from a chain that was
+            // never folded.
+            Text(shop.words.callIt("mac.cloud_rev") + " \(result.cloudRev)"
+                 + " · " + shop.words.callIt("mac.cloud_folded",
+                                             ["chain": .number(Double(result.chain)),
+                                              "applied": .number(Double(result.applied))]))
                 .font(.caption).foregroundStyle(.tertiary).monospacedDigit()
 
             if !result.differing.isEmpty {

@@ -138,13 +138,32 @@ enum CloudReader {
 
     /// Decrypt the base and fold the chain onto it — the same order `pull()`
     /// uses in cloud-backend.js.
-    static func store(_ reply: Reply, dek: Data, engine: KhaytEngine) async throws
-        -> [String: JSONValue] {
+    static func store(_ reply: Reply, dek: Data, engine: KhaytEngine) async throws -> Folded {
         guard let baseBlob = reply.base else { throw Failure.noBase }
         let base = try SyncCrypto.store(baseBlob, dek: dek)
-        guard !reply.deltas.isEmpty else { return base }
+        guard !reply.deltas.isEmpty else {
+            return Folded(store: base, chain: 0, applied: 0, removed: 0)
+        }
         let payloads = try reply.deltas.map { try SyncCrypto.store($0.blob, dek: dek) }
-        return try await engine.foldDeltas(base: base, deltas: payloads)
+        let out = try await engine.foldDeltas(base: base, deltas: payloads)
+        return Folded(store: out.store, chain: payloads.count,
+                      applied: out.applied, removed: out.removed)
+    }
+
+    /// What the cloud's side of the comparison is built on.
+    ///
+    /// Carried so it can be SHOWN. "Nineteen jobs are newer here" means one
+    /// thing if thirteen changes were folded onto the base and something else
+    /// entirely if none were — and the two are indistinguishable from the
+    /// answer alone.
+    struct Folded {
+        let store: [String: JSONValue]
+        /// How many encrypted changes the server sent after the base.
+        let chain: Int
+        /// How many records those changes actually wrote.
+        let applied: Int
+        /// How many they deleted.
+        let removed: Int
     }
 }
 

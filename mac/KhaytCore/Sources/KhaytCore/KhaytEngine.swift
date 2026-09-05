@@ -1285,18 +1285,40 @@ public actor KhaytEngine {
     /// away, which is a trap this app has already fallen into once.
     ///
     /// `appendOnly: []` matches `foldDeltas` in cloud-backend.js exactly.
+    /// AND IT SAYS WHAT IT DID. `applyDeltas` returns `{applied, skipped,
+    /// removed}` and the first version of this threw that away — so a fold that
+    /// applied NOTHING was indistinguishable from one that worked, and the
+    /// comparison built on it would have reported the whole book as "newer
+    /// here" with nothing to say otherwise. A number nobody can check is not
+    /// evidence.
     public func foldDeltas(base: [String: JSONValue],
-                           deltas: [[String: JSONValue]]) throws -> [String: JSONValue] {
+                           deltas: [[String: JSONValue]]) throws -> Folded {
         try runtime.call2("""
             (function (base, payloads) {
+              var applied = 0, skipped = 0, removed = 0;
               for (var i = 0; i < payloads.length; i++) {
-                KhaytSync.applyDeltas(base, payloads[i], { appendOnly: [] });
+                var r = KhaytSync.applyDeltas(base, payloads[i], { appendOnly: [] }) || {};
+                applied += r.applied || 0;
+                skipped += r.skipped || 0;
+                removed += r.removed || 0;
               }
-              return base;
+              return { store: base, applied: applied, skipped: skipped, removed: removed };
             })(ARG0, ARG1)
             """,
                           [.object(base), .array(deltas.map(JSONValue.object))],
-                          as: [String: JSONValue].self)
+                          as: Folded.self)
+    }
+
+    /// The folded store, and what folding it changed.
+    public struct Folded: Decodable, Sendable {
+        public let store: [String: JSONValue]
+        /// Records the chain wrote into the base.
+        public let applied: Int
+        /// Records the chain carried that the base already had at the same or a
+        /// higher rev — normal, and not a fault.
+        public let skipped: Int
+        /// Records a tombstone in the chain deleted.
+        public let removed: Int
     }
 
     /// Which jobs are late — the attention engine's answer, as a set of ids.

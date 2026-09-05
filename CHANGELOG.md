@@ -6,6 +6,13 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Changed
 
+- **Check the cloud now shows its working.** Beside the cloud revision it says
+  how many changes came after the base and how many of them were applied —
+  because "19 jobs are newer here" means one thing if the chain was folded and
+  something else entirely if it was not, and the answer alone cannot tell you
+  which. Deletions are also counted properly now: a deletion's id is only unique
+  within its own collection.
+
 - **The Mac app shows the catalogue.** What the shop sells, with the price
   Khayt computes and — beside it — why that number: your own price, rounded, or
   calculated. Weight, materials and margin come from the product's own parts.
