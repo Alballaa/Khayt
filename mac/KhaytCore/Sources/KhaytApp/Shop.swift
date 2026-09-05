@@ -1800,6 +1800,96 @@ final class Shop {
         }
     }
 
+    /// What the last pull brought down, if there was one.
+    var cloudPulled: KhaytEngine.Merged?
+
+    /// Is there anything in the cloud this Mac does not have, and may we write?
+    var canPullFromCloud: Bool {
+        cloudDek != nil && !cloudBusy && canMoveJobs
+            && ((cloudCheck?.lines.reduce(0) { $0 + $1.onlyThere + $1.newerThere } ?? 0) > 0)
+    }
+
+    /// Bring the cloud's copy down and merge it into this Mac's book.
+    ///
+    /// THE MOST DANGEROUS THING THIS APP DOES, and the arrangement is what makes
+    /// it safe rather than the intention:
+    ///
+    /// * **A backup first.** Not because the merge is expected to go wrong, but
+    ///   because this is the one operation that changes records a shop did not
+    ///   touch, and the app already knows how to take one.
+    /// * **The read is inside the write.** `StoreWriter.update` reads the book,
+    ///   hands it to the merge, re-checks ownership and swaps — so a merge
+    ///   computed from a copy that went stale cannot put the stale copy back.
+    ///   The engine is an actor, so this is the async form of that chain, and
+    ///   the window is a JavaScript call wide.
+    /// * **Nothing is stamped.** A merged record keeps the cloud's `rev`.
+    ///   Bumping it would make this Mac look like it had edited every record it
+    ///   received, and it would push them all straight back.
+    /// * **`settings.cloud` is left exactly as it is.** The desktop's own
+    ///   `viewSafeForLocal` decides whether its cached server view still holds,
+    ///   and after a merge the book has only moved FORWARD — so the view stays
+    ///   valid and nothing here has to reach into another app's bookkeeping.
+    func pullFromCloud() async {
+        cloudProblem = nil
+        cloudSent = nil
+        cloudPulled = nil
+        cloudBusy = true
+        defer { cloudBusy = false }
+        guard let build = source.build, let engine, let dek = cloudDek else {
+            cloudProblem = words.callIt("mac.move_sample"); return
+        }
+        guard canMoveJobs else {
+            cloudProblem = words.callIt("mac.read_only"); return
+        }
+        do {
+            let connection = try CloudReader.connection(settingsDict)
+            let token = try Secrets.open(connection.storedToken, for: build)
+            guard !token.isEmpty else { throw CloudReader.Failure.unauthorised }
+
+            let session = URLSession(configuration: .ephemeral)
+            let reply = try await CloudReader.pull(connection, token: token) { request in
+                try await session.data(for: request)
+            }
+            let folded = try await CloudReader.store(reply, dek: dek, engine: engine)
+
+            // Before anything is written. A shop that does not like what came
+            // down has this morning's book to go back to.
+            await backUpNow()
+
+            var report: KhaytEngine.Merged?
+            try await StoreWriter.update(
+                storeURL: build.storeURL,
+                owns: { StoreLock.weOwnIt(build) },
+                whoHasIt: { StoreLock.describe(StoreLock.verdict(for: build)) }
+            ) { root in
+                let merged = try await engine.mergeFromCloud(local: root, server: folded.store)
+                root = merged.store
+                report = merged
+            }
+            cloudPulled = report
+            await load(source)
+
+            // Say what is true now rather than what was true before: compare
+            // the book as it stands against the store that was just folded in.
+            let mine = (try? Data(contentsOf: build.storeURL))
+                .flatMap { try? JSONDecoder().decode([String: JSONValue].self, from: $0) } ?? [:]
+            let collections = (try? await engine.storeCollections()) ?? []
+            cloudCheck = CloudCompare.compare(here: mine, there: folded.store,
+                                              collections: collections, cloudRev: reply.rev,
+                                              chain: folded.chain, applied: folded.applied)
+        } catch let refusal as StoreWriter.Refusal {
+            cloudProblem = refusal.description
+        } catch let failure as CloudReader.Failure {
+            cloudProblem = failure.description
+        } catch let failure as SyncCrypto.Failure {
+            cloudProblem = failure.description
+        } catch let locked as Secrets.Failure {
+            cloudProblem = locked.description
+        } catch {
+            cloudProblem = String(describing: error)
+        }
+    }
+
     private func cloudKeyset() -> JSONValue? {
         guard case .object(let cloud)? = settingsDict["cloud"] else { return nil }
         return cloud["keyset"]

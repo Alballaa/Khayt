@@ -1343,6 +1343,39 @@ public actor KhaytEngine {
                           [.object(local), .object(server)], as: Outbox.self)
     }
 
+    /// Merge the cloud's store into this device's book.
+    ///
+    /// `lib/cloud-inbox.js`, which is the desktop's own `pullMerge` — the same
+    /// rule, not a second one. It decides record by record with the higher-rev
+    /// rule, adds to the ledgers rather than overwriting them, and does not
+    /// touch settings at all.
+    ///
+    /// THE STORE COMES BACK. The rule mutates the object it is handed, and what
+    /// it is handed on this side of the bridge is a copy — so a merge whose
+    /// result was dropped would look exactly like a merge that found nothing.
+    public func mergeFromCloud(local: [String: JSONValue],
+                               server: [String: JSONValue]) throws -> Merged {
+        try runtime.call2("KhaytCloudInbox.merge(ARG0, ARG1)",
+                          [.object(local), .object(server)], as: Merged.self)
+    }
+
+    public struct Merged: Decodable, Sendable {
+        /// The local book with the cloud folded into it.
+        public let store: [String: JSONValue]
+        /// Records the cloud's copy wrote into this book.
+        public let applied: Int
+        /// Records this book already had at the same or a higher rev, plus
+        /// every ledger entry that was left alone. Normal, and not a fault.
+        public let skipped: Int
+        /// Records a deletion elsewhere took out of this book.
+        public let removed: Int
+        /// Local edits thrown away because the record was deleted elsewhere.
+        /// Delete wins — but a shop is told, which is what this is for.
+        public let conflicts: [JSONValue]
+
+        public var changed: Int { applied + removed }
+    }
+
     public func foldDeltas(base: [String: JSONValue],
                            deltas: [[String: JSONValue]]) throws -> Folded {
         try runtime.call2("""

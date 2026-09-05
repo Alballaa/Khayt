@@ -43,13 +43,22 @@ struct CloudCheckSheet: View {
                     }
                     .keyboardShortcut(.defaultAction)
                     .disabled(passphrase.isEmpty || shop.cloudBusy)
-                } else if shop.canSendToCloud {
-                    // Not the default action. Return dismisses this sheet; a
-                    // send is a press somebody meant to make.
-                    Button(shop.words.callIt("mac.cloud_send")) {
-                        Task { await shop.sendToCloud() }
+                } else {
+                    // Neither is the default action. Return dismisses this
+                    // sheet; both of these are presses somebody meant to make,
+                    // and one of them changes the book.
+                    if shop.canPullFromCloud {
+                        Button(shop.words.callIt("mac.cloud_pull")) {
+                            Task { await shop.pullFromCloud() }
+                        }
+                        .disabled(shop.cloudBusy)
                     }
-                    .disabled(shop.cloudBusy)
+                    if shop.canSendToCloud {
+                        Button(shop.words.callIt("mac.cloud_send")) {
+                            Task { await shop.sendToCloud() }
+                        }
+                        .disabled(shop.cloudBusy)
+                    }
                 }
             }
         }
@@ -129,6 +138,31 @@ struct CloudCheckSheet: View {
                 Label(shop.words.callIt("mac.cloud_settings_stay"), systemImage: "gearshape")
                     .font(.caption).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
+            }
+            // Said BEFORE the button is pressed, not after. This is the one
+            // action in the app that rewrites records the shop did not touch.
+            if shop.canPullFromCloud {
+                Text(shop.words.callIt("mac.cloud_pull_why"))
+                    .font(.caption).foregroundStyle(.tertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if let pulled = shop.cloudPulled {
+                Label(shop.words.callIt("mac.cloud_pulled",
+                                        ["applied": .number(Double(pulled.applied)),
+                                         "removed": .number(Double(pulled.removed))]),
+                      systemImage: "arrow.down.circle")
+                    .font(.callout).foregroundStyle(.green)
+                    .fixedSize(horizontal: false, vertical: true)
+                // Delete wins over a local edit — and a shop is told, because a
+                // merge that threw somebody's work away in silence is the
+                // failure the conflicts list exists to prevent.
+                if !pulled.conflicts.isEmpty {
+                    Label(shop.words.callIt("mac.cloud_lost_edits",
+                                            ["n": .number(Double(pulled.conflicts.count))]),
+                          systemImage: "exclamationmark.triangle")
+                        .font(.caption).foregroundStyle(.orange)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
             if let sent = shop.cloudSent {
                 Label(shop.words.callIt("mac.cloud_sent",

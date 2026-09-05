@@ -638,6 +638,22 @@ final class Words {
                               + "أما ما تحتفظ السحابة بنسخة أحدث منه فيُترك كما هو تمامًا — "
                               + "افتح خيط على هذا الماك لجلبه."],
         "mac.cloud_send":    ["en": "Send what is only here", "ar": "أرسل ما هو هنا فقط"],
+        "mac.cloud_pull":    ["en": "Bring down what is only there",
+                              "ar": "أنزل ما هو هناك فقط"],
+        "mac.cloud_pulled":  ["en": "{applied} taken down, {removed} removed here. "
+                            + "A backup was made first.",
+                              "ar": "نُزّل {applied}، وحُذف {removed} من هنا. "
+                            + "أُخذت نسخة احتياطية أولًا."],
+        "mac.cloud_pull_why": ["en": "This changes the book on this Mac. A record that is newer in "
+                             + "the cloud replaces the copy here; a record only this Mac has is left "
+                             + "alone. Settings are never brought down, and the ledgers — waste, "
+                             + "maintenance, time — are only added to.",
+                               "ar": "يغيّر هذا الدفتر على هذا الماك. السجل الأحدث في السحابة يحل محل "
+                             + "النسخة هنا؛ والسجل الموجود على هذا الماك وحده يُترك كما هو. "
+                             + "لا تُنزَّل الإعدادات أبدًا، والسجلات — الهدر والصيانة والوقت — يُضاف إليها فقط."],
+        "mac.cloud_lost_edits": ["en": "{n} change(s) made here were discarded: the record had been "
+                               + "deleted on another device.",
+                                 "ar": "أُلغيت {n} تغييرات أُجريت هنا: كان السجل قد حُذف على جهاز آخر."],
         "mac.cloud_sent":    ["en": "{n} sent. Khayt Cloud is now at revision {rev}.",
                               "ar": "أُرسل {n}. سحابة خيط الآن عند المراجعة {rev}."],
         "mac.cloud_nothing_to_send": ["en": "Nothing left to send — the cloud already has it.",
