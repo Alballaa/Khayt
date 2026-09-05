@@ -233,6 +233,12 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **Check the cloud answered 404.** The shop id was being escaped into the
+  address in a way Khayt Cloud has no route for — every id contains an
+  underscore, and it was going up as `%5F`. It now builds the address exactly
+  as the Khayt app does. The same mistake was in the Telegram and printer
+  addresses and is fixed there too.
+
 - **The Mac app could stop unexpectedly after a minute or two.** The sidebar's
   bottom strip had a line long enough to wrap, and the sidebar is a column you
   can drag — so the strip's height depended on the column's width, which is a

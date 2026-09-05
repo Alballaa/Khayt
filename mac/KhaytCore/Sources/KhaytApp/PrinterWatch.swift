@@ -295,8 +295,11 @@ final class PrinterWatch {
             // failure there keeps toolhead zero's reading rather than nothing.
             var hot: [String: JSONValue]?
             let hotName = try await engine.moonrakerActiveExtruder(reply)
-            if let hotName, let escaped = hotName.addingPercentEncoding(withAllowedCharacters: .alphanumerics) {
-                hot = try? await get("/printer/objects/query?" + escaped)
+            // Klipper names a toolchanger's heads `extruder1`, `extruder2`…
+            // but a hand-written config may use `_`, and escaping it would ask
+            // for an object the printer does not have.
+            if let hotName {
+                hot = try? await get("/printer/objects/query?" + hotName.uriComponent)
             }
             return try await engine.moonrakerStatus(reply, hot: hot, hotName: hotName)
         }

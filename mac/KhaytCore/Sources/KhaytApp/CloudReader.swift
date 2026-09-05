@@ -95,8 +95,10 @@ enum CloudReader {
             // a shop's shop-wide credential on the wire in the clear.
             throw Failure.badAddress(connection.url)
         }
-        let path = "/v1/shops/" + (connection.shopId.addingPercentEncoding(
-            withAllowedCharacters: .alphanumerics) ?? connection.shopId) + "/store"
+        // `uriComponent`, not `.alphanumerics` — see the note there. Every shop
+        // id Khayt issues contains an underscore, and escaping it produced a
+        // path the server has no route for.
+        let path = "/v1/shops/" + connection.shopId.uriComponent + "/store"
         guard let url = URL(string: base.absoluteString.trimmingTrailingSlash + path) else {
             throw Failure.badAddress(connection.url)
         }
