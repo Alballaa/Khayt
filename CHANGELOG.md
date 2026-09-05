@@ -6,6 +6,17 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Changed
 
+- **If the Mac app's shared rules fail to load, it now says so where the figures
+  are.** It said it in one caption at the foot of the sidebar — the one place
+  Apple's guidance says not to put critical information, because people move a
+  window in a way that hides its bottom edge. Meanwhile every screen showed an
+  empty dashboard and a blank profit and loss, which looks exactly like a quiet
+  shop.
+
+- **The Mac app's window has a floor.** There was no minimum size, so it could
+  be dragged down until the jobs table's six columns — 644pt of minimums — were
+  squeezed into each other.
+
 - **There is a way to take a job that you can see.** The machines, spools,
   expenses and waste screens all had a "+" in the toolbar; the two holding the
   shop's actual work — the jobs table and the board — had none, so ⌘N and the

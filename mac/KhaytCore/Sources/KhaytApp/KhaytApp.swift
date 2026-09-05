@@ -10,6 +10,22 @@ struct KhaytApp: App {
     var body: some Scene {
         Window("Khayt", id: "shop") {
             ShopWindow(shop: shop)
+                // A FLOOR, so the window cannot be dragged into nonsense.
+                //
+                // "Choose a minimum and maximum size for each window to help
+                // keep your content looking great … If you don't set a minimum
+                // and maximum size, people could make it so small that UI
+                // elements overlap." There was none: the sidebar holds at 190
+                // and the inspector at 260, so everything else was taken out of
+                // the middle, and the jobs table's six columns — 644pt of
+                // minimums — collapsed into each other well before the window
+                // stopped shrinking.
+                //
+                // 900 leaves the table about 450pt with both side columns open,
+                // which is narrow and still legible; below that a shop is
+                // better served closing one of them. No maximum: a Mac has a
+                // large display and more of this app on it is better.
+                .frame(minWidth: 900, minHeight: 480)
                 .task {
                     Snapshot.subject = shop
                     // The shop's own book if there is one, the sample only when
