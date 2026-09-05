@@ -13,6 +13,13 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   other, about the same job. It now formats exactly as `renderer/currency.js`
   does, symbol on the side that currency puts it.
 
+- **The Mac app's money figures have tests.** The reports tiles put four shared
+  modules together in one expression, and every way of getting that wrong
+  returns a perfectly valid answer full of zeros — which has happened twice.
+  Revenue, cost, margin, average order and what is outstanding are now pinned
+  against a book small enough to add up by hand, and the tests go red when the
+  wiring is cut.
+
 - **Why a product's price is what it is now comes from the rule that decides
   it.** The Mac's catalogue read `lib/product-price.js`'s answer and then
   worked out the explanation again in Swift. It agreed — and a rule written
