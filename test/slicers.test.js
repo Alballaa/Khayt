@@ -69,3 +69,47 @@ test('isAllowedSlicerBinary: rejects living-off-the-land binaries (RCE guard)', 
   ];
   for (const p of bad) assert.equal(isAllowedSlicerBinary(p), false, `should reject ${p}`);
 });
+
+/**
+ * THE GUARD HAS TO BE THE ONE THAT IS CALLED.
+ *
+ * `isAllowedSlicerBinary` above shipped with its reasoning and both of those
+ * tests, and for as long as it existed **nothing called it**. Every one of the
+ * three places that launch a slicer used a denylist of interpreter names in
+ * main.js instead — the very thing the comment on the module says cannot work —
+ * so `awk`, `find`, `xargs`, `gdb`, `make`, `tclsh`, `busybox`, `git` and
+ * `expect` were all accepted as slicers from a settings blob that can arrive in
+ * a restored backup or a cloud sync.
+ *
+ * A passing test on an uncalled function is worth nothing. This is the test
+ * that would have caught it.
+ */
+test('main.js launches slicers through the shared allowlist, and keeps no second opinion', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const main = fs.readFileSync(path.join(__dirname, '..', 'main.js'), 'utf8');
+
+  assert.match(main, /require\('\.\/lib\/slicers'\)/,
+    'main.js must reach the shared module');
+  assert.match(main, /\bisAllowedSlicerBinary\b/,
+    'main.js must use the allowlist by name');
+
+  // The denylist and its Set are gone, not merely unused: a dead one beside a
+  // live one is an invitation to call the wrong thing next time.
+  assert.doesNotMatch(main, /isSafeSlicerBinary/,
+    'the denylist guard must be gone from main.js');
+  assert.doesNotMatch(main, /DISALLOWED_SLICER_BINARIES/,
+    'the interpreter denylist must be gone from main.js');
+
+  // Every spawn of a slicer is gated. Three call sites today; the count is
+  // asserted so a fourth added without a guard shows up here.
+  const guarded = main.match(/isAllowedSlicerBinary\(/g) || [];
+  assert.ok(guarded.length >= 4,
+    `expected the allowlist at every slicer call site, found ${guarded.length}`);
+
+  // And the scanner that OFFERS slicers asks the same question, rather than
+  // carrying its own copy of the token list. Two copies is how a shop is shown
+  // a slicer that the guard then refuses to launch.
+  assert.doesNotMatch(main, /SLICER_APP_RE\s*=/,
+    'the scanner must not keep a second token list');
+});
