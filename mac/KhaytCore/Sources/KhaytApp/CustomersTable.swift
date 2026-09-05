@@ -113,10 +113,10 @@ struct CustomerInspector: View {
                         Text(person.name)
                             .font(.title3.weight(.semibold))
                             .textSelection(.enabled)
-                        // One is one, and Arabic does not make a plural by
-                        // appending an "s" — so the count picks the phrase.
-                        Text(shop.words.callIt(person.jobCount == 1 ? "mac.job_count_one" : "mac.job_count",
-                                               ["n": .number(Double(person.jobCount))]))
+                        // One is one. `counting` is the same rule the window's
+                        // subtitle uses, so a shop is not told "1 jobs" here
+                        // and "1 job" there.
+                        Text(shop.words.counting(person.jobCount, "mac.jobs_word"))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                         if shop.canMoveJobs {

@@ -6,6 +6,13 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Changed
 
+- **"1 machines".** The Mac app's window counted things by putting a number in
+  front of the plural, so a shop with one printer read "1 machines", one spool
+  "1 spools", and a customer with one job "1 job" on one screen and "1 jobs" on
+  another. There is one counting rule now, and a test that fails if a word is
+  counted with and has no singular — because a missing one does not read as the
+  plural, it reads as the key.
+
 - **Three things the Mac app said awkwardly.** A part weighed "129.18 g",
   because the money formatter was being used for grams — two decimals of a gram
   is a precision no filament scale has. The job inspector labelled a row "paid"

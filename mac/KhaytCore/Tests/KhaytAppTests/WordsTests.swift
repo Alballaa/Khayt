@@ -42,6 +42,42 @@ struct WordsTests {
         }
     }
 
+    /// `counting` appends `_one` and asks for it. A key that is not there comes
+    /// back AS ITS OWN NAME — the window would read "1 mac.machines_count_one"
+    /// — so every base a screen counts with has to have its singular.
+    @Test("every count this app makes has a word for one of them")
+    func everyCountHasASingular() throws {
+        let views = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent().appending(path: "Sources/KhaytApp")
+        var asked: Set<String> = []
+        for file in try FileManager.default.contentsOfDirectory(at: views, includingPropertiesForKeys: nil)
+            // Not Words.swift: `counting` is DEFINED there, and its own body
+            // is not a call site — the first string after it is `"\(n) "`.
+            where file.pathExtension == "swift" && file.lastPathComponent != "Words.swift" {
+            let text = try String(contentsOf: file, encoding: .utf8)
+            var rest = text[...]
+            while let at = rest.range(of: "counting(") {
+                let after = rest[at.upperBound...]
+                rest = after
+                guard let quote = after.firstIndex(of: "\"") else { continue }
+                let tail = after[after.index(after: quote)...]
+                guard let end = tail.firstIndex(of: "\"") else { continue }
+                asked.insert(String(tail[..<end]))
+            }
+        }
+        #expect(asked.count >= 5, "found \(asked.count) counted words — the scan is wrong, not the app")
+
+        let words = Words()
+        for base in asked.sorted() {
+            for key in [base, base + "_one"] {
+                #expect(Words.own[key] != nil, "\(key) is counted with and does not exist")
+                #expect(Words.own[key]?["ar"]?.isEmpty == false, "\(key) has no Arabic")
+                #expect(words.callIt(key) != key, "\(key) would print as its own name")
+            }
+        }
+    }
+
     @Test("a borrowed key never shadows one this app supplies")
     func noOverlap() async throws {
         // Both catalogues are consulted, Khayt's first. A key in both means this
