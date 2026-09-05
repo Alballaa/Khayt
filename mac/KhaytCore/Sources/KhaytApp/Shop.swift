@@ -3307,8 +3307,14 @@ final class Shop {
     private func describeTax(_ settings: JSONValue?) async -> String? {
         guard case .object(let dict)? = settings, let engine else { return nil }
         guard let profile = try? await engine.taxProfile(settings: dict), profile.isRegistered else { return nil }
-        let mode = profile.mode == .inclusive ? "included in the price" : "added on top"
-        return "\(profile.name) \(Money.figure(profile.totalPercent))% \(mode)"
+        // `name` is the tax's own label from `lib/tax.js` — VAT, GST, what the
+        // shop's invoices say — so it is not translated here. The sentence
+        // around it is, and used not to be: this line sits in the sidebar
+        // footer on every screen, and an Arabic shop read its tax name in
+        // Arabic followed by "included in the price" in English.
+        let key = profile.mode == .inclusive ? "mac.tax_inclusive" : "mac.tax_exclusive"
+        return words.callIt(key, ["name": .string(profile.name),
+                                  "pct": .string(Money.figure(profile.totalPercent))])
     }
 
     /// A price split into what the shop keeps and what it is only holding for

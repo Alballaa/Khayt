@@ -187,3 +187,64 @@ struct MenuWordsTests {
         }
     }
 }
+
+/// SENTENCES ASSEMBLED IN SWIFT.
+///
+/// Every visible string in this app goes through `words.callIt`, and a test
+/// above checks that each key it supplies carries both languages. Neither
+/// noticed the one line that was built by concatenation:
+///
+///     "\(profile.name) \(percent)% included in the price"
+///
+/// It sits in the sidebar footer on every screen, so an Arabic shop read its
+/// tax name in Arabic followed by four English words. It never passed through a
+/// `Text` literal, so nothing was looking.
+///
+/// This looks for the shape rather than that one instance: an English phrase,
+/// several words long, sitting in a string literal in a source file.
+@MainActor
+struct AssembledSentenceTests {
+
+    /// Words that only turn up in prose. A literal containing two or more of
+    /// them, outside a comment, is a sentence somebody wrote for a screen.
+    static let prose = ["the", "and", "in the", "on top", "of the", "to the", "is not",
+                        "does not", "has been", "will be", "was not"]
+
+    @Test("no visible sentence is welded together in Swift")
+    func noAssembledProse() throws {
+        let dir = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appending(path: "Sources/KhaytApp")
+        // `Words.swift` IS the sentences. `CloudReader`/`CloudWriter`/
+        // `LeadTime` carry English service errors on purpose, and say so in
+        // their own comments — a gap those three share and none should close
+        // alone.
+        let exempt: Set<String> = ["Words.swift", "CloudReader.swift", "CloudWriter.swift",
+                                   "LeadTime.swift", "StoreWriter.swift", "StoreLock.swift",
+                                   "Restore.swift", "Backups.swift", "Export.swift",
+                                   "PrinterWatch.swift", "Secrets.swift", "LastWords.swift"]
+        let files = try FileManager.default.contentsOfDirectory(atPath: dir.path)
+            .filter { $0.hasSuffix(".swift") && !exempt.contains($0) }
+
+        for file in files.sorted() {
+            let source = try String(contentsOf: dir.appending(path: file), encoding: .utf8)
+            for line in source.split(separator: "\n") {
+                let text = String(line)
+                // Comments, not just doc comments: the fix for the tax line
+                // quotes the English it replaced, in an ordinary `//` note
+                // explaining why. Prose about a sentence is not that sentence.
+                let code = text.components(separatedBy: "//").first ?? text
+                guard let quoted = code.firstMatch(of: /"([^"\\]{12,})"/) else { continue }
+                let literal = String(quoted.1).lowercased()
+                // A key, a symbol name or a path is not prose.
+                guard !literal.contains("."), !literal.contains("/") else { continue }
+                let hits = Self.prose.filter { literal.contains(" \($0) ") }.count
+                if hits >= 2 {
+                    Issue.record(Comment(rawValue:
+                        "\(file) builds a sentence in Swift: \"\(quoted.1)\" — it needs a Words key"))
+                }
+            }
+        }
+    }
+}

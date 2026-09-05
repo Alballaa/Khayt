@@ -606,6 +606,20 @@ final class Words {
         // after; the sentence that explains any of this lives in
         // `mac.sync_auto_why`, which is a tooltip and can be as long as it
         // needs to be.
+        // The tax line in the sidebar footer, on every screen.
+        //
+        // It was built in Swift as "\(name) \(percent)% included in the price"
+        // — an English clause welded onto a translated screen, so an Arabic
+        // shop read "ضريبة القيمة المضافة 15.00% included in the price". It was
+        // the only sentence in the app assembled that way and nothing caught
+        // it, because it never passes through a Text literal.
+        //
+        // `name` stays as `lib/tax.js` gives it. That is the tax's own label —
+        // what the shop's invoices say — and not interface wording to translate.
+        "mac.tax_inclusive": ["en": "{name} {pct}% included in the price",
+                              "ar": "{name} {pct}% شامل السعر"],
+        "mac.tax_exclusive": ["en": "{name} {pct}% added on top",
+                              "ar": "{name} {pct}% يُضاف على السعر"],
         // Six months of takings on the dashboard, and the sentence over them.
         //
         // A SENTENCE, not the word "Revenue" over an axis. The HIG asks a chart

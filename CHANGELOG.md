@@ -494,6 +494,11 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   subtly wrong: local stock before another branch, a chosen spool that has
   already run out, and a re-opened job never being charged twice.
 
+- **The tax line in the Mac app is in Arabic when the app is.** The sidebar
+  footer read the shop's tax name in Arabic followed by "included in the price"
+  in English — the one sentence in the app that was welded together in code
+  rather than written as a phrase, on a line that shows on every screen.
+
 - **The Mac dashboard shows six months of takings, and says what they add up
   to.** Under the figures there is now a short chart of the last six complete
   months with a line above it in plain words — "Trending up — next month looks
