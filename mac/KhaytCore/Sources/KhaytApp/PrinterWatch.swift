@@ -231,7 +231,7 @@ final class PrinterWatch {
             // made.
             var key = ""
             if let sealed = machine.printerApi?.apiKey, !sealed.isEmpty, let build = source {
-                key = (try? Secrets.open(sealed, for: build)) ?? ""
+                key = (try? await Secrets.open(sealed, for: build)) ?? ""
             }
             let status = try await Self.read(machine, engine: engine, base: base, key: key) { request in
                 try await Self.session.data(for: request)
