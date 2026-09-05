@@ -186,6 +186,47 @@ one error this app must not allow.
 A store that is not on this Mac is not offered: a menu item that leads nowhere
 is a dead end dressed up as a choice.
 
+### Reading a 3MF — the part that cannot be shared
+
+Adding a model to the library means reading two things out of a zip: the
+embedded preview and the slicer's configs. Khayt does that with
+`lib/zip-read.js`, whose own header says **"Pure Node (uses Buffer + zlib) —
+main-process only"**. Neither exists in JavaScriptCore.
+
+That is the whole reason library import has not landed here, and it is worth
+being precise about, because it is narrower than "the bridge cannot carry a big
+file". Checked module by module:
+
+| | |
+|---|---|
+| `gcode-parse`, `print-file-parts` | already pure — usable today |
+| `obj-parse` | already handles ArrayBuffer as well as Buffer |
+| `mf-mesh` | Buffer in two helper lines; the rest is typed arrays |
+| `zip-read`, `zip-intake` | need `zlib` — cannot be shared |
+| `mf-convert` | Buffer throughout |
+
+`Zip.swift` replaces the smallest of those. It reads the central directory from
+the end of the file and seeks to a member rather than loading anything, and
+`thumbnail-extract.js` still decides which preview wins and what the colours
+are — the mechanics move, the rules do not.
+
+**Every read is capped, and the number came from this shop's own files.**
+`KING-Saud-ART-200mm-U1.3mf` is 46 MB on disk and its `3D/Objects/object_1.model`
+member is **436 MB uncompressed**. A reader that inflates whatever it is pointed
+at turns that file into 436 MB of memory, and a hostile one into as much as it
+likes. The cap is checked against the size the directory claims, before a byte
+is read, so an enormous member costs a comparison. The two things it is actually
+for weigh 154 KB and 28 KB in the same archive.
+
+Zip64 is refused rather than guessed at: a misread offset is a read of arbitrary
+bytes, and no 3MF this opens is near 4 GB.
+
+`ZipTests` builds its fixtures with `/usr/bin/zip` rather than checking one in —
+the thing being tested is agreement with what other tools write, and a fixture
+is only agreement with whatever wrote it once — and then runs the whole thing
+against a real slicer's 3MF when one is on the machine, because
+`/usr/bin/zip` and OrcaSlicer are not the same program.
+
 ### The one warm thing, and the one moving thing
 
 Amber means exactly one state: a printer is laying down plastic right now. The
