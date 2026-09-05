@@ -466,6 +466,29 @@ final class Words {
         // announces itself least.
         "mac.not_synced":    ["en": "Changes here reach the cloud when Khayt next runs",
                               "ar": "تصل التغييرات هنا إلى السحابة عند تشغيل خيط في المرة القادمة"],
+        // Asking the cloud what it holds. Read only, and the sheet says so
+        // before it asks for a passphrase.
+        "mac.check_cloud":   ["en": "Check the cloud", "ar": "فحص السحابة"],
+        "mac.check_cloud_do": ["en": "Check",        "ar": "فحص"],
+        "mac.check_cloud_reads": ["en": "This reads what Khayt Cloud holds and counts the difference. "
+                               + "Nothing is sent, merged or changed on either side.",
+                                  "ar": "يقرأ هذا ما تحتفظ به سحابة خيط ويحسب الفرق. "
+                               + "لا يُرسل أو يُدمج أو يُغيَّر شيء في أيٍّ من الجهتين."],
+        "mac.cloud_passphrase": ["en": "Cloud passphrase", "ar": "عبارة مرور السحابة"],
+        "mac.cloud_passphrase_why": ["en": "Khayt stores this nowhere — that is what makes the cloud "
+                                   + "copy readable only by you. It is used once here and not kept.",
+                                     "ar": "لا يخزّن خيط هذه العبارة في أي مكان — وهذا ما يجعل النسخة "
+                                   + "السحابية مقروءة لك وحدك. تُستخدم مرة واحدة هنا ولا تُحفظ."],
+        "mac.cloud_in_step": ["en": "This Mac and the cloud hold the same records",
+                              "ar": "هذا الماك والسحابة يحملان السجلات نفسها"],
+        "mac.cloud_apart":   ["en": "This Mac and the cloud are not the same",
+                              "ar": "هذا الماك والسحابة ليسا متطابقين"],
+        "mac.cloud_rev":     ["en": "Cloud revision",  "ar": "مراجعة السحابة"],
+        "mac.only_here":     ["en": "Only here",       "ar": "هنا فقط"],
+        "mac.only_there":    ["en": "Only in cloud",   "ar": "في السحابة فقط"],
+        "mac.newer_here":    ["en": "Newer here",      "ar": "أحدث هنا"],
+        "mac.cloud_apart_why": ["en": "Run the Khayt app on this Mac to send what is only here.",
+                                "ar": "شغّل تطبيق خيط على هذا الماك لإرسال ما هو موجود هنا فقط."],
         "mac.not_synced_why": ["en": "This app writes to the book on this Mac and marks every change. "
                              + "It does not talk to Khayt Cloud yet, so another device sees your work "
                              + "after the Khayt app runs here and syncs.",

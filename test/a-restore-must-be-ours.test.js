@@ -94,7 +94,7 @@ test('stampChanges really does tombstone what a stale index cannot see', () => {
   // guard above is measuring nothing.
   const ctx = vm.createContext({ globalThis: {}, console, Date });
   ctx.globalThis = ctx;
-  vm.runInContext(read('renderer/sync.js'), ctx);
+  vm.runInContext(read('lib/sync.js'), ctx);
   const S = ctx.globalThis.KhaytSync;
   const before = { clients: [{ id: 'c1' }, { id: 'c2' }], tombstones: [] };
   S.seedIndex(before);

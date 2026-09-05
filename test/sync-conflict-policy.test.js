@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { applyDeltas, summarizeDiscardedEdits } = require('../renderer/sync.js');
+const { applyDeltas, summarizeDiscardedEdits } = require('../lib/sync.js');
 
 /**
  * The delta sync engine is not wired to a backend yet — the live cloud is

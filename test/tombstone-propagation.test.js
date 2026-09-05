@@ -21,7 +21,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
 
-const ENGINE = path.join(__dirname, '..', 'renderer', 'sync.js');
+const ENGINE = path.join(__dirname, '..', 'lib', 'sync.js');
 
 /** A fresh engine per simulated device — separate machines have separate indexes. */
 function device() {

@@ -6,7 +6,7 @@
 const { test, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
 
-require('../renderer/sync.js');          // defines globalThis.KhaytSync (merge engine)
+require('../lib/sync.js');          // defines globalThis.KhaytSync (merge engine)
 const sync = require('../renderer/cloud-sync.js'); // defines globalThis.KhaytCloudSync
 
 const clone = (o) => JSON.parse(JSON.stringify(o));

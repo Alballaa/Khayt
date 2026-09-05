@@ -30,7 +30,7 @@ const sc = require('../lib/sync-crypto.js');
 const { createCloudBackend, viewSafeForLocal } = require('../lib/cloud-backend.js');
 const { createViewCache } = require('../lib/cloud-view-cache.js');
 
-const ENGINE = path.join(__dirname, '..', 'renderer', 'sync.js');
+const ENGINE = path.join(__dirname, '..', 'lib', 'sync.js');
 const FAST_KDF = { algo: 'scrypt', N: 1024, r: 8, p: 1, keyLen: 32 };
 
 function loadEngine() {

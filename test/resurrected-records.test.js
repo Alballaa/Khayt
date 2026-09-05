@@ -15,7 +15,7 @@
  */
 const { test, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
-const sync = require('../renderer/sync.js');
+const sync = require('../lib/sync.js');
 
 beforeEach(() => sync._resetIndex());
 
