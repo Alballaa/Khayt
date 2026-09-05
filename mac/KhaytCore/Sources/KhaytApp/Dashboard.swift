@@ -43,6 +43,12 @@ struct Dashboard: View {
                 WentWrong(shop: shop)
                 if shop.facts?.showsMoney != false {
                     MoneyTiles(shop: shop)
+                    // Under the tiles, because the tiles answer "what is it
+                    // now" and this answers "is that good" — which is the
+                    // second question, not the first.
+                    if let outlook = shop.outlook, outlook.method != "none" {
+                        Takings(outlook: outlook, shop: shop)
+                    }
                 }
             }
             .padding(20)
@@ -327,3 +333,137 @@ private struct Tile: View {
     }
 }
 
+
+/// Six months of takings, and a sentence saying what they add up to.
+///
+/// ── WHY A CHART AT ALL ────────────────────────────────────────────────────
+///
+/// The dashboard was eight tiles and then two thirds of a window of nothing.
+/// Tiles answer "what is it now"; none of them answers "is that good", which is
+/// the question a shop actually opens this screen with. Six bars answer it in
+/// the time it takes to look.
+///
+/// The HIG asks for a chart to carry descriptive text — "brief descriptive text
+/// that serves as a headline or summary for a chart, helping people grasp
+/// essential information at a glance" — so the headline is a sentence, not the
+/// word "Revenue" over an axis. Weather's "Chance of light rain in the next
+/// hour" is the model.
+///
+/// ── AND WHY IT MIGHT NOT BE HERE ─────────────────────────────────────────
+///
+/// `method == "none"` means the shop has nothing to draw a trend through, and
+/// the chart is absent rather than showing six flat zeros with a confident line
+/// across them. A forecast from two points is a decoration that looks like
+/// information.
+private struct Takings: View {
+    let outlook: KhaytEngine.RevenueOutlook
+    let shop: Shop
+
+    /// The bar the mouse is on, if any. Nil is the resting state and the
+    /// headline is what shows then.
+    @State private var hovered: Int?
+
+    private var best: KhaytEngine.RevenueMonth? { outlook.history.max { $0.revenue < $1.revenue } }
+    private var last: KhaytEngine.RevenueMonth? { outlook.history.last }
+
+    var body: some View {
+        DetailSection(shop.words.callIt("mac.takings")) {
+            VStack(alignment: .leading, spacing: 10) {
+                headline
+                chart
+            }
+        }
+    }
+
+    /// What the six months say, in one line.
+    ///
+    /// Three sentences rather than one with a number swapped in, because "up
+    /// 8%" and "your best month" are different pieces of news and a shop should
+    /// be told the more interesting one.
+    @ViewBuilder private var headline: some View {
+        let text: String = {
+            if let hovered, let month = outlook.history.first(where: { $0.key == hovered }) {
+                return shop.words.callIt("mac.takings_month",
+                                         ["month": .string(Self.monthName(month.key)),
+                                          "amount": .string(Money.short(month.revenue, shop.currency))])
+            }
+            if let last, let best, best.key == last.key, best.revenue > 0 {
+                return shop.words.callIt("mac.takings_best",
+                                         ["month": .string(Self.monthName(last.key))])
+            }
+            if let pct = outlook.trendPct, outlook.method == "trend" {
+                let key = pct >= 0 ? "mac.takings_up" : "mac.takings_down"
+                return shop.words.callIt(key, ["pct": .number(abs(pct)),
+                                               "amount": .string(Money.short(outlook.nextMonth, shop.currency))])
+            }
+            return shop.words.callIt("mac.takings_flat")
+        }()
+        Text(text)
+            .font(.callout)
+            // The headline changes as the pointer moves along the bars, so it
+            // must not resize the section under it — a chart that jumps while
+            // you read it is worse than one with no headline.
+            .frame(height: 20, alignment: .leading)
+            .fixedSize(horizontal: false, vertical: true)
+            .foregroundStyle(hovered == nil ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary))
+            .animation(.none, value: hovered)
+    }
+
+    private var chart: some View {
+        // Deliberately NOT Swift Charts. This is six bars; the framework's
+        // axes, marks and gesture handling are a great deal of machinery for a
+        // shape that is a rounded rectangle scaled by a number, and it draws
+        // nothing at all in the offline bitmap the snapshot runner uses — which
+        // would mean the one screen nobody could review is the one that was
+        // just redesigned.
+        let peak = max(outlook.history.map(\.revenue).max() ?? 0, 1)
+        return HStack(alignment: .bottom, spacing: 8) {
+            ForEach(outlook.history) { month in
+                let lit = month.key == hovered
+                // FULL COLOUR AT REST, and the others step back when one is
+                // picked out. Written the other way first — everything muted
+                // until hovered — which made the resting state, the one the
+                // shop actually sees, the washed-out one. A chart is dimmed
+                // relative to the thing being pointed at, not relative to
+                // nothing.
+                let strength: Double = hovered == nil ? 1 : (lit ? 1 : 0.35)
+                // A month that earned nothing still gets a hairline, so six
+                // months read as six months rather than as four.
+                let height: CGFloat = max(2, 78 * month.revenue / peak)
+                VStack(spacing: 5) {
+                    Spacer(minLength: 0)
+                    RoundedRectangle(cornerRadius: 3, style: .continuous)
+                        .fill(Khayt.cyan.opacity(strength))
+                        .frame(height: height)
+                    Text(Self.monthName(month.key))
+                        .font(.caption2)
+                        .foregroundStyle(lit ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
+                }
+                .frame(maxWidth: 64)
+                .contentShape(Rectangle())
+                .onHover { inside in hovered = inside ? month.key : (hovered == month.key ? nil : hovered) }
+                .accessibilityElement()
+                .accessibilityLabel(shop.words.callIt("mac.takings_month",
+                                                      ["month": .string(Self.monthName(month.key)),
+                                                       "amount": .string(Money.short(month.revenue, shop.currency))]))
+            }
+            Spacer(minLength: 0)
+        }
+        .frame(height: 100, alignment: .bottom)
+    }
+
+    /// A month name in the reader's language, from the module's `key`.
+    ///
+    /// The module labels months `2026-08`, which is a sortable key and not a
+    /// thing to show somebody. `key` is `year * 12 + month`, so the name is
+    /// formatted here — where the locale is known, and where Arabic gets Arabic
+    /// month names rather than a transliteration.
+    static func monthName(_ key: Int) -> String {
+        var components = DateComponents()
+        components.year = key / 12
+        components.month = key % 12 + 1
+        components.day = 1
+        guard let date = Calendar.current.date(from: components) else { return "" }
+        return date.formatted(.dateTime.month(.abbreviated))
+    }
+}

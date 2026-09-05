@@ -494,6 +494,15 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   subtly wrong: local stock before another branch, a chosen spool that has
   already run out, and a re-opened job never being charged twice.
 
+- **The Mac dashboard shows six months of takings, and says what they add up
+  to.** Under the figures there is now a short chart of the last six complete
+  months with a line above it in plain words — "Trending up — next month looks
+  like 17,979 SAR, 78.3% above last", or which month was your best. Point at a
+  bar and it tells you that month instead. The numbers come from the same
+  calculation Khayt's own analytics screen draws, so the two agree. A shop
+  without enough history to trend gets no chart rather than a flat line
+  pretending to be a forecast.
+
 - **The Mac app wears Khayt's own colours.** It was using whatever colours
   SwiftUI ships with, which meant the same orange marked a printer alert, a sync
   retrying and a warning that an edit had been overwritten — three different

@@ -35,8 +35,16 @@ struct WordsTests {
             // string wearing a translation's clothes — the exact failure
             // test/locale-quality.test.js was written for on the shared
             // catalogue. Numbers and symbols are the honest exceptions.
+            //
+            // So are PLACEHOLDER NAMES. "{month} · {amount}" is the same line
+            // in both languages because everything in it is substituted and the
+            // only literal is a separator; the letters belong to `{month}`, not
+            // to the sentence. Stripping the braces before the check is what
+            // tells that apart from a real string somebody forgot — which is
+            // still caught, because a forgotten one has letters outside them.
             if let en = values["en"], let ar = values["ar"], en == ar {
-                #expect(en.rangeOfCharacter(from: .letters) == nil,
+                let literal = en.replacing(/\{[A-Za-z0-9_]+\}/, with: "")
+                #expect(literal.rangeOfCharacter(from: .letters) == nil,
                         "\(key) is the same in both languages: \(en.debugDescription)")
             }
         }
