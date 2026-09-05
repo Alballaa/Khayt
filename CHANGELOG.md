@@ -201,6 +201,14 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **Telegram messages from the Mac app never went out.** The bot token is
+  encrypted in the store, the app read it raw, and Telegram was handed
+  `__enc__…` as a token — so every shop with Telegram configured was told the
+  message failed, every time, since the day it shipped. The token is now opened
+  at the moment it is sent. macOS will ask once for access to the key Khayt
+  keeps in your login Keychain; if you decline, the app says so plainly instead
+  of failing with a bad token.
+
 - **The OctoPrint and PrusaLink readings are testable at last.** Both were
   written inline in `main.js`, where nothing could call them and their only
   guard was a scan of that file's text. They now live in `lib/octoprint.js` and

@@ -2005,11 +2005,20 @@ final class Shop {
     /// shop is told, and can send it by hand.
     private func tell(_ message: TelegramMessage) async {
         do {
-            try await Telegram.send(botToken: message.botToken, chatId: message.chatId,
+            // THE TOKEN IS ENCRYPTED ON DISK, and the rule that this app never
+            // decrypts belonged to the WRITE path. Handed the `__enc__` string
+            // straight through, `isBotToken` refused it and every shop with
+            // Telegram configured was told its message did not go out — every
+            // time, since the day this shipped. Opened here, at the point of
+            // use, and never held anywhere.
+            let token = try Secrets.open(message.botToken, for: source)
+            try await Telegram.send(botToken: token, chatId: message.chatId,
                                     message: message.message)
             moveNotices.append(words.callIt("mac.telegram_sent"))
         } catch let failure as Telegram.Failure {
             moveProblem = words.callIt("mac.telegram_failed") + " " + Self.describe(failure)
+        } catch let locked as Secrets.Failure {
+            moveProblem = words.callIt("mac.telegram_failed") + " " + locked.description
         } catch {
             moveProblem = words.callIt("mac.telegram_failed") + " " + String(describing: error)
         }
