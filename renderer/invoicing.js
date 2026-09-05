@@ -516,16 +516,19 @@ async function shareTrackingWhatsApp(orderId) {
 /* ============================================================
    ZATCA Phase 2 — FATOORA submission
    ============================================================ */
+// These keep their names and their no-argument shape because the rest of this
+// file and its tests call them that way. What they no longer keep is their own
+// opinion: each one now asks the shared module, handing it the shop's settings.
 function zatcaPhase2Ready() {
-  const z2 = settings.zatcaPhase2;
-  return !!(settings.enableZatca && z2?.enabled && (z2.pcsid || z2.csid));
+  return !!ZatcaSubmit()?.zatcaPhase2Ready(settings);
 }
 
+// The fifth copy, and the last one. `xmlToBase64` in the shared module does
+// this and the Buffer version too, picking by which host it is in — so the two
+// apps encode the invoice they report with the same function rather than with
+// two that happen to produce the same bytes.
 function zatcaUtf8ToBase64(str) {
-  const bytes = new TextEncoder().encode(String(str || ''));
-  let bin = '';
-  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
-  return btoa(bin);
+  return ZatcaSubmit().xmlToBase64(str);
 }
 
 function ensureZatcaUuid(order) {
@@ -540,16 +543,12 @@ function ensureZatcaUuid(order) {
 }
 
 function nextZatcaIcv(order) {
-  const z2 = settings.zatcaPhase2 || {};
-  if (order.zatcaSubmission?.icv) return order.zatcaSubmission.icv;
-  return (z2.invoiceCounter || 0) + 1;
+  return ZatcaSubmit().nextZatcaIcv(settings.zatcaPhase2 || {}, order);
 }
 
 function appendZatcaSubmissionLog(entry) {
   const z2 = settings.zatcaPhase2 || (settings.zatcaPhase2 = {});
-  if (!Array.isArray(z2.submissions)) z2.submissions = [];
-  z2.submissions.unshift(entry);
-  if (z2.submissions.length > 100) z2.submissions = z2.submissions.slice(0, 100);
+  ZatcaSubmit().appendZatcaSubmissionLog(z2, entry);
 }
 
 function zatcaInvoiceAmounts(order) {
@@ -616,10 +615,7 @@ async function prepareZatcaPhase2Payload(order) {
 }
 
 function zatcaSubmitAccepted(httpOk, body) {
-  if (!httpOk) return false;
-  const status = body?.validationResults?.status || body?.reportingStatus || body?.clearanceStatus;
-  if (status && String(status).toUpperCase() === 'REJECTED') return false;
-  return true;
+  return ZatcaSubmit().zatcaSubmitAccepted(httpOk, body);
 }
 
 async function submitOrderToZatca(orderId, { manual = false, silent = false } = {}) {
@@ -627,7 +623,10 @@ async function submitOrderToZatca(orderId, { manual = false, silent = false } = 
   if (!order) return { ok: false, error: 'Order not found' };
   if (order.voidedAt) return { ok: false, error: 'Invoice voided' };
   if (!zatcaPhase2Ready()) return { ok: false, error: 'ZATCA Phase 2 not configured' };
-  if (order.status !== 'completed' && order.status !== 'delivered') {
+  // `orderEligibleForZatcaSubmit` is the same two conditions, named — and the
+  // named one is what the tests exercise. The messages stay separate so a shop
+  // is told which of the two stopped it.
+  if (!ZatcaSubmit().orderEligibleForZatcaSubmit(order)) {
     return { ok: false, error: 'Order must be completed before ZATCA submission' };
   }
   if (order.zatcaSubmission?.status === 'accepted' && !manual) {
@@ -922,6 +921,25 @@ function zatcaQrReadiness(s) {
 
 function buildZatcaTLV(fields) {
   return ZatcaQr().buildTLV(fields, { base64: (bin) => btoa(bin) });
+}
+
+/**
+ * The submission rules, however this file happens to be loaded.
+ *
+ * Four of these — `zatcaPhase2Ready`, `nextZatcaIcv`, `appendZatcaSubmissionLog`
+ * and `zatcaSubmitAccepted` — were written out again here, and this window ran
+ * the copies. `lib/zatca-submit.js` had the test suite. They agreed, checked
+ * line by line, but agreement between two copies is a fact about today.
+ */
+function ZatcaSubmit() {
+  if (ZatcaSubmit.cached) return ZatcaSubmit.cached;
+  if (typeof globalThis !== 'undefined' && globalThis.KhaytZatcaSubmit) {
+    ZatcaSubmit.cached = globalThis.KhaytZatcaSubmit;
+    return ZatcaSubmit.cached;
+  }
+  try { ZatcaSubmit.cached = require('../lib/zatca-submit.js'); }
+  catch (e) { ZatcaSubmit.cached = null; }
+  return ZatcaSubmit.cached;
 }
 
 /** The QR payload, however this file happens to be loaded. */
