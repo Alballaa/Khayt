@@ -4,11 +4,11 @@ import KhaytCore
 
 /// The panes of the Settings window, in the order Khayt's own page has them.
 enum SettingsPane: String, CaseIterable, Identifiable {
-    case business, invoice, payments, operations, preferences
+    case business, invoice, payments, operations, slicers, preferences
     var id: String { rawValue }
 }
 
-/// The shop's own settings — ⌘, — in five panes.
+/// The shop's own settings — ⌘, — in six panes.
 ///
 /// Each pane is its own draft with its own Save. A pane saves ONLY the keys it
 /// shows, and `lib/settings-edit.js` keeps everything else as it finds it: the
@@ -36,6 +36,9 @@ struct SettingsWindow: View {
             OperationsPane(shop: shop)
                 .tabItem { Label(shop.words.callIt("set.nav_ops"), systemImage: "gearshape.2") }
                 .tag(SettingsPane.operations)
+            SlicersPane(shop: shop)
+                .tabItem { Label(shop.words.callIt("mac.nav_slicers"), systemImage: "cube.transparent") }
+                .tag(SettingsPane.slicers)
             PreferencesPane(shop: shop)
                 .tabItem { Label(shop.words.callIt("mac.preferences"), systemImage: "slider.horizontal.3") }
                 .tag(SettingsPane.preferences)
@@ -671,5 +674,169 @@ extension NSColor {
         guard let c = usingColorSpace(.sRGB) else { return nil }
         return String(format: "#%02X%02X%02X", Int(round(c.redComponent * 255)),
                       Int(round(c.greenComponent * 255)), Int(round(c.blueComponent * 255)))
+    }
+}
+
+// MARK: - Slicers
+
+/// The programs this shop slices with.
+///
+/// A list rather than a form, which is why it does not go through
+/// `settings-edit.js` — see `Shop.saveSlicers`. Everything it decides is the
+/// shared module's: `lib/slicers.js` reads the list, picks the default, names a
+/// bundle and says whether a program may be launched at all.
+///
+/// **Find installed slicers** is here because the alternative is asking a shop
+/// to type `/Applications/Snapmaker Orca.app/Contents/MacOS/Snapmaker_Orca`
+/// into a text field, which is a setup step people skip and then report as the
+/// feature not working. Khayt scans for the same reason.
+struct SlicersPane: View {
+    let shop: Shop
+
+    @State private var list: [KhaytEngine.Slicer] = []
+    @State private var original: [KhaytEngine.Slicer] = []
+    @State private var defaultId = ""
+    @State private var originalDefault = ""
+    @State private var scanning = false
+    /// What the last scan added, said once rather than left to be noticed.
+    @State private var found: Int?
+
+    private var dirty: Bool { list != original || defaultId != originalDefault }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Form {
+                Section(shop.words.callIt("slicer.settings_title")) {
+                    if list.isEmpty {
+                        // Not an error, and not a disabled row: a shop that has
+                        // never set one up needs the sentence, not a blank.
+                        Text(shop.words.callIt("mac.no_slicers"))
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    ForEach(list) { slicer in
+                        HStack(alignment: .firstTextBaseline) {
+                            // The default is chosen by tapping its own row's
+                            // mark rather than from a separate picker, because a
+                            // picker of names is a second list of the same
+                            // things a foot below the first.
+                            Button {
+                                defaultId = slicer.id
+                            } label: {
+                                Image(systemName: defaultId == slicer.id
+                                      ? "largecircle.fill.circle" : "circle")
+                            }
+                            .buttonStyle(.plain)
+                            .help(shop.words.callIt("mac.slicer_make_default"))
+
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(slicer.name)
+                                Text(slicer.path)
+                                    .font(.caption).foregroundStyle(.tertiary)
+                                    .lineLimit(1).truncationMode(.head)
+                                    .help(slicer.path)
+                            }
+                            Spacer(minLength: 8)
+                            Button {
+                                list.removeAll { $0.id == slicer.id }
+                                if defaultId == slicer.id { defaultId = list.first?.id ?? "" }
+                            } label: {
+                                Image(systemName: "minus.circle")
+                            }
+                            .buttonStyle(.plain)
+                            .help(shop.words.callIt("mac.slicer_remove"))
+                        }
+                    }
+                }
+                Section {
+                    HStack {
+                        Button(shop.words.callIt("mac.find_slicers")) { scan() }
+                            .disabled(scanning)
+                        Button(shop.words.callIt("mac.slicer_add")) { pick() }
+                        if scanning { ProgressView().controlSize(.small) }
+                        Spacer()
+                    }
+                    if let found {
+                        Text(found == 0 ? shop.words.callIt("mac.slicers_none_found")
+                             : shop.words.callIt("mac.slicers_found", ["n": .number(Double(found))]))
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                    Text(shop.words.callIt("mac.slicer_why"))
+                        .font(.caption).foregroundStyle(.tertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .formStyle(.grouped)
+            SaveBar(shop: shop, dirty: dirty,
+                    save: { Task { await shop.saveSlicers(list, defaultId: defaultId); reset() } },
+                    revert: { reset() })
+        }
+        .task(id: shop.settingsValue) { reset() }
+    }
+
+    private func reset() {
+        list = shop.slicers
+        original = list
+        defaultId = shop.defaultSlicer?.id ?? list.first?.id ?? ""
+        originalDefault = defaultId
+        found = nil
+    }
+
+    /// Add every slicer on this Mac that is not already on the list.
+    ///
+    /// By PATH, not by name: two builds of OrcaSlicer, or the same one in
+    /// `/Applications` and `~/Applications`, are two entries a shop may
+    /// genuinely want — and matching on name would silently drop one.
+    private func scan() {
+        scanning = true
+        found = nil
+        Task {
+            let installed = await shop.installedSlicers()
+            let have = Set(list.map(\.path))
+            var added = 0
+            for slicer in installed where !have.contains(slicer.path) {
+                list.append(KhaytEngine.Slicer(id: Shop.uid("SL"), name: slicer.name,
+                                               path: slicer.path, args: ""))
+                added += 1
+            }
+            if defaultId.isEmpty { defaultId = list.first?.id ?? "" }
+            found = added
+            scanning = false
+        }
+    }
+
+    /// For the slicer the scan cannot see — a build kept somewhere else.
+    private func pick() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.application]
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.directoryURL = URL(fileURLWithPath: "/Applications")
+        panel.prompt = shop.words.callIt("mac.slicer_add")
+        guard panel.runModal() == .OK, let bundle = panel.url else { return }
+        // The executable inside, for the same reason the scan takes it: that is
+        // the shape settings.slicers[] holds, and what a slicer wants on a
+        // command line. A path this app cannot resolve is not added silently.
+        guard let executable = SlicerFinder.executable(in: bundle) else {
+            shop.slicerProblem = shop.words.callIt("mac.slicer_no_binary",
+                                                   ["name": .string(bundle.lastPathComponent)])
+            return
+        }
+        Task {
+            guard let engine = shop.engine,
+                  (try? await engine.mayLaunchAsSlicer(path: executable.path)) == true else {
+                // The same refusal the launcher gives, given at the moment the
+                // shop chooses rather than the moment it prints.
+                shop.slicerProblem = shop.words.callIt("mac.slicer_not_allowed",
+                                                       ["name": .string(bundle.lastPathComponent)])
+                return
+            }
+            guard !list.contains(where: { $0.path == executable.path }) else { return }
+            let name = (try? await engine.slicerDisplayName(path: executable.path))
+                ?? bundle.deletingPathExtension().lastPathComponent
+            list.append(KhaytEngine.Slicer(id: Shop.uid("SL"), name: name,
+                                           path: executable.path))
+            if defaultId.isEmpty { defaultId = list.first?.id ?? "" }
+        }
     }
 }

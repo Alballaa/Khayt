@@ -153,3 +153,115 @@ struct SlicerTests {
         #expect(out.path == "/Applications/OrcaSlicer.app")
     }
 }
+
+/// Finding the slicers a Mac already has.
+///
+/// Against bundles built in a temp directory, not against `/Applications`: a
+/// test whose answer depends on what somebody installed is a test that passes
+/// on the machine it was written on.
+@MainActor
+struct SlicerFinderTests {
+
+    /// A `.app` with an Info.plist and an executable, as the scan expects one.
+    static func makeBundle(in dir: URL, app: String, executable: String,
+                           runnable: Bool = true) throws -> URL {
+        let bundle = dir.appending(path: app)
+        let macos = bundle.appending(path: "Contents/MacOS")
+        try FileManager.default.createDirectory(at: macos, withIntermediateDirectories: true)
+        let plist = ["CFBundleExecutable": executable]
+        let data = try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0)
+        try data.write(to: bundle.appending(path: "Contents/Info.plist"))
+        let binary = macos.appending(path: executable)
+        FileManager.default.createFile(atPath: binary.path, contents: Data("#!/bin/sh\n".utf8),
+                                       attributes: runnable ? [.posixPermissions: 0o755] : [:])
+        return bundle
+    }
+
+    static func tempDir() throws -> URL {
+        let dir = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appending(path: "khayt-slicers-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir
+    }
+
+    /// The binary is read from the bundle, not guessed from its name.
+    ///
+    /// Snapmaker's app is "Snapmaker Orca.app" and its binary "Snapmaker_Orca";
+    /// a dozen vendor forks each differ in their own way. main.js carries a
+    /// hand-written table of eighteen for exactly this, and a table goes stale.
+    @Test("the executable comes from the bundle's own Info.plist")
+    func readsTheBundle() throws {
+        let dir = try Self.tempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let bundle = try Self.makeBundle(in: dir, app: "Snapmaker Orca.app",
+                                         executable: "Snapmaker_Orca")
+        let found = try #require(SlicerFinder.executable(in: bundle))
+        #expect(found.lastPathComponent == "Snapmaker_Orca")
+        #expect(found.path.hasSuffix("Snapmaker Orca.app/Contents/MacOS/Snapmaker_Orca"))
+    }
+
+    @Test("a bundle with no plist, no executable key, or nothing runnable is skipped")
+    func incompleteBundles() throws {
+        let dir = try Self.tempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        // No Info.plist at all.
+        let bare = dir.appending(path: "Bare.app")
+        try FileManager.default.createDirectory(at: bare, withIntermediateDirectories: true)
+        #expect(SlicerFinder.executable(in: bare) == nil)
+
+        // A plist, but the named binary is not executable — a broken install,
+        // or a bundle still being copied.
+        let notRunnable = try Self.makeBundle(in: dir, app: "Half.app", executable: "Half",
+                                              runnable: false)
+        #expect(SlicerFinder.executable(in: notRunnable) == nil)
+    }
+
+    /// The scan asks the SAME question the launcher asks. Two lists is how a
+    /// shop is offered a slicer the guard then refuses to run.
+    @Test("only bundles the launcher would accept are offered")
+    func scanUsesTheAllowlist() async throws {
+        let dir = try Self.tempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        _ = try Self.makeBundle(in: dir, app: "OrcaSlicer.app", executable: "OrcaSlicer")
+        _ = try Self.makeBundle(in: dir, app: "Snapmaker Orca.app", executable: "Snapmaker_Orca")
+        // Not a slicer. It has an Info.plist and a runnable binary like the
+        // others, so only the allowlist keeps it out.
+        _ = try Self.makeBundle(in: dir, app: "Terminal.app", executable: "Terminal")
+        _ = try Self.makeBundle(in: dir, app: "Mail.app", executable: "Mail")
+
+        let engine = try KhaytEngine()
+        var allowed: [String: Bool] = [:]
+        for entry in try FileManager.default.contentsOfDirectory(atPath: dir.path) {
+            allowed[entry] = try await engine.mayLaunchAsSlicer(path: entry)
+        }
+        let found = SlicerFinder.installed(in: [dir], allowed: { allowed[$0] ?? false },
+                                           name: { $0 })
+        #expect(found.count == 2)
+        #expect(Set(found.map(\.name)) == ["OrcaSlicer.app", "Snapmaker Orca.app"])
+    }
+
+    /// Two directories, one bundle each — and `~/Applications` is the one people
+    /// forget: it is where an app dragged out of a DMG without administrator
+    /// rights lands.
+    @Test("both application folders are searched, and a duplicate path is offered once")
+    func bothFolders() throws {
+        let a = try Self.tempDir(), b = try Self.tempDir()
+        defer { try? FileManager.default.removeItem(at: a); try? FileManager.default.removeItem(at: b) }
+        _ = try Self.makeBundle(in: a, app: "PrusaSlicer.app", executable: "PrusaSlicer")
+        _ = try Self.makeBundle(in: b, app: "OrcaSlicer.app", executable: "OrcaSlicer")
+
+        let found = SlicerFinder.installed(in: [a, b], allowed: { _ in true }, name: { $0 })
+        #expect(found.count == 2)
+
+        // The same directory twice: a path already offered is not offered again.
+        let twice = SlicerFinder.installed(in: [a, a], allowed: { _ in true }, name: { $0 })
+        #expect(twice.count == 1)
+    }
+
+    @Test("a folder that is not there is not an error")
+    func missingFolder() {
+        let nowhere = URL(fileURLWithPath: "/does/not/exist/\(UUID().uuidString)")
+        #expect(SlicerFinder.installed(in: [nowhere], allowed: { _ in true }, name: { $0 }).isEmpty)
+    }
+}

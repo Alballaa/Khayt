@@ -2087,6 +2087,74 @@ final class Shop {
         defaultSlicer = try? await engine.defaultSlicer(settings: settingsDict)
     }
 
+    /// Every slicer this Mac has installed, whether or not the shop has added it.
+    ///
+    /// Asks the shared rule twice — once for whether a bundle may be launched at
+    /// all, once for what to call it — so a slicer Khayt would offer and one
+    /// this app offers are the same slicer under the same name.
+    func installedSlicers() async -> [(name: String, path: String)] {
+        guard let engine else { return [] }
+        // The two crossings are hoisted out of the walk: a JSContext call per
+        // entry in /Applications would be a hundred of them to list four.
+        var allowedCache: [String: Bool] = [:]
+        var nameCache: [String: String] = [:]
+        let entries = SlicerFinder.searched.flatMap {
+            (try? FileManager.default.contentsOfDirectory(atPath: $0.path)) ?? []
+        }
+        for entry in entries where entry.lowercased().hasSuffix(".app") {
+            allowedCache[entry] = (try? await engine.mayLaunchAsSlicer(path: entry)) ?? false
+            if allowedCache[entry] == true {
+                nameCache[entry] = (try? await engine.slicerDisplayName(path: entry)) ?? entry
+            }
+        }
+        return SlicerFinder.installed(allowed: { allowedCache[$0] ?? false },
+                                      name: { nameCache[$0] ?? $0 })
+    }
+
+    /// Write the shop's slicer list and which of them is the default.
+    ///
+    /// NOT through `settings-edit`. That rule maps FORM FIELDS onto settings
+    /// keys and keeps every key a form does not carry — which is exactly what
+    /// makes a pane safe, and exactly why a list cannot go through it: it has no
+    /// form field, so it would be kept rather than replaced, and Save would do
+    /// nothing at all. Two named keys, written explicitly, is the same
+    /// narrowness by another route.
+    func saveSlicers(_ list: [KhaytEngine.Slicer], defaultId: String) async {
+        settingsProblem = nil
+        settingsNote = nil
+        guard let build = source.build else {
+            settingsProblem = words.callIt("mac.settings_sample"); return
+        }
+        do {
+            try await StoreWriter.update(
+                storeURL: build.storeURL,
+                owns: { StoreLock.weOwnIt(build) },
+                whoHasIt: { StoreLock.describe(StoreLock.verdict(for: build)) }
+            ) { root in
+                var settings = Self.settings(root)
+                settings["slicers"] = .array(list.map { slicer in
+                    .object(["id": .string(slicer.id), "name": .string(slicer.name),
+                             "path": .string(slicer.path), "args": .string(slicer.args)])
+                })
+                settings["defaultSlicerId"] = .string(defaultId)
+                // The legacy single slicer, kept in step. `lib/slicers.js` says
+                // it is mirrored to the default "so existing consumers keep
+                // working unchanged" — the kanban print, machine slice-and-
+                // print and the quote slice all still read it, in the app next
+                // to this one.
+                if let chosen = list.first(where: { $0.id == defaultId }) ?? list.first {
+                    settings["slicer"] = .object(["path": .string(chosen.path),
+                                                  "args": .string(chosen.args)])
+                }
+                root["settings"] = .object(settings)
+            }
+            await load(source)
+            settingsNote = words.callIt("mac.settings_saved")
+        } catch {
+            settingsProblem = String(describing: error)
+        }
+    }
+
     /// Open a model in a named slicer.
     func openInSlicer(_ url: URL, slicer: KhaytEngine.Slicer) async {
         slicerProblem = nil
