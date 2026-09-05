@@ -438,6 +438,11 @@ final class Words {
         "mac.best":          ["en": "Best",         "ar": "الأفضل"],
         "mac.times_ordered": ["en": "Orders",       "ar": "الطلبات"],
         "mac.unnamed":       ["en": "(no name yet)", "ar": "(بلا اسم بعد)"],
+        "mac.price":         ["en": "Price",        "ar": "السعر"],
+        "mac.no_products":   ["en": "No catalogue yet", "ar": "لا يوجد كتالوج بعد"],
+        "mac.no_products_hint": ["en": "A product is something the shop has decided to sell, "
+                              + "with a price it stands behind. Khayt is where one is made.",
+                                 "ar": "المنتج شيء قرر المحل بيعه بسعر يقف خلفه. يُنشأ في خيط."],
         // What the printer is doing. Khayt has words for the states and the
         // errors; these are the ones its own card does not need, because this
         // app tells a shop what it is NOT doing as well.

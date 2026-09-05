@@ -3507,7 +3507,25 @@
       "nameAr": "حامل توربين",
       "category": "",
       "notes": "",
-      "active": true
+      "active": true,
+      "parts": [
+        {
+          "name": "Turbine bracket",
+          "material": "PETG-CF",
+          "printWeight": 559.1,
+          "supportWeight": 0,
+          "printTime": 8.745,
+          "qty": 1,
+          "colour": "black"
+        }
+      ],
+      "basePrice": 231.31,
+      "defaultMargin": 35,
+      "priceRound": {
+        "step": 5,
+        "mode": "up"
+      },
+      "createdAt": "2026-01-05"
     },
     {
       "id": "PRD-6A91F9",
@@ -3515,7 +3533,25 @@
       "nameAr": "طقم نماذج أسنان",
       "category": "",
       "notes": "",
-      "active": true
+      "active": true,
+      "parts": [
+        {
+          "name": "Dental model set",
+          "material": "Resin-like",
+          "printWeight": 182.55,
+          "supportWeight": 0,
+          "printTime": 23.7389,
+          "qty": 12,
+          "colour": "bone"
+        }
+      ],
+      "basePrice": 632.52,
+      "defaultMargin": 35,
+      "priceRound": {
+        "step": 5,
+        "mode": "up"
+      },
+      "createdAt": "2026-01-05"
     },
     {
       "id": "PRD-0522F9",
@@ -3523,7 +3559,25 @@
       "nameAr": "مجسم الكعبة للمكتب",
       "category": "",
       "notes": "",
-      "active": true
+      "active": true,
+      "parts": [
+        {
+          "name": "Kaaba desk piece",
+          "material": "PLA+",
+          "printWeight": 752.84,
+          "supportWeight": 0,
+          "printTime": 19.9026,
+          "qty": 2,
+          "colour": "matte black"
+        }
+      ],
+      "basePrice": 537.36,
+      "defaultMargin": 35,
+      "priceRound": {
+        "step": 5,
+        "mode": "up"
+      },
+      "createdAt": "2026-01-05"
     },
     {
       "id": "PRD-8F047C",
@@ -3531,7 +3585,25 @@
       "nameAr": "",
       "category": "",
       "notes": "",
-      "active": true
+      "active": true,
+      "parts": [
+        {
+          "name": "Cable chain, 40 links",
+          "material": "PA12",
+          "printWeight": 340.94,
+          "supportWeight": 0,
+          "printTime": 10.4705,
+          "qty": 24,
+          "colour": "natural"
+        }
+      ],
+      "basePrice": 1805.04,
+      "defaultMargin": 35,
+      "priceRound": {
+        "step": 5,
+        "mode": "up"
+      },
+      "createdAt": "2026-01-05"
     },
     {
       "id": "PRD-9FE0F9",
@@ -3539,7 +3611,26 @@
       "nameAr": "نسخة متحفية — الملوك",
       "category": "",
       "notes": "",
-      "active": true
+      "active": true,
+      "parts": [
+        {
+          "name": "Museum replica — Kings",
+          "material": "PLA+",
+          "printWeight": 771.91,
+          "supportWeight": 0,
+          "printTime": 6.1737,
+          "qty": 4,
+          "colour": "sand"
+        }
+      ],
+      "basePrice": 1357.28,
+      "defaultMargin": 35,
+      "priceRound": {
+        "step": 5,
+        "mode": "up"
+      },
+      "createdAt": "2026-01-05",
+      "priceOverride": 2500
     },
     {
       "id": "PRD-51069B",
@@ -3547,7 +3638,25 @@
       "nameAr": "",
       "category": "",
       "notes": "",
-      "active": true
+      "active": true,
+      "parts": [
+        {
+          "name": "Drone arm v4",
+          "material": "PA-CF",
+          "printWeight": 302.72,
+          "supportWeight": 0,
+          "printTime": 16.4782,
+          "qty": 1,
+          "colour": "black"
+        }
+      ],
+      "basePrice": 41.92,
+      "defaultMargin": 35,
+      "priceRound": {
+        "step": 5,
+        "mode": "up"
+      },
+      "createdAt": "2026-01-05"
     },
     {
       "id": "PRD-EF6642",
@@ -3555,7 +3664,25 @@
       "nameAr": "",
       "category": "",
       "notes": "",
-      "active": true
+      "active": true,
+      "parts": [
+        {
+          "name": "Signage letters, 12",
+          "material": "ASA",
+          "printWeight": 583.0,
+          "supportWeight": 0,
+          "printTime": 24.4982,
+          "qty": 1,
+          "colour": "white"
+        }
+      ],
+      "basePrice": 118.08,
+      "defaultMargin": 35,
+      "priceRound": {
+        "step": 5,
+        "mode": "up"
+      },
+      "createdAt": "2026-01-05"
     },
     {
       "id": "PRD-68297E",
@@ -3563,7 +3690,25 @@
       "nameAr": "",
       "category": "",
       "notes": "",
-      "active": true
+      "active": true,
+      "parts": [
+        {
+          "name": "Gearbox housing",
+          "material": "ABS",
+          "printWeight": 218.28,
+          "supportWeight": 0,
+          "printTime": 21.5577,
+          "qty": 1,
+          "colour": "grey"
+        }
+      ],
+      "basePrice": 53.11,
+      "defaultMargin": 35,
+      "priceRound": {
+        "step": 5,
+        "mode": "up"
+      },
+      "createdAt": "2026-01-05"
     },
     {
       "id": "PRD-2CF8FF",
@@ -3571,7 +3716,25 @@
       "nameAr": "برقع الصقر",
       "category": "",
       "notes": "",
-      "active": true
+      "active": true,
+      "parts": [
+        {
+          "name": "Falcon hood",
+          "material": "TPU 95A",
+          "printWeight": 184.57,
+          "supportWeight": 0,
+          "printTime": 23.8567,
+          "qty": 1,
+          "colour": "brown"
+        }
+      ],
+      "basePrice": 91.54,
+      "defaultMargin": 35,
+      "priceRound": {
+        "step": 5,
+        "mode": "up"
+      },
+      "createdAt": "2026-01-05"
     },
     {
       "id": "PRD-F68FC0",
@@ -3579,7 +3742,25 @@
       "nameAr": "",
       "category": "",
       "notes": "",
-      "active": true
+      "active": true,
+      "parts": [
+        {
+          "name": "Camera rig plate",
+          "material": "PETG",
+          "printWeight": 297.78,
+          "supportWeight": 0,
+          "printTime": 23.2517,
+          "qty": 1,
+          "colour": "black"
+        }
+      ],
+      "basePrice": 33.0,
+      "defaultMargin": 35,
+      "priceRound": {
+        "step": 5,
+        "mode": "up"
+      },
+      "createdAt": "2026-01-05"
     },
     {
       "id": "PRD-BA8B48",
@@ -3587,7 +3768,25 @@
       "nameAr": "قالب سعف النخيل",
       "category": "",
       "notes": "",
-      "active": true
+      "active": true,
+      "parts": [
+        {
+          "name": "Palm frond mould",
+          "material": "PLA",
+          "printWeight": 40.07,
+          "supportWeight": 0,
+          "printTime": 16.8318,
+          "qty": 1,
+          "colour": "green"
+        }
+      ],
+      "basePrice": 315.4,
+      "defaultMargin": 35,
+      "priceRound": {
+        "step": 5,
+        "mode": "up"
+      },
+      "createdAt": "2026-01-05"
     },
     {
       "id": "PRD-A86347",
@@ -3595,7 +3794,25 @@
       "nameAr": "حامل دلة القهوة",
       "category": "",
       "notes": "",
-      "active": true
+      "active": true,
+      "parts": [
+        {
+          "name": "Coffee dallah stand",
+          "material": "Wood PLA",
+          "printWeight": 289.99,
+          "supportWeight": 0,
+          "printTime": 18.0657,
+          "qty": 24,
+          "colour": "walnut"
+        }
+      ],
+      "basePrice": 4652.16,
+      "defaultMargin": 35,
+      "priceRound": {
+        "step": 5,
+        "mode": "up"
+      },
+      "createdAt": "2026-01-05"
     },
     {
       "id": "PRD-3C492B",
@@ -3603,7 +3820,25 @@
       "nameAr": "",
       "category": "",
       "notes": "",
-      "active": true
+      "active": true,
+      "parts": [
+        {
+          "name": "Prosthetic socket trial",
+          "material": "PETG",
+          "printWeight": 78.62,
+          "supportWeight": 0,
+          "printTime": 3.0843,
+          "qty": 24,
+          "colour": "clear"
+        }
+      ],
+      "basePrice": 4858.56,
+      "defaultMargin": 35,
+      "priceRound": {
+        "step": 5,
+        "mode": "up"
+      },
+      "createdAt": "2026-01-05"
     },
     {
       "id": "PRD-49E07C",
@@ -3611,7 +3846,25 @@
       "nameAr": "",
       "category": "",
       "notes": "",
-      "active": true
+      "active": true,
+      "parts": [
+        {
+          "name": "HVAC duct adapter",
+          "material": "ASA",
+          "printWeight": 478.57,
+          "supportWeight": 0,
+          "printTime": 12.9201,
+          "qty": 24,
+          "colour": "grey"
+        }
+      ],
+      "basePrice": 3836.4,
+      "defaultMargin": 35,
+      "priceRound": {
+        "step": 5,
+        "mode": "up"
+      },
+      "createdAt": "2026-01-05"
     },
     {
       "id": "PRD-3B7A21",
@@ -3619,7 +3872,25 @@
       "nameAr": "",
       "category": "",
       "notes": "",
-      "active": true
+      "active": true,
+      "parts": [
+        {
+          "name": "Shelf brackets, 24",
+          "material": "PLA+",
+          "printWeight": 152.22,
+          "supportWeight": 0,
+          "printTime": 23.6242,
+          "qty": 4,
+          "colour": "white"
+        }
+      ],
+      "basePrice": 1226.6,
+      "defaultMargin": 35,
+      "priceRound": {
+        "step": 5,
+        "mode": "up"
+      },
+      "createdAt": "2026-01-05"
     },
     {
       "id": "PRD-77CFAD",
@@ -3627,7 +3898,25 @@
       "nameAr": "قالب فرس العود",
       "category": "",
       "notes": "",
-      "active": true
+      "active": true,
+      "parts": [
+        {
+          "name": "Oud bridge jig",
+          "material": "PA12",
+          "printWeight": 464.83,
+          "supportWeight": 0,
+          "printTime": 8.7755,
+          "qty": 4,
+          "colour": "natural"
+        }
+      ],
+      "basePrice": 327.68,
+      "defaultMargin": 35,
+      "priceRound": {
+        "step": 5,
+        "mode": "up"
+      },
+      "createdAt": "2026-01-05"
     },
     {
       "id": "PRD-B5BCAD",
@@ -3635,7 +3924,25 @@
       "nameAr": "فانوس رمضان",
       "category": "",
       "notes": "",
-      "active": true
+      "active": true,
+      "parts": [
+        {
+          "name": "Ramadan lantern",
+          "material": "PLA silk",
+          "printWeight": 232.02,
+          "supportWeight": 0,
+          "printTime": 6.1948,
+          "qty": 1,
+          "colour": "gold"
+        }
+      ],
+      "basePrice": 323.9,
+      "defaultMargin": 35,
+      "priceRound": {
+        "step": 5,
+        "mode": "up"
+      },
+      "createdAt": "2026-01-05"
     },
     {
       "id": "PRD-0E40B5",
@@ -3643,7 +3950,25 @@
       "nameAr": "",
       "category": "",
       "notes": "",
-      "active": true
+      "active": true,
+      "parts": [
+        {
+          "name": "Robot gripper fingers",
+          "material": "TPU 95A",
+          "printWeight": 536.76,
+          "supportWeight": 0,
+          "printTime": 7.883,
+          "qty": 24,
+          "colour": "black"
+        }
+      ],
+      "basePrice": 2907.6,
+      "defaultMargin": 35,
+      "priceRound": {
+        "step": 5,
+        "mode": "up"
+      },
+      "createdAt": "2026-01-05"
     },
     {
       "id": "PRD-9A0055",
@@ -3651,7 +3976,25 @@
       "nameAr": "",
       "category": "",
       "notes": "",
-      "active": true
+      "active": true,
+      "parts": [
+        {
+          "name": "Wind tunnel model",
+          "material": "Resin-like",
+          "printWeight": 613.12,
+          "supportWeight": 0,
+          "printTime": 20.8806,
+          "qty": 1,
+          "colour": "grey"
+        }
+      ],
+      "basePrice": 148.47,
+      "defaultMargin": 35,
+      "priceRound": {
+        "step": 5,
+        "mode": "up"
+      },
+      "createdAt": "2026-01-05"
     },
     {
       "id": "PRD-293BE2",
@@ -3659,7 +4002,25 @@
       "nameAr": "لوحة بسطة السوق",
       "category": "",
       "notes": "",
-      "active": true
+      "active": true,
+      "parts": [
+        {
+          "name": "Souq stall sign",
+          "material": "ASA",
+          "printWeight": 217.57,
+          "supportWeight": 0,
+          "printTime": 18.7984,
+          "qty": 6,
+          "colour": "teal"
+        }
+      ],
+      "basePrice": 1959.72,
+      "defaultMargin": 35,
+      "priceRound": {
+        "step": 5,
+        "mode": "up"
+      },
+      "createdAt": "2026-01-05"
     }
   ]
 }

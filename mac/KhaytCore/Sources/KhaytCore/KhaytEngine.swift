@@ -201,6 +201,12 @@ public actor KhaytEngine {
         // global, and without them the lists do not raise — they report every
         // customer at zero and every name as an id.
         "top-lists",
+        // The catalogue: what a product costs to sell and what its parts add up
+        // to. CONTENT-LANGUAGES IS ALREADY ABOVE and must be — a product's name
+        // is read through it, and the shop that keeps this book writes in two
+        // languages.
+        "product-price",
+        "product-specs",
         // The merge engine. `applyDeltas` is what folds a chain from the cloud
         // onto a base, and it is the same function the Electron app merges
         // with — a second opinion about which of two edits wins is the one
@@ -1177,6 +1183,88 @@ public actor KhaytEngine {
                                 settings: [String: JSONValue]) throws -> String {
         try runtime.call2("(KhaytContentLanguages.readAlt(ARG0, 'name', ARG1, ARG2) || '')",
                           [client, .string(language), .object(settings)], as: String.self)
+    }
+
+    // MARK: - The catalogue
+
+    /// What a product costs to sell, and why that number and not another.
+    ///
+    /// `lib/product-price.js`. A typed `priceOverride` beats everything,
+    /// including rounding — and ZERO is a real override (a giveaway, a sample,
+    /// a part priced inside a bundle), so the test is "is there a number here",
+    /// never "is it truthy".
+    public func productPrice(_ product: JSONValue, basePrice: Double) throws -> ProductPrice {
+        try runtime.call2("KhaytProductPrice.finalPrice(ARG0, ARG1)",
+                          [product, .number(basePrice)], as: ProductPrice.self)
+    }
+
+    public struct ProductPrice: Decodable, Sendable, Hashable {
+        public let base: Double
+        public let final: Double
+        /// `override`, `rounded` or `base`.
+        public let source: String
+    }
+
+    /// What a product's parts add up to: hours, grams and the materials.
+    public func productSpecs(_ product: JSONValue) throws -> ProductSpecs {
+        try runtime.call2("KhaytProductSpecs.productSpecs(ARG0)", [product], as: ProductSpecs.self)
+    }
+
+    public struct ProductSpecs: Decodable, Sendable, Hashable {
+        public let printHours: Double?
+        public let weightGrams: Double?
+        public let material: String
+    }
+
+    /// Every product's name, price and specs in one crossing.
+    ///
+    /// One call for the whole catalogue rather than three per row — the same
+    /// reason `customerNames` exists.
+    public func catalogue(_ products: [JSONValue], language: String,
+                          settings: [String: JSONValue]) throws -> [CatalogueRow] {
+        try runtime.call2("""
+            (function (rows, lang, settings) {
+              return rows.map(function (p) {
+                var price = KhaytProductPrice.finalPrice(p, +p.basePrice || 0);
+                var specs = KhaytProductSpecs.productSpecs(p);
+                return {
+                  id: String(p.id || ''),
+                  name: KhaytContentLanguages.read(p, 'name', lang, settings) || '',
+                  description: KhaytContentLanguages.read(p, 'description', lang, settings) || '',
+                  base: price.base, final: price.final, source: price.source,
+                  margin: p.defaultMargin == null ? null : +p.defaultMargin,
+                  printHours: specs.printHours, weightGrams: specs.weightGrams,
+                  material: specs.material,
+                  parts: (p.parts || []).length
+                };
+              });
+            })(ARG0, ARG1, ARG2)
+            """,
+                          [.array(products), .string(language), .object(settings)],
+                          as: [CatalogueRow].self)
+    }
+
+    public struct CatalogueRow: Decodable, Sendable, Hashable, Identifiable {
+        public let id: String
+        public let name: String
+        public let description: String
+        public let base: Double
+        public let final: Double
+        public let source: String
+        public let margin: Double?
+        public let printHours: Double?
+        public let weightGrams: Double?
+        public let material: String
+        public let parts: Int
+
+        public init(id: String, name: String, description: String, base: Double, final: Double,
+                    source: String, margin: Double?, printHours: Double?, weightGrams: Double?,
+                    material: String, parts: Int) {
+            self.id = id; self.name = name; self.description = description
+            self.base = base; self.final = final; self.source = source
+            self.margin = margin; self.printHours = printHours; self.weightGrams = weightGrams
+            self.material = material; self.parts = parts
+        }
     }
 
     // MARK: - What the cloud holds

@@ -118,6 +118,7 @@ final class Shop {
         case expenses
         case waste
         case reports
+        case catalogue
     }
 
     var stage: Stage? { if case .jobs(let s) = shelf { s } else { nil } }
@@ -126,6 +127,7 @@ final class Shop {
     var showingDashboard: Bool { shelf == .dashboard }
     var showingMachines: Bool { shelf == .machines }
     var showingInventory: Bool { shelf == .inventory }
+    var showingCatalogue: Bool { shelf == .catalogue }
     var showingBoard: Bool { shelf == .board }
     var showingExpenses: Bool { shelf == .expenses }
     var showingWaste: Bool { shelf == .waste }
@@ -279,6 +281,8 @@ final class Shop {
             if case .array(let jobs)? = root["printLog"] { orderRows = jobs } else { orderRows = [] }
             if case .array(let people)? = root["clients"] { clientRows = people } else { clientRows = [] }
             if case .array(let catalog)? = root["products"] { productRows = catalog } else { productRows = [] }
+            catalogueRows = (try? await engine?.catalogue(
+                productRows, language: words.language, settings: Self.settings(root))) ?? []
             if case .array(let fleet)? = root["machines"] { machineRows = fleet } else { machineRows = [] }
             clients = Self.decodeClients(root)
             clientNames = (try? await engine?.customerNames(
@@ -1513,6 +1517,14 @@ final class Shop {
         if case .bool(let verified)? = cloud["verified"] { return verified }
         return false
     }
+
+    // MARK: - The catalogue
+
+    /// What the shop sells, priced by the shared rule.
+    ///
+    /// Resolved once per load. Three crossings per row — the name, the price
+    /// and the specs — would be three hundred for a hundred products.
+    private(set) var catalogueRows: [KhaytEngine.CatalogueRow] = []
 
     // MARK: - What the cloud holds
 

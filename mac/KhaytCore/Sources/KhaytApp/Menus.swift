@@ -122,6 +122,7 @@ private struct GoMenu: View {
         Button(Words.upfront("mac.machines")) { shop.shelf = .machines }
             .keyboardShortcut("5", modifiers: .command)
         Button(Words.upfront("mac.inventory")) { shop.shelf = .inventory }
+        Button(Words.upfront("cat.title")) { shop.shelf = .catalogue }
             .keyboardShortcut("6", modifiers: .command)
             
     }
