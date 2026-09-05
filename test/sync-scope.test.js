@@ -16,7 +16,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
 
-const ENGINE = path.join(__dirname, '..', 'renderer', 'sync.js');
+const ENGINE = path.join(__dirname, '..', 'lib', 'sync.js');
 
 /** A fresh engine with its own module-level index, the way a separate machine has one. */
 function loadEngine() {

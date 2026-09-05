@@ -99,6 +99,7 @@ struct ShopWindow: View {
         .sheet(isPresented: $shop.addingSpool) { SpoolSheet(shop: shop, existing: nil) }
         .sheet(item: $shop.editingMachine) { MachineSheet(shop: shop, existing: $0) }
         .sheet(item: $shop.restoring) { RestoreSheet(shop: shop, subject: $0) }
+        .sheet(isPresented: $shop.checkingCloud) { CloudCheckSheet(shop: shop) }
         .sheet(isPresented: $shop.addingMachine) { MachineSheet(shop: shop, existing: nil) }
         .toolbar {
             ToolbarItem(placement: .navigation) {

@@ -62,7 +62,7 @@
    * has written they agree and the order would not matter. It matters for a shop
    * running TWO machines where only one has updated.
    *
-   * Sync merges whole records, last-writer-wins (renderer/sync.js: `arr[i] =
+   * Sync merges whole records, last-writer-wins (lib/sync.js: `arr[i] =
    * incoming`), so a record edited on the older build arrives carrying every
    * field it does not understand — including `group`. And that build's edit
    * dialog writes `rec.folder` and nothing else. Reading `group` first therefore

@@ -56,7 +56,7 @@ test('discovery is a superset of the hand-maintained chain it replaced', () => {
   const previouslyListed = [
     'main.js', 'preload.js', 'lib/gcode-parse.js', 'lib/store-io.js', 'lib/cloud-client.js',
     'lib/attention.js', 'lib/queue-groups.js', 'renderer/app-state.js', 'renderer/dashboard.js',
-    'renderer/sync.js', 'renderer/cloud-sync.js', 'renderer/queue-list.js', 'renderer/icons.js',
+    'lib/sync.js', 'renderer/cloud-sync.js', 'renderer/queue-list.js', 'renderer/icons.js',
     'renderer/themes/registry-core.js', 'renderer/themes/workbench/screens.js',
     'scripts/e2e-smoke.mjs', 'scripts/e2e-theme-shells.mjs',
   ];

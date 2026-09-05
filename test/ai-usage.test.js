@@ -129,13 +129,13 @@ test('sub-cent spend reads as "<$0.01", not "$0.00"', () => {
 test('the ledger is device-local — sync cannot clobber or merge it', () => {
   // I reasoned from the code that settings synced across devices and would
   // overwrite this ledger. That was WRONG, and the mistake is easy to repeat:
-  // renderer/sync.js walks arrayCollections() only, so `settings` — an object —
+  // lib/sync.js walks arrayCollections() only, so `settings` — an object —
   // is never stamped, never sent, and never replaced by a pull.
   //
   // The consequence is not data loss, it is scope: the panel shows THIS
   // device's spend, which under-reports for a shop running two machines on one
   // key. That is why the panel says so rather than silently totalling.
-  const S = require('../renderer/sync.js');
+  const S = require('../lib/sync.js');
   const local = { settings: { aiUsage: { '2026-07': { quote: { calls: 5, cost: 1 } } } }, printLog: [] };
   const remote = { settings: { aiUsage: { '2026-07': { quote: { calls: 99, cost: 99 } } } }, printLog: [] };
   S.applyDeltas(local, S.extractDeltas(remote, { rev: 0, ts: '' }), { appendOnly: [] });

@@ -1513,6 +1513,80 @@ final class Shop {
         return false
     }
 
+    // MARK: - What the cloud holds
+
+    /// The comparison, once it has been asked for.
+    var cloudCheck: CloudCompare.Result?
+    /// Why it could not be made.
+    var cloudProblem: String?
+    /// True while the passphrase sheet is up.
+    var checkingCloud = false
+    /// True while the request is in flight.
+    var cloudBusy = false
+
+    /// Ask Khayt Cloud what it holds and say how far apart the two books are.
+    ///
+    /// READ ONLY. Nothing is pushed, nothing is merged and nothing is written
+    /// on either side — this counts. `cloud-backend.js` §7 is why: a push with
+    /// a baseRev the server accepts replaces its newer copy and every device
+    /// pulls the older store down, with nothing said. Counting cannot do that.
+    ///
+    /// The passphrase is asked for, used, and not kept. It is the one thing
+    /// Khayt deliberately stores nowhere — that is what makes the cloud copy
+    /// end-to-end encrypted — so this app must ask each time and hold it no
+    /// longer than the unwrap.
+    func checkCloud(passphrase: String) async {
+        cloudProblem = nil
+        cloudCheck = nil
+        cloudBusy = true
+        defer { cloudBusy = false }
+        guard let build = source.build, let engine else {
+            cloudProblem = words.callIt("mac.move_sample"); return
+        }
+        do {
+            let connection = try CloudReader.connection(settingsDict)
+            let token = try Secrets.open(connection.storedToken, for: build)
+            guard !token.isEmpty else { throw CloudReader.Failure.unauthorised }
+
+            let reply = try await CloudReader.pull(connection, token: token) { request in
+                try await URLSession(configuration: .ephemeral).data(for: request)
+            }
+            guard case .object(let keyset)? = cloudKeyset() else {
+                throw CloudReader.Failure.malformed("this book has no keyset to unlock")
+            }
+            guard case .object(let wrappedFields)? = keyset["wrappedByPassphrase"],
+                  let wrapped = try? JSONDecoder().decode(
+                      SyncCrypto.Blob.self, from: JSONEncoder().encode(JSONValue.object(wrappedFields)))
+            else {
+                throw CloudReader.Failure.malformed("the keyset has no passphrase-wrapped key")
+            }
+            let dek = try SyncCrypto.unwrapDek(secret: passphrase, wrapped: wrapped)
+            let theirs = try await CloudReader.store(reply, dek: dek, engine: engine)
+
+            // Read from disk rather than from what this app is holding: the
+            // screens decode two collections out of thirty-three, and a
+            // comparison built from those would report thirty-one as missing.
+            let mine = (try? Data(contentsOf: build.storeURL))
+                .flatMap { try? JSONDecoder().decode([String: JSONValue].self, from: $0) } ?? [:]
+            let collections = (try? await engine.storeCollections()) ?? []
+            cloudCheck = CloudCompare.compare(here: mine, there: theirs,
+                                              collections: collections, cloudRev: reply.rev)
+        } catch let failure as CloudReader.Failure {
+            cloudProblem = failure.description
+        } catch let failure as SyncCrypto.Failure {
+            cloudProblem = failure.description
+        } catch let locked as Secrets.Failure {
+            cloudProblem = locked.description
+        } catch {
+            cloudProblem = String(describing: error)
+        }
+    }
+
+    private func cloudKeyset() -> JSONValue? {
+        guard case .object(let cloud)? = settingsDict["cloud"] else { return nil }
+        return cloud["keyset"]
+    }
+
     // MARK: - What the printers are doing
 
     /// Read the machine's own job history and keep it, for the nozzle counter.

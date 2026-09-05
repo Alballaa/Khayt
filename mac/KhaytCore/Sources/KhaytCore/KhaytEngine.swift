@@ -194,6 +194,11 @@ public actor KhaytEngine {
         // global, and without them the lists do not raise — they report every
         // customer at zero and every name as an id.
         "top-lists",
+        // The merge engine. `applyDeltas` is what folds a chain from the cloud
+        // onto a base, and it is the same function the Electron app merges
+        // with — a second opinion about which of two edits wins is the one
+        // thing sync must never have.
+        "sync",
         // What counts as a Khayt store at all. Restoring a backup REPLACES a
         // shop's book, so the one thing that must not be a second opinion is
         // which files are allowed to do that — the renderer learned the hard
@@ -1118,6 +1123,38 @@ public actor KhaytEngine {
                                 settings: [String: JSONValue]) throws -> String {
         try runtime.call2("(KhaytContentLanguages.readAlt(ARG0, 'name', ARG1, ARG2) || '')",
                           [client, .string(language), .object(settings)], as: String.self)
+    }
+
+    // MARK: - What the cloud holds
+
+    /// Every collection a store carries — `ARRAY_COLLECTIONS` from
+    /// `lib/store-validate.js`, read rather than listed a second time. A
+    /// comparison that did not know about a collection would report two books
+    /// as agreeing about it.
+    public func storeCollections() throws -> [String] {
+        try runtime.call2("KhaytStoreValidate.ARRAY_COLLECTIONS", [], as: [String].self)
+    }
+
+    /// Fold a chain of deltas onto a base, the way a pull does.
+    ///
+    /// `KhaytSync.applyDeltas` MUTATES the snapshot and returns a report, so
+    /// the folded store is returned explicitly here — a rule that mutates and
+    /// does not return has done its work inside JavaScriptCore and thrown it
+    /// away, which is a trap this app has already fallen into once.
+    ///
+    /// `appendOnly: []` matches `foldDeltas` in cloud-backend.js exactly.
+    public func foldDeltas(base: [String: JSONValue],
+                           deltas: [[String: JSONValue]]) throws -> [String: JSONValue] {
+        try runtime.call2("""
+            (function (base, payloads) {
+              for (var i = 0; i < payloads.length; i++) {
+                KhaytSync.applyDeltas(base, payloads[i], { appendOnly: [] });
+              }
+              return base;
+            })(ARG0, ARG1)
+            """,
+                          [.object(base), .array(deltas.map(JSONValue.object))],
+                          as: [String: JSONValue].self)
     }
 
     /// Which jobs are late — the attention engine's answer, as a set of ids.

@@ -88,6 +88,9 @@ private struct BookMenu: View {
         .disabled(!shop.canMoveJobs)
         // Not a backup, and named so nobody reaches for it as one: this is the
         // copy that leaves, and it has had the shop's credentials taken out.
+        // Read only — it counts the difference and sends nothing.
+        Button(Words.upfront("mac.check_cloud") + "\u{2026}") { shop.checkingCloud = true }
+            .disabled(!shop.cloudConnected)
         Button(Words.upfront("mac.export_copy")) {
             Task { await shop.exportForSharing() }
         }

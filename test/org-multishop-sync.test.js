@@ -23,7 +23,7 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 const sc = require('../lib/sync-crypto.js');
 
-const ENGINE = path.join(__dirname, '..', 'renderer', 'sync.js');
+const ENGINE = path.join(__dirname, '..', 'lib', 'sync.js');
 const FAST_KDF = { algo: 'scrypt', N: 1024, r: 8, p: 1, keyLen: 32 };
 
 /** A fresh engine instance — one per simulated device, as separate machines have. */

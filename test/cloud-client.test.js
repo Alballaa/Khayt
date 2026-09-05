@@ -365,7 +365,7 @@ test('a branch store is folded, not just decrypted — the org roll-up sees the 
   // figures as they were before its newest orders, with nothing saying so.
   const { keyset } = cc.createKeyset('org-pass', { kdf: FAST_KDF });
   const dek = cc.unlockWithPassphrase('org-pass', keyset);
-  const engine = require('../renderer/sync.js');
+  const engine = require('../lib/sync.js');
 
   const base0 = { printLog: [{ id: 'o1', price: 100, rev: 1 }], clients: [], tombstones: [] };
   const later = { deltas: [{ collection: 'printLog', record: { id: 'o2', price: 250, rev: 1 } }], tombstones: [] };

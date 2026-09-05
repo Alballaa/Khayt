@@ -6,6 +6,14 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Changed
 
+- **The Mac app can check the cloud.** *Book → Check the cloud* asks for your
+  cloud passphrase, reads what Khayt Cloud holds and counts the difference —
+  which records are only here, which are only there, and which are newer on each
+  side. It reads: nothing is sent, merged or changed on either side, and the
+  sheet says so before it asks for anything. The passphrase is used once and not
+  kept, because Khayt stores it nowhere and that is what makes the cloud copy
+  readable only by you.
+
 - **Groundwork for cloud sync on the Mac.** The Mac app can now read what
   Khayt Cloud holds: scrypt, AES-256-GCM and gunzip, matching `sync-crypto.js`
   byte for byte. Nothing uses it yet and it cannot write — this is the piece
