@@ -137,6 +137,15 @@ private struct BookMenu: View {
         // Read only — it counts the difference and sends nothing.
         Button(Words.upfront("mac.check_cloud") + "\u{2026}") { shop.checkingCloud = true }
             .disabled(!shop.cloudConnected)
+        // The way back out of automatic sync, and the only one there is.
+        //
+        // The data key is held for the life of the app so pushes can happen in
+        // the background; a shop leaving a Mac somewhere it does not control
+        // needs to be able to take it away again without quitting. Disabled
+        // rather than hidden when nothing is unlocked, so the item teaches what
+        // it does before it is ever needed.
+        Button(Words.upfront("mac.lock_cloud")) { shop.forgetCloudKey() }
+            .disabled(!shop.cloudUnlocked)
         Button(Words.upfront("mac.export_copy")) {
             Task { await shop.exportForSharing() }
         }

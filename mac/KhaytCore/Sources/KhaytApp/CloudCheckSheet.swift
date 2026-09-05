@@ -68,7 +68,13 @@ struct CloudCheckSheet: View {
         // The data key is held only while this sheet is up — that is the whole
         // bargain that lets Send work without a second passphrase and a second
         // minute of scrypt.
-        .onDisappear { shop.forgetCloudKey() }
+        // THE KEY IS NOT DROPPED HERE ANY MORE. It used to be, and that was
+        // right while the only thing that could use it was the button above.
+        // Automatic sync needs it minutes later with nothing on screen, and a
+        // background push that stops to ask for a passphrase is one nobody has
+        // consented to. It goes when the app quits, or when the shop locks it
+        // from the menu bar. See `Shop.cloudDek`.
+        .onDisappear { shop.cloudSent = nil }
     }
 
     private var ask: some View {

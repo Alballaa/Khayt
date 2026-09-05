@@ -594,17 +594,36 @@ final class Words {
         "mac.alert_offline": ["en": "{machine} stopped answering", "ar": "{machine} توقفت عن الرد"],
         "mac.alert_stalled": ["en": "{machine} has stopped moving", "ar": "{machine} توقفت عن التقدم"],
         "mac.printer_trouble": ["en": "Printer trouble", "ar": "مشاكل الطابعة"],
-        // How far this app's sync goes. Said quietly and always, because a shop
-        // with two machines drifting apart is the failure that costs most and
-        // announces itself least.
+        // WHAT SYNC IS DOING, one short line each.
         //
-        // It read "Not synced from here" until this app could send, and then it
-        // was simply false. "Automatically" is the word carrying the meaning:
-        // nothing happens in the background, and nothing comes DOWN at all.
-        // SHORT ENOUGH FOR ONE LINE — see the note on `Provenance`. The
-        // sentence that explains it lives in `mac.not_synced_why`, which is a
-        // tooltip and can be as long as it needs to be.
-        "mac.not_synced":    ["en": "Not synced automatically", "ar": "لا تُزامَن تلقائيًا"],
+        // These replaced a single standing sentence — "Not synced
+        // automatically" — which said the same thing whether the book was up to
+        // date or an hour behind. It was an apology for a missing feature, and
+        // the feature is no longer missing.
+        //
+        // SHORT ENOUGH FOR ONE LINE. The sidebar column holds at 190pt and a
+        // label that wraps there is the bug `SidebarLayoutTests` was written
+        // after; the sentence that explains any of this lives in
+        // `mac.sync_auto_why`, which is a tooltip and can be as long as it
+        // needs to be.
+        "mac.sync_off":      ["en": "Cloud off", "ar": "السحابة متوقفة"],
+        "mac.sync_locked":   ["en": "Cloud locked", "ar": "السحابة مقفلة"],
+        "mac.sync_on":       ["en": "Syncing automatically", "ar": "تُزامَن تلقائيًا"],
+        "mac.sync_sending":  ["en": "Sending…", "ar": "جارٍ الإرسال…"],
+        "mac.sync_waiting":  ["en": "Changes to send", "ar": "تغييرات للإرسال"],
+        "mac.sync_done":     ["en": "Sent {time}", "ar": "أُرسلت {time}"],
+        "mac.sync_retrying": ["en": "Not sent — trying again",
+                              "ar": "لم تُرسل — تُعاد المحاولة"],
+        // Why the key does not outlive the app, said where somebody hovering
+        // over "Locked" will find it rather than in a document.
+        "mac.sync_auto_why": ["en": "This Mac sends what you change here to Khayt Cloud on its own, "
+                            + "a few seconds after each change. It needs the cloud passphrase once "
+                            + "per launch — the passphrase is never stored anywhere, which is what "
+                            + "keeps the cloud copy readable only by you.",
+                              "ar": "يرسل هذا الماك ما تغيّره هنا إلى سحابة خيط تلقائيًا، بعد ثوانٍ "
+                            + "من كل تغيير. يحتاج عبارة مرور السحابة مرة واحدة عند كل تشغيل — "
+                            + "والعبارة لا تُحفظ في أي مكان، وهذا ما يبقي نسخة السحابة مقروءة لك وحدك."],
+        "mac.lock_cloud":    ["en": "Lock Khayt Cloud", "ar": "قفل سحابة خيط"],
         // Asking the cloud what it holds, and offering to send what is only
         // here. The check itself writes nothing and the sheet says so before it
         // asks for a passphrase; sending is a second, deliberate press.
@@ -691,12 +710,6 @@ final class Words {
                                     "ar": "أحد الإعدادات هنا يختلف عن نسخة السحابة، ولا يستطيع هذا "
                                   + "التطبيق إرساله: الإعداد شيء واحد لا قائمة سجلات، فلا موضع له في "
                                   + "التغيير. افتح خيط على هذا الماك من أجله."],
-        "mac.not_synced_why": ["en": "This app writes to the book on this Mac and marks every change. "
-                             + "Check the cloud will send what is only here; a change the cloud holds "
-                             + "a newer copy of still needs the Khayt app to merge.",
-                               "ar": "يكتب هذا التطبيق في الدفتر على هذا الماك ويؤشّر كل تغيير. "
-                             + "و«تحقّق من السحابة» يرسل ما هو هنا فقط؛ أما ما تحتفظ السحابة بنسخة "
-                             + "أحدث منه فيحتاج تطبيق خيط لدمجه."],
         // The machine's own memory of what it has printed.
         "mac.read_history":  ["en": "Read the printer\u{2019}s history",
                               "ar": "قراءة سجل الطابعة"],

@@ -89,7 +89,7 @@ struct SidebarLayoutTests {
         #expect(body.contains(".help(backupProblem)"))
         #expect(body.contains(".help(engineProblem)"))
         #expect(body.contains(".help(shop.lastCrash ?? \"\")"))
-        #expect(body.contains("mac.not_synced_why"))
+        #expect(body.contains("mac.sync_auto_why"))
     }
 
     /// A NAVIGATION LABEL IS NOT A SCREEN TITLE.
@@ -129,20 +129,31 @@ struct SidebarLayoutTests {
         }
     }
 
-    @Test("the label the crash shipped with is short again")
+    @Test("every line the sidebar can show about sync fits the column")
     func theCloudLineIsShort() {
         // Under thirty characters at caption size fits the column's 190pt
-        // minimum. The sentence it replaced was forty-eight.
+        // minimum. This began as one string — the sentence that wrapped was
+        // forty-eight — and is now seven, one per state sync can be in. Each of
+        // them lands in exactly the same label, so each of them has to fit;
+        // checking only the one that was long once is how the next long one
+        // ships.
         let words = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent().deletingLastPathComponent()
             .deletingLastPathComponent()
             .appending(path: "Sources/KhaytApp/Words.swift")
         let text = (try? String(contentsOf: words, encoding: .utf8)) ?? ""
-        guard let line = text.split(separator: "\n").first(where: { $0.contains("\"mac.not_synced\":") })
-        else { Issue.record("mac.not_synced is gone"); return }
-        guard let english = line.split(separator: "\"").dropFirst(3).first
-        else { Issue.record("could not read the string"); return }
-        #expect(english.count < 30, "the cloud line is long enough to wrap again")
+        let labels = text.split(separator: "\n").filter {
+            $0.contains("\"mac.sync_") && !$0.contains("mac.sync_auto_why")
+        }
+        // The tooltip is deliberately excluded above; everything else here is a
+        // label. If this count drops, a state stopped being checked.
+        #expect(labels.count == 7)
+        for line in labels {
+            guard let english = line.split(separator: "\"").dropFirst(3).first else {
+                Issue.record("could not read the string in: \(line)"); continue
+            }
+            #expect(english.count < 30, "this sync line is long enough to wrap: \(english)")
+        }
     }
 }
 

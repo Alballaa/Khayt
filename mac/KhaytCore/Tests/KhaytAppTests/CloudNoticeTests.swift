@@ -70,6 +70,9 @@ struct CloudNoticeTests {
             .deletingLastPathComponent()
             .appending(path: "Sources/KhaytApp/Sidebar.swift"), encoding: .utf8)
         #expect(sidebar.contains("if shop.cloudConnected {"))
-        #expect(sidebar.contains("mac.not_synced"))
+        // It says what sync is DOING now rather than one standing sentence, so
+        // what the sidebar has to carry is the status, not a fixed key.
+        #expect(sidebar.contains("Self.syncLine(shop)"))
+        #expect(sidebar.contains("shop.syncStatus"))
     }
 }

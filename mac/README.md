@@ -727,6 +727,61 @@ newer copy of is no longer Electron's alone — `lib/cloud-inbox.js` is the same
 fold, and `Check the cloud` brings a chain down. And the **delivery promise** a
 storefront quotes from is published from here now; see below.
 
+### Syncing without being asked
+
+Khayt pushes to the cloud at the end of every save — `renderer/app-state.js`
+calls `KhaytCloudSync.scheduleSync()`, debounced so a burst of edits becomes one
+upload. This app pushed only when somebody opened *Check the cloud* and pressed
+*Send*, twice. So an edit made here stayed here, and the sidebar said "Not
+synced automatically" in small grey type in the hope that somebody read it.
+
+`AutoSync.swift` holds the scheduling; `Shop` runs it. The numbers are Khayt's
+own — 2.5s debounce, 5s backoff doubling to a 5-minute ceiling — so two machines
+in one shop behave the same way under the same load.
+
+**The trigger is one hook, not twenty-one calls.** Twenty-one places in `Shop`
+change the book. Rather than teach each of them to say so — and the
+twenty-second somebody adds next month — `StoreWriter.didWrite` fires from
+inside `atomicWrite`, which is where every write actually lands, from both the
+synchronous and the async `update`. It fires only after the swap succeeds: a
+refused write changed nothing and must not schedule a push of something that is
+not there. `AutoSyncTests` proves both, and deleting the one line in
+`atomicWrite` fails it.
+
+**The data key now lives as long as the app.** It used to be dropped in the
+sheet's `onDisappear`, which was right while the only thing that could use it
+was the button on that sheet. A background push cannot stop to ask for a
+passphrase. This is Khayt's own posture, not a loosening of it — the desktop
+configures its sync controller "after unlock" and keeps the backend for the
+session — and the PASSPHRASE is still never stored: this is the unwrapped key,
+in memory, dropped on quit or from *Lock Khayt Cloud* in the menu bar. Earning
+it again costs a scrypt at N=32768, most of a minute, which is why it is kept
+at all.
+
+**Three conditions, each a different silence.** Cloud connected, key unlocked,
+and this Mac owns the book. The last one matters: this app often opens a book
+Khayt owns, read-only, and the whole-book push merges the cloud in before
+uploading — which needs the lock. The app that holds it is syncing anyway. All
+three are `AutoSync.shouldSyncOnWrite`, pulled out of the early return they used
+to be so they can be pinned; an early return that answers "no" for the wrong
+reason is this feature's worst failure, because nothing happens and nothing is
+said.
+
+**The expensive path has a floor.** This shop's delta chain is closed, so every
+push is the whole store: a backup, a merge, a rewrite of the book, a megabyte on
+the wire. At the debounce that would be a day of typing turned into a hundred
+full uploads. Deltas keep the fast cadence; whole-book pushes wait fifteen
+minutes between them — short enough that a second machine is never further
+behind than that.
+
+It also pushes a book it is about to write to, and that terminates: the merge is
+a write, the listener hears it, but `bookChanged` sees the sync in flight and
+only queues one follow-up, which finds an empty outbox and sends nothing.
+
+A 409 needs no special handling. `sendToCloud` begins with a fresh pull, so the
+backoff retry measures against the head the cloud actually has — what Khayt's
+pull-merge-repush reaches by a longer road.
+
 ### The promise a storefront quotes
 
 `PUT /v1/shops/{id}/lead-time`, from `LeadTime.swift`, every six hours.
