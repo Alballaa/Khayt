@@ -33,6 +33,14 @@ final class PrinterWatch {
         /// vocabulary — `explainPrinterHttp` exists for the same reason.
         var problem: String?
         var at: Date
+        /// How many polls in a row have failed.
+        ///
+        /// `attention.machineState` reads exactly this and calls a machine
+        /// `reconnecting` until it reaches three, then `offline` — and only
+        /// `offline` reaches the dashboard, by design. Without the count a
+        /// printer unreachable all day stayed "reconnecting" for ever and the
+        /// one screen a shop leaves open never mentioned it.
+        var consecutiveFailures: Int = 0
     }
 
     /// Why a machine is not being polled at all, which is different from a poll
@@ -71,9 +79,15 @@ final class PrinterWatch {
                 // `error` is what `isFailedPoll` reads, and the offline alert
                 // counts consecutive failed polls. Without this field a printer
                 // that had been unreachable for an hour raised nothing at all.
-                out[id] = .object(["state": .string("offline"),
-                                   "error": .string(seen.problem ?? "no answer"),
-                                   "lastUpdated": .number(seen.at.timeIntervalSince1970 * 1000)])
+                out[id] = .object([
+                    "state": .string("offline"),
+                    "error": .string(seen.problem ?? "no answer"),
+                    // `machineState` reads this and says "reconnecting" until
+                    // it reaches three. One bad poll is a wifi hiccup; three is
+                    // a printer somebody has to walk over to.
+                    "consecutiveFailures": .number(Double(seen.consecutiveFailures)),
+                    "lastUpdated": .number(seen.at.timeIntervalSince1970 * 1000),
+                ])
             }
         }
         return out
@@ -198,9 +212,12 @@ final class PrinterWatch {
                 hot = try? await Self.get(base, path: "/printer/objects/query?" + escaped)
             }
             let status = try await engine.moonrakerStatus(reply, hot: hot, hotName: hotName)
-            readings[machine.id] = Reading(status: status, problem: nil, at: Date())
+            readings[machine.id] = Reading(status: status, problem: nil, at: Date(),
+                                           consecutiveFailures: 0)
         } catch {
-            readings[machine.id] = Reading(status: nil, problem: Self.say(error), at: Date())
+            let before = readings[machine.id]?.consecutiveFailures ?? 0
+            readings[machine.id] = Reading(status: nil, problem: Self.say(error), at: Date(),
+                                           consecutiveFailures: before + 1)
         }
     }
 

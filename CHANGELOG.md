@@ -221,6 +221,13 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **The Mac app's dashboard never warned about a worn nozzle or a dead
+  printer.** Both are things the attention engine reports only when it is given
+  what it needs, and it was given neither: the nozzle rule wants the wear module
+  and got a function, and a machine only counts as offline after three failed
+  polls in a row — a count the Mac was not keeping. Neither failed; both were
+  simply silent.
+
 - **The Mac app said "11 late" and "2 late" at the same time.** The badges on
   the jobs table and the kanban cards — and the count beside OWED — called a job
   late if it was unpaid and past its date, which marked finished work and even
