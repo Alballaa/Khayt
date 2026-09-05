@@ -6,6 +6,14 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Changed
 
+- **"Settings differ too" was telling every synced shop something untrue.** The
+  desktop writes `settings.cloud.lastServerRev` after a successful push, so the
+  copy that went up carries the previous value and the local one is permanently
+  a step ahead. Compared plainly, that made "your settings differ" true for
+  ever — and it appeared under a heading saying the two held the same records.
+  The sync's own bookkeeping no longer counts as a settings change, and the
+  wording no longer says "too" when nothing else differs.
+
 - **The Mac app can bring the cloud's copy down.** *Check the cloud* has a
   second button beside sending, and between them the two directions mean a Mac
   and the cloud can be brought into step without opening Khayt. A backup is

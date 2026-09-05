@@ -187,6 +187,78 @@ struct CloudMergeTests {
         }
     }
 
+    // MARK: - against the whole of a real book
+
+    /// THE PROPERTY THAT MATTERS MOST ON A REAL SHOP'S DATA.
+    ///
+    /// This Mac and the cloud currently agree — the shop's own *Check the
+    /// cloud* says so — which means a pull has to be a complete no-op. Not
+    /// "mostly harmless": zero applied, zero removed, and every collection
+    /// identical afterwards. A merge that churned even one record would push
+    /// it all straight back on the next send, and the two would trade the same
+    /// records for ever.
+    ///
+    /// Run against the whole book rather than a fixture, because the failure
+    /// this catches is a field or a collection shape that only real data has.
+    @Test("merging a book with itself changes nothing at all")
+    func idempotentOnTheRealBook() async throws {
+        let url = try Self.freshCopy()
+        let before = try Self.read(url)
+        #expect(before.keys.count > 5, "the book under test is too small to mean anything")
+
+        let report = try await Self.merge(into: url, from: before)
+        #expect(report.applied == 0, "\(report.applied) records were rewritten with themselves")
+        #expect(report.removed == 0)
+        #expect(report.conflicts.isEmpty)
+
+        let after = try Self.read(url)
+        for key in Set(before.keys).union(after.keys) {
+            #expect(after[key] == before[key], "\(key) changed when merging the book with itself")
+        }
+    }
+
+    /// And the same book has nothing to send back, so the two directions agree
+    /// about what "in step" means. Two rules that disagreed here would have a
+    /// shop sending and pulling the same records in a loop.
+    @Test("a book that matches has nothing to send either")
+    func nothingToSendWhenInStep() async throws {
+        let url = try Self.freshCopy()
+        let book = try Self.read(url)
+        let outbox = try await KhaytEngine().changesToSend(local: book, server: book)
+        #expect(outbox.deltas.isEmpty, "\(outbox.deltas.count) records would be sent back")
+        #expect(outbox.tombstones.isEmpty)
+        #expect(!outbox.settingsDiffer, "settings reported as differing from themselves")
+    }
+
+    /// One real record, one revision newer in the cloud — the whole shape of an
+    /// ordinary pull, on data this shop actually has.
+    @Test("one newer record in the cloud comes down and nothing else moves")
+    func oneRealRecordComesDown() async throws {
+        let url = try Self.freshCopy()
+        let before = try Self.read(url)
+        let target = try #require(Self.aCollection(before))
+        var theirs = try #require(Self.record(before, target.name, target.id))
+        let wasRev = { if case .number(let n)? = theirs["rev"] { return n } else { return 0.0 } }()
+        theirs["rev"] = .number(wasRev + 1)
+        theirs["updatedAt"] = .string("2099-01-01T00:00:00.000Z")
+
+        var server = before
+        server[target.name] = .array((Self.rows(before, target.name)).map { row in
+            if case .object(let o) = row, o["id"] == .string(target.id) { return .object(theirs) }
+            return row
+        })
+
+        let report = try await Self.merge(into: url, from: server)
+        #expect(report.applied == 1, "\(report.applied) records came down, not one")
+
+        let after = try Self.read(url)
+        #expect(Self.record(after, target.name, target.id)?["updatedAt"]
+                == .string("2099-01-01T00:00:00.000Z"))
+        for key in before.keys where key != target.name {
+            #expect(after[key] == before[key], "\(key) moved when only one record changed")
+        }
+    }
+
     // MARK: - what it says
 
     /// Delete wins over a local edit, and a shop is told. A merge that threw
