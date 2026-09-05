@@ -658,12 +658,18 @@ final class Words {
                               "ar": "أُرسل {n}. سحابة خيط الآن عند المراجعة {rev}."],
         "mac.cloud_nothing_to_send": ["en": "Nothing left to send — the cloud already has it.",
                                       "ar": "لا شيء متبقٍّ للإرسال — السحابة تحتفظ به بالفعل."],
-        "mac.cloud_settings_stay": ["en": "Settings differ too, and this app cannot send those: a "
-                                  + "setting is one thing rather than a list of records, so there is "
-                                  + "nowhere to put it in a change. Open Khayt on this Mac for those.",
-                                    "ar": "الإعدادات مختلفة أيضًا، ولا يستطيع هذا التطبيق إرسالها: "
-                                  + "الإعداد شيء واحد لا قائمة سجلات، فلا موضع له في التغيير. "
-                                  + "افتح خيط على هذا الماك من أجلها."],
+        // No "too". It said "Settings differ too" beside a result reporting that
+        // the two held the same records, which reads as a contradiction — and
+        // was one, because the comparison was counting the sync's own
+        // bookkeeping. Now it stands on its own and only appears when a setting
+        // really has changed.
+        "mac.cloud_settings_stay": ["en": "A setting here differs from the cloud's copy, and this app "
+                                  + "cannot send it: a setting is one thing rather than a list of "
+                                  + "records, so there is nowhere to put it in a change. Open Khayt "
+                                  + "on this Mac for that.",
+                                    "ar": "أحد الإعدادات هنا يختلف عن نسخة السحابة، ولا يستطيع هذا "
+                                  + "التطبيق إرساله: الإعداد شيء واحد لا قائمة سجلات، فلا موضع له في "
+                                  + "التغيير. افتح خيط على هذا الماك من أجله."],
         "mac.not_synced_why": ["en": "This app writes to the book on this Mac and marks every change. "
                              + "Check the cloud will send what is only here; a change the cloud holds "
                              + "a newer copy of still needs the Khayt app to merge.",

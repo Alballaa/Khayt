@@ -117,6 +117,36 @@ test('settings that match in a different key order do not count as a change', ()
 });
 
 /**
+ * THE ONE THAT WAS WRONG ON A REAL SHOP'S SCREEN.
+ *
+ * The desktop writes `settings.cloud.lastServerRev` AFTER a successful push, so
+ * the blob that went up carries the previous value and the local copy is one
+ * ahead of it — permanently, for every shop that has ever synced. Compared
+ * raw, "your settings differ" was true for ever, and the sheet said so under a
+ * heading reporting that the two held the same records.
+ */
+test("the sync's own bookkeeping is not a settings change", () => {
+  const out = changesToSend(
+    { settings: { currency: 'SAR', cloud: { lastServerRev: 16, token: 'a' } } },
+    { settings: { currency: 'SAR', cloud: { lastServerRev: 15, token: 'a' } } });
+  assert.equal(out.settingsDiffer, false);
+});
+
+test('a setting the shop actually changed still counts', () => {
+  const out = changesToSend(
+    { settings: { currency: 'SAR', cloud: { lastServerRev: 16 } } },
+    { settings: { currency: 'USD', cloud: { lastServerRev: 16 } } });
+  assert.equal(out.settingsDiffer, true);
+});
+
+test('a settings change beside identical cloud bookkeeping is still seen', () => {
+  const out = changesToSend(
+    { settings: { vatRate: 15, cloud: { lastServerRev: 3 } } },
+    { settings: { vatRate: 5, cloud: { lastServerRev: 99 } } });
+  assert.equal(out.settingsDiffer, true, 'a real change was hidden by the exclusion');
+});
+
+/**
  * The real proof. Build the payload, fold it into the cloud's store with the
  * shipped merge engine, and require that the two sides now agree everywhere the
  * payload was allowed to touch — and that the record the cloud held at a higher
