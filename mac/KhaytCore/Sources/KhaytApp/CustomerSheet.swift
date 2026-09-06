@@ -12,6 +12,12 @@ import KhaytCore
 /// the communications log — are the shop's and are carried through untouched by
 /// `saveCustomer`. A screen that shows six fields must not delete the other ten.
 struct CustomerSheet: View {
+    /// How wide this sheet is. A CONSTANT rather than a number in the body,
+    /// because `SnapshotTests` photographs the sheet at a size of its own and
+    /// the two silently disagreed: the sheet grew and the picture kept the old
+    /// width, so the render came back cropped down the middle with no failure.
+    static let width: CGFloat = 420
+
     let shop: Shop
     let existing: Client
 
@@ -99,7 +105,7 @@ struct CustomerSheet: View {
             }
         }
         .padding(18)
-        .frame(width: 420)
+        .frame(width: Self.width)
         .onAppear {
             guard !started else { return }
             started = true

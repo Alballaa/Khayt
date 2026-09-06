@@ -9,6 +9,9 @@ import KhaytCore
 /// Mac is the same record Khayt would have written — the same trims, the same
 /// category fallback, the same next-due date for a standing cost.
 struct ExpenseSheet: View {
+    /// See `NewJobSheet.width`: the snapshot photographs the sheet at this size.
+    static let width: CGFloat = 420
+
     let shop: Shop
     @Environment(\.dismiss) private var dismiss
 
@@ -27,10 +30,13 @@ struct ExpenseSheet: View {
             Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 10) {
                 GridRow {
                     Text(shop.words.callIt("exp.amount")).foregroundStyle(.secondary)
-                    TextField("", value: $amount, format: .number.precision(.fractionLength(0...2)))
-                        .textFieldStyle(.roundedBorder).monospacedDigit()
-                        .focused($focused)
-                        .onSubmit(commit)
+                    HStack(spacing: 4) {
+                        TextField("", value: $amount, format: .number.precision(.fractionLength(0...2)))
+                            .textFieldStyle(.roundedBorder).monospacedDigit()
+                            .focused($focused)
+                            .onSubmit(commit)
+                        Text(shop.currency).foregroundStyle(.secondary)
+                    }
                 }
                 GridRow {
                     Text(shop.words.callIt("exp.category")).foregroundStyle(.secondary)
@@ -83,7 +89,7 @@ struct ExpenseSheet: View {
             }
         }
         .padding(18)
-        .frame(width: 420)
+        .frame(width: Self.width)
         .onAppear { focused = true }
     }
 
@@ -109,6 +115,9 @@ struct ExpenseSheet: View {
 /// than one it has to look up. Deducting is on by default, because the grams
 /// are gone whether or not anybody writes it down.
 struct WasteSheet: View {
+    /// See `NewJobSheet.width`: the snapshot photographs the sheet at this size.
+    static let width: CGFloat = 460
+
     let shop: Shop
     @Environment(\.dismiss) private var dismiss
 
@@ -158,8 +167,11 @@ struct WasteSheet: View {
                 }
                 GridRow {
                     Text(shop.words.callIt("waste.est_cost")).foregroundStyle(.secondary)
-                    TextField("", value: $cost, format: .number.precision(.fractionLength(0...2)))
-                        .textFieldStyle(.roundedBorder).monospacedDigit()
+                    HStack(spacing: 4) {
+                        TextField("", value: $cost, format: .number.precision(.fractionLength(0...2)))
+                            .textFieldStyle(.roundedBorder).monospacedDigit()
+                        Text(shop.currency).foregroundStyle(.secondary)
+                    }
                 }
                 GridRow {
                     Text(shop.words.callIt("waste.date")).foregroundStyle(.secondary)
@@ -193,7 +205,7 @@ struct WasteSheet: View {
             }
         }
         .padding(18)
-        .frame(width: 460)
+        .frame(width: Self.width)
         .onAppear {
             if material.isEmpty { material = materials.first ?? "" }
             focused = true

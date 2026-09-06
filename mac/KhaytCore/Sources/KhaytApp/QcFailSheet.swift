@@ -13,6 +13,12 @@ import KhaytCore
 /// screen labels and filters by. Inventing one here would put a value in
 /// `failureType` that no screen can name.
 struct QcFailSheet: View {
+    /// How wide this sheet is. A CONSTANT rather than a number in the body,
+    /// because `SnapshotTests` photographs the sheet at a size of its own and
+    /// the two silently disagreed: the sheet grew and the picture kept the old
+    /// width, so the render came back cropped down the middle with no failure.
+    static let width: CGFloat = 380
+
     let shop: Shop
     let subject: Shop.PendingHold
 
@@ -74,7 +80,7 @@ struct QcFailSheet: View {
             }
         }
         .padding(18)
-        .frame(width: 380)
+        .frame(width: Self.width)
         .onAppear { focused = true }
     }
 
