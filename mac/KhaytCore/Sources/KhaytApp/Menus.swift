@@ -135,9 +135,9 @@ private struct BookMenu: View {
         // Not a backup, and named so nobody reaches for it as one: this is the
         // copy that leaves, and it has had the shop's credentials taken out.
         // Read only — it counts the difference and sends nothing.
-        // Adding a model. In the File menu with the other things that bring
-        // something into the book, and disabled while one is being measured —
-        // a second panel over a running import is two records for one file.
+        // Adding models. In the File menu with the other things that bring
+        // something into the book, and disabled while one is running — a second
+        // panel over a running import is two records for one file.
         Button(Words.upfront("mac.add_model") + "\u{2026}") {
             Task { await shop.addModelToLibrary() }
         }

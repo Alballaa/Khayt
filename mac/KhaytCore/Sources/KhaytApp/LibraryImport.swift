@@ -17,6 +17,20 @@ import KhaytCore
 /// identity — the `geometryKey` is proven byte-identical to Khayt's own in
 /// `Mesh3MFTests`, so a model added on the Mac is recognised as the same model
 /// by the app next to it.
+///
+/// ── IT MOVES THE FILE IN ───────────────────────────────────────────────────
+///
+/// The original is taken in, not duplicated: a shop importing what it has
+/// downloaded does not want two copies of thirty gigabytes, and the vault is
+/// meant to become the one place a model lives. Pass `keepOriginal` for a
+/// source that is not the shop's to consume.
+///
+/// The removal is the LAST thing that happens, after the bytes are at the
+/// destination, have been read back and compared, and the book holds a record
+/// pointing at them. Nothing above it deletes anything, so every refusal —
+/// a duplicate, an unreadable file, a book that will not take the write —
+/// returns with the original exactly as it was. That ordering is the whole
+/// safety argument, and `theOriginalSurvivesEveryFailure` is what holds it.
 @MainActor
 enum LibraryImport {
 
@@ -44,6 +58,13 @@ enum LibraryImport {
         let name: String
         let triangleCount: Int?
         let colours: Int
+        /// What the bytes hash to. Carried out so a batch can measure the next
+        /// file against this one without reading it a second time.
+        let contentHash: String?
+        /// True when the original was taken in rather than copied. False for
+        /// `keepOriginal`, and false when the removal did not work — a file on
+        /// a read-only volume is still imported, it just also stays put.
+        let movedIn: Bool
         /// True when the model was measured. A gcode has no mesh and is not a
         /// failure — it simply has no geometry to key on.
         var measured: Bool { triangleCount != nil }
@@ -106,7 +127,7 @@ enum LibraryImport {
 
     // MARK: - Adding
 
-    static func add(_ source: URL, shop: Shop) async throws -> Added {
+    static func add(_ source: URL, shop: Shop, keepOriginal: Bool = false) async throws -> Added {
         guard let build = shop.source.build, StoreLock.weOwnIt(build) else { throw Failure.notOurs }
         guard let roots = shop.libraryRoots else { throw Failure.noLibrary }
         guard let engine = shop.engine else { throw Failure.failed("the engine is not loaded") }
@@ -119,6 +140,7 @@ enum LibraryImport {
                                       shop.files.first { $0.contentHash == hash }?.title
                                   },
                                   engine: engine,
+                                  keepOriginal: keepOriginal,
                                   owns: { StoreLock.weOwnIt(build) },
                                   whoHasIt: { StoreLock.describe(StoreLock.verdict(for: build)) })
         await shop.load(shop.source)
@@ -128,7 +150,7 @@ enum LibraryImport {
     /// The import itself, addressed by path.
     ///
     /// NOT a convenience: it is the seam the test needs. Everything below —
-    /// copying a real file, measuring it, writing a real record into a real
+    /// moving a real file, measuring it, writing a real record into a real
     /// store — runs against a throwaway directory in the tests, because an
     /// import whose only trial run was on a shop's live library has not been
     /// tested, it has been risked. `StoreWriter` splits itself the same way and
@@ -137,40 +159,62 @@ enum LibraryImport {
                     knownHashes: Set<String>,
                     nameOfExisting: (String) -> String?,
                     engine: KhaytEngine,
+                    keepOriginal: Bool = false,
                     owns: @escaping () -> Bool,
                     whoHasIt: @escaping () -> String?) async throws -> Added {
         let ext = source.pathExtension.lowercased()
         guard kinds.contains(ext) else { throw Failure.unknownKind(ext) }
 
-        let id = "PF-" + Shop.uid("").replacingOccurrences(of: "_", with: "")
+        let originalName = source.lastPathComponent
+
+        // THE SOURCE IS HASHED FIRST, and that is the whole shape of this.
+        //
+        // It used to copy, then hash the copy, then delete the copy again if the
+        // hash turned out to be one the library already had. That is a lot of
+        // disk for a question that can be answered before touching anything —
+        // and once the import MOVES rather than copies, "delete it again" stops
+        // being a tidy-up and starts being the shop's only copy.
+        //
+        // So: know the bytes, refuse duplicates while the file is still sitting
+        // untouched where its owner put it, and only then begin.
+        guard let hash = try? contentHash(of: source) else {
+            throw Failure.failed("could not read \(originalName)")
+        }
+        if knownHashes.contains(hash) {
+            throw Failure.alreadyHere(nameOfExisting(hash) ?? originalName)
+        }
+
+        // `uid` supplies the dash itself, as every other caller relies on —
+        // `Shop.uid("SL")` is `SL-…`. Passing "PF-" and an empty prefix made
+        // `PF--mtppyk14XFK`, beside Khayt's own `PF-mtjwvj1w05A`. Nothing reads
+        // the shape, so it broke nothing; it just did not match the book it was
+        // writing into, and every folder in the vault wore the extra dash.
+        let id = Shop.uid("PF")
         let dir = libraryRoot.appending(path: LibraryLocation.itemDirName(id))
         do {
             try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         } catch { throw Failure.failed(error.localizedDescription) }
 
-        let originalName = source.lastPathComponent
         let filename = vaultFilename(in: dir, originalName: originalName, ext: ext)
         let destination = dir.appending(path: filename)
         do { try FileManager.default.copyItem(at: source, to: destination) }
-        catch { throw Failure.failed(error.localizedDescription) }
+        catch {
+            try? FileManager.default.removeItem(at: dir)
+            throw Failure.failed(error.localizedDescription)
+        }
+
+        // COPY, READ BACK, COMPARE — never on the strength of the copy call
+        // returning. `lib/print-library-migrate.js` states the rule this
+        // follows: "a duplicate is recoverable, a deletion is not", and a short
+        // write to a share that dropped mid-transfer returns without throwing
+        // exactly like a good one does.
+        guard (try? contentHash(of: destination)) == hash else {
+            try? FileManager.default.removeItem(at: dir)
+            throw Failure.failed("\(originalName) did not arrive intact")
+        }
 
         let size = (try? FileManager.default.attributesOfItem(atPath: destination.path)[.size]
                     as? Int) ?? 0
-        // Hashed from the COPY, not the original. They are the same bytes, and
-        // hashing what was actually stored is what makes the hash a statement
-        // about the library rather than about a file that has since moved.
-        let hash = try? contentHash(of: destination)
-
-        // THE FILE IS ALREADY IN, AND THEN IT IS TAKEN BACK OUT.
-        //
-        // The duplicate check needs the hash, the hash needs the bytes, and the
-        // bytes are cheapest to read where they are going. A record is only
-        // written after this, so a refusal here leaves the book untouched — but
-        // it must not leave the copy behind either.
-        if let hash, knownHashes.contains(hash) {
-            try? FileManager.default.removeItem(at: dir)
-            throw Failure.alreadyHere(nameOfExisting(hash) ?? originalName)
-        }
 
         var geometry: Mesh.Measurement?
         switch ext {
@@ -217,8 +261,27 @@ enum LibraryImport {
             throw Failure.failed(String(describing: error))
         }
 
+        // THE LAST THING, AFTER EVERYTHING ELSE HAS SUCCEEDED.
+        //
+        // The original is removed here and nowhere else, and only once all
+        // three things are true: the bytes are at the destination, they have
+        // been read back and match, and the book has a record pointing at them.
+        // Every failure above returns with the source exactly as it was, which
+        // is why none of them needs a way to put it back.
+        //
+        // `keepOriginal` is for a source that is not the shop's to consume — a
+        // USB stick, a customer's share, a read-only volume. A failure to
+        // remove is NOT a failed import: the file is in the library and in the
+        // book, and the worst case is one duplicate left in a downloads folder,
+        // which is the recoverable half of the rule above.
+        var movedIn = false
+        if !keepOriginal {
+            do { try FileManager.default.removeItem(at: source); movedIn = true }
+            catch { movedIn = false }
+        }
+
         return Added(id: id, name: name, triangleCount: geometry?.triangleCount,
-                     colours: colours.count)
+                     colours: colours.count, contentHash: hash, movedIn: movedIn)
     }
 
     /// The record itself.

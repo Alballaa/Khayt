@@ -26,9 +26,26 @@ struct MoveBanners: View {
             Banner(text: note, symbol: "checkmark.circle", tint: Khayt.done)
         }
         if shop.importing {
-            Banner(text: shop.words.callIt("mac.adding_model"),
-                   symbol: "gearshape.arrow.trianglehead.2.clockwise.rotate.90",
-                   tint: Khayt.cyan)
+            // A batch says where it has got to and offers a way out. Three
+            // thousand models is minutes of work, and a progress line with no
+            // Stop on it is a window somebody force-quits — which, mid-import,
+            // is the one moment this app is holding a file it has not yet
+            // written a record for.
+            if let p = shop.importProgress {
+                Banner(text: shop.words.callIt("mac.import_progress", [
+                            "done": .number(Double(p.done)),
+                            "total": .number(Double(p.total)),
+                            "name": .string(p.name)]),
+                       symbol: "gearshape.arrow.trianglehead.2.clockwise.rotate.90",
+                       tint: Khayt.cyan) {
+                    Button(shop.words.callIt("mac.stop")) { shop.importCancelled = true }
+                        .disabled(shop.importCancelled)
+                }
+            } else {
+                Banner(text: shop.words.callIt("mac.adding_model"),
+                       symbol: "gearshape.arrow.trianglehead.2.clockwise.rotate.90",
+                       tint: Khayt.cyan)
+            }
         }
         // A slicer that would not open. It belongs here for the same reason a
         // refused move does: the gesture was a menu item on a model, and there
@@ -44,20 +61,35 @@ struct MoveBanners: View {
     }
 }
 
-struct Banner: View {
+struct Banner<Accessory: View>: View {
     let text: String
     let symbol: String
     let tint: Color
+    /// A button belonging to what the banner is announcing — Stop, on a running
+    /// import. Most banners are a sentence and nothing else, so the common
+    /// spelling below omits it entirely.
+    @ViewBuilder let accessory: () -> Accessory
 
     var body: some View {
-        Label(text, systemImage: symbol)
-            .font(.callout)
-            .foregroundStyle(tint)
-            .textSelection(.enabled)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 7)
-            .background(.quinary)
+        HStack(spacing: 12) {
+            Label(text, systemImage: symbol)
+                .font(.callout)
+                .foregroundStyle(tint)
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            accessory()
+                .font(.callout)
+                .controlSize(.small)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 7)
+        .background(.quinary)
+    }
+}
+
+extension Banner where Accessory == EmptyView {
+    init(text: String, symbol: String, tint: Color) {
+        self.init(text: text, symbol: symbol, tint: tint, accessory: { EmptyView() })
     }
 }
 
