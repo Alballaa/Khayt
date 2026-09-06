@@ -63,7 +63,9 @@ struct ColourStudio: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .background(.background)
-        .navigationTitle(shop.words.callIt("cmix.title"))
+        // NO `.navigationTitle` and no `.toolbar`: the window owns both, and a
+        // detail screen that sets either rebuilds the window's toolbar. See
+        // the note in `Portfolio.shown` for what that costs.
         .task(id: target) { await match() }
         .task(id: blendKey) { await mix() }
         .onAppear {
@@ -75,7 +77,7 @@ struct ColourStudio: View {
     // MARK: - Match a colour to what is on the shelf
 
     private var matcher: some View {
-        DetailSection(shop.words.callIt("cmix.target")) {
+        DetailSection(shop.words.callIt("cmix.matcher.title")) {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 10) {
                     ColorPicker("", selection: Binding(
@@ -141,7 +143,7 @@ struct ColourStudio: View {
     private var blendKey: String { "\(fromSpool ?? "")|\(toSpool ?? "")|\(Int(steps))" }
 
     private var blender: some View {
-        DetailSection(shop.words.callIt("cmix.from_stock")) {
+        DetailSection(shop.words.callIt("cmix.blend.title")) {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 10) {
                     spoolPicker($fromSpool)
@@ -152,6 +154,8 @@ struct ColourStudio: View {
                     Stepper("\(Int(steps))", value: $steps, in: 2...12)
                         .monospacedDigit().fixedSize()
                 }
+                Text(shop.words.callIt("cmix.blend.hint"))
+                    .font(.caption).foregroundStyle(.tertiary)
                 if !ramp.isEmpty {
                     HStack(spacing: 0) {
                         ForEach(Array(ramp.enumerated()), id: \.offset) { _, hex in

@@ -18,12 +18,26 @@ import KhaytCore
 /// asks to open one.
 struct Portfolio: View {
     @Bindable var shop: Shop
-    @State private var search = ""
 
     private let columns = [GridItem(.adaptive(minimum: 180, maximum: 260), spacing: 12)]
 
+    /// THE WINDOW'S search field, not one of this screen's own.
+    ///
+    /// It was written with a `.searchable` of its own, which would have put a
+    /// second `NSSearchField` in a window that already has one. That is worth
+    /// not doing on its own terms — the prompt belongs to the shelf, and
+    /// `ShopWindow.searchPrompt` names it — and every other screen here reads
+    /// `shop.search` the same way.
+    ///
+    /// It is NOT, as an earlier version of this comment claimed, the cause of
+    /// the `_postWindowNeedsUpdateConstraints` abort in the screenshot runner.
+    /// A bisect put that crash on a commit predating this screen entirely; the
+    /// trigger is the dark-to-light appearance switch, where a search field
+    /// attaches its cancel-button cell mid-draw. `KHAYT_SNAPSHOT_DARK=0`
+    /// captures cleanly. Left written down because the wrong story was
+    /// convincing enough to be believed twice.
     private var shown: [Shop.Snapshot] {
-        let term = search.trimmingCharacters(in: .whitespaces).lowercased()
+        let term = shop.search.trimmingCharacters(in: .whitespaces).lowercased()
         guard !term.isEmpty else { return shop.snapshots }
         return shop.snapshots.filter {
             $0.project.lowercased().contains(term) || $0.orderId.lowercased().contains(term)
@@ -35,7 +49,7 @@ struct Portfolio: View {
             if shop.snapshots.isEmpty {
                 ContentUnavailableView(shop.words.callIt("pf.empty"), systemImage: "photo.on.rectangle")
             } else if shown.isEmpty {
-                ContentUnavailableView.search(text: search)
+                ContentUnavailableView.search(text: shop.search)
             } else {
                 ScrollView {
                     LazyVGrid(columns: columns, spacing: 12) {
@@ -44,17 +58,6 @@ struct Portfolio: View {
                     .padding(16)
                 }
                 .background(.background)
-            }
-        }
-        .searchable(text: $search, prompt: shop.words.callIt("pf.search_ph"))
-        .navigationTitle(shop.words.callIt("pf.title"))
-        .toolbar {
-            if shop.photoFolder != nil {
-                ToolbarItem {
-                    Button(shop.words.callIt("pf.reveal_folder"), systemImage: "folder") {
-                        shop.revealPhotoFolder()
-                    }
-                }
             }
         }
     }
@@ -86,6 +89,12 @@ struct Portfolio: View {
                 .disabled(snap.file == nil)
             Button(shop.words.callIt("mac.reveal")) { shop.revealPhoto(snap) }
                 .disabled(snap.file == nil)
+            Divider()
+            // In the menu rather than the toolbar: the toolbar belongs to the
+            // window, and a screen that adds to it is a screen that can rebuild
+            // it from underneath itself.
+            Button(shop.words.callIt("pf.reveal_folder")) { shop.revealPhotoFolder() }
+                .disabled(shop.photoFolder == nil)
         }
     }
 }

@@ -189,3 +189,63 @@ struct PortfolioTests {
         #expect(Shelves.shelf("portfolio", in: shop) == nil)
     }
 }
+
+/// The sample book has to DEMONSTRATE the app, not merely load into it.
+///
+/// Both of these screens shipped their empty state on sample data: not one of
+/// the six spools carried a hex colour, and not one of forty-two jobs carried a
+/// photograph. Nothing was broken — the matcher had nothing to rank and the
+/// grid had nothing to draw — and the two shelves a person is most likely to
+/// click on first looked like features that had not been finished.
+///
+/// The tests above prove the rules are right. These prove somebody can SEE
+/// them, which is a separate thing and the one that was missing.
+@MainActor
+struct SampleBookShowsTheAppTests {
+
+    static func shop() async throws -> Shop {
+        let shop = Shop()
+        await shop.load(.sample)
+        return shop
+    }
+
+    /// `spool-edit.js:82` writes `color` as a hex and defaults it to `#888888`,
+    /// so a book whose spools have none is a book no run of the app produced.
+    ///
+    /// Ranked through `shop.inventoryRows`, which is what the screen hands the
+    /// module — a test that colours the decoded `Spool`s and ranks those would
+    /// pass with the raw rows the screen actually reads left empty.
+    @Test("the sample shop's spools have colours, so the matcher can rank them")
+    func spoolsAreColoured() async throws {
+        let shop = try await Self.shop()
+        let coloured = shop.spools.filter { Swatch.rgb(fromHex: $0.color) != nil }
+        #expect(coloured.count == shop.spools.count,
+                """
+                \(shop.spools.count - coloured.count) sample spool(s) have no hex colour — \
+                Colour Studio shows its empty state instead of the shop's shelf
+                """)
+        #expect(coloured.count >= 4, "too few to make a ranked list worth looking at")
+
+        let ranked = try await #require(shop.engine)
+            .nearestFilaments(to: "#2E6F9E", among: shop.inventoryRows, limit: 8)
+        #expect(ranked.count == coloured.count, "the raw rows the screen reads carry no colour")
+        // Spread out, or every answer is a tie and the ranking teaches nothing.
+        #expect((ranked.last?.deltaE ?? 0) - (ranked.first?.deltaE ?? 0) > 20,
+                "the sample colours sit on top of each other; the ranking looks arbitrary")
+    }
+
+    @Test("the sample shop has photographs, so the portfolio is a portfolio")
+    func jobsArePhotographed() async throws {
+        let shop = try await Self.shop()
+        #expect(shop.snapshots.count >= 5,
+                """
+                only \(shop.snapshots.count) sample photo(s) — the portfolio grid shows \
+                its empty state, or a single lonely cell
+                """)
+        // Drawn from several jobs, or it is one job's gallery rather than a
+        // portfolio of the shop's work.
+        #expect(Set(shop.snapshots.map(\.orderId)).count >= 5)
+        #expect(shop.snapshots.allSatisfy { ($0.thumb ?? "").hasPrefix("data:image/") },
+                "a thumbnail that is not inline is a cell that cannot draw on a read-only book")
+    }
+}

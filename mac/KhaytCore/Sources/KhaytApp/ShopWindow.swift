@@ -222,6 +222,7 @@ struct ShopWindow: View {
     }
 
     private var searchPrompt: String {
+        if shop.shelf == .portfolio { return shop.words.callIt("pf.search_ph") }
         if shop.showingLibrary { return shop.words.callIt("mac.search_models") }
         if shop.showingCustomers { return shop.words.callIt("mac.search_people") }
         if shop.showingExpenses { return shop.words.callIt("mac.search_expenses") }

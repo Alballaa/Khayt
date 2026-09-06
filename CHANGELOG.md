@@ -18,6 +18,11 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Changed
 
+- **The sample shop now has colours on its spools and photographs on its
+  finished jobs.** It had neither, so the two screens above opened on their
+  empty states for anyone trying Khayt out — the matcher with nothing to rank,
+  the portfolio with nothing to show. Both now demonstrate themselves.
+
 - **The Mac app's *Best* report no longer prints `0.00 SAR` for a product
   nobody has finished.** That column counts every order and takes revenue only
   from the ones that completed, so a bracket quoted three times and never made
