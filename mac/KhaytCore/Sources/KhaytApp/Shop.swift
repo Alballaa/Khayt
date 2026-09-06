@@ -2219,50 +2219,38 @@ final class Shop {
         importing = true
         defer { importing = false; importProgress = nil }
 
-        var known = Set(self.files.compactMap(\.contentHash))
         let titles = Dictionary(self.files.compactMap { f in
             f.contentHash.map { ($0, f.title) }
         }, uniquingKeysWith: { a, _ in a })
-        var moved = 0, duplicates = 0
-        var failures: [String] = []
 
-        for (i, file) in files.enumerated() {
-            if importCancelled { break }
-            importProgress = (done: i, total: files.count, name: file.lastPathComponent)
-            do {
-                let added = try await LibraryImport.add(
-                    file, storeURL: build.storeURL,
-                    libraryRoot: URL(fileURLWithPath: roots.primary),
-                    knownHashes: known,
-                    nameOfExisting: { titles[$0] },
-                    engine: engine,
-                    owns: { StoreLock.weOwnIt(build) },
-                    whoHasIt: { StoreLock.describe(StoreLock.verdict(for: build)) })
-                moved += 1
-                // So the next file in this same batch is measured against it —
-                // two copies of one model inside a single selection must not
-                // both get in. The hash comes back from the import rather than
-                // being read again: these files run to a quarter of a gigabyte.
-                if let hash = added.contentHash { known.insert(hash) }
-            } catch LibraryImport.Failure.alreadyHere {
-                duplicates += 1
-            } catch {
-                // Named, and the run carries on. One unreadable file in three
-                // thousand must not end the import.
-                failures.append("\(file.lastPathComponent): \(error)")
-            }
-        }
+        // The loop itself is `LibraryImport.addMany`, shared with `--import`.
+        // What is left here is only how a WINDOW says what happened: a banner
+        // per file, and a sentence at the end.
+        let report = await LibraryImport.addMany(
+            files,
+            storeURL: build.storeURL,
+            libraryRoot: URL(fileURLWithPath: roots.primary),
+            knownHashes: Set(self.files.compactMap(\.contentHash)),
+            nameOfExisting: { titles[$0] },
+            engine: engine,
+            owns: { StoreLock.weOwnIt(build) },
+            whoHasIt: { StoreLock.describe(StoreLock.verdict(for: build)) },
+            shouldStop: { [weak self] in self?.importCancelled ?? false },
+            progress: { [weak self] done, total, file in
+                self?.importProgress = (done: done, total: total, name: file.lastPathComponent)
+            })
 
         await load(source)
         importProgress = nil
         importNote = words.callIt("mac.import_done", [
-            "moved": .number(Double(moved)),
-            "duplicates": .number(Double(duplicates)),
-            "failed": .number(Double(failures.count)),
+            "moved": .number(Double(report.moved)),
+            "duplicates": .number(Double(report.duplicates)),
+            "failed": .number(Double(report.failures.count)),
         ])
-        if !failures.isEmpty {
-            importProblem = failures.prefix(10).joined(separator: "\n")
-                + (failures.count > 10 ? "\n" + "… and \(failures.count - 10) more" : "")
+        if !report.failures.isEmpty {
+            importProblem = report.failures.prefix(10).joined(separator: "\n")
+                + (report.failures.count > 10
+                   ? "\n" + "… and \(report.failures.count - 10) more" : "")
         }
     }
 

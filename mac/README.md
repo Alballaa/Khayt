@@ -443,6 +443,35 @@ for a choice — and 0 is red, so reading it with `integer(forKey:)` would treat
 `PaletteTests.noRawColours` walks every source file and fails on a hue picked by
 name. The palette only means anything if it is the only place colour comes from.
 
+### Importing a library from the command line
+
+The File menu takes files and folders, walks them, and shows a progress bar.
+For three thousand models it is often easier to say so directly:
+
+```bash
+Khayt.app/Contents/MacOS/Khayt --import ~/Downloads/Models --dry-run
+Khayt.app/Contents/MacOS/Khayt --import ~/Downloads/Models
+```
+
+`--dry-run` prints every file it would take and writes nothing — worth doing
+first, because the import **MOVES**: the original is taken into the vault and is
+no longer where you left it. `--keep-originals` copies instead.
+
+It runs without opening a window: the parse happens in `main.swift` before
+`KhaytApp.main()` is ever called, and the main actor's work is serviced by
+pumping the run loop. A command that prints lines and exits should not steal
+focus in the middle of somebody's work.
+
+It takes the same store lock the window takes, and refuses by name if Khayt has
+the book open — two processes writing the store is how a shop loses a day. The
+loop itself is `LibraryImport.addMany`, shared with the menu, so the two cannot
+drift on what counts as a model, what counts as a duplicate, or when an original
+is removed.
+
+Exit codes: `0` everything asked for arrived, `1` something failed (named on
+stderr) or there was nothing to read, `2` no book / no library, `3` another app
+holds the book, `64` the arguments did not parse.
+
 ### Photographing it
 
 Judging a design by reading its source is guessing.
