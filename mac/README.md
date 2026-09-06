@@ -233,6 +233,45 @@ Node — rightly, since a guarded require is still a require somebody will later
 unguard. The pure half was split out for that reason and the whole half
 re-exports it, so every existing caller is untouched.
 
+### Reading a 3MF's mesh
+
+`Mesh.measure3MF`. The model is XML inside the zip — `<vertex x= y= z=/>` then
+`<triangle v1= v2= v3=/>` indexing into them — and on this shop's files that XML
+is 436 MB uncompressed. It is streamed: inflated a megabyte at a time and
+scanned as it arrives, so what is resident is the vertex table and nothing else.
+
+**The build places the objects, and where they are placed is part of the
+answer.** A Bambu/Orca 3MF keeps each object in its own `3D/Objects/*.model`
+part, and the root lists them as `<item objectid= transform=>`. Measuring the
+parts where they lie in their own files gives a box that is right about the
+meshes and wrong about the model: on the Hulk helmet — twenty parts — that is
+229 × 221 × 244 against the 1141 × 757 × 207 Khayt recorded, because the items
+are placed hundreds of millimetres apart. The item's placement composes on top
+of the component's, in that order; the other order rotates then translates along
+the wrong axis, which on a symmetrical part is invisible.
+
+The proof is `Mesh3MFTests.matchesKhaytsOwnKeys`: it measures every 3MF in this
+Mac's library and compares against the `geometryKey` Khayt already wrote. Both
+files match exactly, including `4295525:3487958.9:1141.57x757.09x207.37`. A key
+made here and a key made there are the same key.
+
+**Three bugs that test found**, all of which produce a plausible number rather
+than an error:
+
+* **The inflate stopped before the flush.** The decoder holds output of its own
+  and has more to give after the last byte of input goes in; a loop that stopped
+  at `src_size == 0` returned early and lost the tail — 8,912,896 bytes of a
+  9,192,705-byte member. Caught by streaming a member out and comparing it with
+  what went in, which is why `ZipStreamTests` exists separately from the mesh
+  tests.
+* **A tag name may be followed by a newline, or by `>`.** A slicer wrapping a
+  long element onto several lines writes the first; `<mesh>` is the second. The
+  reader accepted neither, so a wrapped part measured as nothing and the
+  per-mesh reset never fired — the numbers came back byte-identical to the run
+  before it was added, which is what gave it away.
+* **Vertex indices are per mesh.** Accumulating them across objects makes each
+  one after the first index into the previous object's vertices.
+
 ### Reading a 3MF — the part that cannot be shared
 
 Adding a model to the library means reading two things out of a zip: the

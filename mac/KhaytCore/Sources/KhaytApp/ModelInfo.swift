@@ -35,6 +35,10 @@ import KhaytCore
 /// multi-part model. That costs some fuzzy matching and no correctness.
 enum ModelInfo {
 
+    /// English, like the readers beside it — with one to fix when this is
+    /// wired to a screen: `notAllowed` says the same thing as
+    /// `mac.slicer_not_allowed`, which IS translated, and the shop should see
+    /// that one rather than this.
     enum Failure: Error, CustomStringConvertible, Equatable {
         case notAllowed(String)
         case cannotMeasure(String)

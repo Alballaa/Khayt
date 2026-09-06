@@ -220,10 +220,16 @@ struct AssembledSentenceTests {
         // `LeadTime` carry English service errors on purpose, and say so in
         // their own comments — a gap those three share and none should close
         // alone.
+        // Every name here carries its reason in its OWN file, next to the
+        // messages — a list of exemptions with the argument kept somewhere else
+        // is a list that grows without anybody deciding anything.
         let exempt: Set<String> = ["Words.swift", "CloudReader.swift", "CloudWriter.swift",
                                    "LeadTime.swift", "StoreWriter.swift", "StoreLock.swift",
                                    "Restore.swift", "Backups.swift", "Export.swift",
-                                   "PrinterWatch.swift", "Secrets.swift", "LastWords.swift"]
+                                   "PrinterWatch.swift", "Secrets.swift", "LastWords.swift",
+                                   // File-format readers. Their failures describe
+                                   // a file, not a situation a shop is in.
+                                   "Mesh.swift", "Zip.swift", "ModelInfo.swift"]
         let files = try FileManager.default.contentsOfDirectory(atPath: dir.path)
             .filter { $0.hasSuffix(".swift") && !exempt.contains($0) }
 

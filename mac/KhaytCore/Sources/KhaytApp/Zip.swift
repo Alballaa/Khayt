@@ -31,6 +31,9 @@ import Compression
 /// and it is a cap rather than a heuristic because the honest bound is known.
 enum Zip {
 
+    /// English, and technical. A shop never reads "the archive is damaged: a
+    /// member's name runs past the directory" — whoever is working out why a
+    /// file would not open does. See the note on `Mesh.Failure`.
     enum Failure: Error, CustomStringConvertible, Equatable {
         case notAZip
         case unreadable(String)
@@ -182,6 +185,109 @@ enum Zip {
         // Short is not fatal — some writers overstate — but the bytes beyond
         // what was written are zeros this did not read and must not hand back.
         return written == size ? out : out.prefix(written)
+    }
+
+    /// Read a member in pieces, without ever holding it whole.
+    ///
+    /// `data(of:in:)` above refuses anything past a cap, and that is right for a
+    /// preview or a config. A 3MF's mesh is the other case: this shop's is 436 MB
+    /// of XML uncompressed, it genuinely has to be read, and none of it has to be
+    /// resident. `onChunk` sees it a megabyte at a time as it inflates.
+    ///
+    /// The cap here is on the TOTAL, not on what is held, and it exists to stop
+    /// a stream that never ends rather than to bound memory. Returning false
+    /// from `onChunk` stops the read.
+    static func stream(_ entry: Entry, in url: URL, totalLimit: Int = 4 << 30,
+                       onChunk: (UnsafeRawBufferPointer) -> Bool) throws {
+        guard entry.method == 0 || entry.method == 8 else {
+            throw Failure.unsupported(name: entry.name, method: entry.method)
+        }
+        let handle = try open(url)
+        defer { try? handle.close() }
+
+        let header = try read(handle, at: entry.offset, count: 30)
+        guard header.count == 30, u32(header, 0) == 0x0403_4b50 else {
+            throw Failure.corrupt("\(entry.name) has no local header where the directory says")
+        }
+        var at = entry.offset + 30 + Int(u16(header, 26)) + Int(u16(header, 28))
+        var left = entry.compressedSize
+
+        if entry.method == 0 {
+            // Stored: the bytes are the bytes.
+            while left > 0 {
+                let want = min(1 << 20, left)
+                let chunk = try read(handle, at: at, count: want)
+                if chunk.isEmpty { break }
+                var keepGoing = true
+                chunk.withUnsafeBytes { keepGoing = onChunk($0) }
+                if !keepGoing { return }
+                at += chunk.count
+                left -= chunk.count
+            }
+            return
+        }
+
+        var stream = compression_stream(dst_ptr: UnsafeMutablePointer<UInt8>(bitPattern: 1)!,
+                                        dst_size: 0, src_ptr: UnsafePointer<UInt8>(bitPattern: 1)!,
+                                        src_size: 0, state: nil)
+        guard compression_stream_init(&stream, COMPRESSION_STREAM_DECODE, COMPRESSION_ZLIB)
+                == COMPRESSION_STATUS_OK else {
+            throw Failure.corrupt("could not start decompressing \(entry.name)")
+        }
+        defer { compression_stream_destroy(&stream) }
+
+        let outSize = 1 << 20
+        let out = UnsafeMutablePointer<UInt8>.allocate(capacity: outSize)
+        defer { out.deallocate() }
+        var produced = 0
+
+        while true {
+            let want = min(1 << 20, left)
+            let input = want > 0 ? try read(handle, at: at, count: want) : Data()
+            at += input.count
+            left -= input.count
+            let lastPiece = left <= 0 || input.isEmpty
+
+            var stop = false
+            try input.withUnsafeBytes { raw -> Void in
+                stream.src_ptr = raw.bindMemory(to: UInt8.self).baseAddress
+                    ?? UnsafePointer<UInt8>(bitPattern: 1)!
+                stream.src_size = input.count
+                // KEEP CALLING UNTIL IT SAYS END, not until the input is
+                // consumed.
+                //
+                // The decoder holds output of its own, and on the final piece it
+                // has more to give after the last byte of input has gone in. A
+                // loop that stopped at `src_size == 0` returned before that
+                // flush and lost the tail — 8,912,896 bytes of a 9,192,705-byte
+                // member, which is a truncation that looks like a smaller file
+                // rather than like an error. Found by streaming a member out and
+                // comparing it with what went in.
+                while true {
+                    stream.dst_ptr = out
+                    stream.dst_size = outSize
+                    let flags = lastPiece ? Int32(COMPRESSION_STREAM_FINALIZE.rawValue) : 0
+                    let status = compression_stream_process(&stream, flags)
+                    let got = outSize - stream.dst_size
+                    if got > 0 {
+                        produced += got
+                        guard produced <= totalLimit else {
+                            throw Failure.tooBig(name: entry.name, size: produced, limit: totalLimit)
+                        }
+                        if !onChunk(UnsafeRawBufferPointer(start: out, count: got)) { stop = true; return }
+                    }
+                    if status == COMPRESSION_STATUS_ERROR {
+                        throw Failure.corrupt("\(entry.name) did not decompress")
+                    }
+                    if status == COMPRESSION_STATUS_END { stop = true; return }
+                    // Nothing taken and nothing given: it wants the next piece.
+                    // Without this the loop above would spin on a stream that
+                    // is simply waiting for more input.
+                    if got == 0 && stream.src_size == 0 { return }
+                }
+            }
+            if stop || lastPiece { break }
+        }
     }
 
     // MARK: - The bytes

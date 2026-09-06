@@ -540,6 +540,11 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   same settings Khayt uses. It opens the app you already have running rather
   than starting a second copy of it.
 
+- **And it reads 3MF, which is what your library is made of.** The mesh inside a
+  3MF is measured on the Mac exactly as Khayt measures it — checked by comparing
+  against the models already in the library, where the answer matches to the
+  triangle.
+
 - **Khayt measures a model itself now, on the Mac.** Triangle count, volume and
   size come from reading the mesh rather than from asking a slicer, so adding a
   model to the library will not depend on which slicer is installed. Checked
