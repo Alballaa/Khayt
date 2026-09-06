@@ -197,6 +197,13 @@ struct Reports: View {
             let shop: Shop
             let showing: Ranked
 
+            /// The ranked column is the emphasised one; a figure that is not
+            /// there is fainter than one that is merely secondary.
+            private var revenueTint: AnyShapeStyle {
+                if row.revenue <= 0 { return AnyShapeStyle(.tertiary) }
+                return showing == .revenue ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary)
+            }
+
             var body: some View {
                 HStack(spacing: 10) {
                     Text("\(place)")
@@ -210,10 +217,16 @@ struct Reports: View {
                         .foregroundStyle(row.name.isEmpty ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary))
                         .lineLimit(1)
                     Spacer(minLength: 12)
-                    Text(Money.text(row.revenue, shop.currency))
+                    // "0.00 SAR" beside "3×" is a lie the arithmetic did not
+                    // tell. `topProducts` counts EVERY order and takes revenue
+                    // only from the ones that completed, so a part quoted three
+                    // times and never made has three and nothing — and nothing
+                    // is not zero. The P&L column beside this one already
+                    // refuses to print "−0.00" for the same reason.
+                    Text(row.revenue > 0 ? Money.text(row.revenue, shop.currency) : "—")
                         .monospacedDigit()
                         .font(showing == .revenue ? .body.weight(.semibold) : .body)
-                        .foregroundStyle(showing == .revenue ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
+                        .foregroundStyle(revenueTint)
                     Text("\(row.count)×")
                         .monospacedDigit()
                         .font(showing == .count ? .body.weight(.semibold) : .callout)

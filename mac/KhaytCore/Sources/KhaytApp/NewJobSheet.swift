@@ -187,7 +187,7 @@ struct NewJobSheet: View {
                 Picker("", selection: $draft.spoolId) {
                     Text(shop.words.callIt("mac.filament")).tag(String?.none)
                     ForEach(shop.spools) { spool in
-                        Text(spool.label).tag(String?.some(spool.id))
+                        Text(spool.label(shop.words)).tag(String?.some(spool.id))
                     }
                 }
                 .labelsHidden()

@@ -6,6 +6,21 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Changed
 
+- **The Mac app's *Best* report no longer prints `0.00 SAR` for a product
+  nobody has finished.** That column counts every order and takes revenue only
+  from the ones that completed, so a bracket quoted three times and never made
+  read `0.00 SAR  3×` — which looks like three prints that earned nothing. It
+  now shows a dash, the way the profit-and-loss column beside it already did.
+
+- **The Mac app no longer writes English units into an Arabic screen.** Every
+  card in the library said `printed 1×` in English whatever language the shop
+  was in, and seven places wrote a bare `g` after a weight — the spool table,
+  the product catalogue, the spool picker, a model's colours, a job's parts,
+  the nozzle-wear bar and the import summary. Khayt has had words for both for
+  years (`جم`, `طُبع 1 مرة`); the Mac app simply was not asking for them. The
+  waste table also stopped writing "180 grams" in every row under a column
+  already headed *Wasted weight (g)*.
+
 - **Money and percentage fields on the Mac now say what unit they are in.**
   *Discount* on a new job is a percentage, and the box beside it said only
   "0" — so a shop knocking fifty riyals off a job would type 50 and take half

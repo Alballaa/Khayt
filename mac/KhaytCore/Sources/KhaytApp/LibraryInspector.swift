@@ -139,7 +139,7 @@ struct LibraryInspector: View {
                         .font(.callout)
                     Spacer(minLength: 8)
                     if let g = colour.grams {
-                        Text("\(Format.mm(g)) g")
+                        Text("\(Format.mm(g)) \(shop.words.callIt("common.grams"))")
                             .font(.callout)
                             .monospacedDigit()
                             .foregroundStyle(.secondary)

@@ -61,7 +61,8 @@ struct Catalogue: View {
             .alignment(.trailing)
 
             TableColumn(shop.words.callIt("mac.weight"), value: \.weightSort) { row in
-                Text(row.weightGrams.map { "\(Int($0)) g" } ?? "—").moneyStyle()
+                Text(row.weightGrams.map { "\(Int($0)) \(shop.words.callIt("common.grams"))" } ?? "—")
+                    .moneyStyle()
             }
             .width(min: 72, ideal: 90)
             .alignment(.trailing)

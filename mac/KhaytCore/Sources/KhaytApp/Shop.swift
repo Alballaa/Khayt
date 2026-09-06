@@ -2066,7 +2066,8 @@ final class Shop {
             var line = words.callIt("mac.history_read") + " \(kept)"
             if added > 0 { line += " (+\(added))" }
             if let totals {
-                line += " · \(Int(totals.grams)) g · \(Int(totals.hours)) h"
+                line += " · \(Int(totals.grams)) \(words.callIt("common.grams"))"
+                line += " · \(Int(totals.hours)) \(words.callIt("common.hours"))"
             }
             spendNote = line
         } catch {
