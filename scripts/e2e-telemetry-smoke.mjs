@@ -27,6 +27,26 @@ try {
   // launchApp starts Electron with --user-data-dir=<userData>, so the queue lands here.
   const queuePathOf = path.join(userData, 'telemetry-queue.json');
 
+  // WAIT FOR THE THING, not for a number of milliseconds.
+  //
+  // These were fixed 700 ms sleeps followed by an immediate `existsSync`, which
+  // is a race the runner loses when it is busy: this suite failed once in CI on
+  // "crash opt-in → events start queueing" and passed on a re-run, having never
+  // failed locally. A re-run button is not a fix. Polling makes the pass FASTER
+  // than the sleep it replaces and the failure honest — eight seconds and then
+  // a real refusal, rather than a coin toss at 700 ms.
+  //
+  // Only for what must APPEAR. Proving something never shows up still means
+  // waiting a fixed while and looking, and those sleeps are left alone below.
+  const settles = async (until, ms = 8000) => {
+    const deadline = Date.now() + ms;
+    for (;;) {
+      try { if (until()) return true; } catch (_) { /* not there yet */ }
+      if (Date.now() >= deadline) return false;
+      await new Promise(r => setTimeout(r, 50));
+    }
+  };
+
   // With consent off, recording an event must be a no-op — no file, ever.
   await window.evaluate(() => window.hubAPI.telemetryRecord({
     kind: 'crash', payload: { type: 'uncaughtException', name: 'TypeError', message: 'boom', stack: 'at x' },
@@ -50,8 +70,7 @@ try {
       process: 'renderer', appVersion: '3.2.0', osFamily: 'macOS', osMajor: '14', locale: 'ar', channel: 'beta',
     },
   }));
-  await new Promise(r => setTimeout(r, 700));
-  ok(fs.existsSync(queuePathOf), 'crash opt-in → events start queueing');
+  ok(await settles(() => fs.existsSync(queuePathOf)), 'crash opt-in → events start queueing');
   const raw = fs.readFileSync(queuePathOf, 'utf8');
   ok(!raw.includes('sara@example.com'), 'queued crash contains NO email');
   ok(!raw.includes('+966501234567'), 'queued crash contains NO phone');
@@ -71,8 +90,8 @@ try {
     saveAll();
     await window.hubAPI.telemetryPurge();
   });
-  await new Promise(r => setTimeout(r, 700));
-  ok(!fs.existsSync(queuePathOf), 'opt-out purges the local queue immediately');
+  ok(await settles(() => !fs.existsSync(queuePathOf)),
+     'opt-out purges the local queue immediately');
 
   console.log('\n✅ Telemetry smoke: all assertions passed');
 } catch (e) {
