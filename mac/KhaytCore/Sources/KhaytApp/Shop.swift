@@ -3885,6 +3885,41 @@ final class Shop {
         return FileManager.default.fileExists(atPath: url.path) ? .file(url) : nil
     }
 
+    /// The picture of what a job printed.
+    ///
+    /// A job is a row of text in a table of rows of text, and the shop is
+    /// looking for the one it made last Tuesday. It already knows what that
+    /// looked like — the model is in the library with a thumbnail — and the
+    /// table was the only place not showing it.
+    ///
+    /// Only where the job SAYS which model it was: a job auto-logged from a
+    /// printer's history knows a filename and nothing about the library, and
+    /// guessing by name would eventually put the wrong picture on a job.
+    /// Nothing rather than the wrong thing.
+    func modelThumbnail(for job: Order) -> ThumbnailSource? {
+        for part in job.parts {
+            guard let id = part.printFileId,
+                  let file = files.first(where: { $0.id == id }) else { continue }
+            if let source = thumbnail(for: file) { return source }
+        }
+        return nil
+    }
+
+    /// The colours a job was printed in, as the shop wrote them down.
+    ///
+    /// Words, not swatches. "bone", "sand" and "natural" are a shop's own
+    /// names for filament it owns, and nothing in Khayt maps a word to a
+    /// colour — so a swatch here would be this app's guess at what "sand"
+    /// looks like, painted next to a photograph of the real thing.
+    func partColours(of job: Order) -> [String] {
+        var seen = Set<String>()
+        return job.parts.compactMap { part in
+            let word = part.colour.trimmingCharacters(in: .whitespaces)
+            guard !word.isEmpty, seen.insert(word.lowercased()).inserted else { return nil }
+            return word
+        }
+    }
+
     /// What the shop is owed across everything still open. The one number an
     /// owner looks for, so it is on screen without being asked for.
     var owed: Double { orders.filter { !$0.isSettled }.reduce(0) { $0 + $1.owed } }
