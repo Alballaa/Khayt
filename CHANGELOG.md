@@ -642,6 +642,12 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **The telemetry consent smoke test waits for the thing, not for 700 ms.**
+  Developer tooling: it slept a fixed interval and then looked, which is a race
+  a busy CI runner loses — it failed once on "crash opt-in → events start
+  queueing" and passed on a re-run, having never failed locally. It now polls,
+  which is both faster in the normal case and honest in the abnormal one.
+
 - **A gift card could be spent on money the customer did not owe.** Redeeming
   one worked out what an order still owed as price − paid − gift card, leaving
   the CREDIT NOTES out. On a 500 order carrying a 300 credit note that reads
