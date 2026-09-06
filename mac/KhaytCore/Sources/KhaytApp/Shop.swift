@@ -139,6 +139,8 @@ final class Shop {
         case waste
         case reports
         case catalogue
+        case colour
+        case portfolio
     }
 
     var stage: Stage? { if case .jobs(let s) = shelf { s } else { nil } }
@@ -152,6 +154,8 @@ final class Shop {
     var showingExpenses: Bool { shelf == .expenses }
     var showingWaste: Bool { shelf == .waste }
     var showingReports: Bool { shelf == .reports }
+    var showingColour: Bool { shelf == .colour }
+    var showingPortfolio: Bool { shelf == .portfolio }
 
     /// The open jobs, grouped by the stage they are in.
     ///
@@ -312,6 +316,7 @@ final class Shop {
             wasteLog = Self.decode(root, "wasteLog", as: WasteEntry.self)
             if case .array(let rows)? = root["expenses"] { expenseRows = rows } else { expenseRows = [] }
             if case .array(let rows)? = root["wasteLog"] { wasteRows = rows } else { wasteRows = [] }
+            readSnapshots(root)
             taxSummary = await describeTax(root["settings"])
             await readSettingsTables(root)
             // What each job still owes is `order-money`'s answer, not a
@@ -2850,6 +2855,71 @@ final class Shop {
             settings, form: form, year: Calendar.current.component(.year, from: Date()))
         root["settings"] = .object(settings)
     }
+
+    // MARK: - Photographs of finished work
+
+    /// One photograph on one job.
+    ///
+    /// Flattened out of `printLog[].printPhotos[]`, which is where Khayt keeps
+    /// them: a thumbnail inline in the record as a data URI, and the full-size
+    /// file by name in `order-photos/` beside the store.
+    struct Snapshot: Identifiable, Hashable, Sendable {
+        let orderId: String
+        let project: String
+        let date: String
+        let index: Int
+        let thumb: String?
+        let filename: String?
+        var id: String { "\(orderId)#\(index)" }
+
+        /// Where the full-size photo is, when it is on this Mac at all.
+        var file: URL?
+    }
+
+    private(set) var snapshots: [Snapshot] = []
+
+    /// The folder Khayt writes order photos into: `order-photos/`, beside the
+    /// store, which is `userData` in Electron's terms.
+    var photoFolder: URL? {
+        source.build.map { $0.storeURL.deletingLastPathComponent().appending(path: "order-photos") }
+    }
+
+    /// The seam the portfolio's tests use: the flattening on a book in memory,
+    /// without a file, a lock or an engine.
+    func readSnapshotsForTests(_ root: [String: JSONValue]) { readSnapshots(root) }
+
+    private func readSnapshots(_ root: [String: JSONValue]) {
+        guard case .array(let jobs)? = root["printLog"] else { snapshots = []; return }
+        let folder = photoFolder
+        var out: [Snapshot] = []
+        for job in jobs {
+            guard case .object(let record) = job,
+                  case .array(let photos)? = record["printPhotos"] else { continue }
+            let id = Self.plainString(record["id"]) ?? ""
+            let project = Self.plainString(record["project"]) ?? ""
+            let date = Self.plainString(record["date"]) ?? ""
+            for (i, photo) in photos.enumerated() {
+                guard case .object(let p) = photo else { continue }
+                let name = Self.plainString(p["filename"])
+                out.append(Snapshot(
+                    orderId: id, project: project, date: date, index: i,
+                    thumb: Self.plainString(p["thumb"]),
+                    filename: name,
+                    // Only when it is actually there. A record whose file was
+                    // never copied to this Mac still shows in the grid — the
+                    // thumbnail is in the book — and simply cannot be opened.
+                    file: name.flatMap { n in
+                        folder.map { $0.appending(path: n) }
+                            .flatMap { FileManager.default.fileExists(atPath: $0.path) ? $0 : nil }
+                    }))
+            }
+        }
+        snapshots = out
+    }
+
+    func openPhoto(_ snap: Snapshot) { if let file = snap.file { FileActions.open(file) } }
+    func revealPhoto(_ snap: Snapshot) { if let file = snap.file { FileActions.reveal(file) } }
+    func revealPhotoFolder() { if let folder = photoFolder { FileActions.reveal(folder) } }
 
     /// Who else has this book open, in the shop's own language.
     ///

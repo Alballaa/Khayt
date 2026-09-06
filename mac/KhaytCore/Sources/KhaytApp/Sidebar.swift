@@ -52,6 +52,19 @@ struct Sidebar: View {
                         count: shop.catalogueRows.count, selected: shop.shelf == .catalogue)
                         .tag(Shop.Shelf.catalogue)
                 }
+                // No count: "how many colours" is not a thing a shop has a
+                // number of, and the row is about the spools listed above it.
+                Row(title: shop.words.callIt("cmix.title"), symbol: "paintpalette",
+                    count: 0, selected: shop.shelf == .colour)
+                    .tag(Shop.Shelf.colour)
+                // Only for a shop that has photographed something. A portfolio
+                // with nothing in it is a row that teaches people the app has
+                // an empty screen.
+                if !shop.snapshots.isEmpty {
+                    Row(title: shop.words.callIt("pf.title"), symbol: "photo.on.rectangle",
+                        count: shop.snapshots.count, selected: shop.shelf == .portfolio)
+                        .tag(Shop.Shelf.portfolio)
+                }
             }
             // What the shop spends and what it throws away. Below the floor,
             // because both are read at the end of a month rather than during a

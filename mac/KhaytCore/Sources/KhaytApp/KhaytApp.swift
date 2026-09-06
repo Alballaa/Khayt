@@ -408,6 +408,20 @@ final class Activator: NSObject, NSApplicationDelegate {
                 await settle()
             }
 
+            // The two screens added last, and both conditional in the sidebar
+            // — the portfolio only appears once a job has been photographed —
+            // so a picture is the only way to see either of them work.
+            shop.shelf = .colour
+            await settle()
+            // The match list is computed by the runtime after the screen
+            // appears, like the P&L below.
+            try? await Task.sleep(for: .seconds(1))
+            capture(named: "23-colour", into: dir)
+            if !shop.snapshots.isEmpty {
+                shop.shelf = .portfolio
+                await settle()
+                capture(named: "24-portfolio", into: dir)
+            }
             shop.shelf = .customers
             shop.customerSelection = shop.shownCustomers.max { $0.owed < $1.owed }?.id
             await settle()

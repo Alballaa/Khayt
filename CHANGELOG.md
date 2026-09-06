@@ -4,7 +4,24 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Added
+
+- **Colour studio on the Mac.** Pick a colour and the app ranks the filament
+  you already own by how close it *looks* — perceptual distance, not the
+  nearest hex — and blends any two spools into a gradient of as many steps as
+  you want. Same maths as Khayt's own colour screen.
+
+- **Portfolio on the Mac.** Every photograph on every job, in one grid, so
+  showing somebody what you can make does not mean opening nineteen orders.
+  Double-click opens the full-size photo. The row only appears once there is a
+  photograph to put in it.
+
 ### Changed
+
+- **The sample shop now has colours on its spools and photographs on its
+  finished jobs.** It had neither, so the two screens above opened on their
+  empty states for anyone trying Khayt out — the matcher with nothing to rank,
+  the portfolio with nothing to show. Both now demonstrate themselves.
 
 - **The Mac app's *Best* report no longer prints `0.00 SAR` for a product
   nobody has finished.** That column counts every order and takes revenue only

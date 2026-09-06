@@ -31,7 +31,14 @@ function bundledModules() {
   const at = src.indexOf('static let modules = [');
   assert.notEqual(at, -1, 'the module list has moved — update this test');
   const block = src.slice(at, src.indexOf('\n    ]', at));
-  return [...block.matchAll(/"([a-z0-9-]+)"/g)].map((m) => m[1]);
+  // COMMENTS OUT FIRST. Every line of that list is documented, and a comment
+  // that happens to quote a lowercase word — `"closest" means perceptual
+  // distance` — reads as a module named `closest` and fails this test on a
+  // file that does not exist. The same shape once truncated the list at a
+  // `settings.slicers[]` in a comment; a parser that reads prose as code will
+  // keep finding new ways to be wrong.
+  const code = block.split('\n').map((l) => l.replace(/\/\/.*$/, '')).join('\n');
+  return [...code.matchAll(/"([a-z0-9-]+)"/g)].map((m) => m[1]);
 }
 
 /** Names a file declares at the top level of a script — the shared scope. */

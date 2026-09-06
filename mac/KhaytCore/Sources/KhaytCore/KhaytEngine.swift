@@ -58,6 +58,11 @@ public actor KhaytEngine {
         // switch wired to nothing.
         "payment-reminder",
         "quote-followup",
+        // Colour, in CIELAB and CIEDE2000. Pure, no DOM, and the only place
+        // in the app that knows a printed colour is not an RGB average: two
+        // spools mix in LINEAR light, and "closest" means perceptual distance
+        // rather than the nearest hex triple.
+        "color-mix",
         // Groups and categories. Pure, and bundled rather than ported because
         // the rule that matters is not the reading — it is that a name matching
         // one already in use IS that name and adopts its spelling. "Saudi Kings"
@@ -395,6 +400,36 @@ public actor KhaytEngine {
                         + " attention: globalThis.KhaytAttention})",
                           [.array(orders), .array(machines), .object(settings), .object(statusCache)],
                           as: DashboardFacts.self)
+    }
+
+    /// The shop's own spools, ranked by how close each is to a wanted colour.
+    ///
+    /// Every number here is `lib/color-mix.js`: sRGB to CIELAB, then CIEDE2000
+    /// for the distance. None of it is a Swift opinion about colour, and that
+    /// matters more here than in most places — the obvious implementation
+    /// (Euclidean distance between hex triples) ranks a dark blue closer to
+    /// black than to a slightly lighter blue, and a shop would be handed the
+    /// wrong spool.
+    public func nearestFilaments(to hex: String, among spools: [JSONValue],
+                                 limit: Int = 8) throws -> [ColourMatch] {
+        try runtime.call2("KhaytColor.nearest(ARG0, ARG1, {key: 'color', limit: ARG2})",
+                          [.string(hex), .array(spools), .number(Double(limit))],
+                          as: [ColourMatch].self)
+    }
+
+    /// Two colours mixed in linear light. `t` 0 is all of the first, 1 all of
+    /// the second. Nil when either is not a colour.
+    public func blend(_ a: String, _ b: String, _ t: Double) throws -> String? {
+        try runtime.call2("KhaytColor.blend(ARG0, ARG1, ARG2)",
+                          [.string(a), .string(b), .number(t)], as: String?.self)
+    }
+
+    /// An N-step gradient between two colours, both ends included. Empty when
+    /// either end is not a colour — the module's own answer, not a guess.
+    public func gradient(_ a: String, _ b: String, steps: Int) throws -> [String] {
+        try runtime.call2("KhaytColor.gradient(ARG0, ARG1, ARG2)",
+                          [.string(a), .string(b), .number(Double(steps))],
+                          as: [String].self)
     }
 
     /// Invoices the shop is meant to chase for payment.
