@@ -240,3 +240,194 @@ private struct CryptoKitShim {
     mutating func update(_ data: Data) { digest.update(data: data) }
     func hex() -> String { digest.finalize().map { String(format: "%02x", $0) }.joined() }
 }
+
+/// The whole import, against a throwaway library and a throwaway book.
+///
+/// A real file copied, really measured, and a real record written into a real
+/// store — the difference from the tests above being that this one goes all the
+/// way through and then reads the book back. An import whose only trial run was
+/// on a shop's live library has not been tested, it has been risked.
+@MainActor
+struct LibraryImportEndToEndTests {
+
+    struct Bench {
+        let dir: URL
+        let store: URL
+        let library: URL
+    }
+
+    static func bench() throws -> Bench {
+        let dir = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appending(path: "khayt-e2e-\(UUID().uuidString)")
+        let library = dir.appending(path: "print-files-vault")
+        try FileManager.default.createDirectory(at: library, withIntermediateDirectories: true)
+        let store = dir.appending(path: "khayt-store.json")
+        try Data(#"{"printFiles":[],"settings":{}}"#.utf8).write(to: store)
+        return Bench(dir: dir, store: store, library: library)
+    }
+
+    static func run(_ source: URL, _ bench: Bench,
+                    knownHashes: Set<String> = []) async throws -> LibraryImport.Added {
+        try await LibraryImport.add(source, storeURL: bench.store, libraryRoot: bench.library,
+                                    knownHashes: knownHashes,
+                                    nameOfExisting: { _ in "the one you already have" },
+                                    engine: try KhaytEngine(),
+                                    owns: { true }, whoHasIt: { nil })
+    }
+
+    static func printFiles(in bench: Bench) throws -> [JSONValue] {
+        let root = try JSONDecoder().decode([String: JSONValue].self,
+                                            from: try Data(contentsOf: bench.store))
+        guard case .array(let rows)? = root["printFiles"] else { return [] }
+        return rows
+    }
+
+    @Test("an STL is copied, measured and written as a record the app reads back")
+    func stlEndToEnd() async throws {
+        let bench = try Self.bench()
+        defer { try? FileManager.default.removeItem(at: bench.dir) }
+
+        let source = bench.dir.appending(path: "My Cube.stl")
+        try MeshTests.binarySTL(MeshTests.boxFacets(10, 10, 10)).write(to: source)
+
+        let added = try await Self.run(source, bench)
+        #expect(added.triangleCount == 12)
+        #expect(added.name == "My Cube")
+
+        let rows = try Self.printFiles(in: bench)
+        #expect(rows.count == 1)
+        let file = try JSONDecoder().decode(LibraryFile.self,
+                                            from: try JSONEncoder().encode(rows[0]))
+        #expect(file.id == added.id)
+        #expect(file.title == "My Cube")
+        #expect(file.sourceFile?.filename == "My Cube.stl")
+        #expect(file.sourceFile?.kind == "model")
+        #expect(file.geometryKey == "12:1000:10x10x10", "got \(file.geometryKey ?? "nil")")
+        #expect(file.contentHash?.count == 64)
+
+        // And the file is where the record says it is.
+        let copied = bench.library.appending(path: added.id).appending(path: "My Cube.stl")
+        #expect(FileManager.default.fileExists(atPath: copied.path))
+        #expect(try Data(contentsOf: copied) == (try Data(contentsOf: source)))
+    }
+
+    /// A 3MF carries a preview and the colours a slicer chose, and both have to
+    /// come out — they are most of what a library entry looks like.
+    @Test("a 3MF brings its preview and its filament colours with it")
+    func threeMFEndToEnd() async throws {
+        let bench = try Self.bench()
+        defer { try? FileManager.default.removeItem(at: bench.dir) }
+
+        // A 3MF with a mesh, a preview and a slice_info naming two filaments.
+        let staging = bench.dir.appending(path: "staging")
+        try FileManager.default.createDirectory(
+            at: staging.appending(path: "Metadata"), withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(
+            at: staging.appending(path: "3D"), withIntermediateDirectories: true)
+        var xml = "<model><resources><object id=\"1\"><mesh><vertices>"
+        let v: [(Double, Double, Double)] = [
+            (0,0,0),(20,0,0),(20,10,0),(0,10,0),(0,0,5),(20,0,5),(20,10,5),(0,10,5)]
+        for p in v { xml += "<vertex x=\"\(p.0)\" y=\"\(p.1)\" z=\"\(p.2)\"/>" }
+        xml += "</vertices><triangles>"
+        for f in [(0,3,2),(0,2,1),(4,5,6),(4,6,7),(0,1,5),(0,5,4),
+                  (1,2,6),(1,6,5),(2,3,7),(2,7,6),(3,0,4),(3,4,7)] {
+            xml += "<triangle v1=\"\(f.0)\" v2=\"\(f.1)\" v3=\"\(f.2)\"/>"
+        }
+        xml += "</triangles></mesh></object></resources></model>"
+        try Data(xml.utf8).write(to: staging.appending(path: "3D/3dmodel.model"))
+        // A real PNG header, so the bytes that come out can be checked as one.
+        var png = Data([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A])
+        png.append(Data((0..<3000).map { UInt8($0 % 251) }))
+        try png.write(to: staging.appending(path: "Metadata/plate_1.png"))
+        // `##"…"##`, because a hex colour contains `"#` — which is precisely
+        // what closes a `#"…"#` raw string, three characters into the value.
+        try Data(##"<filament id="1" color="#6B7A3B" used_g="120.5"/><filament id="2" color="#C2A24E"/>"##.utf8)
+            .write(to: staging.appending(path: "Metadata/slice_info.config"))
+
+        let source = bench.dir.appending(path: "Helmet.3mf")
+        let zip = Process()
+        zip.executableURL = URL(fileURLWithPath: "/usr/bin/zip")
+        zip.arguments = ["-q", "-r", source.path, "."]
+        zip.currentDirectoryURL = staging
+        zip.standardOutput = Pipe(); zip.standardError = Pipe()
+        try zip.run(); zip.waitUntilExit()
+
+        let added = try await Self.run(source, bench)
+        #expect(added.triangleCount == 12)
+        #expect(added.colours == 2)
+
+        let file = try JSONDecoder().decode(
+            LibraryFile.self, from: try JSONEncoder().encode(try Self.printFiles(in: bench)[0]))
+        #expect(file.geometryKey == "12:1000:20x10x5", "got \(file.geometryKey ?? "nil")")
+        #expect(file.colors?.map(\.hex) == ["#6B7A3B", "#C2A24E"])
+        #expect(file.swapCount == 1, "two colours is one swap")
+        #expect(file.thumbFile == "thumb.png")
+
+        // The preview reached the disk, unaltered.
+        let thumb = bench.library.appending(path: added.id).appending(path: "thumb.png")
+        #expect(try Data(contentsOf: thumb) == png)
+    }
+
+    /// A file already in the library is refused BY NAME, and leaves nothing
+    /// behind — no half-record, and no orphan copy in the vault.
+    @Test("a duplicate is refused and leaves no trace")
+    func duplicateLeavesNothing() async throws {
+        let bench = try Self.bench()
+        defer { try? FileManager.default.removeItem(at: bench.dir) }
+        let source = bench.dir.appending(path: "Cube.stl")
+        try MeshTests.binarySTL(MeshTests.boxFacets(10, 10, 10)).write(to: source)
+
+        let first = try await Self.run(source, bench)
+        let hash = try #require(try LibraryImport.contentHash(of: source))
+
+        await #expect(throws: LibraryImport.Failure.alreadyHere("the one you already have")) {
+            _ = try await Self.run(source, bench, knownHashes: [hash])
+        }
+        // One record, and one folder — the refused import cleaned up after
+        // itself rather than leaving a copy nobody has a record for.
+        #expect(try Self.printFiles(in: bench).count == 1)
+        let folders = try FileManager.default.contentsOfDirectory(atPath: bench.library.path)
+        #expect(folders == [first.id], "left \(folders)")
+    }
+
+    /// A book that will not accept the write must not leave the copy behind
+    /// either. This is the shape of the failure where a shop's vault fills with
+    /// files no record points at.
+    @Test("a refused write leaves no orphan in the vault")
+    func refusedWriteLeavesNothing() async throws {
+        let bench = try Self.bench()
+        defer { try? FileManager.default.removeItem(at: bench.dir) }
+        let source = bench.dir.appending(path: "Cube.stl")
+        try MeshTests.binarySTL(MeshTests.boxFacets(10, 10, 10)).write(to: source)
+
+        await #expect(throws: (any Error).self) {
+            _ = try await LibraryImport.add(
+                source, storeURL: bench.store, libraryRoot: bench.library,
+                knownHashes: [], nameOfExisting: { _ in nil },
+                engine: try KhaytEngine(),
+                // Somebody else has the book.
+                owns: { false }, whoHasIt: { "Khayt has it" })
+        }
+        #expect(try Self.printFiles(in: bench).isEmpty)
+        #expect(try FileManager.default.contentsOfDirectory(atPath: bench.library.path).isEmpty,
+                "a file with no record is worse than no file")
+    }
+
+    @Test("newest first, as the other app writes them")
+    func newestFirst() async throws {
+        let bench = try Self.bench()
+        defer { try? FileManager.default.removeItem(at: bench.dir) }
+        let a = bench.dir.appending(path: "First.stl")
+        let b = bench.dir.appending(path: "Second.stl")
+        try MeshTests.binarySTL(MeshTests.boxFacets(10, 10, 10)).write(to: a)
+        try MeshTests.binarySTL(MeshTests.boxFacets(20, 20, 20)).write(to: b)
+
+        _ = try await Self.run(a, bench)
+        let second = try await Self.run(b, bench)
+        let rows = try Self.printFiles(in: bench)
+        #expect(rows.count == 2)
+        let top = try JSONDecoder().decode(LibraryFile.self,
+                                           from: try JSONEncoder().encode(rows[0]))
+        #expect(top.id == second.id, "the one just added belongs at the top")
+    }
+}
