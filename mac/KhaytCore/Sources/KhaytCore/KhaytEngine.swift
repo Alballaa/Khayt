@@ -235,6 +235,18 @@ public actor KhaytEngine {
         // read `o.price` instead would count a foreign job at its face value
         // and every credit note at nothing.
         "forecast",
+        // What makes two library records the same MESH. Bundled so the key this
+        // app writes is the key Khayt reads — three numbers joined by
+        // punctuation is exactly what two implementations agree on until they
+        // do not.
+        //
+        // `model-identity.js` itself is NOT here and cannot be: its
+        // `contentHash` falls back to `require('crypto')`, and both drift
+        // guards refuse a bundled module that names Node — rightly, since a
+        // guarded require is still a require somebody will later unguard. The
+        // pure half was split into `geometry-key.js` for that reason, and
+        // `model-identity` re-exports it. Swift does the SHA-256.
+        "geometry-key",
         // The shop's slicers, and which programs may be launched as one.
         //
         // The allowlist matters more than the list. A slicer path and its
@@ -481,6 +493,30 @@ public actor KhaytEngine {
         [.array(orders), .array(clients), .object(settings),
          .number(now), .number(Double(months)), .number(Double(periods))],
         as: RevenueOutlook.self)
+    }
+
+    // MARK: - Is this the same model
+
+    /// The key for "the same mesh, however it was packaged".
+    ///
+    /// `triangleCount:volume:XxYxZ`, rounded the way `lib/model-identity.js`
+    /// rounds it — which is the reason this crosses the bridge at all rather
+    /// than being three numbers joined in Swift. A format agreed by two
+    /// implementations is a format that drifts, and this one is compared
+    /// against records the other app wrote.
+    ///
+    /// Returns nil for geometry with no substance, so an unmeasured model never
+    /// acquires an identity another unmeasured one would share.
+    public func geometryKey(triangleCount: Int, volumeMm3: Double,
+                            x: Double, y: Double, z: Double) throws -> String? {
+        try runtime.call2("""
+        (globalThis.KhaytGeometryKey.geometryKey({
+          triangleCount: ARG0, volumeMm3: ARG1, bbox: { x: ARG2, y: ARG3, z: ARG4 }
+        }) || null)
+        """,
+        [.number(Double(triangleCount)), .number(volumeMm3),
+         .number(x), .number(y), .number(z)],
+        as: String?.self)
     }
 
     // MARK: - The shop's slicers

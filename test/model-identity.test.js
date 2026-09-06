@@ -175,9 +175,15 @@ test('in a sandboxed renderer it degrades instead of throwing', () => {
   const path = require('node:path');
   const ctx = {};                       // no require, no module — like the page
   vm.createContext(ctx);
-  vm.runInContext(
-    'var globalThis = this;' + fs.readFileSync(path.join(__dirname, '..', 'lib/model-identity.js'), 'utf8'),
-    ctx);
+  // BOTH files, in the order index.html loads them. `geometryKey` moved into
+  // lib/geometry-key.js so the Mac app could bundle it — model-identity falls
+  // back to require('crypto') and a bundled module may not name Node — and the
+  // page therefore loads two scripts where it loaded one. Loading only the
+  // second here would be testing a page that does not exist; what is still
+  // being tested is that neither of them needs `require`.
+  for (const file of ['lib/geometry-key.js', 'lib/model-identity.js']) {
+    vm.runInContext('var globalThis = this;' + fs.readFileSync(path.join(__dirname, '..', file), 'utf8'), ctx);
+  }
   const sandboxed = ctx.KhaytModelIdentity;
   assert.ok(sandboxed, 'the module loads at all');
   assert.equal(sandboxed.contentHash('anything'), null, 'no hasher — no hash, and no crash');

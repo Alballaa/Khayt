@@ -1977,6 +1977,7 @@
 <!-- The print-file library reaches for both of these: model identity for "is this the same
      mesh in a different container", and print setups for "the settings that worked". Loaded
      before it so the accessors it guards them behind find something. -->
+<script src="../lib/geometry-key.js"></script>
 <script src="../lib/model-identity.js"></script>
 <!-- The other half of the same feature. model-identity was here and these
      three were not, so Bed Ready could recognise a model and not the g-code

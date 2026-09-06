@@ -540,6 +540,12 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   same settings Khayt uses. It opens the app you already have running rather
   than starting a second copy of it.
 
+- **Khayt measures a model itself now, on the Mac.** Triangle count, volume and
+  size come from reading the mesh rather than from asking a slicer, so adding a
+  model to the library will not depend on which slicer is installed. Checked
+  against PrusaSlicer on the same files: the same triangle count, and the same
+  volume to within a thousandth of a percent.
+
 ### Fixed
 
 - **Pasting a whole endpoint into the Region box now works instead of quietly
