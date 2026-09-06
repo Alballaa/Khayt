@@ -234,6 +234,24 @@ struct SampleBookShowsTheAppTests {
                 "the sample colours sit on top of each other; the ranking looks arbitrary")
     }
 
+    /// The same lesson a third time. Colour Studio and the portfolio both
+    /// shipped showing their empty state on sample data; the gift cards screen
+    /// was heading the same way, and its status column is the part that has
+    /// nothing to say unless the cards are in different states.
+    @Test("the sample shop's gift cards show every state the rule can return")
+    func giftCardsAreWorthLookingAt() async throws {
+        let shop = try await Self.shop()
+        #expect(shop.giftCards.count >= 3,
+                "\(shop.giftCards.count) sample card(s) — the screen shows its empty state")
+        let states = Set(shop.giftCardStatuses.values)
+        #expect(states == ["active", "used", "expired"],
+                "the sample shows only \(states.sorted()); the status column teaches nothing")
+        // One expired card with money still on it — the case a shop has to be
+        // able to SEE, and the one an "expired means empty" reading would miss.
+        let expired = shop.giftCards.filter { shop.giftCardStatuses[$0.id] == "expired" }
+        #expect(expired.contains { ($0.balance ?? 0) > 0 })
+    }
+
     @Test("the sample shop has photographs, so the portfolio is a portfolio")
     func jobsArePhotographed() async throws {
         let shop = try await Self.shop()

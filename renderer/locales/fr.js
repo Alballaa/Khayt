@@ -3531,6 +3531,7 @@
   "giftCardBalance": "Solde",
   "giftCardInitialBalance": "Solde initial",
   "giftCardExpiry": "Date d'expiration (optionnel)",
+  "giftCardExpires": "Expire",
   "giftCardIssuedTo": "Émise à",
   "applyGiftCard": "Appliquer la carte cadeau",
   "giftCardAppliedAmount": "Carte cadeau appliquée — {amt} déduit",

@@ -3532,6 +3532,7 @@
   "giftCardBalance": "Balance",
   "giftCardInitialBalance": "Initial Balance",
   "giftCardExpiry": "Expiry Date (optional)",
+  "giftCardExpires": "Expires",
   "giftCardIssuedTo": "Issued To",
   "applyGiftCard": "Apply Gift Card",
   "giftCardAppliedAmount": "Gift card applied — {amt} deducted",

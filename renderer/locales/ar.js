@@ -3537,6 +3537,7 @@
   "giftCardBalance": "الرصيد",
   "giftCardInitialBalance": "الرصيد الابتدائي",
   "giftCardExpiry": "تاريخ الانتهاء (اختياري)",
+  "giftCardExpires": "تنتهي",
   "giftCardIssuedTo": "صادرة لـ",
   "applyGiftCard": "تطبيق بطاقة الهدية",
   "giftCardAppliedAmount": "تم تطبيق بطاقة الهدية — خُصم {amt}",

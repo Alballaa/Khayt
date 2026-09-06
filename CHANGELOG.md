@@ -6,6 +6,11 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Added
 
+- **Gift cards on the Mac.** The cards a shop has issued, what is left on each,
+  who it went to and whether it can still be spent — and a button to issue
+  another. It was the last screen the Mac app was missing that the Electron one
+  had, apart from the converter.
+
 - **`Khayt --import <folder>` on the Mac.** The same import as the File menu,
   from a terminal, so a library of thousands can be started from a script and
   rehearsed first: `--dry-run` prints every file it would take and writes
@@ -621,6 +626,14 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   volume to within a thousandth of a percent.
 
 ### Fixed
+
+- **A gift card could be spent on money the customer did not owe.** Redeeming
+  one worked out what an order still owed as price − paid − gift card, leaving
+  the CREDIT NOTES out. On a 500 order carrying a 300 credit note that reads
+  500 rather than 200, so redeeming a full card took 300 more off it than the
+  order needed. The money on a card belongs to the customer, and they have no
+  way to find a balance that was quietly taken off it. The question now goes to
+  `KhaytOrderMoney`, where it has a single answer.
 
 - **A print library that was quietly never backed up.** Backblaze shows its
   endpoint as `s3.us-west-001.backblazeb2.com` and the Region box asks for the

@@ -54,6 +54,8 @@ struct ShopWindow: View {
                     ColourStudio(shop: shop)
                 } else if shop.showingPortfolio {
                     Portfolio(shop: shop)
+                } else if shop.showingGiftCards {
+                    GiftCards(shop: shop)
                 } else if shop.showingCustomers {
                     CustomersTable(shop: shop)
                 } else {
@@ -74,13 +76,15 @@ struct ShopWindow: View {
             get: { showInspector && !shop.showingDashboard && !shop.showingBoard
                    && !shop.showingMachines && !shop.showingInventory
                    && !shop.showingExpenses && !shop.showingWaste && !shop.showingReports
-                   && !shop.showingCatalogue && !shop.showingColour && !shop.showingPortfolio },
+                   && !shop.showingCatalogue && !shop.showingColour && !shop.showingPortfolio
+                   && !shop.showingGiftCards },
             set: { showInspector = $0 }
         )) {
             Group {
                 if shop.showingMachines || shop.showingInventory || shop.showingBoard
                     || shop.showingExpenses || shop.showingWaste || shop.showingReports
-                    || shop.showingCatalogue || shop.showingColour || shop.showingPortfolio {
+                    || shop.showingCatalogue || shop.showingColour || shop.showingPortfolio
+                    || shop.showingGiftCards {
                     // Both screens carry their own detail — a card and a table
                     // wide enough to read. A panel beside them would repeat.
                     EmptyView()
@@ -111,6 +115,7 @@ struct ShopWindow: View {
         .sheet(item: $shop.pendingInvoice) { InvoiceSheet(shop: shop, subject: $0) }
         .sheet(item: $shop.editingSpool) { SpoolSheet(shop: shop, existing: $0) }
         .sheet(isPresented: $shop.addingSpool) { SpoolSheet(shop: shop, existing: nil) }
+        .sheet(isPresented: $shop.issuingGiftCard) { GiftCardSheet(shop: shop) }
         .sheet(item: $shop.editingMachine) { MachineSheet(shop: shop, existing: $0) }
         .sheet(item: $shop.restoring) { RestoreSheet(shop: shop, subject: $0) }
         .sheet(isPresented: $shop.checkingCloud) { CloudCheckSheet(shop: shop) }
@@ -222,6 +227,7 @@ struct ShopWindow: View {
     }
 
     private var searchPrompt: String {
+        if shop.shelf == .giftCards { return shop.words.callIt("giftCardCode") }
         if shop.shelf == .portfolio { return shop.words.callIt("pf.search_ph") }
         if shop.showingLibrary { return shop.words.callIt("mac.search_models") }
         if shop.showingCustomers { return shop.words.callIt("mac.search_people") }
@@ -287,6 +293,7 @@ private struct OwedSummary: View {
         case .catalogue: "catalogue"
         case .colour: "colour"
         case .portfolio: "portfolio"
+        case .giftCards: "gift-cards"
         case .library(nil): "library"
         case .library(let group?): "library:\(group)"
         }
@@ -322,6 +329,11 @@ private struct OwedSummary: View {
             return shop.catalogueRows.isEmpty ? nil : .catalogue
         case "colour":
             return .colour
+        case "gift-cards":
+            // Unlike the catalogue and the portfolio, this restores even when
+            // empty: a shop with no cards issued still has an Issue button to
+            // reach, so the screen is not a dead end the way an empty grid is.
+            return .giftCards
         case "portfolio":
             // Only if there is still a photograph. Restoring to an empty grid
             // with no sidebar row to leave by is a corner nobody can get out of.

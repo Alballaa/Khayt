@@ -42,6 +42,10 @@ public actor KhaytEngine {
         // could use the same rules rather than invent a second opinion about
         // revenue.
         "order-money",
+        // Gift cards. AFTER order-money, which it reads off the global to ask
+        // what an order still owes — the question it used to answer itself, in
+        // the renderer, with the credit notes left out.
+        "gift-card",
         "kpi-rows",
         "kpi",
         // What needs a shop's attention, and the figures on the dashboard.
@@ -430,6 +434,50 @@ public actor KhaytEngine {
         try runtime.call2("KhaytColor.gradient(ARG0, ARG1, ARG2)",
                           [.string(a), .string(b), .number(Double(steps))],
                           as: [String].self)
+    }
+
+    // MARK: - Gift cards
+
+    /// What every card is today — `active`, `used` or `expired` — keyed by id.
+    ///
+    /// `lib/gift-card.js`, not a Swift comparison of two date strings. The order
+    /// it decides in is part of the answer: an expired card with nothing left on
+    /// it reads EXPIRED, because that says why it cannot be used where "used"
+    /// would suggest the customer had the benefit of it.
+    ///
+    /// ALL OF THEM IN ONE CROSSING, like `customerNames` and for the same
+    /// reason — a table asking per row pays a context hop per row, and this one
+    /// is drawn on every keystroke in the search field.
+    public func giftCardStatuses(_ cards: [JSONValue], today: String) throws -> [String: String] {
+        try runtime.call2("""
+            (function (cards, today) {
+              const out = {};
+              for (const c of cards || []) {
+                if (c && c.id != null) out[String(c.id)] = KhaytGiftCard.status(c, today);
+              }
+              return out;
+            })(ARG0, ARG1)
+            """, [.array(cards), .string(today)], as: [String: String].self)
+    }
+
+    /// What a new card should be, or why it cannot be issued.
+    ///
+    /// `error` is a KEY rather than a sentence, so the window says it in the
+    /// shop's own language.
+    public struct IssuedCard: Decodable, Sendable {
+        public let ok: Bool
+        public let card: JSONValue?
+        public let error: String?
+    }
+
+    public func newGiftCard(_ input: [String: JSONValue], id: String, now: String,
+                            existing: [JSONValue]) throws -> IssuedCard {
+        try runtime.call2("""
+            (function (input, ctx) { return KhaytGiftCard.newCard(input, ctx); })(
+                ARG0, { id: ARG1, now: ARG2, existing: ARG3 })
+            """,
+            [.object(input), .string(id), .string(now), .array(existing)],
+            as: IssuedCard.self)
     }
 
     /// Invoices the shop is meant to chase for payment.

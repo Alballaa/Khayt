@@ -4110,5 +4110,63 @@
       },
       "createdAt": "2026-01-05"
     }
+  ],
+  "giftCards": [
+    {
+      "id": "GC-mtsample01",
+      "code": "TUWAIQ24",
+      "initialBalance": 500,
+      "balance": 500,
+      "issuedTo": "CLI-8A5045",
+      "issuedToName": "KAUST Prototyping Lab",
+      "issuedAt": "2026-08-14T09:20:00.000Z",
+      "expiresAt": null,
+      "redeemedOrders": []
+    },
+    {
+      "id": "GC-mtsample02",
+      "code": "MAKER150",
+      "initialBalance": 150,
+      "balance": 60,
+      "issuedTo": "CLI-1A9EB5",
+      "issuedToName": "Tuwaiq Makerspace",
+      "issuedAt": "2026-07-02T11:00:00.000Z",
+      "expiresAt": "2027-07-02",
+      "redeemedOrders": [
+        {
+          "orderId": "ORD-01003",
+          "amount": 90,
+          "at": "2026-07-06T14:26:00.000Z"
+        }
+      ]
+    },
+    {
+      "id": "GC-mtsample03",
+      "code": "EIDGIFT",
+      "initialBalance": 200,
+      "balance": 0,
+      "issuedTo": null,
+      "issuedToName": "Walk-in",
+      "issuedAt": "2026-05-20T17:45:00.000Z",
+      "expiresAt": null,
+      "redeemedOrders": [
+        {
+          "orderId": "ORD-01012",
+          "amount": 200,
+          "at": "2026-05-16T09:16:00.000Z"
+        }
+      ]
+    },
+    {
+      "id": "GC-mtsample04",
+      "code": "RIYADH99",
+      "initialBalance": 300,
+      "balance": 300,
+      "issuedTo": "CLI-1EF91E",
+      "issuedToName": "Sara Al-Harbi",
+      "issuedAt": "2026-01-10T08:00:00.000Z",
+      "expiresAt": "2026-06-30",
+      "redeemedOrders": []
+    }
   ]
 }

@@ -141,6 +141,7 @@ final class Shop {
         case catalogue
         case colour
         case portfolio
+        case giftCards
     }
 
     var stage: Stage? { if case .jobs(let s) = shelf { s } else { nil } }
@@ -156,6 +157,7 @@ final class Shop {
     var showingReports: Bool { shelf == .reports }
     var showingColour: Bool { shelf == .colour }
     var showingPortfolio: Bool { shelf == .portfolio }
+    var showingGiftCards: Bool { shelf == .giftCards }
 
     /// The open jobs, grouped by the stage they are in.
     ///
@@ -313,6 +315,13 @@ final class Shop {
                 clientRows, language: words.language, settings: Self.settings(root))) ?? [:]
             await keepTheDaysBackup()
             expenses = Self.decode(root, "expenses", as: Expense.self)
+            giftCards = Self.decode(root, "giftCards", as: GiftCard.self)
+            // The status of each, from the shared rule rather than a Swift
+            // comparison of two date strings — asked once for all of them,
+            // because the table redraws on every keystroke in the search box.
+            giftCardRows = (root["giftCards"].flatMap { if case .array(let r) = $0 { r } else { nil } }) ?? []
+            giftCardStatuses = (try? await engine?.giftCardStatuses(
+                giftCardRows, today: Self.today())) ?? [:]
             wasteLog = Self.decode(root, "wasteLog", as: WasteEntry.self)
             if case .array(let rows)? = root["expenses"] { expenseRows = rows } else { expenseRows = [] }
             if case .array(let rows)? = root["wasteLog"] { wasteRows = rows } else { wasteRows = [] }
@@ -2254,6 +2263,67 @@ final class Shop {
         }
     }
 
+    // MARK: - Gift cards
+
+    /// A code somebody can read down a telephone: no I/O/0/1, nothing to
+    /// mishear. Only a SUGGESTION — the sheet lets it be typed over, and the
+    /// shared rule has the final say on whether it is allowed.
+    static func giftCardCode() -> String {
+        let alphabet = Array("ACDEFGHJKLMNPQRTUVWXY2346789")
+        return String((0..<8).map { _ in alphabet.randomElement()! })
+    }
+
+    /// Issue one, through `lib/gift-card.js`.
+    ///
+    /// The rule builds the record and refuses the bad ones; this writes what it
+    /// returns. Nothing is written when it refuses, so a rejected code leaves
+    /// the book exactly as it was.
+    /// Returns nil when the card was issued, or what to tell the shop.
+    func issueGiftCard(code: String, balance: Double,
+                       issuedTo: String?, expires: Date?) async -> String? {
+        guard let build = source.build, StoreLock.weOwnIt(build) else {
+            return words.callIt("mac.read_only")
+        }
+        guard let engine else { return "the engine is not loaded" }
+
+        var input: [String: JSONValue] = [
+            "code": .string(code),
+            "initialBalance": .number(balance),
+        ]
+        if let issuedTo {
+            input["issuedTo"] = .string(issuedTo)
+            input["issuedToName"] = .string(clientNames[issuedTo]?.name ?? "")
+        }
+        if let expires { input["expiresAt"] = .string(Self.localDay(expires)) }
+
+        let made: KhaytEngine.IssuedCard
+        do {
+            made = try await engine.newGiftCard(input, id: Self.uid("GC"),
+                                                now: Self.isoNow(), existing: giftCardRows)
+        } catch {
+            return String(describing: error)
+        }
+        guard made.ok, let card = made.card else {
+            // The rule answers with a key; the window owns the language.
+            return words.callIt(made.error ?? "giftCardCodeInvalid")
+        }
+
+        do {
+            try StoreWriter.update(storeURL: build.storeURL,
+                                   owns: { StoreLock.weOwnIt(build) },
+                                   whoHasIt: { StoreLock.describe(StoreLock.verdict(for: build)) }) { root in
+                var rows: [JSONValue] = []
+                if case .array(let existing)? = root["giftCards"] { rows = existing }
+                rows.append(card)
+                root["giftCards"] = .array(rows)
+            }
+        } catch {
+            return String(describing: error)
+        }
+        await load(source)
+        return nil
+    }
+
     /// The same, for a file that arrived some other way.
     func addModelToLibrary(_ url: URL) async {
         importing = true
@@ -3732,6 +3802,12 @@ final class Shop {
     /// Resolved once when the book loads — thirty-one rows asking the engine
     /// one at a time would be thirty-one bridge crossings for one screen.
     private(set) var clientNames: [String: KhaytEngine.Named] = [:]
+    /// The cards the shop has issued, and what each one is today.
+    private(set) var giftCards: [GiftCard] = []
+    private(set) var giftCardRows: [JSONValue] = []
+    private(set) var giftCardStatuses: [String: String] = [:]
+    /// True while the Issue sheet is up.
+    var issuingGiftCard = false
 
     var shownCustomers: [Customer] {
         let q = search.trimmingCharacters(in: .whitespaces).lowercased()
