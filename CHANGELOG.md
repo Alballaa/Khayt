@@ -642,6 +642,17 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **In Arabic, the arrow between the two spools in Colour Studio pointed the
+  wrong way.** The pickers swap sides right-to-left, so a fixed right-pointing
+  arrow said the gradient ran from the second colour to the first — the
+  opposite of the swatches drawn directly beneath it. It is the same glyph in
+  English, which is why only a photograph of the Arabic screen could find it.
+
+- **The Mac screenshot runner followed the system appearance.** Developer
+  tooling: after dark and light became separate runs, the light one set no
+  appearance at all, so a Mac that switches itself at dusk made the same command
+  write dark pictures under light names.
+
 - **The telemetry consent smoke test waits for the thing, not for 700 ms.**
   Developer tooling: it slept a fixed interval and then looked, which is a race
   a busy CI runner loses — it failed once on "crash opt-in → events start

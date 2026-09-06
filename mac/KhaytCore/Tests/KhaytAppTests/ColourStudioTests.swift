@@ -267,3 +267,45 @@ struct SampleBookShowsTheAppTests {
                 "a thumbnail that is not inline is a cell that cannot draw on a read-only book")
     }
 }
+
+/// Arrows have to turn round in Arabic.
+///
+/// `arrow.right` and `arrow.forward` are the same glyph in English, so the
+/// difference is invisible until the app is run right-to-left — where the two
+/// spool pickers swap sides and a fixed right-pointing arrow says the gradient
+/// runs from the TO colour to the FROM one, contradicting the swatches drawn
+/// directly underneath it. Found by photographing the screen in Arabic, which
+/// is the only way it could have been.
+@MainActor
+struct DirectionalGlyphTests {
+    @Test("no screen pins an arrow to a side of the window")
+    func arrowsFollowTheWriting() throws {
+        let views = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent().appending(path: "Sources/KhaytApp")
+        let files = try FileManager.default.contentsOfDirectory(at: views, includingPropertiesForKeys: nil)
+            .filter { $0.pathExtension == "swift" }
+        #expect(files.count > 30, "the source moved — this is reading the wrong directory")
+
+        var pinned: [String] = []
+        for file in files.sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) {
+            let text = try String(contentsOf: file, encoding: .utf8)
+            for (n, line) in text.split(separator: "\n", omittingEmptySubsequences: false).enumerated() {
+                let trimmed = line.trimmingCharacters(in: .whitespaces)
+                if trimmed.hasPrefix("//") { continue }
+                for glyph in ["\"arrow.right\"", "\"arrow.left\"",
+                              "\"chevron.right\"", "\"chevron.left\""] where trimmed.contains(glyph) {
+                    pinned.append("\(file.lastPathComponent):\(n + 1)  \(trimmed)")
+                }
+            }
+        }
+        #expect(pinned.isEmpty, """
+            \(pinned.count) arrow(s) point at a side of the window rather than forward:
+
+            \(pinned.joined(separator: "\n"))
+
+            Use `arrow.forward` / `arrow.backward` (and `chevron.forward` /
+            `chevron.backward`), which turn round in Arabic.
+            """)
+    }
+}
