@@ -52,6 +52,12 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Changed
 
+- **Jobs and the board show what was printed.** A job whose parts name a library
+  model now carries that model's picture — in the table and on the board card —
+  and every job says which colours it is being printed in, in the shop's own
+  words. Both screens were columns of text about physical, coloured things, and
+  the pictures were in the library all along.
+
 - **The Mac's filament shelf is a shelf now, not a table.** Six spools came back
   as six rows of grey text over a twelve-pixel colour chip, followed by a dozen
   empty striped rows that made a stocked shelf look like a broken screen. A

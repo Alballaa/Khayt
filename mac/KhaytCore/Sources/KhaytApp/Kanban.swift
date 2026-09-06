@@ -224,14 +224,37 @@ private struct JobCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
-            HStack(spacing: 5) {
-                if job.priority {
-                    Image(systemName: "flag.fill").font(.caption2).foregroundStyle(Khayt.attention)
+            HStack(alignment: .top, spacing: 7) {
+                // The board is the screen people stand in front of, and a
+                // column of cards is scanned rather than read. A picture of the
+                // thing is found faster than its name — and the picture is
+                // already in the library, on a job that says which model it is.
+                if let thumb = shop.modelThumbnail(for: job) {
+                    Thumbnail(source: thumb)
+                        .frame(width: 34, height: 34)
+                        .clipShape(RoundedRectangle(cornerRadius: 5))
                 }
-                Text(job.project).font(.callout.weight(.medium)).lineLimit(2)
-            }
-            if !job.client.isEmpty {
-                Text(job.client).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                VStack(alignment: .leading, spacing: 2) {
+                    // Baseline-aligned, so the flag sits beside the first word
+                    // rather than floating at the middle of a title that wrapped.
+                    HStack(alignment: .firstTextBaseline, spacing: 5) {
+                        if job.priority {
+                            Image(systemName: "flag.fill").font(.caption2)
+                                .foregroundStyle(Khayt.attention)
+                        }
+                        Text(job.project).font(.callout.weight(.medium)).lineLimit(2)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    if !job.client.isEmpty {
+                        Text(job.client).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                    }
+                    // What it is being printed in, in the shop's own words.
+                    let colours = shop.partColours(of: job)
+                    if !colours.isEmpty {
+                        Text(colours.prefix(2).joined(separator: " · "))
+                            .font(.caption2).foregroundStyle(.tertiary).lineLimit(1)
+                    }
+                }
             }
             HStack(spacing: 6) {
                 if let due = Order.day(job.dueDate) {

@@ -20,22 +20,47 @@ struct OrdersTable: View {
         Table(rows, selection: $shop.selection, sortOrder: $order,
               columnCustomization: $columns) {
             TableColumn(shop.words.callIt("mac.job"), value: \.project) { job in
-                HStack(spacing: 6) {
+                HStack(spacing: 8) {
                     if job.priority {
                         Image(systemName: "flag.fill")
                             .foregroundStyle(Khayt.attention)
                             .help(shop.words.callIt("mac.is_urgent"))
                     }
+                    // WHAT IT LOOKED LIKE. A shop scanning this table is
+                    // looking for the thing it made, and the picture was in the
+                    // library all along — every other screen showed it and this
+                    // one, the one people live in, did not. Absent for a job
+                    // that never named a model, and the row simply starts at
+                    // its title, so a book with no links is not a column of
+                    // grey squares.
+                    if let thumb = shop.modelThumbnail(for: job) {
+                        Thumbnail(source: thumb)
+                            .frame(width: 30, height: 30)
+                            .clipShape(RoundedRectangle(cornerRadius: 5))
+                    }
                     VStack(alignment: .leading, spacing: 1) {
                         Text(job.project).lineLimit(1)
-                        Text(job.id)
-                            .font(.caption2)
-                            .monospacedDigit()
-                            .foregroundStyle(.tertiary)
+                        HStack(spacing: 5) {
+                            Text(job.id)
+                                .font(.caption2).monospacedDigit().foregroundStyle(.tertiary)
+                            // The colours it was printed in, as WORDS — the
+                            // shop's own, which is how it would be asked for
+                            // over the counter. Not swatches: nothing here maps
+                            // "sand" to a colour, and a guess would be this
+                            // app's opinion of a physical thing.
+                            ForEach(shop.partColours(of: job).prefix(2), id: \.self) { colour in
+                                Text(colour)
+                                    .font(.caption2)
+                                    .padding(.horizontal, 5).padding(.vertical, 1)
+                                    .background(.quaternary, in: Capsule())
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                            }
+                        }
                     }
                 }
             }
-            .width(min: 170, ideal: 240)
+            .width(min: 200, ideal: 280)
 
             TableColumn(shop.words.callIt("doc.client"), value: \.client) { job in
                 Text(job.client.isEmpty ? "—" : job.client)

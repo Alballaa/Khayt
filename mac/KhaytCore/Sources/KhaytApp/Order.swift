@@ -100,9 +100,13 @@ struct Order: Identifiable, Decodable, Hashable, Sendable {
         let printWeight: Double
         let unitCost: Double
         let colour: String
+        /// The library model this part was printed from, when the job was made
+        /// by picking one. Absent on a job auto-logged from a printer's own
+        /// history, which knows a filename and nothing about the library.
+        let printFileId: String?
 
         private enum CodingKeys: String, CodingKey {
-            case id, name, material, qty, printWeight, unitCost, colour
+            case id, name, material, qty, printWeight, unitCost, colour, printFileId
         }
 
         init(from decoder: Decoder) throws {
@@ -114,6 +118,7 @@ struct Order: Identifiable, Decodable, Hashable, Sendable {
             printWeight = try c.decodeIfPresent(Double.self, forKey: .printWeight) ?? 0
             unitCost = try c.decodeIfPresent(Double.self, forKey: .unitCost) ?? 0
             colour = try c.decodeIfPresent(String.self, forKey: .colour) ?? ""
+            printFileId = try c.decodeIfPresent(String.self, forKey: .printFileId)
         }
     }
 
