@@ -21,6 +21,26 @@ for m in $MODULES; do
   echo "  synced $m.js"
 done
 
+# A module taken OFF the list leaves its copy behind, and a copy nobody loads is
+# dead weight the drift guards then fail on — which is the right outcome arriving
+# at the wrong moment, after a commit rather than during a sync. Left behind once
+# already, by a module bundled and then split in two.
+#
+# Locales are copied further down and are not in $MODULES, so they are spared by
+# name rather than by luck.
+# $MODULES is NEWLINE separated — it comes out of grep — so it is flattened
+# first. Matching against it unflattened makes every pattern miss and every file
+# an orphan, which is how the first version of this deleted 62 of the 64.
+MODULE_LIST=" $(echo $MODULES | tr '\n' ' ') "
+for f in "$DEST"/*.js; do
+  b="$(basename "$f" .js)"
+  case "$b" in locale-*) continue;; esac
+  case "$MODULE_LIST" in
+    *" $b "*) ;;
+    *) rm -f "$f"; echo "  removed $b.js (no longer bundled)";;
+  esac
+done
+
 # Khayt's own translations, from renderer/locales/. Not lib/, and not named the
 # way modules are — nine files all assigning onto one global — so they are copied
 # by their own list rather than bent into the rule above.

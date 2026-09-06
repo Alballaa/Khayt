@@ -186,6 +186,53 @@ one error this app must not allow.
 A store that is not on this Mac is not offered: a menu item that leads nowhere
 is a dead end dressed up as a choice.
 
+### Measuring a mesh
+
+`Mesh.swift`. Triangle count, volume, bounding box — the three numbers
+`geometryKey` is made of.
+
+**Why not a slicer's code.** PrusaSlicer, OrcaSlicer, Snapmaker Orca and Bambu
+Studio all descend from Slic3r and are **AGPL-3.0**. Linking any of them in
+would put Khayt under the same licence, network clause and all. Spawning one is
+arm's length and fine — `ModelInfo.swift` does exactly that, and it is kept as a
+fallback for formats this does not read — but carrying one is not an option for
+a commercial product.
+
+The arithmetic was never the hard part. It is one cross product per triangle:
+every triangle makes a tetrahedron with the origin, `a · (b × c) / 6` is its
+signed volume, and on a closed mesh the outside faces cancel. What made the mesh
+unreachable was the CONTAINER.
+
+Three things worth knowing:
+
+* **The STL formats are told apart by arithmetic, not by the word "solid".** An
+  ASCII STL starts with `solid`, and so do plenty of binary ones, because the
+  exporter wrote a name into the 80-byte header. A reader that sniffs for the
+  word reads a binary file as text, finds no `vertex` lines and reports a model
+  with **no triangles at all** — silently, because an empty mesh is a plausible
+  answer. A binary STL is exactly `84 + 50n` bytes, and that is the test.
+* **The volume is absolute at the end.** A mesh wound inside out gives the right
+  magnitude with the wrong sign, and a negative volume in a library record is
+  worse than an inverted mesh nobody noticed.
+* **Nothing is resident.** A six-million-facet STL is 300 MB and is read fifty
+  bytes at a time, in chunks that are a multiple of 50 so a facet is never split
+  across two reads.
+
+`MeshTests` knows its answers from arithmetic rather than from running the code
+— a cube of side 10 is 1000 mm³ whatever any program says — and then checks the
+whole thing against a real slicer, which computes the same quantity by the same
+method and is therefore a genuine second opinion rather than a restatement. On
+an odd off-origin box the two agree on the count exactly and on the volume to
+within a thousandth of a percent, the difference being that the slicer
+accumulates in `Float`.
+
+`geometry-key.js` is bundled so the key this app writes is the key Khayt reads.
+`model-identity.js` itself cannot be: its `contentHash` falls back to
+`require('crypto')`, and both drift guards refuse a bundled module that names
+Node — rightly, since a guarded require is still a require somebody will later
+unguard. The pure half was split out for that reason and the whole half
+re-exports it, so every existing caller is untouched.
+
 ### Reading a 3MF — the part that cannot be shared
 
 Adding a model to the library means reading two things out of a zip: the
