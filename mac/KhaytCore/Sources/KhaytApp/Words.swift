@@ -362,6 +362,7 @@ final class Words {
         "mac.copy_name":     ["en": "Copy Name",       "ar": "نسخ الاسم"],
         "mac.copy_file_name": ["en": "Copy File Name", "ar": "نسخ اسم الملف"],
         "mac.no_customers":  ["en": "No customers yet", "ar": "لا عملاء بعد"],
+        "mac.no_filament":   ["en": "No filament yet",  "ar": "لا خيوط بعد"],
         "mac.no_customers_hint": ["en": "A customer appears here once a job is billed to them.",
                                   "ar": "يظهر العميل هنا بعد أن يُحرَّر له حساب على عمل."],
         "mac.past_due":      ["en": "Past due",        "ar": "متأخر السداد"],

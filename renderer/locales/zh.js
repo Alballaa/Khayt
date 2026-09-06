@@ -609,6 +609,7 @@
   "common.total": "合计",
   "common.hours": "小时",
   "common.grams": "g",
+  "common.kg": "千克",
   "common.percent": "%",
   "common.search": "搜索…",
   "common.all": "全部",

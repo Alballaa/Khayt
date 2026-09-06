@@ -52,6 +52,15 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Changed
 
+- **The Mac's filament shelf is a shelf now, not a table.** Six spools came back
+  as six rows of grey text over a twelve-pixel colour chip, followed by a dozen
+  empty striped rows that made a stocked shelf look like a broken screen. A
+  filament shelf is read by colour first — it is how a spool is picked off a
+  rack — so the colour is the row: a spool seen face on, big enough to tell from
+  its neighbour, with what it is, how much is left, and an amber ring and a
+  **low** badge on anything about to run out. The grid stops where the spools
+  stop.
+
 - **Adding a model MOVES it into the library instead of copying it.** A shop
   importing what it has downloaded does not want a second copy of thirty
   gigabytes, and the vault is meant to become the one place a model lives. The
@@ -641,6 +650,13 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   volume to within a thousandth of a percent.
 
 ### Fixed
+
+- **The Mac's filament shelf no longer shows a cost-per-kilo that climbs as you
+  print.** It was the spool's price divided by the grams REMAINING, so a 1 kg
+  roll bought at 75 read 150 once it was half gone — and worst on the nearly
+  empty spool the screen most wants you to look at. Neither book records what a
+  spool originally weighed, so the true rate cannot be worked out; the card
+  shows what the spool cost, which is a fact.
 
 - **In Arabic, the arrow between the two spools in Colour Studio pointed the
   wrong way.** The pickers swap sides right-to-left, so a fixed right-pointing

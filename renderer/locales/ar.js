@@ -702,6 +702,7 @@
   "common.total": "الإجمالي",
   "common.hours": "ساعة",
   "common.grams": "جم",
+  "common.kg": "كجم",
   "common.percent": "٪",
   "common.search": "بحث…",
   "common.all": "الكل",

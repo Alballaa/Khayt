@@ -609,6 +609,7 @@
   "common.total": "合計",
   "common.hours": "時間",
   "common.grams": "g",
+  "common.kg": "kg",
   "common.percent": "%",
   "common.search": "検索…",
   "common.all": "すべて",

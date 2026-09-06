@@ -609,6 +609,7 @@
   "common.total": "Toplam",
   "common.hours": "saat",
   "common.grams": "gram",
+  "common.kg": "kg",
   "common.percent": "%",
   "common.search": "Ara…",
   "common.all": "Tümü",

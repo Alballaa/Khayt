@@ -173,97 +173,164 @@ private struct Card: View {
     }
 }
 
-/// The filament on the shelf.
+/// The filament on the shelf, drawn as a shelf.
+///
+/// ── WHY THIS IS NOT A TABLE ───────────────────────────────────────────────
+///
+/// It was one, and the shop's six spools came back as six rows of grey text
+/// over a twelve-pixel colour chip, followed by a dozen empty striped rows that
+/// made a stocked shelf look like a broken screen. A filament shelf is read by
+/// COLOUR first — it is how a spool is picked off a rack in a workshop — and
+/// colour was the one thing the table had almost none of.
+///
+/// So the colour is the row now: a spool seen face on, at the size a colour has
+/// to be before it can be told from its neighbour. Everything else a shop asks
+/// of this screen is arranged around it — what it is, how much is left, whether
+/// it is about to run out, and what a kilo of it costs.
+///
+/// The grid stops where the spools stop. A shelf with six spools on it shows
+/// six spools.
 struct Inventory: View {
     @Bindable var shop: Shop
-    @SceneStorage("inventory.columns") private var columns: TableColumnCustomization<Spool>
     @State private var selection: Spool.ID?
 
+    private let columns = [GridItem(.adaptive(minimum: 210, maximum: 280), spacing: 14)]
+
+    private var shown: [Spool] {
+        let term = shop.search.trimmingCharacters(in: .whitespaces).lowercased()
+        guard !term.isEmpty else { return shop.spools }
+        return shop.spools.filter {
+            $0.material.lowercased().contains(term)
+                || ($0.colourVariant ?? "").lowercased().contains(term)
+        }
+    }
+
     var body: some View {
-        Table(shop.spools, selection: $selection, columnCustomization: $columns) {
-            TableColumn(shop.words.callIt("plib.material")) { spool in
-                // The colour, beside the name rather than in a column of its
-                // own. A filament shelf is read by colour first — it is how a
-                // spool is picked off a rack — and a column that is empty for
-                // every shop that has not filled it in is a column of nothing.
-                // Absent reads as a dashed outline, which is `Swatch`'s way of
-                // saying "not known" rather than showing a colour that happens
-                // to match the paper.
-                HStack(spacing: 7) {
-                    Swatch(rgb: Swatch.rgb(fromHex: spool.color), size: 12)
-                    Text(spool.material.isEmpty ? "—" : spool.material).lineLimit(1)
-                }
-            }
-            .width(min: 140, ideal: 200, max: 320)
-
-            TableColumn(shop.words.callIt("mac.weight")) { spool in
-                Text(spool.weight.map { "\(Int($0)) \(shop.words.callIt("common.grams"))" } ?? "—")
-                    .moneyStyle()
-            }
-            .width(min: 74, ideal: 92, max: 120)
-            .alignment(.trailing)
-
-            // WITH the currency, like every other money column in the app.
-            //
-            // `Money.figure` is for a column whose currency is stated once at
-            // the top, and nothing on this screen states it: the shelf showed
-            // "75.00" and "480.00" under headings that say Cost and Per kilo,
-            // and the only currency in sight was the OWED badge, which is a
-            // different figure about different money. The weight column beside
-            // these two already carries its unit on every row.
-            TableColumn(shop.words.callIt("mac.cost")) { spool in
-                Text(spool.cost.map { Money.text($0, shop.currency) } ?? "—").moneyStyle()
-            }
-            .width(min: 92, ideal: 116, max: 150)
-            .alignment(.trailing)
-
-            TableColumn(shop.words.callIt("mac.per_kilo")) { spool in
-                // The number that compares two suppliers. A spool priced per
-                // roll tells you nothing until you know what is on the roll.
-                Text(spool.costPerKilo.map { Money.text($0, shop.currency) } ?? "—")
-                    .foregroundStyle(.secondary)
-                    .moneyStyle()
-            }
-            .width(min: 100, ideal: 128, max: 170)
-            .alignment(.trailing)
-        }
-        .tableStyle(.inset(alternatesRowBackgrounds: true))
-        // Double-click opens it, the way a Mac table opens anything.
-        .contextMenu(forSelectionType: Spool.ID.self) { ids in
-            if let id = ids.first, let spool = shop.spools.first(where: { $0.id == id }), shop.canMoveJobs {
-                Button(shop.words.callIt("mac.edit_spool")) { shop.editingSpool = spool }
-                Button(shop.words.callIt("common.delete"), role: .destructive) {
-                    Task { await shop.deleteSpool(id) }
-                }
-            }
-        } primaryAction: { ids in
-            guard shop.canMoveJobs, let id = ids.first else { return }
-            shop.editingSpool = shop.spools.first { $0.id == id }
-        }
-        .overlay {
+        Group {
             if shop.spools.isEmpty {
-                ContentUnavailableView(shop.words.callIt("mac.no_stock"),
-                                       systemImage: "shippingbox",
-                                       description: Text(shop.words.callIt("mac.no_stock_hint")))
-            }
-        }
-        .toolbar {
-            ToolbarItem {
-                Button(shop.words.callIt("mac.new_spool"), systemImage: "plus") {
-                    shop.addingSpool = true
+                ContentUnavailableView(shop.words.callIt("mac.no_filament"), systemImage: "circle.dashed")
+            } else if shown.isEmpty {
+                ContentUnavailableView.search(text: shop.search)
+            } else {
+                ScrollView {
+                    LazyVGrid(columns: columns, spacing: 14) {
+                        ForEach(shown) { spool in
+                            SpoolCard(spool: spool, shop: shop,
+                                      low: shop.lowSpools[spool.id] ?? false,
+                                      selected: selection == spool.id)
+                                .onTapGesture { selection = spool.id }
+                                .onTapGesture(count: 2) {
+                                    if shop.canMoveJobs { shop.editingSpool = spool }
+                                }
+                                .contextMenu {
+                                    if shop.canMoveJobs {
+                                        Button(shop.words.callIt("mac.edit_spool")) {
+                                            shop.editingSpool = spool
+                                        }
+                                        Button(shop.words.callIt("common.delete"), role: .destructive) {
+                                            Task { await shop.deleteSpool(spool.id) }
+                                        }
+                                    }
+                                }
+                        }
+                    }
+                    .padding(16)
                 }
-                .disabled(!shop.canMoveJobs)
+                .background(.background)
             }
         }
     }
 }
 
-/// What the machine is doing, right now.
-///
-/// The one thing this app could not answer without the Electron app running.
-/// It reads and only reads — there is no pause, resume or cancel here, because
-/// a command sent to the wrong machine costs a shop a print and belongs behind
-/// a deliberate piece of work rather than arriving with a status card.
+/// One spool, face on.
+struct SpoolCard: View {
+    let spool: Spool
+    let shop: Shop
+    let low: Bool
+    var selected = false
+
+    private var colour: Color? {
+        Swatch.rgb(fromHex: spool.color).map { Color(red: $0.r, green: $0.g, blue: $0.b) }
+    }
+
+    var body: some View {
+        VStack(spacing: 8) {
+            face
+            VStack(spacing: 2) {
+                Text(spool.material.isEmpty ? "—" : spool.material)
+                    .font(.callout.weight(.medium)).lineLimit(1)
+                // The shop's own name for the colour, which is what it is
+                // called out loud. Absent for a spool nobody has named.
+                if let variant = spool.colourVariant, !variant.isEmpty {
+                    Text(variant).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                }
+            }
+            HStack(spacing: 6) {
+                Text(spool.weight.map { "\(Int($0)) \(shop.words.callIt("common.grams"))" } ?? "—")
+                    .font(.callout).monospacedDigit()
+                    .foregroundStyle(low ? Khayt.attention : .primary)
+                if low {
+                    // The word, not only a colour: a shop reading this at a
+                    // glance in a bright workshop should not have to know that
+                    // amber means anything.
+                    Text(shop.words.callIt("cons.low"))
+                        .font(.caption2.weight(.semibold))
+                        .padding(.horizontal, 6).padding(.vertical, 2)
+                        .background(Khayt.attention.opacity(0.16), in: Capsule())
+                        .foregroundStyle(Khayt.attention)
+                }
+            }
+            // WHAT IT COST, not what it costs per kilo.
+            //
+            // `costPerKilo` is `cost / weight`, and `weight` is what is LEFT —
+            // so the figure a shop uses to compare two suppliers climbs as the
+            // spool is used. A 1 kg roll bought at 75 reads 150 once it is half
+            // gone, and 2,000 on the nearly-empty spool this shelf most wants to
+            // draw attention to. Neither book records the original weight, so
+            // the true rate cannot be worked out here; the purchase price can,
+            // and is a fact rather than a drifting derivation.
+            if let cost = spool.cost {
+                Text(Money.text(cost, shop.currency))
+                    .font(.caption2).foregroundStyle(.tertiary).monospacedDigit()
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 12)
+        .background(selected ? AnyShapeStyle(.selection) : AnyShapeStyle(.quinary),
+                    in: RoundedRectangle(cornerRadius: 10))
+        .overlay(RoundedRectangle(cornerRadius: 10)
+            .strokeBorder(low ? Khayt.attention.opacity(0.5) : .clear, lineWidth: 1))
+        .help(spool.material)
+    }
+
+    /// A spool seen face on: the filament, and the hole through the middle.
+    ///
+    /// Drawn rather than photographed, and drawn as a RING because that is the
+    /// shape being looked for on a rack. A flat square of colour is a swatch; a
+    /// ring is a spool, and the difference is what makes the shelf scannable.
+    private var face: some View {
+        ZStack {
+            Circle()
+                .fill(colour ?? Color(nsColor: .quaternaryLabelColor))
+                .overlay(
+                    // A hint of depth, so a black spool is not a black hole and
+                    // a white one is not a gap in the page.
+                    Circle().strokeBorder(.black.opacity(0.14), lineWidth: 1)
+                )
+            Circle().fill(.background).frame(width: 22, height: 22)
+            Circle().strokeBorder(.black.opacity(0.10), lineWidth: 1)
+                .frame(width: 22, height: 22)
+            // A colour nobody recorded is a dashed outline, never a grey that
+            // could be mistaken for grey filament.
+            if colour == nil {
+                Circle().strokeBorder(style: StrokeStyle(lineWidth: 1.5, dash: [4, 3]))
+                    .foregroundStyle(.tertiary)
+            }
+        }
+        .frame(width: 72, height: 72)
+    }
+}
+
 private struct Live: View {
     let machine: Machine
     let shop: Shop
