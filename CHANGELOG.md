@@ -6,6 +6,13 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Added
 
+- **The Mac can write a 3MF, not only read one.** Groundwork for the converter,
+  which is the last thing the Mac app cannot do that the Electron one can: it
+  could already open a 3MF — it measures meshes and pulls thumbnails out of them
+  — and had no way to put one back together, because the writer next door is
+  built on Node's zlib. Archives it produces are read by the system `unzip` and
+  by Khayt's own Node reader, and it opens the ones that reader's writer makes.
+
 - **The Mac says whether a model will go on a printer you own.** A model's size
   and a machine's bed were both already in the book, and the rule that compares
   them lived inside the converter — so the first question a maker asks could
