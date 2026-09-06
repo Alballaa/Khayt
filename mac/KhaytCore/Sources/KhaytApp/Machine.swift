@@ -120,10 +120,15 @@ struct Spool: Identifiable, Decodable, Hashable, Sendable {
         return material + grams + where_
     }
 
-    /// Cost per kilo, which is the number that compares two suppliers.
-    /// Nil rather than infinity when a row has a cost and no weight.
-    var costPerKilo: Double? {
-        guard let cost, let weight, weight > 0 else { return nil }
-        return cost / (weight / 1000)
-    }
+    // NO `costPerKilo` HERE, and it is worth saying why rather than leaving
+    // the next person to add it back.
+    //
+    // It was `cost / (weight / 1000)`, and `weight` is what is LEFT on the
+    // spool — so the figure that supposedly compares two suppliers climbed as
+    // the spool was used: a 1 kg roll bought at 75 read 150 once half gone, and
+    // 2,000 on one nearly empty. Electron does not derive this at all; the shop
+    // types a `costPerKg` on the item, and `calculator-cost.js` divides by
+    // `spoolWeight`, the ORIGINAL weight. Neither field is on an inventory row
+    // in either book, so the true rate cannot be worked out here from what is
+    // recorded — and a wrong number about money is worse than no number.
 }

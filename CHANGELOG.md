@@ -52,6 +52,13 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Changed
 
+- **The Mac dashboard fits about twice as much on a screen.** Both of its lists
+  stacked the order number underneath the job name, which doubled the height of
+  every row — six late jobs filled the window and the seventh was below the
+  fold, which is the one thing a list of what is wrong must not do. The number
+  sits beside the name now, and what used to be two and a half sections is the
+  attention list, the floor, the invoices to chase and the month's money.
+
 - **Jobs and the board show what was printed.** A job whose parts name a library
   model now carries that model's picture — in the table and on the board card —
   and every job says which colours it is being printed in, in the shop's own
