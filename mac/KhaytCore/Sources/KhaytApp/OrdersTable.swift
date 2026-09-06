@@ -13,8 +13,36 @@ struct OrdersTable: View {
     @State private var order: [KeyPathComparator<Order>] = [
         .init(\.date, order: .reverse)
     ]
+    /// Whether the one-time look at the book has already happened.
+    ///
+    /// STORED BESIDE THE COLUMNS, not in `@State`. As view state it reset on
+    /// every launch, so the hiding ran again each time the window opened —
+    /// re-hiding a column the shop had deliberately put back, which is exactly
+    /// the behaviour the note below calls worse than never hiding anything.
+    @SceneStorage("jobs.columnsChosen") private var decided = false
 
     private var rows: [Order] { shop.shown.sorted(using: order) }
+
+    /// A COLUMN OF DASHES IS NOT A COLUMN.
+    ///
+    /// A shop whose jobs are auto-logged from its printers names no customer
+    /// and promises no date on any of them, and this table gave two of its six
+    /// columns to saying so on every row — on the book this app was written
+    /// against, four of the six carried nothing at all.
+    ///
+    /// HIDDEN, not removed. A conditional column would need macOS 14.4 and this
+    /// package targets 14.0, and hiding turns out to be the better answer
+    /// anyway: the column is in the header's own menu, so a shop that wants it
+    /// back can have it and the choice sticks. Only ever done ONCE, the first
+    /// time a book is opened — after that the customization is the shop's, and
+    /// a screen that keeps re-hiding a column somebody deliberately showed is
+    /// worse than one that never hid it.
+    private func hideWhatThisBookDoesNotUse() {
+        guard !decided else { return }
+        decided = true
+        if !shop.anyJobHasAClient { columns[visibility: "client"] = .hidden }
+        if !shop.anyJobHasADueDate { columns[visibility: "due"] = .hidden }
+    }
 
     var body: some View {
         Table(rows, selection: $shop.selection, sortOrder: $order,
@@ -62,12 +90,21 @@ struct OrdersTable: View {
             }
             .width(min: 200, ideal: 280)
 
+            // A COLUMN OF DASHES IS NOT A COLUMN.
+            //
+            // A shop whose jobs are auto-logged from its printers has no
+            // customer and no promised date on any of them, and this table gave
+            // two of its six columns to saying so on every row — for the shop
+            // whose own book this is, four columns of the six carried nothing.
+            // The column comes back the moment one job has a client, because
+            // the test is the data rather than a setting somebody has to find.
             TableColumn(shop.words.callIt("doc.client"), value: \.client) { job in
                 Text(job.client.isEmpty ? "—" : job.client)
                     .foregroundStyle(job.client.isEmpty ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.primary))
                     .lineLimit(1)
             }
             .width(min: 120, ideal: 180)
+            .customizationID("client")
 
             TableColumn(shop.words.callIt("mac.stage"), value: \.status) { job in
                 if let s = Stage.of(job) {
@@ -84,6 +121,7 @@ struct OrdersTable: View {
                 DueDate(words: shop.words, job: job)
             }
             .width(min: 78, ideal: 96)
+            .customizationID("due")
 
             TableColumn(shop.words.callIt("common.total"), value: \.price) { job in
                 Text(Money.figure(job.price)).moneyStyle()
@@ -98,6 +136,12 @@ struct OrdersTable: View {
             .alignment(.trailing)
         }
         .tableStyle(.inset(alternatesRowBackgrounds: true))
+        // After the book is loaded, not while it is empty: asked of a shop with
+        // no orders yet, every column looks unused and all of them would go.
+        .onChange(of: shop.orders.isEmpty) { _, empty in
+            if !empty { hideWhatThisBookDoesNotUse() }
+        }
+        .onAppear { if !shop.orders.isEmpty { hideWhatThisBookDoesNotUse() } }
         // Right-click, which every other table in this app already answered and
         // the one holding the shop's jobs did not. Same actions as the Job
         // menu, reached where the hand already is.

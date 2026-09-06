@@ -81,3 +81,23 @@ struct SnapshotAppearanceTests {
                 "the appearance is set more than once — one of them is a switch")
     }
 }
+
+/// A column of dashes is not a column — but hiding one is a decision, and a
+/// decision made twice is a decision taken away from the person who made it.
+@MainActor
+struct EmptyColumnTests {
+    @Test("the jobs table hides an unused column once, and remembers that it did")
+    func hiddenOnceAndRemembered() {
+        let source = BannerTests.source("OrdersTable.swift")
+        // The two columns a book can leave entirely empty, each addressable.
+        #expect(source.contains("\"client\""), "the client column lost its customization id")
+        #expect(source.contains("\"due\""), "the due column lost its customization id")
+
+        // THE PART THAT MATTERS. As `@State` this reset on every launch, so the
+        // hiding ran again each time and un-did a column the shop had put back.
+        #expect(source.contains("@SceneStorage(\"jobs.columnsChosen\")"),
+                "the decision is view state again — it will re-hide on every launch")
+        #expect(!source.contains("@State private var decided"),
+                "the decision is back in view state")
+    }
+}
