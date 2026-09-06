@@ -4146,7 +4146,7 @@
       "initialBalance": 200,
       "balance": 0,
       "issuedTo": null,
-      "issuedToName": "Walk-in",
+      "issuedToName": "",
       "issuedAt": "2026-05-20T17:45:00.000Z",
       "expiresAt": null,
       "redeemedOrders": [

@@ -147,7 +147,13 @@ struct ColourStudio: View {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 10) {
                     spoolPicker($fromSpool)
-                    Image(systemName: "arrow.right").foregroundStyle(.tertiary)
+                    // `forward`, not `right`. The two are the same glyph in
+                    // English and the difference only shows in Arabic, where
+                    // the pickers swap sides and a fixed right-pointing arrow
+                    // then says the gradient runs from the TO colour to the
+                    // FROM one — the opposite of the swatches underneath it.
+                    // `arrow.forward` turns with the writing direction.
+                    Image(systemName: "arrow.forward").foregroundStyle(.tertiary)
                     spoolPicker($toSpool)
                     Spacer(minLength: 12)
                     Text(shop.words.callIt("cmix.steps")).foregroundStyle(.secondary)

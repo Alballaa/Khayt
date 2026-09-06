@@ -61,3 +61,23 @@ struct BannerTests {
                 "there are two Banners again")
     }
 }
+
+/// A photographed run says which appearance it is, BOTH ways.
+///
+/// The light run used to set none at all, so it followed whatever the Mac was
+/// set to — and a Mac that switches itself at dusk then writes dark pictures
+/// under light names. There is no cheap way to assert a colour without running
+/// the app, so this asserts the line that decides it instead.
+@MainActor
+struct SnapshotAppearanceTests {
+    @Test("the runner chooses an appearance either way, and only once")
+    func choosesBothWays() {
+        let source = BannerTests.source("KhaytApp.swift")
+        #expect(source.contains("dark ? .darkAqua : .aqua"),
+                "the light run no longer forces an appearance, so it follows the system")
+        // Once. Changing it part way through a run is the abort this runner was
+        // fixed to stop doing, and the fix holds only while nothing switches.
+        #expect(source.components(separatedBy: "NSApp.appearance =").count - 1 == 1,
+                "the appearance is set more than once — one of them is a switch")
+    }
+}

@@ -176,10 +176,26 @@ final class Activator: NSObject, NSApplicationDelegate {
             // three dark and three light runs, all clean, where the combined
             // run had aborted three times out of three.
             let dark = ProcessInfo.processInfo.environment["KHAYT_SNAPSHOT_DARK"] == "1"
-            if dark {
-                NSApp.appearance = NSAppearance(named: .darkAqua)
-                for window in NSApp.windows { window.appearance = NSAppearance(named: .darkAqua) }
-            }
+            // BOTH WAYS, and the light one is a choice rather than a default.
+            //
+            // Splitting the runs left the light one setting no appearance at
+            // all, so it followed whatever this Mac happened to be set to —
+            // fine until the Mac switches itself at dusk, after which the same
+            // command writes dark pictures under light names. An Arabic pass
+            // run at teatime came back dark and the app was not at fault.
+            //
+            // Set ONCE, here, before anything has been drawn. That is what
+            // makes it safe: what took this runner down was changing the
+            // appearance PART WAY THROUGH, and this never changes it again.
+            //
+            // Two earlier attempts are worth not repeating. In
+            // `applicationWillFinishLaunching` it never reaches the window,
+            // because SwiftUI attaches its delegate adaptor after AppKit has
+            // already sent that. In `main.swift`, before `KhaytApp.main()`,
+            // `NSApp` is still nil and the process dies on the spot.
+            let want: NSAppearance.Name = dark ? .darkAqua : .aqua
+            NSApp.appearance = NSAppearance(named: want)
+            for window in NSApp.windows { window.appearance = NSAppearance(named: want) }
             // The window has to have laid out and drawn once. Two seconds is
             // generous; capturing an unlaid-out window yields a blank sheet.
             try? await Task.sleep(for: .seconds(2))
