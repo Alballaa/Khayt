@@ -284,6 +284,63 @@ enum LibraryImport {
                      colours: colours.count, contentHash: hash, movedIn: movedIn)
     }
 
+    // MARK: - Many at once
+
+    /// What a batch did, in the three numbers a shop wants afterwards.
+    struct Report: Equatable, Sendable {
+        var moved = 0
+        var duplicates = 0
+        var failures: [String] = []
+        /// True when the caller asked it to stop and it did.
+        var stopped = false
+        var total: Int { moved + duplicates + failures.count }
+    }
+
+    /// Import a list of files, carrying the library's identity forward as it goes.
+    ///
+    /// SHARED, because there are two callers and they must not drift: the File
+    /// menu, which shows a banner and a Stop button, and `--import`, which
+    /// prints lines and returns an exit code. Everything either of them needs to
+    /// decide is here; what is left outside is only how to SAY it.
+    ///
+    /// `known` grows with each success, so two copies of one model inside a
+    /// single selection do not both get in — the second is a duplicate of the
+    /// first, which is the answer a shop would give.
+    ///
+    /// One unreadable file does not end a run of three thousand. It is named in
+    /// `failures` and the batch carries on; a refusal leaves its original
+    /// exactly where it was, so nothing has to be undone to retry it.
+    static func addMany(_ files: [URL],
+                        storeURL: URL, libraryRoot: URL,
+                        knownHashes: Set<String>,
+                        nameOfExisting: @escaping (String) -> String?,
+                        engine: KhaytEngine,
+                        keepOriginal: Bool = false,
+                        owns: @escaping () -> Bool,
+                        whoHasIt: @escaping () -> String?,
+                        shouldStop: () -> Bool = { false },
+                        progress: (Int, Int, URL) -> Void = { _, _, _ in }) async -> Report {
+        var report = Report()
+        var known = knownHashes
+        for (i, file) in files.enumerated() {
+            if shouldStop() { report.stopped = true; break }
+            progress(i, files.count, file)
+            do {
+                let added = try await add(file, storeURL: storeURL, libraryRoot: libraryRoot,
+                                          knownHashes: known, nameOfExisting: nameOfExisting,
+                                          engine: engine, keepOriginal: keepOriginal,
+                                          owns: owns, whoHasIt: whoHasIt)
+                report.moved += 1
+                if let hash = added.contentHash { known.insert(hash) }
+            } catch Failure.alreadyHere {
+                report.duplicates += 1
+            } catch {
+                report.failures.append("\(file.lastPathComponent): \(error)")
+            }
+        }
+        return report
+    }
+
     /// The record itself.
     ///
     /// Separated from the copying so it can be checked without a book, a lock

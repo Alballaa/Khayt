@@ -6,6 +6,13 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Added
 
+- **`Khayt --import <folder>` on the Mac.** The same import as the File menu,
+  from a terminal, so a library of thousands can be started from a script and
+  rehearsed first: `--dry-run` prints every file it would take and writes
+  nothing. `--keep-originals` copies rather than moves. It runs without opening
+  a window and takes the same store lock the app does, refusing by name if Khayt
+  has the book open.
+
 - **The Mac app imports many models at once, and folders.** Adding a model was
   one trip through the file picker per file, which is not an import when a shop
   has three thousand of them in nested folders. Pick any mix of files and
