@@ -169,4 +169,39 @@ import AppKit
         try render(MachineSheet(shop: shop, existing: shop.machines.first),
                    "29-machine-words", size: CGSize(width: MachineSheet.width, height: 560))
     }
+    /// The import banner, which nobody had looked at.
+    ///
+    /// A batch of five hundred models is minutes of work behind one line of
+    /// text, so that line and its Stop button are most of what a shop sees of
+    /// this feature. `Banner` is plain SwiftUI, so `ImageRenderer` can host it —
+    /// unlike the window it sits in.
+    @Test("the import banner, running and finished")
+    func importBanners() throws {
+        let shop = Shop()
+        try render(VStack(spacing: 0) {
+            Banner(text: "Importing 137 of 490 — Fallen AT-AT Remote Holder.stl",
+                   symbol: "gearshape.arrow.trianglehead.2.clockwise.rotate.90",
+                   tint: Khayt.cyan) {
+                // THE YELLOW BLOCK IN THIS PICTURE IS NOT A BUG. A linear
+                // `ProgressView` is an `NSProgressIndicator`, and
+                // `ImageRenderer` draws every AppKit-backed control as that
+                // placeholder — the same refusal `expectItRendered` looks for,
+                // which only fires when it covers the whole view. Kept in the
+                // shot rather than left out, so the layout around it is the
+                // real one and nobody removes the bar to make the picture tidy.
+                // What the bar looks like has to be judged in the running app.
+                ProgressView(value: 137, total: 490)
+                    .progressViewStyle(.linear).frame(width: 120)
+                Button("Stop") {}
+            }
+            Banner(text: "471 moved in · 18 already there · 1 failed.",
+                   symbol: "checkmark.circle", tint: Khayt.done)
+            Banner(text: "universal-filament-clip-v2.stl: could not be read",
+                   symbol: "exclamationmark.triangle", tint: Khayt.attention)
+            Banner(text: "Moved Turbine bracket into the library — 13,754 triangles.",
+                   symbol: "checkmark.circle", tint: Khayt.done)
+        }.frame(width: 720), "30-import-banners", size: CGSize(width: 720, height: 160))
+        _ = shop
+    }
+
 }
