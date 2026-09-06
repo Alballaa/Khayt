@@ -197,8 +197,9 @@ private struct NeedsAttention: View {
                             // Said in words, not by colour alone. This is the
                             // line that decides whether someone gets a phone
                             // call today.
-                            Text(shop.words.callIt("mac.days_late").replacingOccurrences(
-                                of: "{n}", with: "\(late)"))
+                            Text(shop.words.callIt(
+                                late == 1 ? "mac.days_late_one" : "mac.days_late",
+                                ["n": .number(Double(late))]))
                                 .font(.callout)
                                 .monospacedDigit()
                                 .foregroundStyle(Khayt.attention)
