@@ -584,6 +584,35 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **Four things an Arabic shop saw that nobody had looked at.** The Mac app's
+  right-to-left layout had never been photographed. The sidebar's footer — the
+  backup date, the sync line, who has the book open — had nothing painted
+  behind it, so the list scrolled under it and drew *People* and *Waste*
+  straight through *Opened read-only*. "Khayt for Mac has this book open" was
+  English on every screen, because the sentence was built inside the file lock,
+  which has no language; the lock now hands back the facts and the window says
+  them. The gram was abbreviated two different ways in Arabic, `غم` in one
+  place and `جم` everywhere else. And *Edit Job* — in **English** as much as in
+  Arabic — wrapped "Mark as priority / urgent" one or two characters to a line,
+  seven lines tall, because the segmented control took the row and left the
+  label about fifty points.
+
+- **An Arabic invoice no longer prints the shop's phone number backwards.**
+  `+966 50 000 0000` is digits, spaces and a plus sign, and not one character
+  of it has a direction of its own — so inside the right-to-left document the
+  runs were laid out right to left and the customer's copy read
+  `0000 000 50 966+`. The same for the email, the CR and the VAT number, on the
+  shop's line and the customer's. Each is now isolated from the direction
+  around it. For shops that also print Arabic-Indic digits, the pass that
+  swapped the numerals was replacing the whole contents of each element it
+  touched, which flattened the address into one paragraph, dropped the
+  currency's styling in the amount column — and undid the isolation above.
+
+- **The Mac app's spool shelf now says what currency its Cost and Per kilo
+  columns are in.** They were bare numbers, and the only currency on that
+  screen was the *owed* badge, which is a different figure about different
+  money.
+
 - **Pasting a whole endpoint into the Region box now works instead of quietly
   building an address that does not exist.** Setting up cloud storage for the
   print library asks for one piece of your provider's endpoint — a region, an

@@ -159,14 +159,39 @@ enum StoreLock {
         verdict(for: build).action == .own
     }
 
-    /// A sentence for a person. Never a pid: what matters is which application,
-    /// and — when it is elsewhere — which machine.
-    static func describe(_ verdict: Verdict, selfHost: String = ProcessInfo.processInfo.hostName) -> String? {
+    /// Who holds it, as FACTS rather than a sentence.
+    ///
+    /// The sentence used to be built here, and this file is nonisolated — it
+    /// runs below the interface with no language in scope — so the sidebar
+    /// line every screen carries read "Khayt for Mac has this book open" in
+    /// English under an Arabic toolbar. Facts have no language; the window
+    /// says them in the shop's.
+    ///
+    /// Never a pid: what matters is which application, and — when it is
+    /// elsewhere — which machine.
+    struct Held: Equatable, Sendable {
+        /// The application's own name, or nil when it did not give one.
+        let app: String?
+        /// The other machine, or nil when it is this one.
+        let host: String?
+    }
+
+    static func held(_ verdict: Verdict, selfHost: String = ProcessInfo.processInfo.hostName) -> Held? {
         guard verdict.action == .held, let holder = verdict.holder else { return nil }
-        let who = (holder.app ?? "").isEmpty ? "Another copy of Khayt" : holder.app!
         let theirHost = host(holder.host)
-        let where_ = (!theirHost.isEmpty && theirHost != host(selfHost))
-            ? " on \(holder.host ?? "")" : ""
+        let elsewhere = !theirHost.isEmpty && theirHost != host(selfHost)
+        return Held(app: (holder.app ?? "").isEmpty ? nil : holder.app,
+                    host: elsewhere ? holder.host : nil)
+    }
+
+    /// The same, in English, for the writer's refusals.
+    ///
+    /// Those are the layer that has no language either and, unlike the sidebar
+    /// line, no view to hand the words to — see `WordsAreTranslatedTests.exempt`.
+    static func describe(_ verdict: Verdict, selfHost: String = ProcessInfo.processInfo.hostName) -> String? {
+        guard let holder = held(verdict, selfHost: selfHost) else { return nil }
+        let who = holder.app ?? "Another copy of Khayt"
+        let where_ = holder.host.map { " on \($0)" } ?? ""
         return "\(who)\(where_) has this book open"
     }
 }

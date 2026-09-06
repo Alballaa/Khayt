@@ -41,15 +41,43 @@
   const NUMERAL_SELECTOR = '.amount, .v, .qty, td.center, td.amount, .biz-meta, .meta';
 
 /**
+ * A phone number, an email, a registration — anything Latin inside an Arabic
+ * document — kept in the order it was typed.
+ *
+ * ## The bug this exists for
+ *
+ * A Saudi shop's phone is `+966 50 000 0000`: Latin digits, spaces and a plus
+ * sign, and NOT ONE character of it has a strong direction. Dropped into the
+ * `dir="rtl"` invoice, the Unicode bidi algorithm gives those runs the
+ * paragraph's direction, and the printed invoice read
+ *
+ *     0000 000 50 966+
+ *
+ * — the shop's own phone number, backwards, on a document a customer keeps.
+ * The groups are not scrambled at random: they are laid out right to left,
+ * which is exactly what the algorithm is specified to do with neutral runs.
+ *
+ * `<bdi>` is the element for this and it is all that is needed: "isolate this
+ * text from the direction around it". Not `dir="ltr"`, which would also
+ * left-ALIGN the value inside a right-aligned block.
+ */
+function isolate(text, escape) {
+  return `<bdi>${escape(text)}</bdi>`;
+}
+
+/**
  * Phone and email, under the name a job is billed to.
  *
  * Both are optional and a customer with neither gets no line at all — an empty
  * strip under the name reads as a detail that failed to load.
  */
 function contactLine(client, escape) {
-  const bits = [client && client.phone, client && client.email].filter(Boolean).join(' \u00b7 ');
+  const bits = [client && client.phone, client && client.email]
+    .filter(Boolean)
+    .map((bit) => isolate(bit, escape))
+    .join(' \u00b7 ');
   if (!bits) return '';
-  return `<div class="name-sub">${escape(bits)}</div>`;
+  return `<div class="name-sub">${bits}</div>`;
 }
 
 function invoiceHtml(order, ctx) {
@@ -244,12 +272,14 @@ function invoiceHtml(order, ctx) {
         <td class="amount">${fmtMoney(+l.amount || 0)} <span style="color:var(--ink-mute); font-weight:500;">${invCurrSym}</span></td>
       </tr>`).join('');
 
-  // Compact contact line in the header
+  // Compact contact line in the header. Each datum isolated — see `isolate`:
+  // every one of these is Latin text with no direction of its own, and in the
+  // Arabic document they came out back to front.
   const contactBits = [
     settings.phone, settings.email,
     settings.cr ? `CR ${settings.cr}` : '',
     settings.vat ? `VAT ${settings.vat}` : ''
-  ].filter(Boolean).join(' · ');
+  ].filter(Boolean).map((bit) => isolate(bit, escapeHtml)).join(' · ');
 
   /* The shop's own text, in the document's languages.
    *
@@ -350,7 +380,7 @@ function invoiceHtml(order, ctx) {
             <div class="biz-meta">
               ${addrPrimary ? `<p>${escapeHtml(addrPrimary)}</p>` : ''}
               ${biContent && addrSecondary ? `<p class="${isAr ? 'ltr' : 'ar-line ar'}">${escapeHtml(addrSecondary)}</p>` : ''}
-              ${contactBits ? `<p>${escapeHtml(contactBits)}</p>` : ''}
+              ${contactBits ? `<p>${contactBits}</p>` : ''}
             </div>
           </div>
         </div>
@@ -529,7 +559,7 @@ function invoiceHtml(order, ctx) {
   return { html, arabicNumerals: !!(isAr && settings.useArabicNumerals),
            selector: NUMERAL_SELECTOR };
 }
-const api = { invoiceHtml, contactLine, NUMERAL_SELECTOR };
+const api = { invoiceHtml, contactLine, isolate, NUMERAL_SELECTOR };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 global.KhaytInvoiceDocument = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);
