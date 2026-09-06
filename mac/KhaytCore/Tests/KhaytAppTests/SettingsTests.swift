@@ -105,10 +105,68 @@ struct SettingsTests {
         draft.wipEnforceHardLimit = true
         draft.qcEnabled = true; draft.qcRequireInspector = true; draft.qcRequirePhotoOnFail = true
         draft.qcWarrantyDays = 45
+        draft.monthlyGoal = 9000
+        draft.budgets = ["filament": 1500, "electricity": 500, "maintenance": 300,
+                         "tools": 250, "shipping": 200, "other": 300]
+        draft.payReminderEnabled = true; draft.payReminderGrace = 7
+        draft.quoteFollowUpEnabled = true; draft.quoteFollowUpWindow = 5
         let out = try await Self.engine(shop).applySettings(shop.settingsDict, form: draft.form(), year: 2026)
         #expect(OperationsPane.Draft.read(out, shop: shop) == draft)
         // A WIP limit of zero is no limit, and is not stored as a zero.
         #expect(Self.object(out["wipLimits"])["post"] == nil)
+    }
+
+    /// A budget the Spending screen draws a bar against.
+    ///
+    /// That screen has read `expBudgets` since it was built, and until now
+    /// nothing in this app could write one — so every shop looked at a bar
+    /// measured against zero. The two ends are checked together here, because
+    /// a settings field that saves to a key the report does not read is the
+    /// same amount of nothing.
+    @Test("a budget set in Operations is the budget the Spending screen reads")
+    func budgetsReachTheReport() async throws {
+        let shop = try await Self.sample()
+        var draft = OperationsPane.Draft.read(shop.settingsDict, shop: shop)
+        draft.budgets["filament"] = 1500
+        draft.budgets["electricity"] = 400
+        let out = try await Self.engine(shop).applySettings(shop.settingsDict, form: draft.form(), year: 2026)
+
+        let stored = Self.object(out["expBudgets"])
+        #expect(Self.number(stored["filament"]) == 1500)
+        #expect(Self.number(stored["electricity"]) == 400)
+
+        // And the report agrees, through the module that draws the bar.
+        let rows = try await Self.engine(shop).budgetProgress(
+            ["filament": 2130, "electricity": 100], budgets: stored)
+        let filament = try #require(rows.first { $0.category == "filament" })
+        #expect(filament.budget == 1500)
+        #expect(filament.over, "2,130 spent against 1,500 is over")
+        let electricity = try #require(rows.first { $0.category == "electricity" })
+        #expect(!electricity.over)
+    }
+
+    /// THE TRAP in `settings-edit.js`: when the form carries `budgets` at all,
+    /// it REBUILDS `expBudgets` from its own category list rather than merging.
+    /// A pane that sent only the categories a shop had touched would silently
+    /// zero the rest, so the form sends all six every time.
+    @Test("saving one budget does not zero the other five")
+    func budgetsAreNotPartial() async throws {
+        let shop = try await Self.sample()
+        var first = OperationsPane.Draft.read(shop.settingsDict, shop: shop)
+        for category in Shop.expenseCategories { first.budgets[category] = 100 }
+        let once = try await Self.engine(shop).applySettings(
+            shop.settingsDict, form: first.form(), year: 2026)
+
+        var second = OperationsPane.Draft.read(once, shop: shop)
+        second.budgets["filament"] = 999
+        let twice = try await Self.engine(shop).applySettings(once, form: second.form(), year: 2026)
+
+        let stored = Self.object(twice["expBudgets"])
+        #expect(Self.number(stored["filament"]) == 999)
+        for category in Shop.expenseCategories where category != "filament" {
+            #expect(Self.number(stored[category]) == 100,
+                    "\(category) was zeroed by a save that never mentioned it")
+        }
     }
 
     @Test("the Preferences pane round-trips every field")

@@ -104,7 +104,11 @@ public final class JSRuntime {
                           // name, and every engine in the test suite refused to
                           // start — 214 failures from one missing entry, which
                           // is exactly the loud failure this check is for.
-                          "thumbnail-extract": "KhaytThumb"]
+                          "thumbnail-extract": "KhaytThumb",
+                          // `quote-followup.js` publishes `KhaytQuoteFollowUp`
+                          // — a capital U that the hyphen does not carry, so
+                          // the derived name misses by one letter.
+                          "quote-followup": "KhaytQuoteFollowUp"]
         if let known = exceptions[module] { return known }
         let camel = module.split(separator: "-").map { $0.prefix(1).uppercased() + $0.dropFirst() }.joined()
         return "Khayt\(camel)"

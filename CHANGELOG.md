@@ -584,6 +584,14 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **Four settings the Mac app could not change, and the two rules it was not
+  running.** *Monthly expense budgets* — the Spending screen has drawn a bar
+  against them since it was built and there was nowhere to set one, so every
+  shop was measured against zero. *Monthly revenue goal*, now with a bar under
+  the dashboard's tiles. *Auto-flag overdue invoices* and *Auto-nudge expiring
+  quotes*, which pick out what to chase — both are new lists on the dashboard,
+  and both stay off until you switch them on.
+
 - **Four things an Arabic shop saw that nobody had looked at.** The Mac app's
   right-to-left layout had never been photographed. The sidebar's footer — the
   backup date, the sync line, who has the book open — had nothing painted

@@ -108,6 +108,22 @@ public struct DashboardFacts: Decodable, Sendable {
     }
 }
 
+/// Something to chase: an invoice past its due date, or a quote about to run
+/// out. `lib/payment-reminder.js` and `lib/quote-followup.js` decide WHICH —
+/// each has its own grace period, cooldown and cap, and neither is a filter
+/// this app is allowed to guess at.
+public struct Chase: Decodable, Sendable, Identifiable, Hashable {
+    public let id: String
+    public let name: String?
+    /// Days PAST the due date for an invoice; days UNTIL expiry for a quote.
+    /// Both come from the module that selected the row.
+    public let days: Int?
+
+    public init(id: String, name: String?, days: Int?) {
+        self.id = id; self.name = name; self.days = days
+    }
+}
+
 
 // MARK: - The shop floor
 

@@ -41,8 +41,14 @@ struct Dashboard: View {
                 // dismissed while the shop was making coffee is a notification
                 // it never had, so the alerts are on the screen as well.
                 WentWrong(shop: shop)
+                // Money to go after, which is a different question from "is
+                // anything wrong" and belongs under it. Both lists are opt-in
+                // — the two switches are in Settings → Operations — and the
+                // section is absent when neither has anything.
+                ToChase(shop: shop)
                 if shop.facts?.showsMoney != false {
                     MoneyTiles(shop: shop)
+                    Goal(shop: shop)
                     // Under the tiles, because the tiles answer "what is it
                     // now" and this answers "is that good" — which is the
                     // second question, not the first.
@@ -60,6 +66,107 @@ struct Dashboard: View {
                 ContentUnavailableView(shop.words.callIt("mac.no_figures"),
                                        systemImage: "chart.bar",
                                        description: Text(shop.words.callIt("mac.no_figures_hint")))
+            }
+        }
+    }
+}
+
+/// The invoices and quotes the shop said it wanted chasing.
+///
+/// `lib/payment-reminder.js` and `lib/quote-followup.js` choose the rows —
+/// each with its own grace period, cooldown and cap — and both return nothing
+/// until the shop turns them on. So this draws nothing on a book that has not
+/// asked for it, which is the point: a permanently empty section is a section
+/// people stop reading.
+private struct ToChase: View {
+    let shop: Shop
+
+    var body: some View {
+        if !shop.invoicesToChase.isEmpty || !shop.quotesToChase.isEmpty {
+            VStack(alignment: .leading, spacing: 14) {
+                if !shop.invoicesToChase.isEmpty {
+                    list(shop.words.callIt("mac.chase_invoices"),
+                         "exclamationmark.circle", shop.invoicesToChase, overdue: true)
+                }
+                if !shop.quotesToChase.isEmpty {
+                    list(shop.words.callIt("dash.expiring_quotes"),
+                         "clock.badge.questionmark", shop.quotesToChase, overdue: false)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func list(_ title: String, _ symbol: String,
+                      _ rows: [Chase], overdue: Bool) -> some View {
+        DetailSection(title) {
+            VStack(spacing: 0) {
+                ForEach(rows) { row in
+                    HStack(spacing: 10) {
+                        Image(systemName: symbol)
+                            .foregroundStyle(Khayt.attention)
+                            .frame(width: 18)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(row.name?.isEmpty == false ? row.name! : row.id).lineLimit(1)
+                            Text(row.id).font(.caption2).monospacedDigit().foregroundStyle(.tertiary)
+                        }
+                        Spacer(minLength: 8)
+                        Text(age(row, overdue: overdue))
+                            .font(.callout).monospacedDigit()
+                            .foregroundStyle(Khayt.attention)
+                    }
+                    .padding(.vertical, 7)
+                    if row.id != rows.last?.id { Divider() }
+                }
+            }
+            .padding(.horizontal, 12)
+            .background(.quinary, in: RoundedRectangle(cornerRadius: 8))
+        }
+    }
+
+    /// The module's own figure, said the right way round for each list:
+    /// `daysOverdue` counts up from a due date, `daysUntilExpiry` counts down
+    /// to one — and a quote whose day has come is neither "in 0 days" nor
+    /// overdue, it has expired.
+    private func age(_ row: Chase, overdue: Bool) -> String {
+        guard let days = row.days else { return "" }
+        if overdue { return shop.words.callIt("mac.chase_days_over", ["n": .number(Double(days))]) }
+        if days <= 0 { return shop.words.callIt("mac.chase_expired") }
+        return shop.words.callIt("mac.chase_days_left", ["n": .number(Double(days))])
+    }
+}
+
+/// This month against the target the shop set.
+///
+/// Nothing at all when the target is zero, which `dash.goal_hint` states is
+/// how you switch it off. The figure is `kpis` for the month, so it is the
+/// same revenue the tiles above show when the period is This month — not a
+/// second opinion about what counts.
+private struct Goal: View {
+    let shop: Shop
+
+    var body: some View {
+        let goal = Shop.plainNumber(shop.settingsDict["monthlyGoal"]) ?? 0
+        if goal > 0 {
+            let done = shop.thisMonthRevenue
+            DetailSection(shop.words.callIt("dash.goal")) {
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Text(Money.text(done, shop.currency)).monospacedDigit()
+                        Text("/").foregroundStyle(.tertiary)
+                        Text(Money.text(goal, shop.currency))
+                            .monospacedDigit().foregroundStyle(.secondary)
+                        Spacer()
+                        Text("\(Int((done / goal * 100).rounded()))%")
+                            .monospacedDigit()
+                            .foregroundStyle(done >= goal ? AnyShapeStyle(Khayt.done)
+                                                          : AnyShapeStyle(.secondary))
+                    }
+                    ProgressView(value: min(1, done / goal))
+                        .tint(done >= goal ? Khayt.done : Khayt.cyan)
+                }
+                .padding(12)
+                .background(.quinary, in: RoundedRectangle(cornerRadius: 8))
             }
         }
     }
