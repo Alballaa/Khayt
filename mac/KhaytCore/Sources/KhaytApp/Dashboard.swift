@@ -106,16 +106,17 @@ private struct ToChase: View {
                         Image(systemName: symbol)
                             .foregroundStyle(Khayt.attention)
                             .frame(width: 18)
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text(row.name?.isEmpty == false ? row.name! : row.id).lineLimit(1)
-                            Text(row.id).font(.caption2).monospacedDigit().foregroundStyle(.tertiary)
-                        }
+                        // One line, as the attention list above it. Two lists
+                        // of the same shape reading differently is the reader
+                        // wondering what the difference means.
+                        Text(row.name?.isEmpty == false ? row.name! : row.id).lineLimit(1)
+                        Text(row.id).font(.caption2).monospacedDigit().foregroundStyle(.tertiary)
                         Spacer(minLength: 8)
                         Text(age(row, overdue: overdue))
                             .font(.callout).monospacedDigit()
                             .foregroundStyle(Khayt.attention)
                     }
-                    .padding(.vertical, 7)
+                    .padding(.vertical, 5)
                     if row.id != rows.last?.id { Divider() }
                 }
             }
@@ -185,13 +186,17 @@ private struct NeedsAttention: View {
                         Image(systemName: symbol(item.kind))
                             .foregroundStyle(item.severity == "bad" ? Khayt.late : Khayt.attention)
                             .frame(width: 18)
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text(item.name ?? item.id).lineLimit(1)
-                            Text(item.id)
-                                .font(.caption2)
-                                .monospacedDigit()
-                                .foregroundStyle(.tertiary)
-                        }
+                        // ONE LINE, not two. This list is read at a glance and
+                        // its job is to be complete on the screen: stacking the
+                        // order number under the name doubled the height of
+                        // every row, so six late jobs filled the window and a
+                        // seventh was below the fold — which is the one thing a
+                        // list of what is wrong must not do.
+                        Text(item.name ?? item.id).lineLimit(1)
+                        Text(item.id)
+                            .font(.caption2)
+                            .monospacedDigit()
+                            .foregroundStyle(.tertiary)
                         Spacer(minLength: 8)
                         if let late = item.daysLate, late > 0 {
                             // Said in words, not by colour alone. This is the
@@ -205,7 +210,7 @@ private struct NeedsAttention: View {
                                 .foregroundStyle(Khayt.attention)
                         }
                     }
-                    .padding(.vertical, 7)
+                    .padding(.vertical, 5)
                     if item.id != items.last?.id { Divider() }
                 }
             }
