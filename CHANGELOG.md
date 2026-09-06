@@ -601,6 +601,14 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **The Mac screenshot runner no longer aborts partway through.** It took its
+  dark screenshots and then switched the app to light for the rest, and AppKit
+  ends that switch by invalidating constraints from inside the draw it causes —
+  an abort with no reason attached, three runs out of three. Dark and light are
+  separate runs now (`KHAYT_SNAPSHOT_DARK=1` for the dark set), so no process
+  ever changes appearance and neither can abort. Developer tooling only; the
+  app itself was never affected.
+
 - **Four settings the Mac app could not change, and the two rules it was not
   running.** *Monthly expense budgets* — the Spending screen has drawn a bar
   against them since it was built and there was nowhere to set one, so every

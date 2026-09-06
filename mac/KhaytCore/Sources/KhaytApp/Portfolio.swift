@@ -33,8 +33,8 @@ struct Portfolio: View {
     /// the `_postWindowNeedsUpdateConstraints` abort in the screenshot runner.
     /// A bisect put that crash on a commit predating this screen entirely; the
     /// trigger is the dark-to-light appearance switch, where a search field
-    /// attaches its cancel-button cell mid-draw. `KHAYT_SNAPSHOT_DARK=0`
-    /// captures cleanly. Left written down because the wrong story was
+    /// attaches its cancel-button cell mid-draw — so dark and light are two
+    /// runs now rather than one. Left written down because the wrong story was
     /// convincing enough to be believed twice.
     private var shown: [Shop.Snapshot] {
         let term = shop.search.trimmingCharacters(in: .whitespaces).lowercased()

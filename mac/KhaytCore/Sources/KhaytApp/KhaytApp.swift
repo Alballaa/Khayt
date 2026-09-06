@@ -106,6 +106,18 @@ final class Activator: NSObject, NSApplicationDelegate {
 /// * `NSVisualEffectView` draws nothing into an offline bitmap, so the sidebar
 ///   comes out black and empty. Confirm a sidebar you doubt by running once with
 ///   `.listStyle(.plain)`, which has no material, rather than by "fixing" it.
+///
+///   The pane shot of that sidebar is worse than empty, because it looks fine.
+///   Its appearance really is `vibrantDark`, and vibrant labels draw as an
+///   ALPHA MASK for the window server to composite: every pixel in
+///   `…-pane1.png` is RGB(0,0,0) varying only in alpha — counted, not guessed.
+///   Anything that shows transparency as white then renders a crisp picture of
+///   black text on white paper, which is indistinguishable from a dark mode
+///   that does not work. In the light run the same mask looks right by
+///   accident. Forcing the subtree out of vibrancy and flattening it onto
+///   `windowBackgroundColor` was tried: the labels still draw as a black mask,
+///   now on a dark ground, so they vanish instead. Judge the sidebar from the
+///   app, not from this file.
 /// `capturePanes` photographs each scrolling pane on its own, for when the window
 /// shot leaves a doubt. It has the opposite blind spot — it loses what a pane
 /// draws into its own layer, so thumbnails go missing there — which is why both
@@ -140,7 +152,30 @@ final class Activator: NSObject, NSApplicationDelegate {
             // them without a real redisplay. The content area flipped fine,
             // which is what made it look like the capture rather than the app.
             // Built dark from the outset, the whole window is dark.
-            let dark = ProcessInfo.processInfo.environment["KHAYT_SNAPSHOT_DARK"] != "0"
+            // DARK AND LIGHT ARE SEPARATE RUNS, not two halves of one.
+            //
+            // Changing `NSApp.appearance` partway through is what took this
+            // harness down, every time, at the same frame:
+            //
+            //     -[NSSearchFieldCell drawInteriorWithFrame:inView:]
+            //     -[NSButtonCell _controlViewDidChangeEffectiveAppearance:]
+            //     _invalidateIntrinsicContentSizeDirtyingConstraints:
+            //     -[NSWindow _postWindowNeedsUpdateConstraints]  → abort
+            //
+            // The search field attaches its cancel-button cell the first time
+            // it draws under the new appearance, and invalidating constraints
+            // from inside a layout pass is the one thing AppKit will not
+            // forgive. Three attempts to drain the layout BEFORE the capture
+            // all failed, because the invalidation is caused BY the draw and
+            // does not exist until it happens.
+            //
+            // A process that never changes appearance never reaches that
+            // frame. `KHAYT_SNAPSHOT_DARK=1` photographs the dark screens and
+            // stops; any other value, or none, is an ordinary light run. Two
+            // invocations give both sets, and neither can abort. Verified over
+            // three dark and three light runs, all clean, where the combined
+            // run had aborted three times out of three.
+            let dark = ProcessInfo.processInfo.environment["KHAYT_SNAPSHOT_DARK"] == "1"
             if dark {
                 NSApp.appearance = NSAppearance(named: .darkAqua)
                 for window in NSApp.windows { window.appearance = NSAppearance(named: .darkAqua) }
@@ -183,10 +218,9 @@ final class Activator: NSObject, NSApplicationDelegate {
                 subject?.shelf = .jobs(nil)
                 try? await Task.sleep(for: .milliseconds(700))
                 capture(named: "01-dark-jobs", into: dir)
-                NSApp.appearance = NSAppearance(named: .aqua)
-                for window in NSApp.windows { window.appearance = NSAppearance(named: .aqua) }
-                subject?.shelf = .dashboard
-                try? await Task.sleep(for: .seconds(1))
+                // Stop here. Everything below is photographed by the light run.
+                NSApp.terminate(nil)
+                return
             }
             capture(named: "00-dashboard", into: dir)
             // Again once the printers have answered: the live strip is the one
