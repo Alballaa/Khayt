@@ -657,6 +657,11 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **"1 days late."** The Mac's dashboard said it to every shop with a job one
+  day over. The count sits inside the sentence rather than in front of it —
+  Arabic puts متأخر before the number — so the sentence itself now has a
+  singular, in both languages.
+
 - **The Mac's filament shelf no longer shows a cost-per-kilo that climbs as you
   print.** It was the spool's price divided by the grams REMAINING, so a 1 kg
   roll bought at 75 read 150 once it was half gone — and worst on the nearly

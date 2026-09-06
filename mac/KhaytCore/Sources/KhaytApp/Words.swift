@@ -509,7 +509,12 @@ final class Words {
         "mac.avg_order":     ["en": "Average job",     "ar": "متوسط العمل"],
         "mac.gross":         ["en": "Gross profit",    "ar": "الربح الإجمالي"],
         "mac.on_time":       ["en": "On time",         "ar": "في الموعد"],
+        // TWO KEYS, and `counting` cannot do this one. That helper puts the
+        // number first — "3 " + noun — which is right for "3 jobs" and wrong
+        // here, because Arabic says متأخر before the count. So the placeholder
+        // stays inside the sentence and the SENTENCE has a singular.
         "mac.days_late":     ["en": "{n} days late",   "ar": "متأخر {n} يوماً"],
+        "mac.days_late_one": ["en": "{n} day late",    "ar": "متأخر {n} يوماً"],
         "mac.no_figures":    ["en": "No figures yet",  "ar": "لا أرقام بعد"],
         "mac.no_figures_hint": ["en": "They appear once the shop's book has loaded.",
                                 "ar": "تظهر بعد تحميل دفتر المحل."],

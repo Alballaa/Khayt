@@ -286,3 +286,34 @@ struct WordsAreTranslatedTests {
         }
     }
 }
+
+/// One of a thing, said as one.
+@MainActor
+struct SingularTests {
+    /// "1 days late" was on the dashboard of every shop with a job one day
+    /// over. `counting` cannot fix this one: it puts the number first — right
+    /// for "3 jobs", wrong here, because Arabic says متأخر before the count. So
+    /// the placeholder stays inside the sentence and the sentence has a
+    /// singular, which BOTH languages have to carry.
+    ///
+    /// Asserted against the catalogue rather than a loaded `Words`, which takes
+    /// its language from the engine and cannot be asked for one directly.
+    @Test("a sentence with a count inside it has a singular in every language")
+    func sentencesWithCountsHaveSingulars() throws {
+        for key in ["mac.days_late"] {
+            let many = try #require(Words.own[key], "\(key) is missing")
+            let one = try #require(Words.own[key + "_one"], "\(key)_one is missing")
+            for language in ["en", "ar"] {
+                let singular = try #require(one[language], "\(key)_one has no \(language)")
+                let plural = try #require(many[language], "\(key) has no \(language)")
+                // The count still has somewhere to go in both.
+                #expect(singular.contains("{n}"), "\(language) singular lost its count")
+                #expect(plural.contains("{n}"), "\(language) plural lost its count")
+            }
+            // And in English they actually differ, or the singular is decoration.
+            #expect(one["en"] != many["en"], "the English singular is the plural")
+        }
+        #expect(Words.own["mac.days_late_one"]?["en"] == "{n} day late")
+        #expect(Words.own["mac.days_late"]?["en"] == "{n} days late")
+    }
+}
