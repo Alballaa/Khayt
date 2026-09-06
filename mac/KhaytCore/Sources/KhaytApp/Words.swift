@@ -640,6 +640,14 @@ final class Words {
         // flat line the reader has to interpret.
         "mac.takings_flat":  ["en": "Six months, side by side.",
                               "ar": "ستة أشهر، جنبًا إلى جنب."],
+        // Adding a model to the library.
+        "mac.add_model":     ["en": "Add model", "ar": "إضافة نموذج"],
+        "mac.adding_model":  ["en": "Measuring\u{2026}", "ar": "جارٍ القياس\u{2026}"],
+        // The triangle count, because it is the one number that says the file
+        // was actually read rather than merely copied.
+        "mac.model_added":   ["en": "Added {name} — {n} triangles.",
+                              "ar": "أُضيف {name} — {n} مثلثًا."],
+        "mac.model_added_plain": ["en": "Added {name}.", "ar": "أُضيف {name}."],
         // The slicers pane. Khayt calls the section "Slicer" already —
         // `slicer.settings_title` — so the tab reuses it rather than inventing
         // a second name for the same page in the same shop.

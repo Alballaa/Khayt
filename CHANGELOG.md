@@ -540,6 +540,13 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   same settings Khayt uses. It opens the app you already have running rather
   than starting a second copy of it.
 
+- **You can add a model to the library from the Mac app.** ⇧⌘I, or *Add model*
+  in the File menu: pick an STL, 3MF, OBJ or g-code file and Khayt copies it in,
+  measures it, pulls out the preview and the filament colours a slicer left in
+  it, and writes the entry — the same entry the other app would have written, in
+  the same place. A file you already have is recognised and refused by name
+  rather than added twice.
+
 - **And it reads 3MF, which is what your library is made of.** The mesh inside a
   3MF is measured on the Mac exactly as Khayt measures it — checked by comparing
   against the models already in the library, where the answer matches to the

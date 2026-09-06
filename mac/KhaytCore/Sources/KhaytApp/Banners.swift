@@ -17,6 +17,19 @@ struct MoveBanners: View {
         if let problem = shop.moveProblem {
             Banner(text: problem, symbol: "exclamationmark.triangle", tint: Khayt.attention)
         }
+        // What adding a model had to say. A refusal — a duplicate, a kind Khayt
+        // does not read — is the common case and is not an error.
+        if let problem = shop.importProblem {
+            Banner(text: problem, symbol: "exclamationmark.triangle", tint: Khayt.attention)
+        }
+        if let note = shop.importNote {
+            Banner(text: note, symbol: "checkmark.circle", tint: Khayt.done)
+        }
+        if shop.importing {
+            Banner(text: shop.words.callIt("mac.adding_model"),
+                   symbol: "gearshape.arrow.trianglehead.2.clockwise.rotate.90",
+                   tint: Khayt.cyan)
+        }
         // A slicer that would not open. It belongs here for the same reason a
         // refused move does: the gesture was a menu item on a model, and there
         // is nowhere on that menu for an answer to appear.

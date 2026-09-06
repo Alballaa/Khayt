@@ -1,4 +1,5 @@
 import Foundation
+import UniformTypeIdentifiers
 import AppKit
 import Observation
 import KhaytCore
@@ -2079,6 +2080,56 @@ final class Shop {
 
     /// The live poll. Started when a book is opened and stopped with it, so a
     /// window showing the sample shop is not knocking on a shop's printers.
+    // MARK: - Adding a model
+
+    /// What the last import had to say. Cleared by the next one.
+    var importNote: String?
+    var importProblem: String?
+    /// True while a model is being measured. A 46 MB 3MF takes a few seconds
+    /// and a window that looks frozen for a few seconds is a window somebody
+    /// clicks again.
+    private(set) var importing = false
+
+    /// Ask for a file and add it.
+    func addModelToLibrary() async {
+        importNote = nil
+        importProblem = nil
+        guard source.build != nil else {
+            importProblem = words.callIt("mac.move_sample"); return
+        }
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.prompt = words.callIt("mac.add_model")
+        panel.allowedContentTypes = LibraryImport.kinds.compactMap {
+            UTType(filenameExtension: $0)
+        }
+        // A slicer's own type is not always registered on a Mac that has no
+        // slicer, and a panel that will open nothing is worse than one that
+        // opens too much.
+        panel.allowsOtherFileTypes = true
+        guard panel.runModal() == .OK, let picked = panel.url else { return }
+        await addModelToLibrary(picked)
+    }
+
+    /// The same, for a file that arrived some other way.
+    func addModelToLibrary(_ url: URL) async {
+        importing = true
+        defer { importing = false }
+        do {
+            let added = try await LibraryImport.add(url, shop: self)
+            importNote = added.measured
+                ? words.callIt("mac.model_added",
+                               ["name": .string(added.name),
+                                "n": .number(Double(added.triangleCount ?? 0))])
+                : words.callIt("mac.model_added_plain", ["name": .string(added.name)])
+        } catch let refusal as LibraryImport.Failure {
+            importProblem = refusal.description
+        } catch {
+            importProblem = String(describing: error)
+        }
+    }
+
     // MARK: - The shop's slicers
 
     /// The slicers this shop has configured, read by the shared rule.

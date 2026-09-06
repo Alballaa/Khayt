@@ -235,6 +235,11 @@ public actor KhaytEngine {
         // read `o.price` instead would count a foreign job at its face value
         // and every credit note at nothing.
         "forecast",
+        // What a slicer's configs say a model is printed in. `colorsFromConfigs`
+        // takes the config TEXT rather than an open zip, which is what lets it
+        // be shared at all: `lib/zip-read.js` needs Buffer and zlib, and the
+        // Mac opens a 3MF with its own reader.
+        "thumbnail-extract",
         // What makes two library records the same MESH. Bundled so the key this
         // app writes is the key Khayt reads — three numbers joined by
         // punctuation is exactly what two implementations agree on until they
@@ -493,6 +498,28 @@ public actor KhaytEngine {
         [.array(orders), .array(clients), .object(settings),
          .number(now), .number(Double(months)), .number(Double(periods))],
         as: RevenueOutlook.self)
+    }
+
+    // MARK: - What a model is printed in
+
+    /// The filament colours a 3MF's slicer configs describe.
+    public struct Colours: Decodable, Sendable, Equatable {
+        public let colors: [JSONValue]
+        public let swapCount: Int
+    }
+
+    /// Reads the CONFIG TEXT, not a zip — see `lib/thumbnail-extract.js`. Three
+    /// slicer formats and their precedence live there, and re-implementing them
+    /// is how two apps come to disagree about what a model is printed in.
+    public func coloursFromConfigs(sliceInfo: String, projectSettings: String,
+                                   modelSettings: String, prusa: String) throws -> Colours {
+        try runtime.call2("""
+        globalThis.KhaytThumb.colorsFromConfigs({
+          sliceInfo: ARG0, projectSettings: ARG1, modelSettings: ARG2, prusa: ARG3
+        })
+        """,
+        [.string(sliceInfo), .string(projectSettings), .string(modelSettings), .string(prusa)],
+        as: Colours.self)
     }
 
     // MARK: - Is this the same model

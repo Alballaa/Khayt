@@ -32,6 +32,14 @@ struct LibraryFile: Identifiable, Decodable, Hashable, Sendable {
     let folder: String?
     let material: String?
     let favorite: Bool?
+    /// SHA-256 of the file's bytes.
+    ///
+    /// The CERTAIN half of `lib/model-identity.js`'s pair — "the bytes are
+    /// identical. Same file." — against `geometryKey` below, which that module
+    /// calls "a STRONG HINT and nothing more". Read because adding a model has
+    /// to be able to say "you already have this", and that answer may only come
+    /// from the hash.
+    let contentHash: String?
     /// `triangles:volumeMm3:XxYxZ`, composed by `lib/model-identity.js`.
     let geometryKey: String?
     let timesPrinted: Int?

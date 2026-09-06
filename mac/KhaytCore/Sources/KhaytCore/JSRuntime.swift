@@ -97,7 +97,14 @@ public final class JSRuntime {
         // module should be named for its global instead, because this check is
         // the only thing that catches a module that loads and defines nothing.
         let exceptions = ["store-validate": "KhaytStoreValidate",
-                          "pnl-report": "KhaytPnl"]
+                          "pnl-report": "KhaytPnl",
+                          // `thumbnail-extract.js` publishes `KhaytThumb`. Same
+                          // shape as the two above and caught the same way: the
+                          // module loaded, defined its global under another
+                          // name, and every engine in the test suite refused to
+                          // start — 214 failures from one missing entry, which
+                          // is exactly the loud failure this check is for.
+                          "thumbnail-extract": "KhaytThumb"]
         if let known = exceptions[module] { return known }
         let camel = module.split(separator: "-").map { $0.prefix(1).uppercased() + $0.dropFirst() }.joined()
         return "Khayt\(camel)"
