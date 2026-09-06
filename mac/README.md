@@ -255,7 +255,16 @@ model showed no date at all.
 
 The copy goes in before the duplicate check, because the check needs the hash
 and the hash needs the bytes — and if the check refuses, the copy is taken back
-out. A refusal leaves neither a record nor a file.
+out. A refusal leaves neither a record nor a file, and neither does a book that
+will not accept the write. Both are tested, because a vault filling with files
+no record points at is the failure nobody notices until the disk does.
+
+`add` comes in two forms, and the second is not a convenience: addressed by path
+rather than by `Shop`, it is the seam that lets the whole import run against a
+throwaway store and a throwaway vault — a real file copied, really measured, a
+real record written, and the book read back through `LibraryFile`. `StoreWriter`
+splits itself the same way and for the same reason: an import whose only trial
+run was on a shop's live library has not been tested, it has been risked.
 
 `vaultFilename` keeps Arabic and drops separators, so nothing written can climb
 out of the record's own folder, and a second file of the same name becomes

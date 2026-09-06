@@ -111,12 +111,39 @@ enum LibraryImport {
         guard let roots = shop.libraryRoots else { throw Failure.noLibrary }
         guard let engine = shop.engine else { throw Failure.failed("the engine is not loaded") }
 
+        let added = try await add(source,
+                                  storeURL: build.storeURL,
+                                  libraryRoot: URL(fileURLWithPath: roots.primary),
+                                  knownHashes: Set(shop.files.compactMap(\.contentHash)),
+                                  nameOfExisting: { hash in
+                                      shop.files.first { $0.contentHash == hash }?.title
+                                  },
+                                  engine: engine,
+                                  owns: { StoreLock.weOwnIt(build) },
+                                  whoHasIt: { StoreLock.describe(StoreLock.verdict(for: build)) })
+        await shop.load(shop.source)
+        return added
+    }
+
+    /// The import itself, addressed by path.
+    ///
+    /// NOT a convenience: it is the seam the test needs. Everything below —
+    /// copying a real file, measuring it, writing a real record into a real
+    /// store — runs against a throwaway directory in the tests, because an
+    /// import whose only trial run was on a shop's live library has not been
+    /// tested, it has been risked. `StoreWriter` splits itself the same way and
+    /// says the same thing.
+    static func add(_ source: URL, storeURL: URL, libraryRoot: URL,
+                    knownHashes: Set<String>,
+                    nameOfExisting: (String) -> String?,
+                    engine: KhaytEngine,
+                    owns: @escaping () -> Bool,
+                    whoHasIt: @escaping () -> String?) async throws -> Added {
         let ext = source.pathExtension.lowercased()
         guard kinds.contains(ext) else { throw Failure.unknownKind(ext) }
 
         let id = "PF-" + Shop.uid("").replacingOccurrences(of: "_", with: "")
-        let dir = URL(fileURLWithPath: roots.primary)
-            .appending(path: LibraryLocation.itemDirName(id))
+        let dir = libraryRoot.appending(path: LibraryLocation.itemDirName(id))
         do {
             try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         } catch { throw Failure.failed(error.localizedDescription) }
@@ -140,9 +167,9 @@ enum LibraryImport {
         // bytes are cheapest to read where they are going. A record is only
         // written after this, so a refusal here leaves the book untouched — but
         // it must not leave the copy behind either.
-        if let hash, let existing = shop.files.first(where: { file in file.contentHash == hash }) {
+        if let hash, knownHashes.contains(hash) {
             try? FileManager.default.removeItem(at: dir)
-            throw Failure.alreadyHere(existing.title)
+            throw Failure.alreadyHere(nameOfExisting(hash) ?? originalName)
         }
 
         var geometry: Mesh.Measurement?
@@ -176,11 +203,7 @@ enum LibraryImport {
                                  hash: hash, key: key, colours: colours,
                                  swapCount: swapCount, thumbFile: thumbFile)
         do {
-            try StoreWriter.update(
-                storeURL: build.storeURL,
-                owns: { StoreLock.weOwnIt(build) },
-                whoHasIt: { StoreLock.describe(StoreLock.verdict(for: build)) }
-            ) { root in
+            try StoreWriter.update(storeURL: storeURL, owns: owns, whoHasIt: whoHasIt) { root in
                 var rows: [JSONValue] = []
                 if case .array(let existing)? = root["printFiles"] { rows = existing }
                 // Newest first, as the other app does — a shop that has just
@@ -194,7 +217,6 @@ enum LibraryImport {
             throw Failure.failed(String(describing: error))
         }
 
-        await shop.load(shop.source)
         return Added(id: id, name: name, triangleCount: geometry?.triangleCount,
                      colours: colours.count)
     }
