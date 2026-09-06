@@ -1993,9 +1993,33 @@ function printLibMirrorItemDir(id) {
   return mirror ? path.join(mirror, PLL.itemDirName(id)) : null;
 }
 
+/**
+ * The saved object-storage config, with a broken endpoint healed on the way out.
+ *
+ * A shop that pasted its whole endpoint into the Region box saved an address
+ * carrying the provider's suffix twice — one that resolves to nothing — with
+ * `enabled: true`. There is no way for them to find out: the library simply
+ * never syncs, and no screen says so. `varsFromPastedEndpoint` fixes the shop
+ * that does it from now on, because it runs when the settings page SAVES; it
+ * does nothing for the book that already holds the bad value, and nobody
+ * reopens that tab to press Save on a feature they think is working.
+ *
+ * So it is healed where it is READ. `SPROV.repair` recomposes the address from
+ * the provider and the variable it can recover, returns a working config
+ * untouched, and returns anything it cannot make sense of exactly as it is
+ * rather than replacing it with a guess.
+ *
+ * Read-time rather than a migration on load, because the same book is opened by
+ * builds that do not have this fix and a migration would have to win a race
+ * with them. Healing at the point of use cannot lose one.
+ */
+function printLibS3Settings() {
+  return SPROV.repair((printLibSettings() || {}).s3 || {}) || {};
+}
+
 /** The bucket the library is backed up to, or null. */
 function printLibS3() {
-  const cfg = (printLibSettings() || {}).s3;
+  const cfg = printLibS3Settings();
   if (!cfg || !cfg.enabled || !S3C.isConfigured(cfg)) return null;
   return { client: S3C.createS3(cfg), prefix: cfg.prefix || '', kind: 's3' };
 }
@@ -2259,7 +2283,7 @@ ipcMain.handle('hub:printlib-status', async () => {
   if (mirror) {
     try { mirrorOk = fs.statSync(mirror).isDirectory(); } catch (_) { mirrorOk = false; }
   }
-  const s3cfg = (printLibSettings() || {}).s3 || {};
+  const s3cfg = printLibS3Settings();
   const s3 = !!(s3cfg.enabled && S3C.isConfigured(s3cfg));
   return { ok: st.ok, reason: st.reason, error: st.error || '', root: primary, isCustom, mirror, mirrorOk, roots, s3, s3Bucket: s3 ? s3cfg.bucket : '' };
 });
@@ -2420,7 +2444,7 @@ ipcMain.handle('hub:gdrive-status', async () => {
  * to prevent.
  */
 ipcMain.handle('hub:storage-providers', async () => {
-  const endpoint = ((printLibSettings() || {}).s3 || {}).endpoint || '';
+  const endpoint = printLibS3Settings().endpoint || '';
   const current = SPROV.detect(endpoint);
   return {
     providers: SPROV.list(),
@@ -2446,7 +2470,7 @@ ipcMain.handle('hub:storage-resolve-endpoint', async (_e, { provider, vars } = {
 ));
 
 ipcMain.handle('hub:printlib-s3-test', async () => {
-  const cfg = (printLibSettings() || {}).s3;
+  const cfg = printLibS3Settings();
   if (!cfg || !S3C.isConfigured(cfg)) return { ok: false, error: 'Fill in the endpoint, bucket, key and secret first.' };
   const key = S3C.objectKey(cfg.prefix || '', '_khayt-check', `probe-${Date.now().toString(36)}.bin`);
   const payload = crypto.randomBytes(64);
@@ -2563,7 +2587,7 @@ ipcMain.handle('hub:printlib-tier-run', async (event) => {
       // loses the model on the same crash.
       const side = PLT.makeSidecar({
         size: f.size, sha256: r.sha256, key: r.key,
-        provider: (printLibSettings().s3 || {}).endpoint || '', at: new Date().toISOString(),
+        provider: printLibS3Settings().endpoint || '', at: new Date().toISOString(),
       });
       try {
         await fs.promises.writeFile(f.fullPath + PLT.SIDECAR_EXT, JSON.stringify(side));

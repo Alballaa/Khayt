@@ -286,3 +286,66 @@ test('resolveEndpoint: a provider with no template keeps what was typed', () => 
   assert.equal(r.endpoint, 'https://minio.local:9000');
   assert.equal(r.region, 'eu');
 });
+
+// ── repair: a config saved before the recovery existed ────────────────────
+//
+// A SHOP'S ACTUAL SAVED SETTINGS. Backblaze's dashboard shows the endpoint
+// `s3.us-west-001.backblazeb2.com` and the Region box asks for the part in the
+// middle; the whole host went in, and the template composed a name carrying the
+// provider's suffix twice over. It resolved to nothing, `enabled` was true, and
+// the library quietly never synced — with no error on any screen to say so.
+const BROKEN = {
+  provider: 'b2',
+  endpoint: 'https://s3.s3.us-west-001.backblazeb2.com.backblazeb2.com',
+  region: 's3.us-west-001.backblazeb2.com',
+  bucket: 'KhaytLibrary',
+  accessKeyId: 'K001xxx',
+};
+
+test('repair recomposes the address the shop meant', () => {
+  const fixed = SP.repair(BROKEN);
+  assert.equal(fixed.endpoint, 'https://s3.us-west-001.backblazeb2.com');
+  assert.equal(fixed.region, 'us-west-001');
+});
+
+test('repair keeps every other field, including the credentials', () => {
+  const fixed = SP.repair(BROKEN);
+  assert.equal(fixed.bucket, 'KhaytLibrary');
+  assert.equal(fixed.accessKeyId, 'K001xxx');
+  assert.equal(fixed.provider, 'b2');
+});
+
+test('repair leaves a working config exactly as it is', () => {
+  const good = {
+    provider: 'b2', endpoint: 'https://s3.us-west-004.backblazeb2.com', region: 'us-west-004',
+  };
+  assert.deepEqual(SP.repair(good), good);
+});
+
+// Better a broken endpoint the shop can see and correct than a plausible one
+// this invented, which would address somebody else's bucket.
+test('repair leaves alone what it cannot make sense of', () => {
+  for (const cfg of [
+    { provider: 'custom', endpoint: 'https://storage.example.internal' },
+    { provider: 'b2', endpoint: '', region: '' },
+    { endpoint: 'not a url at all' },
+    {},
+  ]) assert.deepEqual(SP.repair(cfg), cfg);
+});
+
+test('repair survives being handed nothing', () => {
+  assert.equal(SP.repair(null), null);
+  assert.equal(SP.repair(undefined), undefined);
+});
+
+// The provider field is recent; an older book has only the host, and the suffix
+// that identifies it survives the doubling that broke the address.
+test('repair works out the provider from the endpoint when the field is missing', () => {
+  const fixed = SP.repair({ ...BROKEN, provider: undefined });
+  assert.equal(fixed.endpoint, 'https://s3.us-west-001.backblazeb2.com');
+});
+
+test('repair is idempotent — repairing a repair changes nothing', () => {
+  const once = SP.repair(BROKEN);
+  assert.deepEqual(SP.repair(once), once);
+});
