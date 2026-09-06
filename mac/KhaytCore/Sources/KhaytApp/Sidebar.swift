@@ -256,5 +256,18 @@ private struct Provenance: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 12)
         .padding(.bottom, 8)
+        // A GROUND UNDER IT, and it is not decoration.
+        //
+        // This is the sidebar's `.safeAreaInset(edge: .bottom)`, so the list
+        // scrolls UNDER it — that is what the inset is for. With nothing behind
+        // it, the rows that pass beneath show through: an Arabic sample shop,
+        // whose list is a few rows longer than the window, drew "الأشخاص" and
+        // "Waste" straight across "Opened read-only" and the backup date. Six
+        // lines of two different things in the same place.
+        //
+        // `.bar` is the material AppKit puts under a bottom accessory bar, so
+        // it stays in step with the sidebar's own translucency rather than
+        // painting a flat panel into it.
+        .background(.bar)
     }
 }

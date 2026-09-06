@@ -203,20 +203,28 @@ struct Inventory: View {
             .width(min: 74, ideal: 92, max: 120)
             .alignment(.trailing)
 
+            // WITH the currency, like every other money column in the app.
+            //
+            // `Money.figure` is for a column whose currency is stated once at
+            // the top, and nothing on this screen states it: the shelf showed
+            // "75.00" and "480.00" under headings that say Cost and Per kilo,
+            // and the only currency in sight was the OWED badge, which is a
+            // different figure about different money. The weight column beside
+            // these two already carries its unit on every row.
             TableColumn(shop.words.callIt("mac.cost")) { spool in
-                Text(spool.cost.map { Money.figure($0) } ?? "—").moneyStyle()
+                Text(spool.cost.map { Money.text($0, shop.currency) } ?? "—").moneyStyle()
             }
-            .width(min: 74, ideal: 92, max: 130)
+            .width(min: 92, ideal: 116, max: 150)
             .alignment(.trailing)
 
             TableColumn(shop.words.callIt("mac.per_kilo")) { spool in
                 // The number that compares two suppliers. A spool priced per
                 // roll tells you nothing until you know what is on the roll.
-                Text(spool.costPerKilo.map { Money.figure($0) } ?? "—")
+                Text(spool.costPerKilo.map { Money.text($0, shop.currency) } ?? "—")
                     .foregroundStyle(.secondary)
                     .moneyStyle()
             }
-            .width(min: 84, ideal: 104, max: 150)
+            .width(min: 100, ideal: 128, max: 170)
             .alignment(.trailing)
         }
         .tableStyle(.inset(alternatesRowBackgrounds: true))

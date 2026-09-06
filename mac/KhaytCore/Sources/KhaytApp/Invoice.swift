@@ -292,10 +292,22 @@ final class InvoicePaper: NSObject, ObservableObject, WKNavigationDelegate {
         <script>
         // The one thing a stylesheet cannot do: rewrite the digits of elements
         // after they are laid out. The module said which elements.
+        //
+        // TEXT NODES, not `textContent`. Assigning `el.textContent` replaces
+        // everything inside the element with one flat string — so it did not
+        // only change the digits, it deleted the markup. `.biz-meta` holds the
+        // address in its own paragraphs and the contact line in another, and
+        // they came out as one run; `.amount` holds a span for the currency
+        // and lost its styling; and the `<bdi>` that keeps a phone number the
+        // right way round went with them, putting the number back to front for
+        // exactly the shops that had asked for Arabic digits.
         (function () {
           var A = '\u{0660}\u{0661}\u{0662}\u{0663}\u{0664}\u{0665}\u{0666}\u{0667}\u{0668}\u{0669}';
           document.querySelectorAll('\(doc.selector)').forEach(function (el) {
-            el.textContent = el.textContent.replace(/[0-9]/g, function (d) { return A[+d]; });
+            var walk = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+            for (var n = walk.nextNode(); n; n = walk.nextNode()) {
+              n.nodeValue = n.nodeValue.replace(/[0-9]/g, function (d) { return A[+d]; });
+            }
           });
         })();
         </script>

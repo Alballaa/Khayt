@@ -62,7 +62,10 @@ const { SHOP, ORDER } = require('./helpers/invoice-cases.js');
 function addressee(html) {
   const block = html.match(/<div class="bill-to">[\s\S]*?<\/div>\s*<\/div>/);
   const name = (block ? block[0] : '').match(/<div class="name">([^<]*)</);
-  const sub = (block ? block[0] : '').match(/<div class="name-sub">([^<]*)</);
+  // Up to the closing </div>, and then the tags out: the contact line holds a
+  // `<bdi>` per datum now, so reading to the first `<` returned nothing at all.
+  const subBlock = (block ? block[0] : '').match(/<div class="name-sub">([\s\S]*?)<\/div>/);
+  const sub = subBlock ? [subBlock[0], subBlock[1].replace(/<[^>]*>/g, '')] : null;
   const meta = [...html.matchAll(/<span class="k">([^<]*)<\/span>\s*<span class="v">([^<]*)</g)]
     .map((m) => [m[1], m[2]]);
   return { name: name ? name[1] : '', sub: sub ? sub[1] : '', meta };
@@ -76,6 +79,37 @@ test('a job billed to a customer is addressed to the CUSTOMER', () => {
                                { settings: SHOP, clients: [ACME] }));
   assert.equal(out.name, 'Acme Prototyping');
   assert.match(out.sub, /\+966 50 123 4567/, 'and their own contact line under it');
+});
+
+/**
+ * A phone number is not a sentence, and Arabic does not reverse it.
+ *
+ * `+966 50 123 4567` has no strongly-directional character in it — digits,
+ * spaces and a plus sign are all neutral — so inside the `dir="rtl"` invoice
+ * the bidi algorithm laid its runs out right to left and the document printed
+ *
+ *     0000 000 50 966+
+ *
+ * on the customer's copy. Same for the email, the CR and the VAT number. The
+ * fix is `<bdi>`, which is the element for exactly this, and the assertion is
+ * on the markup rather than on the pixels because the reordering happens in
+ * the renderer where a string test cannot see it.
+ */
+test('Latin contact details are isolated from the direction around them', () => {
+  const arabic = Object.assign({}, SHOP, {
+    contentLangs: ['ar', 'en'], phone: '+966 50 000 0000',
+    email: 'hello@tuwaiq.example', vat: '300000000000003',
+  });
+  const html = render(Object.assign({}, ORDER, { clientId: 'C1' }),
+                      { settings: arabic, language: 'ar', clients: [ACME] });
+
+  assert.match(html, /dir="rtl"/, 'the document really is the right-to-left one');
+  for (const datum of ['+966 50 000 0000', 'hello@tuwaiq.example',
+                       'VAT 300000000000003', '+966 50 123 4567',
+                       'shop@acme.example']) {
+    assert.ok(html.includes(`<bdi>${datum}</bdi>`),
+              `${datum} reaches the page unisolated, so Arabic will reorder it`);
+  }
 });
 
 test("and the job's name is kept, beside the invoice number", () => {

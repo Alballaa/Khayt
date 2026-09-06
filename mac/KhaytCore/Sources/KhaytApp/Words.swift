@@ -309,7 +309,10 @@ final class Words {
         "mac.write_them_down": ["en": "Write them down",
                                 "ar": "تسجيل العميل"],
         "mac.what_went_wrong": ["en": "What went wrong?", "ar": "ما الذي حدث؟"],
-        "mac.wasted":        ["en": "Filament wasted (g)", "ar": "الخيط المهدور (غم)"],
+        // (جم) and not (غم): the shared catalogue's `common.grams` is جم, and
+        // that is the abbreviation every weight in this app now prints. Two
+        // spellings of the gram on one screen is a typo with a rationale.
+        "mac.wasted":        ["en": "Filament wasted (g)", "ar": "الخيط المهدور (جم)"],
         "mac.board_unplaced": ["en": "{n} job(s) are in a stage this board has no column for.",
                                "ar": "{n} من الأعمال في مرحلة لا عمود لها في هذا اللوح."],
         "mac.library":       ["en": "Library",       "ar": "المكتبة"],
@@ -451,6 +454,14 @@ final class Words {
                             + "owns this book, only it may change anything.",
                               "ar": "يكتب خيط بالتتابع لكل عملية. وما دام تطبيق آخر يملك هذا الدفتر، "
                             + "فهو وحده من يستطيع تغيير أي شيء."],
+        // Who else has the book open. Assembled from `StoreLock.Held`, which
+        // carries the facts and no language: the application's own name, and
+        // the machine when it is not this one.
+        "mac.lock_another":  ["en": "Another copy of Khayt", "ar": "نسخة أخرى من خيط"],
+        "mac.lock_held":     ["en": "{who} has this book open",
+                              "ar": "{who} يفتح هذا الدفتر"],
+        "mac.lock_held_on":  ["en": "{who} on {where} has this book open",
+                              "ar": "{who} على {where} يفتح هذا الدفتر"],
         "mac.reveal":        ["en": "Reveal",        "ar": "إظهار"],
         "mac.open":          ["en": "Open",          "ar": "فتح"],
         "mac.name":          ["en": "Name",          "ar": "الاسم"],

@@ -244,7 +244,7 @@ final class Shop {
             // Read, never taken. This app does not write, and a reader that
             // claimed ownership would lock a shop out of its own app for
             // nothing. When writing arrives, this is the check that gates it.
-            owner = next.build.flatMap { StoreLock.describe(StoreLock.verdict(for: $0)) }
+            owner = next.build.flatMap { whoElseHasIt($0) }
             takeOwnership(of: next.build)
             if case .object(let settings)? = root["settings"],
                case .string(let c)? = settings["currency"] { currency = c }
@@ -2822,6 +2822,20 @@ final class Shop {
         settings = try await engine.applySettings(
             settings, form: form, year: Calendar.current.component(.year, from: Date()))
         root["settings"] = .object(settings)
+    }
+
+    /// Who else has this book open, in the shop's own language.
+    ///
+    /// `StoreLock` hands back the application's name and — only when it is
+    /// somewhere else — the machine. Everything a person reads is added here,
+    /// because that file is nonisolated and has no catalogue to ask.
+    private func whoElseHasIt(_ build: StoreReader.Build) -> String? {
+        guard let held = StoreLock.held(StoreLock.verdict(for: build)) else { return nil }
+        let who = held.app ?? words.callIt("mac.lock_another")
+        guard let host = held.host else {
+            return words.callIt("mac.lock_held", ["who": .string(who)])
+        }
+        return words.callIt("mac.lock_held_on", ["who": .string(who), "where": .string(host)])
     }
 
     /// The shop's name, as its documents print it: `biz` in the language asked

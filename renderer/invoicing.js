@@ -1461,8 +1461,21 @@ function renderInvoice(order, money) {
   }));
   area.innerHTML = out.html;
   if (out.arabicNumerals) {
+    // TEXT NODES, not `textContent`.
+    //
+    // Assigning `el.textContent` replaces everything inside the element with
+    // one flat string, so it did not only change the digits — it deleted the
+    // markup. `.biz-meta` holds the address in its own paragraphs and the
+    // contact line in another; they came out as one run. `.amount` holds a
+    // span for the currency; it lost its styling. And the `<bdi>` that keeps a
+    // phone number the right way round was removed along with them, which put
+    // the number back to front for exactly the shops that had asked for Arabic
+    // digits.
     area.querySelectorAll(out.selector).forEach((el) => {
-      el.textContent = toArabicNumerals(el.textContent);
+      const walk = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+      for (let node = walk.nextNode(); node; node = walk.nextNode()) {
+        node.nodeValue = toArabicNumerals(node.nodeValue);
+      }
     });
   }
 }

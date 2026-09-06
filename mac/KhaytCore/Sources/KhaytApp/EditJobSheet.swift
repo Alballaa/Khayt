@@ -16,7 +16,15 @@ struct EditJobSheet: View {
     /// because `SnapshotTests` photographs the sheet at a size of its own and
     /// the two silently disagreed: the sheet grew and the picture kept the old
     /// width, so the render came back cropped down the middle with no failure.
-    static let width: CGFloat = 360
+    /// 460, and the number is the segmented control's doing.
+    ///
+    /// At 360 the Grid gave the picker its ideal width and the label column
+    /// whatever was left, which was about fifty points — so "Mark as priority /
+    /// urgent" came out one or two characters to a line, seven lines tall, in
+    /// the shipping English app. The labels are `fixedSize` now so the column
+    /// is measured from the text rather than from the leftovers, and the sheet
+    /// is wide enough to hold both. Arabic is the tighter of the two.
+    static let width: CGFloat = 460
 
     let shop: Shop
     let subject: Shop.PendingHold
@@ -36,6 +44,7 @@ struct EditJobSheet: View {
             Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 10) {
                 GridRow {
                     Text(shop.words.callIt("doc.due")).foregroundStyle(.secondary)
+                        .fixedSize()
                     // A job with no due date is a real answer, so the sheet has
                     // to be able to say it — a date picker alone cannot.
                     Toggle(isOn: $hasDueDate) {
@@ -50,6 +59,7 @@ struct EditJobSheet: View {
                 }
                 GridRow {
                     Text(shop.words.callIt("oe.priority")).foregroundStyle(.secondary)
+                        .fixedSize()
                     Picker("", selection: $priority) {
                         ForEach(Shop.priorityLevels, id: \.self) { level in
                             Text(shop.words.callIt(Self.wordFor(level))).tag(level)

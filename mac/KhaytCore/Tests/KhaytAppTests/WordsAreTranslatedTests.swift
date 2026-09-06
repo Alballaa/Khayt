@@ -172,7 +172,7 @@ struct WordsAreTranslatedTests {
     /// loose enough to exclude `tmp` and `En` also excludes `g`.
     static let notShown: Set<String> = [
         #"\(base)En"#, #"\(base)Ar"#,                       // store field names
-        #" on \(holder.host ?? "")"#,                        // the lock's English sentence
+        #" on \($0)"#,                                       // the lock's English sentence
         #"\(rawValue) Key"#,                                 // a Keychain item's name
         #"\(url.lastPathComponent).tmp.\(ProcessInfo.processInfo.processIdentifier).\(UUID().uuidString)"#,
     ]
