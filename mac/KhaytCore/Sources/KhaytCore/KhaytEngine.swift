@@ -440,6 +440,28 @@ public actor KhaytEngine {
                           as: [String].self)
     }
 
+    // MARK: - The shelf
+
+    /// Which spools are running low, by id.
+    ///
+    /// `lib/order-deduction.js`, whose own comment is the reason: "one
+    /// definition so the banner, the row badge, the reorder list and the
+    /// deduction never disagree about the same spool." A Swift
+    /// `weight <= 200` beside it would be a fifth opinion, and the one the
+    /// shop reads on the shelf.
+    public func lowStock(_ spools: [JSONValue],
+                         settings: [String: JSONValue]) throws -> [String: Bool] {
+        try runtime.call2("""
+            (function (rows, settings) {
+              const out = {};
+              for (const s of rows || []) {
+                if (s && s.id != null) out[String(s.id)] = !!KhaytOrderDeduction.isLowStock(s, settings);
+              }
+              return out;
+            })(ARG0, ARG1)
+            """, [.array(spools), .object(settings)], as: [String: Bool].self)
+    }
+
     // MARK: - Will it fit
 
     /// The best a shop can do with the machines it owns.

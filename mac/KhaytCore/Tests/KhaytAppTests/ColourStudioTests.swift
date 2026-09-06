@@ -252,6 +252,20 @@ struct SampleBookShowsTheAppTests {
         #expect(expired.contains { ($0.balance ?? 0) > 0 })
     }
 
+    /// A fourth screen that would have shipped showing only one of its states.
+    /// The shelf's whole job is saying which spool is about to run out, and a
+    /// shelf where nothing is low cannot show that it would.
+    @Test("the sample shelf has a spool running low, and the rule agrees")
+    func shelfShowsLow() async throws {
+        let shop = try await Self.shop()
+        let low = shop.spools.filter { shop.lowSpools[$0.id] == true }
+        #expect(low.count == 1, "\(low.count) low spools — the shelf cannot show its warning")
+        // Under the shared rule's default threshold, and visibly so.
+        #expect((low.first?.weight ?? 999) < 200)
+        // And the rest are not, or every card would wear the warning.
+        #expect(shop.lowSpools.values.filter { $0 }.count == 1)
+    }
+
     @Test("the sample shop has photographs, so the portfolio is a portfolio")
     func jobsArePhotographed() async throws {
         let shop = try await Self.shop()

@@ -610,6 +610,7 @@
   "common.total": "Total",
   "common.hours": "h",
   "common.grams": "g",
+  "common.kg": "kg",
   "common.percent": "%",
   "common.search": "Buscar…",
   "common.all": "Todos",

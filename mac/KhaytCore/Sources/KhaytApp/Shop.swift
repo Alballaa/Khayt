@@ -317,6 +317,7 @@ final class Shop {
             expenses = Self.decode(root, "expenses", as: Expense.self)
             giftCards = Self.decode(root, "giftCards", as: GiftCard.self)
             fits = await Self.measureFit(files, machines: machineRows, engine: engine)
+            lowSpools = (try? await engine?.lowStock(inventoryRows, settings: settingsDict)) ?? [:]
             // The status of each, from the shared rule rather than a Swift
             // comparison of two date strings — asked once for all of them,
             // because the table redraws on every keystroke in the search box.
@@ -3822,6 +3823,9 @@ final class Shop {
     /// Resolved once when the book loads — thirty-one rows asking the engine
     /// one at a time would be thirty-one bridge crossings for one screen.
     private(set) var clientNames: [String: KhaytEngine.Named] = [:]
+    /// Which spools are running low, by id — the shared rule's answer, asked
+    /// once for the whole shelf.
+    private(set) var lowSpools: [String: Bool] = [:]
     /// Which machine each model fits, keyed by the model's id. Worked out once
     /// when the book loads rather than per row: a grid of four hundred models
     /// asking the runtime on every redraw is four hundred context hops.
