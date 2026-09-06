@@ -429,6 +429,13 @@ struct OperationsPane: View {
         var wip: [String: Double] = [:]
         var wipEnforceHardLimit = false
         var qcEnabled = false, qcRequireInspector = false, qcRequirePhotoOnFail = false, qcWarrantyDays = 30.0
+        var monthlyGoal = 0.0
+        /// A monthly ceiling per expense category. The Spending screen has
+        /// drawn a bar against these since it was built and there was nowhere
+        /// to set one, so every shop read a budget of zero.
+        var budgets: [String: Double] = [:]
+        var payReminderEnabled = false, payReminderGrace = 3.0
+        var quoteFollowUpEnabled = false, quoteFollowUpWindow = 2.0
 
         static let days = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
         static let columns = ["pending", "printing", "post", "qc"]
@@ -439,6 +446,9 @@ struct OperationsPane: View {
             let wip = r.object("wipLimits")
             let qc = SettingsReader(settings: r.object("qc"))
             let hours = r.object("workingHours")
+            let budgets = r.object("expBudgets")
+            let pay = SettingsReader(settings: r.object("paymentReminder"))
+            let follow = SettingsReader(settings: r.object("quoteFollowUp"))
             var d = Draft(
                 minMarginPct: r.number("minMarginPct", 0), quoteValidityDays: r.number("quoteValidityDays", 7),
                 minOrderAmount: r.number("minOrderAmount", 0), rushFeeEnabled: r.flag("rushFeeEnabled"),
@@ -448,7 +458,14 @@ struct OperationsPane: View {
                 safetyDays: lead.number("safetyDays", 1), publishToCloud: lead.flag("publishToCloud"),
                 wipEnforceHardLimit: r.flag("wipEnforceHardLimit"),
                 qcEnabled: qc.flag("enabled"), qcRequireInspector: qc.flag("requireInspector"),
-                qcRequirePhotoOnFail: qc.flag("requirePhotoOnFail"), qcWarrantyDays: qc.number("warrantyDays", 30))
+                qcRequirePhotoOnFail: qc.flag("requirePhotoOnFail"), qcWarrantyDays: qc.number("warrantyDays", 30),
+                monthlyGoal: r.number("monthlyGoal", 0),
+                payReminderEnabled: pay.flag("enabled"), payReminderGrace: pay.number("graceDays", 3),
+                quoteFollowUpEnabled: follow.flag("enabled"),
+                quoteFollowUpWindow: follow.number("windowDays", 2))
+            for category in Shop.expenseCategories {
+                d.budgets[category] = Shop.plainNumber(budgets[category]) ?? 0
+            }
             // Eight hours a day is what the working-week rule assumes when a
             // shop has never set them, so that is what the fields show.
             for day in days { d.hours[day] = Shop.plainNumber(hours[day]) ?? (hours.isEmpty ? 8 : 0) }
@@ -466,7 +483,17 @@ struct OperationsPane: View {
              "wip": .object(wip.mapValues(JSONValue.number)),
              "wipEnforceHardLimit": .bool(wipEnforceHardLimit),
              "qc": .object(["enabled": .bool(qcEnabled), "requireInspector": .bool(qcRequireInspector),
-                            "requirePhotoOnFail": .bool(qcRequirePhotoOnFail), "warrantyDays": .number(qcWarrantyDays)])]
+                            "requirePhotoOnFail": .bool(qcRequirePhotoOnFail), "warrantyDays": .number(qcWarrantyDays)]),
+             "monthlyGoal": .number(monthlyGoal),
+             // `settings-edit` rebuilds `expBudgets` from ITS category list
+             // whenever this field is present, so every category has to be in
+             // here — a partial map would silently zero the ones left out.
+             // `Shop.expenseCategories` is the same six.
+             "budgets": .object(budgets.mapValues(JSONValue.number)),
+             "paymentReminder": .object(["enabled": .bool(payReminderEnabled),
+                                         "graceDays": .number(payReminderGrace)]),
+             "quoteFollowUp": .object(["enabled": .bool(quoteFollowUpEnabled),
+                                       "windowDays": .number(quoteFollowUpWindow)])]
         }
     }
 
@@ -521,6 +548,40 @@ struct OperationsPane: View {
                         }
                     }
                     Toggle(shop.words.callIt("set.wip_enforce_hard"), isOn: $draft.wipEnforceHardLimit)
+                }
+                Section {
+                    ForEach(Shop.expenseCategories, id: \.self) { category in
+                        row(shop.words.callIt("exp.cat." + category)) {
+                            HStack(spacing: 4) {
+                                TextField("", value: Binding(get: { draft.budgets[category] ?? 0 },
+                                                             set: { draft.budgets[category] = $0 }),
+                                          format: .number.precision(.fractionLength(0...2)))
+                                    .multilineTextAlignment(.trailing).frame(width: 90)
+                                Text(shop.currency).foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                } header: {
+                    Text(shop.words.callIt("set.exp_budgets"))
+                }
+                Section {
+                    numberRow("dash.goal_setting", $draft.monthlyGoal, unit: shop.currency)
+                } footer: {
+                    Text(shop.words.callIt("dash.goal_hint"))
+                }
+                Section {
+                    Toggle(shop.words.callIt("set.pay_reminder_enabled"), isOn: $draft.payReminderEnabled)
+                    numberRow("set.pay_reminder_grace", $draft.payReminderGrace)
+                        .disabled(!draft.payReminderEnabled)
+                } footer: {
+                    Text(shop.words.callIt("set.pay_reminder_hint"))
+                }
+                Section {
+                    Toggle(shop.words.callIt("set.quote_followup_enabled"), isOn: $draft.quoteFollowUpEnabled)
+                    numberRow("set.quote_followup_window", $draft.quoteFollowUpWindow)
+                        .disabled(!draft.quoteFollowUpEnabled)
+                } footer: {
+                    Text(shop.words.callIt("set.quote_followup_hint"))
                 }
                 Section(shop.words.callIt("set.qc_head")) {
                     Toggle(shop.words.callIt("set.qc_enabled"), isOn: $draft.qcEnabled)

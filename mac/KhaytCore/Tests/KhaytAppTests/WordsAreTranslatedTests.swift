@@ -50,13 +50,46 @@ struct WordsAreTranslatedTests {
     /// and those two go.
     static let noWordForIt: Set<String> = ["mm", "W", "h m", "m", "kB", "MB", "GB"]
 
+    /// A literal with its `\(…)` taken out, brackets BALANCED.
+    ///
+    /// It was `#"\\\([^)]*\)"#`, which stops at the first `)` — so
+    /// `"\(Int((done / goal * 100).rounded()))%"` had only its first bracket
+    /// pair removed and left `.rounded()))%` behind. That is seven letters of
+    /// Swift, and the guard reported a line whose only visible character is a
+    /// percent sign. An interpolation is code and none of it is words, however
+    /// many brackets deep it goes.
+    static func withoutInterpolations(_ text: String) -> String {
+        var out = ""
+        var i = text.startIndex
+        while i < text.endIndex {
+            let next = text.index(after: i)
+            if text[i] == "\\", next < text.endIndex, text[next] == "(" {
+                var depth = 0
+                var j = next
+                while j < text.endIndex {
+                    if text[j] == "(" { depth += 1 }
+                    else if text[j] == ")" {
+                        depth -= 1
+                        if depth == 0 { break }
+                    }
+                    j = text.index(after: j)
+                }
+                guard j < text.endIndex else { break }
+                i = text.index(after: j)
+                continue
+            }
+            out.append(text[i])
+            i = next
+        }
+        return out
+    }
+
     /// Words that are the same in every language, or are not words.
     static func isNotAWord(_ text: String) -> Bool {
         // Take the interpolations out first. What is left is what a shop
         // actually has to read: `"×\(part.qty)"` is a multiplication sign and a
         // number, and neither of those is English.
-        let literal = text.replacingOccurrences(of: #"\\\([^)]*\)"#, with: "",
-                                                options: .regularExpression)
+        let literal = Self.withoutInterpolations(text)
         if literal.rangeOfCharacter(from: .letters) == nil { return true }
         if text.count < 3 { return true }                      // "—", "×", "mm"
         if !text.contains(" ") && text.first?.isLowercase == true { return true }  // a key or an id
@@ -215,8 +248,7 @@ struct WordsAreTranslatedTests {
                     search = from.dropFirst(literal.count + 1)
                     guard literal.contains("\\(") else { continue }   // no number, no unit
                     if Self.notShown.contains(literal) { continue }
-                    let rest = literal.replacingOccurrences(
-                        of: #"\\\([^)]*\)"#, with: "", options: .regularExpression)
+                    let rest = Self.withoutInterpolations(literal)
                     let letters = rest.filter(\.isLetter)
                     // Nothing is nothing; four letters or more is prose.
                     guard !letters.isEmpty, letters.count <= 3 else { continue }

@@ -65,6 +65,20 @@ final class Shop {
     /// or when the engine could not start — the screen says so rather than
     /// showing zeros, which would be a statement about the shop.
     private(set) var facts: DashboardFacts?
+    /// Invoices past their due date and still owing, and quotes about to run
+    /// out. Chosen by `lib/payment-reminder.js` and `lib/quote-followup.js`,
+    /// each of which the shop switches on in Settings.
+    private(set) var invoicesToChase: [Chase] = []
+    private(set) var quotesToChase: [Chase] = []
+    /// This month's revenue, whatever period the tiles are showing.
+    ///
+    /// A SECOND `kpis` call, fixed to the month, because the goal is a monthly
+    /// one — `dash.goal_hint` says so — and the tiles above it move with the
+    /// period buttons. Reading the picker's answer would have shown a year's
+    /// takings against a month's target the moment somebody pressed "This
+    /// year".
+    private(set) var thisMonthRevenue: Double = 0
+    private var owedByOrderId: [String: Double] = [:]
     /// The period's figures, from the shared modules. Nil when the engine could
     /// not start; the screen then shows nothing rather than zeros.
     private(set) var kpis: Kpis?
@@ -361,6 +375,9 @@ final class Shop {
         for i in orders.indices {
             if let amount = owed[orders[i].id] { orders[i].owedResolved = amount }
         }
+        // Kept whole, not just on the rows: `payment-reminder` asks what each
+        // order still owes, converted, and this is the converted answer.
+        owedByOrderId = owed
         await resolveLate(root)
     }
 
@@ -403,6 +420,16 @@ final class Shop {
             }
         }
         wear = perMachine
+        // What to chase. Both selectors are off unless the shop has switched
+        // them on, and both return nothing on a book with no due dates — so
+        // the section they feed simply does not appear.
+        invoicesToChase = (try? await engine.invoicesToChase(
+            orders: orders, settings: settings, owed: owedByOrderId)) ?? []
+        quotesToChase = (try? await engine.quotesToChase(
+            orders: orders, settings: settings)) ?? []
+        thisMonthRevenue = (try? await engine.kpis(orders: orders, clients: clients,
+                                                   settings: settings, range: "month",
+                                                   language: words.language))?.revenue ?? 0
         kpiOrders = orders
         kpiClients = clients
         kpiSettings = settings

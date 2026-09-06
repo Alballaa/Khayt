@@ -462,6 +462,14 @@ final class Words {
                               "ar": "{who} يفتح هذا الدفتر"],
         "mac.lock_held_on":  ["en": "{who} on {where} has this book open",
                               "ar": "{who} على {where} يفتح هذا الدفتر"],
+        // Khayt's catalogue has "Quotes expiring soon" and "Overdue" but no
+        // heading for the invoices a shop is meant to chase, which is a
+        // narrower list than either: past due, still owing, not nudged
+        // recently and not nudged too often already.
+        "mac.chase_invoices": ["en": "Invoices to chase", "ar": "فواتير للمتابعة"],
+        "mac.chase_days_over": ["en": "{n}d overdue", "ar": "متأخرة {n} يوم"],
+        "mac.chase_days_left": ["en": "expires in {n}d", "ar": "تنتهي خلال {n} يوم"],
+        "mac.chase_expired":   ["en": "expired", "ar": "منتهية"],
         "mac.reveal":        ["en": "Reveal",        "ar": "إظهار"],
         "mac.open":          ["en": "Open",          "ar": "فتح"],
         "mac.name":          ["en": "Name",          "ar": "الاسم"],

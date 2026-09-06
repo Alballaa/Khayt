@@ -50,6 +50,14 @@ public actor KhaytEngine {
         // not a Swift opinion about which orders are late.
         "attention",
         "dashboard-facts",
+        // Two more things the shop is meant to chase, each with its own
+        // selector rather than a branch inside `attention`: an invoice past
+        // its due date and still unpaid, and a quote about to expire without
+        // an answer. Both were settings this app could not set and rules it
+        // did not run, so the toggle in the Operations pane would have been a
+        // switch wired to nothing.
+        "payment-reminder",
+        "quote-followup",
         // Groups and categories. Pure, and bundled rather than ported because
         // the rule that matters is not the reading — it is that a name matching
         // one already in use IS that name and adopts its spelling. "Saudi Kings"
@@ -387,6 +395,41 @@ public actor KhaytEngine {
                         + " attention: globalThis.KhaytAttention})",
                           [.array(orders), .array(machines), .object(settings), .object(statusCache)],
                           as: DashboardFacts.self)
+    }
+
+    /// Invoices the shop is meant to chase for payment.
+    ///
+    /// `owedOf` is a FUNCTION in the module's signature — deliberately, so
+    /// currency conversion stays with the caller — and a function cannot cross
+    /// the JSON bridge. What crosses is a table of id to outstanding balance,
+    /// already converted by `order-money`, and the closure is written here in
+    /// JavaScript around it. Same trick as `kpis` above.
+    ///
+    /// The `.map` is a projection and not arithmetic: `daysOverdue` is the
+    /// module's own, so the figure on screen is the one it selected on.
+    public func invoicesToChase(orders: [JSONValue], settings: [String: JSONValue],
+                                owed: [String: Double], now: Date = Date()) throws -> [Chase] {
+        try runtime.call2(
+            "KhaytPaymentReminder.selectInvoicesDueForReminder(ARG0, ARG1,"
+          + " function (o) { return ARG2[o.id] || 0; }, ARG3)"
+          + ".map(function (o) { return {id: o.id, name: o.project || '',"
+          + " days: KhaytPaymentReminder.daysOverdue(o, ARG3)}; })",
+            [.array(orders), .object(settings),
+             .object(owed.mapValues(JSONValue.number)),
+             .number(now.timeIntervalSince1970 * 1000)],
+            as: [Chase].self)
+    }
+
+    /// Quotes about to expire without an answer.
+    public func quotesToChase(orders: [JSONValue], settings: [String: JSONValue],
+                              now: Date = Date()) throws -> [Chase] {
+        try runtime.call2(
+            "KhaytQuoteFollowUp.selectQuotesDueForFollowUp(ARG0, ARG1, ARG2)"
+          + ".map(function (q) { return {id: q.id, name: q.project || '',"
+          + " days: KhaytQuoteFollowUp.daysUntilExpiry(q, ARG2)}; })",
+            [.array(orders), .object(settings),
+             .number(now.timeIntervalSince1970 * 1000)],
+            as: [Chase].self)
     }
 
     /// The headline figures for a period.
