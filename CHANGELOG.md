@@ -6,6 +6,13 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Added
 
+- **The Mac app imports many models at once, and folders.** Adding a model was
+  one trip through the file picker per file, which is not an import when a shop
+  has three thousand of them in nested folders. Pick any mix of files and
+  folders now and it walks them, skipping anything Khayt does not read and its
+  own library folder, with a running count, the name of the file it is on, and
+  a Stop button.
+
 - **Colour studio on the Mac.** Pick a colour and the app ranks the filament
   you already own by how close it *looks* — perceptual distance, not the
   nearest hex — and blends any two spools into a gradient of as many steps as
@@ -17,6 +24,13 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   photograph to put in it.
 
 ### Changed
+
+- **Adding a model MOVES it into the library instead of copying it.** A shop
+  importing what it has downloaded does not want a second copy of thirty
+  gigabytes, and the vault is meant to become the one place a model lives. The
+  original is removed last, only once the bytes are at the destination, have
+  been read back and compared, and the book holds a record pointing at them —
+  so anything that goes wrong leaves the file exactly where it was.
 
 - **The sample shop now has colours on its spools and photographs on its
   finished jobs.** It had neither, so the two screens above opened on their
@@ -600,6 +614,12 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   volume to within a thousandth of a percent.
 
 ### Fixed
+
+- **Models the Mac added to the library had a doubled dash in their id.** Khayt
+  writes `PF-mtjwvj1w05A`; the Mac built `PF-` and then asked for an id that
+  supplies its own dash, so it wrote `PF--mtjwvj1w05A` and named the file's
+  folder in the shared vault to match. Nothing reads the shape, which is why it
+  went unnoticed.
 
 - **The Mac screenshot runner no longer aborts partway through.** It took its
   dark screenshots and then switched the app to light for the rest, and AppKit

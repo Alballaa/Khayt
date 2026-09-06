@@ -667,6 +667,26 @@ final class Words {
         "mac.model_added":   ["en": "Added {name} — {n} triangles.",
                               "ar": "أُضيف {name} — {n} مثلثًا."],
         "mac.model_added_plain": ["en": "Added {name}.", "ar": "أُضيف {name}."],
+        // MOVED, not added, and the sentence has to say so: the file is no
+        // longer where its owner left it. Only shown when the original was
+        // actually taken in — a source the import was told to keep, or one it
+        // could not remove, still reads "Added".
+        "mac.model_moved":   ["en": "Moved {name} into the library — {n} triangles.",
+                              "ar": "نُقل {name} إلى المكتبة — {n} مثلثًا."],
+        "mac.model_moved_plain": ["en": "Moved {name} into the library.",
+                                  "ar": "نُقل {name} إلى المكتبة."],
+        // A batch says all three numbers every time, including the zeros. "412
+        // moved in" alone leaves a shop wondering what happened to the other
+        // eleven files it selected.
+        "mac.import_done":   ["en": "{moved} moved in · {duplicates} already there · {failed} failed.",
+                              "ar": "نُقل {moved} · {duplicates} موجود مسبقًا · {failed} فشل."],
+        "mac.import_nothing": ["en": "Nothing there Khayt can read.",
+                               "ar": "لا يوجد ما تستطيع خيط قراءته."],
+        // The file's own name, not just a count: on a long import it is the
+        // one thing that says which model the slow minute is being spent on.
+        "mac.import_progress": ["en": "Importing {done} of {total} — {name}",
+                                "ar": "يجري الاستيراد {done} من {total} — {name}"],
+        "mac.stop":          ["en": "Stop", "ar": "إيقاف"],
         // The slicers pane. Khayt calls the section "Slicer" already —
         // `slicer.settings_title` — so the tab reuses it rather than inventing
         // a second name for the same page in the same shop.

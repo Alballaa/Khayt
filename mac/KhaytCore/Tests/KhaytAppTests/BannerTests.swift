@@ -54,8 +54,10 @@ struct BannerTests {
     /// for it is how it would end up copied instead.
     @Test("the banner belongs to the window, not to the board")
     func bannerIsShared() {
-        #expect(Self.source("Banners.swift").contains("struct Banner: View"))
-        #expect(!Self.source("Kanban.swift").contains("struct Banner: View"),
+        // Matched loosely on purpose: it grew a generic accessory for the Stop
+        // button on a running import, and what this guards is where it lives.
+        #expect(Self.source("Banners.swift").contains("struct Banner"))
+        #expect(!Self.source("Kanban.swift").contains("struct Banner"),
                 "there are two Banners again")
     }
 }

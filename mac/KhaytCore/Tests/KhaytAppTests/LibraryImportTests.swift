@@ -267,11 +267,13 @@ struct LibraryImportEndToEndTests {
     }
 
     static func run(_ source: URL, _ bench: Bench,
-                    knownHashes: Set<String> = []) async throws -> LibraryImport.Added {
+                    knownHashes: Set<String> = [],
+                    keepOriginal: Bool = false) async throws -> LibraryImport.Added {
         try await LibraryImport.add(source, storeURL: bench.store, libraryRoot: bench.library,
                                     knownHashes: knownHashes,
                                     nameOfExisting: { _ in "the one you already have" },
                                     engine: try KhaytEngine(),
+                                    keepOriginal: keepOriginal,
                                     owns: { true }, whoHasIt: { nil })
     }
 
@@ -289,6 +291,7 @@ struct LibraryImportEndToEndTests {
 
         let source = bench.dir.appending(path: "My Cube.stl")
         try MeshTests.binarySTL(MeshTests.boxFacets(10, 10, 10)).write(to: source)
+        let before = try Data(contentsOf: source)
 
         let added = try await Self.run(source, bench)
         #expect(added.triangleCount == 12)
@@ -305,10 +308,68 @@ struct LibraryImportEndToEndTests {
         #expect(file.geometryKey == "12:1000:10x10x10", "got \(file.geometryKey ?? "nil")")
         #expect(file.contentHash?.count == 64)
 
-        // And the file is where the record says it is.
-        let copied = bench.library.appending(path: added.id).appending(path: "My Cube.stl")
-        #expect(FileManager.default.fileExists(atPath: copied.path))
-        #expect(try Data(contentsOf: copied) == (try Data(contentsOf: source)))
+        // And the file is where the record says it is, holding the bytes that
+        // were at the source — compared against a copy taken before the import,
+        // because the import CONSUMES the original.
+        let landed = bench.library.appending(path: added.id).appending(path: "My Cube.stl")
+        #expect(FileManager.default.fileExists(atPath: landed.path))
+        #expect(try Data(contentsOf: landed) == before)
+
+        // The original is gone: this is a move, not a copy.
+        #expect(added.movedIn)
+        #expect(!FileManager.default.fileExists(atPath: source.path))
+    }
+
+    /// `keepOriginal` is the source that is not the shop's to consume.
+    @Test("keepOriginal imports the file and leaves it where it was")
+    func keepsTheOriginal() async throws {
+        let bench = try Self.bench()
+        defer { try? FileManager.default.removeItem(at: bench.dir) }
+        let source = bench.dir.appending(path: "Cube.stl")
+        try MeshTests.binarySTL(MeshTests.boxFacets(10, 10, 10)).write(to: source)
+
+        let added = try await Self.run(source, bench, keepOriginal: true)
+        #expect(!added.movedIn)
+        #expect(FileManager.default.fileExists(atPath: source.path))
+        #expect(try Self.printFiles(in: bench).count == 1)
+    }
+
+    /// THE ONE THAT MATTERS. Every refusal must leave the original untouched,
+    /// because after this change the original is often the only copy. Each case
+    /// is a different point in the import, and one of them — the book refusing
+    /// the write — happens after the bytes are already in the vault.
+    @Test("nothing the import can refuse takes the original with it",
+          arguments: ["duplicate", "unreadable-book", "wrong-kind"])
+    func theOriginalSurvivesEveryFailure(_ how: String) async throws {
+        let bench = try Self.bench()
+        defer { try? FileManager.default.removeItem(at: bench.dir) }
+        let name = how == "wrong-kind" ? "Cube.zip" : "Cube.stl"
+        let source = bench.dir.appending(path: name)
+        try MeshTests.binarySTL(MeshTests.boxFacets(10, 10, 10)).write(to: source)
+        let before = try Data(contentsOf: source)
+
+        switch how {
+        case "duplicate":
+            let hash = try #require(try LibraryImport.contentHash(of: source))
+            await #expect(throws: LibraryImport.Failure.self) {
+                _ = try await Self.run(source, bench, knownHashes: [hash])
+            }
+        case "unreadable-book":
+            // The book refuses the write, which happens AFTER the copy has
+            // landed and been verified — the one failure that has to undo work.
+            try FileManager.default.removeItem(at: bench.store)
+            try FileManager.default.createDirectory(at: bench.store, withIntermediateDirectories: true)
+            await #expect(throws: LibraryImport.Failure.self) { _ = try await Self.run(source, bench) }
+        default:
+            await #expect(throws: LibraryImport.Failure.self) { _ = try await Self.run(source, bench) }
+        }
+
+        #expect(FileManager.default.fileExists(atPath: source.path),
+                "the \(how) refusal took the shop's only copy with it")
+        #expect(try Data(contentsOf: source) == before, "the original was altered")
+        // And no orphan left in the vault either.
+        let folders = (try? FileManager.default.contentsOfDirectory(atPath: bench.library.path)) ?? []
+        #expect(folders.isEmpty, "left \(folders)")
     }
 
     /// A 3MF carries a preview and the colours a slicer chose, and both have to
@@ -377,12 +438,19 @@ struct LibraryImportEndToEndTests {
         let source = bench.dir.appending(path: "Cube.stl")
         try MeshTests.binarySTL(MeshTests.boxFacets(10, 10, 10)).write(to: source)
 
-        let first = try await Self.run(source, bench)
         let hash = try #require(try LibraryImport.contentHash(of: source))
+        let first = try await Self.run(source, bench)
 
+        // A SECOND file with the same bytes, because the first is now in the
+        // vault rather than on the desk — which is the real shape of this
+        // anyway: the same model downloaded twice under two names.
+        let again = bench.dir.appending(path: "Cube copy.stl")
+        try MeshTests.binarySTL(MeshTests.boxFacets(10, 10, 10)).write(to: again)
         await #expect(throws: LibraryImport.Failure.alreadyHere("the one you already have")) {
-            _ = try await Self.run(source, bench, knownHashes: [hash])
+            _ = try await Self.run(again, bench, knownHashes: [hash])
         }
+        #expect(FileManager.default.fileExists(atPath: again.path),
+                "a refused duplicate must leave the file it refused")
         // One record, and one folder — the refused import cleaned up after
         // itself rather than leaving a copy nobody has a record for.
         #expect(try Self.printFiles(in: bench).count == 1)
@@ -429,5 +497,112 @@ struct LibraryImportEndToEndTests {
         let top = try JSONDecoder().decode(LibraryFile.self,
                                            from: try JSONEncoder().encode(rows[0]))
         #expect(top.id == second.id, "the one just added belongs at the top")
+    }
+}
+
+/// Choosing folders rather than files, one at a time.
+///
+/// The panel used to take a single file, which made importing a downloads
+/// folder of three thousand models an afternoon of clicking. What it takes now
+/// is any mix of files and folders, and this is the part that decides what
+/// inside them counts.
+@MainActor
+struct ModelsUnderTests {
+
+    static func bench() throws -> URL {
+        let dir = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appending(path: "khayt-walk-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir
+    }
+
+    static func touch(_ dir: URL, _ rel: String) throws -> URL {
+        let url = dir.appending(path: rel)
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(),
+                                                withIntermediateDirectories: true)
+        try Data("x".utf8).write(to: url)
+        return url
+    }
+
+    @Test("a folder brings every model under it, at any depth")
+    func walksDeep() throws {
+        let dir = try Self.bench()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        _ = try Self.touch(dir, "top.stl")
+        _ = try Self.touch(dir, "kit/part.3mf")
+        _ = try Self.touch(dir, "kit/deeper/still/tiny.obj")
+        _ = try Self.touch(dir, "kit/print.gcode")
+
+        let found = Shop.modelsUnder([dir], skipping: nil).map(\.lastPathComponent)
+        #expect(Set(found) == ["top.stl", "part.3mf", "tiny.obj", "print.gcode"])
+    }
+
+    /// A folder of models is full of other things. Reporting each as a failure
+    /// would bury the files that actually could not be read.
+    @Test("everything that is not a model is passed over in silence")
+    func ignoresTheRest() throws {
+        let dir = try Self.bench()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        _ = try Self.touch(dir, "keep.stl")
+        for noise in ["README.md", "notes.txt", "project.3mf.bak", "photo.jpg", "archive.zip"] {
+            _ = try Self.touch(dir, noise)
+        }
+        #expect(Shop.modelsUnder([dir], skipping: nil).map(\.lastPathComponent) == ["keep.stl"])
+    }
+
+    /// Importing the vault into itself refuses every file as a duplicate, which
+    /// is harmless and takes hours. A shop that picks its library folder by
+    /// mistake should get nothing, immediately.
+    @Test("the library's own folder is never walked")
+    func skipsTheVault() throws {
+        let dir = try Self.bench()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let vault = dir.appending(path: "print-files-vault")
+        _ = try Self.touch(vault, "PF-1/already.stl")
+        _ = try Self.touch(dir, "new.stl")
+
+        let found = Shop.modelsUnder([dir], skipping: vault.path).map(\.lastPathComponent)
+        #expect(found == ["new.stl"], "walked the vault: \(found)")
+        #expect(Shop.modelsUnder([vault], skipping: vault.path).isEmpty)
+    }
+
+    @Test("a mixed selection of files and folders is one list, in a stable order")
+    func mixedAndSorted() throws {
+        let dir = try Self.bench()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let loose = try Self.touch(dir, "loose.stl")
+        _ = try Self.touch(dir, "box/b.stl")
+        _ = try Self.touch(dir, "box/a.stl")
+
+        let found = Shop.modelsUnder([loose, dir.appending(path: "box")], skipping: nil)
+        #expect(found.map(\.lastPathComponent) == ["a.stl", "b.stl", "loose.stl"])
+        // Same answer twice: a run a person is watching should be repeatable.
+        #expect(Shop.modelsUnder([loose, dir.appending(path: "box")], skipping: nil) == found)
+    }
+
+    @Test("an extension in capitals is still a model")
+    func caseInsensitive() throws {
+        let dir = try Self.bench()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        _ = try Self.touch(dir, "SHOUTED.STL")
+        #expect(Shop.modelsUnder([dir], skipping: nil).count == 1)
+    }
+}
+
+/// The id a new record gets.
+///
+/// `PF-` once, not twice. Khayt's own records are `PF-mtjwvj1w05A`; this app
+/// built `"PF-" + Shop.uid("")` and `uid` supplies the dash itself, so every
+/// model the Mac added wore `PF--` and every folder it made in the shared vault
+/// did too. Nothing read the shape, which is exactly why it lasted.
+@MainActor
+struct LibraryIdTests {
+    @Test("a new model's id looks like the ones already in the book")
+    func idShape() {
+        let id = Shop.uid("PF")
+        #expect(id.hasPrefix("PF-"))
+        #expect(!id.hasPrefix("PF--"), "the doubled dash is back: \(id)")
+        // The same shape as the rest of the book's ids.
+        #expect(Shop.uid("SL").hasPrefix("SL-") && !Shop.uid("SL").hasPrefix("SL--"))
     }
 }

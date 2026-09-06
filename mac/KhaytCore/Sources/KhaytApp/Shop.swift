@@ -2122,6 +2122,12 @@ final class Shop {
     /// and a window that looks frozen for a few seconds is a window somebody
     /// clicks again.
     private(set) var importing = false
+    /// How far a batch has got, and what it is reading right now. Nil for a
+    /// single file, which is over before a progress bar would finish drawing.
+    private(set) var importProgress: (done: Int, total: Int, name: String)?
+    /// Set by the Stop button. A batch checks it between files, so it stops
+    /// cleanly between imports rather than halfway through one.
+    var importCancelled = false
 
     /// Ask for a file and add it.
     func addModelToLibrary() async {
@@ -2131,8 +2137,11 @@ final class Shop {
             importProblem = words.callIt("mac.move_sample"); return
         }
         let panel = NSOpenPanel()
-        panel.allowsMultipleSelection = false
-        panel.canChooseDirectories = false
+        // MANY, AND FOLDERS. A shop importing what it has downloaded has
+        // hundreds of files in nested folders, and one trip through this panel
+        // per file is not an import, it is an afternoon.
+        panel.allowsMultipleSelection = true
+        panel.canChooseDirectories = true
         panel.prompt = words.callIt("mac.add_model")
         panel.allowedContentTypes = LibraryImport.kinds.compactMap {
             UTType(filenameExtension: $0)
@@ -2141,8 +2150,120 @@ final class Shop {
         // slicer, and a panel that will open nothing is worse than one that
         // opens too much.
         panel.allowsOtherFileTypes = true
-        guard panel.runModal() == .OK, let picked = panel.url else { return }
-        await addModelToLibrary(picked)
+        guard panel.runModal() == .OK, !panel.urls.isEmpty else { return }
+        await addModelsToLibrary(panel.urls)
+    }
+
+    /// Every model under what was chosen, in a stable order.
+    ///
+    /// A folder is walked; a file is taken as it is. Anything that is not a
+    /// kind the library holds is passed over silently — a folder of models has
+    /// READMEs and slicer projects in it, and a summary that reported each of
+    /// them as a failure would bury the ones that matter.
+    ///
+    /// The library's own root is skipped. Importing the vault into itself would
+    /// refuse every file as a duplicate, which is harmless, and take a very long
+    /// time to do it.
+    static func modelsUnder(_ chosen: [URL], skipping root: String?) -> [URL] {
+        let fm = FileManager.default
+        var found: [URL] = []
+        let vault = root.map { URL(fileURLWithPath: $0).standardizedFileURL.path }
+        func isInVault(_ u: URL) -> Bool {
+            guard let vault else { return false }
+            return u.standardizedFileURL.path.hasPrefix(vault)
+        }
+        for url in chosen where !isInVault(url) {
+            var isDir: ObjCBool = false
+            guard fm.fileExists(atPath: url.path, isDirectory: &isDir) else { continue }
+            if isDir.boolValue {
+                let walker = fm.enumerator(at: url, includingPropertiesForKeys: [.isDirectoryKey],
+                                           options: [.skipsHiddenFiles, .skipsPackageDescendants])
+                while let next = walker?.nextObject() as? URL {
+                    if LibraryImport.kinds.contains(next.pathExtension.lowercased()),
+                       !isInVault(next) { found.append(next) }
+                }
+            } else if LibraryImport.kinds.contains(url.pathExtension.lowercased()) {
+                found.append(url)
+            }
+        }
+        // Sorted so a run is repeatable and a person watching can follow it.
+        return found.sorted { $0.path.localizedStandardCompare($1.path) == .orderedAscending }
+    }
+
+    /// Import everything under what was chosen.
+    ///
+    /// ONE reload at the end rather than one per file. `LibraryImport.add(_:shop:)`
+    /// re-reads the whole book after each import, which is right for a single
+    /// file and quadratic for three thousand — a megabyte of JSON parsed once
+    /// per model. This calls the lower seam directly and reloads once.
+    ///
+    /// `known` grows as it goes, so two copies of the same model inside one
+    /// selection do not both get in.
+    func addModelsToLibrary(_ chosen: [URL]) async {
+        importNote = nil
+        importProblem = nil
+        importCancelled = false
+        guard let build = source.build, StoreLock.weOwnIt(build) else {
+            importProblem = LibraryImport.Failure.notOurs.description; return
+        }
+        guard let roots = libraryRoots else {
+            importProblem = LibraryImport.Failure.noLibrary.description; return
+        }
+        guard let engine else { importProblem = "the engine is not loaded"; return }
+
+        let files = Self.modelsUnder(chosen, skipping: roots.primary)
+        guard !files.isEmpty else {
+            importProblem = words.callIt("mac.import_nothing"); return
+        }
+
+        importing = true
+        defer { importing = false; importProgress = nil }
+
+        var known = Set(self.files.compactMap(\.contentHash))
+        let titles = Dictionary(self.files.compactMap { f in
+            f.contentHash.map { ($0, f.title) }
+        }, uniquingKeysWith: { a, _ in a })
+        var moved = 0, duplicates = 0
+        var failures: [String] = []
+
+        for (i, file) in files.enumerated() {
+            if importCancelled { break }
+            importProgress = (done: i, total: files.count, name: file.lastPathComponent)
+            do {
+                let added = try await LibraryImport.add(
+                    file, storeURL: build.storeURL,
+                    libraryRoot: URL(fileURLWithPath: roots.primary),
+                    knownHashes: known,
+                    nameOfExisting: { titles[$0] },
+                    engine: engine,
+                    owns: { StoreLock.weOwnIt(build) },
+                    whoHasIt: { StoreLock.describe(StoreLock.verdict(for: build)) })
+                moved += 1
+                // So the next file in this same batch is measured against it —
+                // two copies of one model inside a single selection must not
+                // both get in. The hash comes back from the import rather than
+                // being read again: these files run to a quarter of a gigabyte.
+                if let hash = added.contentHash { known.insert(hash) }
+            } catch LibraryImport.Failure.alreadyHere {
+                duplicates += 1
+            } catch {
+                // Named, and the run carries on. One unreadable file in three
+                // thousand must not end the import.
+                failures.append("\(file.lastPathComponent): \(error)")
+            }
+        }
+
+        await load(source)
+        importProgress = nil
+        importNote = words.callIt("mac.import_done", [
+            "moved": .number(Double(moved)),
+            "duplicates": .number(Double(duplicates)),
+            "failed": .number(Double(failures.count)),
+        ])
+        if !failures.isEmpty {
+            importProblem = failures.prefix(10).joined(separator: "\n")
+                + (failures.count > 10 ? "\n" + "… and \(failures.count - 10) more" : "")
+        }
     }
 
     /// The same, for a file that arrived some other way.
@@ -2151,11 +2272,12 @@ final class Shop {
         defer { importing = false }
         do {
             let added = try await LibraryImport.add(url, shop: self)
+            let key = added.movedIn ? "mac.model_moved" : "mac.model_added"
             importNote = added.measured
-                ? words.callIt("mac.model_added",
+                ? words.callIt(key,
                                ["name": .string(added.name),
                                 "n": .number(Double(added.triangleCount ?? 0))])
-                : words.callIt("mac.model_added_plain", ["name": .string(added.name)])
+                : words.callIt(key + "_plain", ["name": .string(added.name)])
         } catch let refusal as LibraryImport.Failure {
             importProblem = refusal.description
         } catch {
