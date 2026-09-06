@@ -111,7 +111,7 @@ private struct Card: View {
                     // its answer rather than grams over threshold.
                     ProgressView(value: min(1, wear.pct / 100)) {
                         HStack {
-                            Text("\(Int(wear.wear)) / \(Int(wear.threshold)) g")
+                            Text("\(Int(wear.wear)) / \(Int(wear.threshold)) \(shop.words.callIt("common.grams"))")
                                 .monospacedDigit()
                             Spacer()
                             if wear.over {
@@ -197,7 +197,8 @@ struct Inventory: View {
             .width(min: 140, ideal: 200, max: 320)
 
             TableColumn(shop.words.callIt("mac.weight")) { spool in
-                Text(spool.weight.map { "\(Int($0)) g" } ?? "—").moneyStyle()
+                Text(spool.weight.map { "\(Int($0)) \(shop.words.callIt("common.grams"))" } ?? "—")
+                    .moneyStyle()
             }
             .width(min: 74, ideal: 92, max: 120)
             .alignment(.trailing)

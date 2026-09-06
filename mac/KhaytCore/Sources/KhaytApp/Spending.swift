@@ -180,8 +180,14 @@ struct Waste: View {
                 Text(w.material.isEmpty ? "—" : w.material)
             }
             .width(min: 80, ideal: 110)
+            // The FIGURE only. `waste.weight` is "Wasted weight (g)", and it
+            // carries the unit in all nine languages — Arabic included, which
+            // is where this was checked. Repeating it in the cell gave every
+            // row "180 grams" under a heading that had already said (g); the
+            // rule is `Money.figure`'s, one column heading rather than forty
+            // repetitions.
             TableColumn(shop.words.callIt("waste.weight"), value: \.weight) { w in
-                Text("\(Money.grams(w.weight)) \(shop.words.callIt("mac.grams"))").monospacedDigit()
+                Text(Money.grams(w.weight)).monospacedDigit()
             }
             .width(min: 110, ideal: 130)
             TableColumn(shop.words.callIt("waste.failure_type"), value: \.failureType) { w in

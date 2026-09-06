@@ -111,8 +111,11 @@ struct Spool: Identifiable, Decodable, Hashable, Sendable {
 
     /// How a shop picks this spool out of a list: what it is, and where — the
     /// two things that tell one 1kg PLA apart from another on the same shelf.
-    var label: String {
-        let grams = weight.map { " · \(Int($0))g" } ?? ""
+    ///
+    /// Takes the catalogue because the gram is in it. `common.grams` is `جم` in
+    /// Arabic, so a `g` written here is an English letter in an Arabic list.
+    @MainActor func label(_ words: Words) -> String {
+        let grams = weight.map { " · \(Int($0))\(words.callIt("common.grams"))" } ?? ""
         let where_ = storage.flatMap { $0.isEmpty ? nil : " · \($0)" } ?? ""
         return material + grams + where_
     }

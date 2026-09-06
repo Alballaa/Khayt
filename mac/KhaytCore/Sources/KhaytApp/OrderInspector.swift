@@ -126,10 +126,12 @@ private struct Detail: View {
                         // shows two decimals, which is what turned a 180g
                         // failure into "180.00 grams" once already — and here
                         // printed a 129.18g part where a shop reads 129.2.
-                        // "g", not the word: this sits beside "×1" in a narrow
-                        // column, and it is the symbol the invoice already
-                        // prints for every language.
-                        Text("\(Money.grams(part.printWeight)) g")
+                        // The SYMBOL, not the word — this sits beside "×1" in
+                        // a narrow column. `common.grams` is where Khayt keeps
+                        // it, and it is not "g" everywhere: Arabic writes جم.
+                        // Hard-coding the letter was a claim that the symbol is
+                        // universal, and the catalogue says otherwise.
+                        Text("\(Money.grams(part.printWeight)) \(shop.words.callIt("common.grams"))")
                             .font(.caption)
                             .monospacedDigit()
                             .foregroundStyle(.secondary)

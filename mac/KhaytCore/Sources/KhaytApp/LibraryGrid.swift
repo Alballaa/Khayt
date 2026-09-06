@@ -193,7 +193,13 @@ private struct Cell: View {
     private var subtitle: String {
         var bits: [String] = []
         if let size = file.size { bits.append(Format.bytes(size)) }
-        if file.printCount > 0 { bits.append("printed \(file.printCount)×") }
+        // Khayt's own words for this, not ours: the catalogue has said
+        // "printed {n}×" in nine languages since long before this app, and a
+        // shop running in Arabic was reading an English sentence on every card
+        // in its library.
+        if file.printCount > 0 {
+            bits.append(words.callIt("cat.printed_n", ["n": .number(Double(file.printCount))]))
+        }
         return bits.joined(separator: " · ")
     }
 }
