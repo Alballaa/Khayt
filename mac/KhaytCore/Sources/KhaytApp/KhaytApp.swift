@@ -456,6 +456,15 @@ final class Activator: NSObject, NSApplicationDelegate {
                 await settle()
                 capture(named: "24-portfolio", into: dir)
             }
+            shop.shelf = .giftCards
+            await settle()
+            capture(named: "25-gift-cards", into: dir)
+            shop.issuingGiftCard = true
+            await settle()
+            captureSheet(named: "25b-gift-card-sheet", into: dir)
+            shop.issuingGiftCard = false
+            await settle()
+
             shop.shelf = .customers
             shop.customerSelection = shop.shownCustomers.max { $0.owed < $1.owed }?.id
             await settle()

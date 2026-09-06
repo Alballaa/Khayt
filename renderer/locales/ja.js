@@ -3531,6 +3531,7 @@
   "giftCardBalance": "残高",
   "giftCardInitialBalance": "初期残高",
   "giftCardExpiry": "有効期限（任意）",
+  "giftCardExpires": "有効期限",
   "giftCardIssuedTo": "発行先",
   "applyGiftCard": "ギフトカードを適用",
   "giftCardAppliedAmount": "ギフトカードを適用しました — {amt} を差し引きました",

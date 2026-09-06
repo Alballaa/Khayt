@@ -57,6 +57,13 @@ struct Sidebar: View {
                 Row(title: shop.words.callIt("cmix.title"), symbol: "paintpalette",
                     count: 0, selected: shop.shelf == .colour)
                     .tag(Shop.Shelf.colour)
+                // Cards a shop has issued. Unlike the portfolio below, the row
+                // shows even at zero: this screen has an Issue button on it, so
+                // an empty one is where you go to make the first card rather
+                // than a dead end.
+                Row(title: shop.words.callIt("giftCards"), symbol: "giftcard",
+                    count: shop.giftCards.count, selected: shop.shelf == .giftCards)
+                    .tag(Shop.Shelf.giftCards)
                 // Only for a shop that has photographed something. A portfolio
                 // with nothing in it is a row that teaches people the app has
                 // an empty screen.

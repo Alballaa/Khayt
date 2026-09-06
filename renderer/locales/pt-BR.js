@@ -3532,6 +3532,7 @@
   "giftCardBalance": "Saldo",
   "giftCardInitialBalance": "Saldo inicial",
   "giftCardExpiry": "Data de validade (opcional)",
+  "giftCardExpires": "Vence",
   "giftCardIssuedTo": "Emitido para",
   "applyGiftCard": "Aplicar vale-presente",
   "giftCardAppliedAmount": "Vale-presente aplicado — {amt} descontado",

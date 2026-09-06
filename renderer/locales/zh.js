@@ -3531,6 +3531,7 @@
   "giftCardBalance": "余额",
   "giftCardInitialBalance": "初始余额",
   "giftCardExpiry": "到期日（可选）",
+  "giftCardExpires": "到期",
   "giftCardIssuedTo": "发行给",
   "applyGiftCard": "使用礼品卡",
   "giftCardAppliedAmount": "已应用礼品卡 — 扣除 {amt}",

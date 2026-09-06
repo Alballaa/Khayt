@@ -3531,6 +3531,7 @@
   "giftCardBalance": "Saldo",
   "giftCardInitialBalance": "Saldo inicial",
   "giftCardExpiry": "Fecha de vencimiento (opcional)",
+  "giftCardExpires": "Vence",
   "giftCardIssuedTo": "Emitida a",
   "applyGiftCard": "Aplicar tarjeta de regalo",
   "giftCardAppliedAmount": "Tarjeta de regalo aplicada — {amt} descontado",

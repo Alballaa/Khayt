@@ -3531,6 +3531,7 @@
   "giftCardBalance": "Bakiye",
   "giftCardInitialBalance": "Başlangıç Bakiyesi",
   "giftCardExpiry": "Son Kullanma Tarihi (isteğe bağlı)",
+  "giftCardExpires": "Bitiş",
   "giftCardIssuedTo": "Verildiği Kişi",
   "applyGiftCard": "Hediye Kartını Uygula",
   "giftCardAppliedAmount": "Hediye kartı uygulandı — {amt} düşüldü",

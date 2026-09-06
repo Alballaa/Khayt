@@ -3531,6 +3531,7 @@
   "giftCardBalance": "Guthaben",
   "giftCardInitialBalance": "Anfangsguthaben",
   "giftCardExpiry": "Ablaufdatum (optional)",
+  "giftCardExpires": "Läuft ab",
   "giftCardIssuedTo": "Ausgestellt für",
   "applyGiftCard": "Geschenkkarte einlösen",
   "giftCardAppliedAmount": "Geschenkkarte angewendet — {amt} abgezogen",

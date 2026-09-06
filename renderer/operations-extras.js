@@ -304,9 +304,15 @@ function renderGiftCards() {
   const today = localDateStr();
   const rows = giftCards.map(gc => {
     const cl = gc.issuedTo ? clients.find(c => c.id === gc.issuedTo) : null;
-    const expired = gc.expiresAt && gc.expiresAt < today;
-    const status = expired ? t('gcExpired') || 'Expired' : (+gc.balance <= 0 ? t('gcUsed') || 'Used' : t('gcActive') || 'Active');
-    const statusColor = expired ? 'var(--danger)' : (+gc.balance <= 0 ? 'var(--text-muted)' : 'var(--success)');
+    // `lib/gift-card.js`, not three ternaries here — the Mac app draws the
+    // same table from the same rule, and a card that reads Active in one and
+    // Expired in the other is a shop arguing with itself in front of a customer.
+    const state = KhaytGiftCard.status(gc, today);
+    const status = state === KhaytGiftCard.EXPIRED ? (t('gcExpired') || 'Expired')
+      : state === KhaytGiftCard.USED ? (t('gcUsed') || 'Used')
+      : (t('gcActive') || 'Active');
+    const statusColor = state === KhaytGiftCard.EXPIRED ? 'var(--danger)'
+      : state === KhaytGiftCard.USED ? 'var(--text-muted)' : 'var(--success)';
     return `<tr>
       <td style="font-family:monospace;">${escapeHtml(gc.code)}</td>
       <td>${fmtPrice(gc.balance)} / ${fmtPrice(gc.initialBalance)}</td>
@@ -342,25 +348,30 @@ function openCreateGiftCardModal() {
       <label style="margin-top:10px;">${escapeHtml(t('giftCardExpiry'))}</label>
       <input type="date" id="gcExpiry">`,
     onSave(modal) {
-      const codeVal = modal.querySelector('#gcCode').value.trim().toUpperCase();
-      const balance = Math.max(0, Math.min(100000, num(modal.querySelector('#gcBalance').value, 0)));
-      if (!codeVal) { toast(t('giftCardCodeRequired') || 'Enter a code', 'error'); return false; }
-      if (!/^[A-Z0-9]{3,20}$/.test(codeVal)) { toast(t('giftCardCodeInvalid') || 'Code must be 3–20 alphanumeric characters', 'error'); return false; }
-      if (balance <= 0) { toast(t('giftCardBalanceRequired') || 'Initial balance must be greater than 0', 'error'); return false; }
-      if (giftCards.find(g => g.code === codeVal)) { toast(t('giftCardCodeDuplicate') || 'Code already exists', 'error'); return false; }
       const clientId = modal.querySelector('#gcClient').value;
       const cl = clientId ? clients.find(c => c.id === clientId) : null;
-      giftCards.push({
-        id: uid('GC'),
-        code: codeVal,
-        initialBalance: balance,
-        balance,
+      // Every refusal below is the shared rule's, so the Mac refuses the same
+      // codes for the same reasons. It answers with a KEY and this owns the
+      // language — a module that returned English would be a module the Arabic
+      // app could not use.
+      const made = KhaytGiftCard.newCard({
+        code: modal.querySelector('#gcCode').value,
+        initialBalance: num(modal.querySelector('#gcBalance').value, 0),
         issuedTo: clientId || null,
         issuedToName: cl ? localName(cl) : '',
-        issuedAt: new Date().toISOString(),
         expiresAt: modal.querySelector('#gcExpiry').value || null,
-        redeemedOrders: [],
-      });
+      }, { id: uid('GC'), now: new Date().toISOString(), existing: giftCards });
+      if (!made.ok) {
+        const said = {
+          giftCardCodeRequired: 'Enter a code',
+          giftCardCodeInvalid: 'Code must be 3–20 alphanumeric characters',
+          giftCardBalanceRequired: 'Initial balance must be greater than 0',
+          giftCardCodeDuplicate: 'Code already exists',
+        };
+        toast(t(made.error) || said[made.error] || made.error, 'error');
+        return false;
+      }
+      giftCards.push(made.card);
       saveAll();
       renderGiftCards();
       toast(t('giftCardIssued') || 'Gift card issued!', 'success');
@@ -371,25 +382,36 @@ function openCreateGiftCardModal() {
 function applyGiftCard(orderId, code) {
   const order = printLog.find(o => o.id === orderId);
   if (!order) return false;
-  const gc = giftCards.find(g => g.code === code.trim().toUpperCase());
+  const gc = giftCards.find(g => g.code === KhaytGiftCard.normaliseCode(code));
   if (!gc) { toast(t('giftCardInvalid') || 'Invalid or depleted gift card', 'error'); return false; }
-  if (+gc.balance <= 0) { toast(t('giftCardInvalid') || 'Invalid or depleted gift card', 'error'); return false; }
-  const today = localDateStr();
-  if (gc.expiresAt && gc.expiresAt < today) { toast(t('giftCardExpired') || 'Gift card is expired', 'error'); return false; }
-  const outstanding = Math.max(0, (+order.price || 0) - (+order.paidAmount || 0) - (+order.giftCardDiscount || 0));
-  const deduct = Math.min(+gc.balance, outstanding);
-  if (deduct <= 0) { toast(t('pay.order_fully_covered') || 'Order is already fully covered', 'info'); return false; }
-  // Guard legacy/imported cards that predate the redeemedOrders field (avoids a
-  // TypeError that would abort after the balance was already mutated in memory).
-  if (!Array.isArray(gc.redeemedOrders)) gc.redeemedOrders = [];
-  gc.balance = Math.max(0, +gc.balance - deduct);
-  gc.redeemedOrders.push({ orderId, amount: deduct, at: new Date().toISOString() });
-  order.giftCardCode = code;
-  // Accumulate so applying a second card to the same order keeps the prior credit
-  // (outstanding above is already computed net of any existing giftCardDiscount).
-  order.giftCardDiscount = (+order.giftCardDiscount || 0) + deduct;
+
+  // WHAT THE ORDER OWES IS `KhaytOrderMoney`'S QUESTION, and this used to
+  // answer it itself: price − paid − giftCardDiscount, with the CREDIT NOTES
+  // left out. A 500 order carrying a 300 credit note read 500, so redeeming
+  // spent 300 of the customer's balance on money they did not owe. The card is
+  // theirs; over-spending it is not a rounding difference.
+  const done = KhaytGiftCard.redeem(gc, order, {
+    today: localDateStr(), now: new Date().toISOString(),
+  });
+  if (!done.ok) {
+    const said = {
+      giftCardInvalid: 'Invalid or depleted gift card',
+      giftCardExpired: 'Gift card is expired',
+      orderFullyCovered: 'Order is already fully covered',
+      giftCardNoMoneyRule: 'Khayt cannot work out what this order owes right now.',
+    };
+    const key = done.reason === 'orderFullyCovered' ? 'pay.order_fully_covered' : done.reason;
+    toast(t(key) || said[done.reason] || done.reason,
+      done.reason === 'orderFullyCovered' ? 'info' : 'error');
+    return false;
+  }
+
+  // The rule returns what these SHOULD become rather than editing them, so a
+  // refusal above has already left the shop exactly as it was.
+  Object.assign(gc, done.card);
+  Object.assign(order, done.order);
   saveAll();
-  toast(t('giftCardAppliedAmount', { amt: fmtPrice(deduct) }) || `Gift card applied! ${fmtPrice(deduct)} deducted.`, 'success');
+  toast(t('giftCardAppliedAmount', { amt: fmtPrice(done.amount) }) || `Gift card applied! ${fmtPrice(done.amount)} deducted.`, 'success');
   return true;
 }
 
