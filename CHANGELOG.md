@@ -52,6 +52,13 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Changed
 
+- **The Mac's jobs table stops showing columns this book never fills.** A shop
+  whose work is auto-logged from its printers names no customer and promises no
+  date on any job, so two of the six columns said so on every row — four of the
+  six carried nothing at all. They are hidden the first time such a book is
+  opened, and they are in the header's menu like every other column, so a shop
+  that wants one back can have it and the choice sticks.
+
 - **The Mac dashboard fits about twice as much on a screen.** Both of its lists
   stacked the order number underneath the job name, which doubled the height of
   every row — six late jobs filled the window and the seventh was below the

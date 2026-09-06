@@ -3885,6 +3885,16 @@ final class Shop {
         return FileManager.default.fileExists(atPath: url.path) ? .file(url) : nil
     }
 
+    /// Does ANY job name a customer, or promise a date?
+    ///
+    /// The jobs table drops those columns when nothing in the book fills them:
+    /// a shop whose work is auto-logged from its printers has neither, and a
+    /// column of dashes is not a column. Asked of the whole book rather than of
+    /// what is on screen, so filtering to one stage cannot make a column vanish
+    /// and reappear as the shop types in the search box.
+    var anyJobHasAClient: Bool { orders.contains { !$0.client.isEmpty } }
+    var anyJobHasADueDate: Bool { orders.contains { !($0.dueDate ?? "").isEmpty } }
+
     /// The picture of what a job printed.
     ///
     /// A job is a row of text in a table of rows of text, and the shop is
