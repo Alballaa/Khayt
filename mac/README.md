@@ -233,6 +233,35 @@ Node — rightly, since a guarded require is still a require somebody will later
 unguard. The pure half was split out for that reason and the whole half
 re-exports it, so every existing caller is untouched.
 
+### Adding a model
+
+`LibraryImport.swift`, ⇧⌘I. The last piece: `Zip` opens the container, `Mesh`
+measures it, `geometry-key` and `thumbnail-extract` turn that into the fields a
+record carries, and this puts the file where Khayt puts it and writes the record
+Khayt would have written.
+
+The folder is `<root>/<PF-id>/` with the same `itemDirName` sanitising, and the
+field names are `renderer/printfiles.js`'s exactly — `colors` not `colours`,
+`favorite` not `favourite`, `thumbFile` not `thumb`. A record with one of those
+wrong loads in both apps and shows a model with no colours and no picture, which
+reads as a bad FILE rather than as a bad record and would survive a demo. So the
+record is built by a function of its own and decoded straight back through
+`LibraryFile` in the test — the type the grid actually uses.
+
+That test immediately found one: `createdAt` is epoch milliseconds and
+`updatedAt` is an **ISO string**, because the second is written by the store's
+stamping and the first by whoever made the record. Both written as numbers, the
+model showed no date at all.
+
+The copy goes in before the duplicate check, because the check needs the hash
+and the hash needs the bytes — and if the check refuses, the copy is taken back
+out. A refusal leaves neither a record nor a file.
+
+`vaultFilename` keeps Arabic and drops separators, so nothing written can climb
+out of the record's own folder, and a second file of the same name becomes
+`part-2.stl` rather than overwriting the first — the case that matters, because
+a print made of several parts puts them all in ONE folder.
+
 ### Reading a 3MF's mesh
 
 `Mesh.measure3MF`. The model is XML inside the zip — `<vertex x= y= z=/>` then
