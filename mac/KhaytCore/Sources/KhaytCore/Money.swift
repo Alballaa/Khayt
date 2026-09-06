@@ -108,6 +108,20 @@ public struct DashboardFacts: Decodable, Sendable {
     }
 }
 
+/// A filament ranked by how close its colour is to one the shop wants.
+///
+/// `deltaE` is CIEDE2000 from `lib/color-mix.js` — perceptual distance, not a
+/// difference between hex triples. Under about 1 nobody can tell them apart;
+/// around 2-3 is a good match on a printed part; past 10 they are two colours.
+public struct ColourMatch: Decodable, Sendable, Identifiable, Hashable {
+    public let id: String
+    public let material: String?
+    public let colourVariant: String?
+    public let color: String?
+    public let weight: Double?
+    public let deltaE: Double
+}
+
 /// Something to chase: an invoice past its due date, or a quote about to run
 /// out. `lib/payment-reminder.js` and `lib/quote-followup.js` decide WHICH —
 /// each has its own grace period, cooldown and cap, and neither is a filter

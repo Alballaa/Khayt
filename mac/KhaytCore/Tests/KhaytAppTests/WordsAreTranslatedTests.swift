@@ -48,7 +48,11 @@ struct WordsAreTranslatedTests {
     /// no minutes key at all, so translating the hour and leaving the minute
     /// reads worse than leaving both. Add `common.minutes` in nine languages
     /// and those two go.
-    static let noWordForIt: Set<String> = ["mm", "W", "h m", "m", "kB", "MB", "GB"]
+    /// `ΔE` is the CIE's symbol for colour difference and no locale file
+    /// translates it — `cmix.plot_title` is "خريطة ΔE · مستوى اللون a*b*" in
+    /// Arabic, which keeps the symbol inside its own sentence. Looked up, like
+    /// the rest of this list.
+    static let noWordForIt: Set<String> = ["mm", "W", "h m", "m", "kB", "MB", "GB", "ΔE"]
 
     /// A literal with its `\(…)` taken out, brackets BALANCED.
     ///

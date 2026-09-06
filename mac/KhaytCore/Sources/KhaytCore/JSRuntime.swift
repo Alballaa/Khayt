@@ -108,7 +108,10 @@ public final class JSRuntime {
                           // `quote-followup.js` publishes `KhaytQuoteFollowUp`
                           // — a capital U that the hyphen does not carry, so
                           // the derived name misses by one letter.
-                          "quote-followup": "KhaytQuoteFollowUp"]
+                          "quote-followup": "KhaytQuoteFollowUp",
+                          // `color-mix.js` publishes `KhaytColor` — the file is
+                          // named for the mixing, the global for the subject.
+                          "color-mix": "KhaytColor"]
         if let known = exceptions[module] { return known }
         let camel = module.split(separator: "-").map { $0.prefix(1).uppercased() + $0.dropFirst() }.joined()
         return "Khayt\(camel)"
