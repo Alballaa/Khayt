@@ -11,6 +11,12 @@ import KhaytCore
 /// supplier's price changes), so an app that could show the shelf and not
 /// correct it was an app a shop still had to leave.
 struct SpoolSheet: View {
+    /// How wide this sheet is. A CONSTANT rather than a number in the body,
+    /// because `SnapshotTests` photographs the sheet at a size of its own and
+    /// the two silently disagreed: the sheet grew and the picture kept the old
+    /// width, so the render came back cropped down the middle with no failure.
+    static let width: CGFloat = 440
+
     let shop: Shop
     /// The spool being corrected, or nil for one that is not on the shelf yet.
     let existing: Spool?
@@ -160,7 +166,7 @@ struct SpoolSheet: View {
             }
         }
         .padding(18)
-        .frame(width: 440)
+        .frame(width: Self.width)
         .onAppear(perform: fill)
         .task(id: material) { await loadColours() }
     }

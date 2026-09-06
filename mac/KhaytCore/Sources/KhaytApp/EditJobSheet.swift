@@ -12,6 +12,12 @@ import KhaytCore
 /// the shared rule's guarantee, not this sheet's promise: `applyEdit` touches
 /// only the fields it is handed.
 struct EditJobSheet: View {
+    /// How wide this sheet is. A CONSTANT rather than a number in the body,
+    /// because `SnapshotTests` photographs the sheet at a size of its own and
+    /// the two silently disagreed: the sheet grew and the picture kept the old
+    /// width, so the render came back cropped down the middle with no failure.
+    static let width: CGFloat = 360
+
     let shop: Shop
     let subject: Shop.PendingHold
 
@@ -63,7 +69,7 @@ struct EditJobSheet: View {
             }
         }
         .padding(18)
-        .frame(width: 360)
+        .frame(width: Self.width)
         .onAppear {
             guard !started else { return }
             started = true

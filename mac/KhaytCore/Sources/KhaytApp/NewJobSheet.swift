@@ -23,6 +23,29 @@ import KhaytCore
 /// quotes somebody — and, more to the point, to notice when one of them is
 /// zero.
 struct NewJobSheet: View {
+    /// Everything between the title and the buttons.
+    ///
+    /// Its own property because `ImageRenderer` draws nothing inside a
+    /// `ScrollView` — the snapshot of this sheet was a title, two rules and
+    /// three buttons over an empty page, and passed, because a picture has
+    /// nothing to assert. The test photographs this directly.
+    var paper: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            who
+            cart
+            money
+            total
+            breakdown
+        }
+        .padding(18)
+    }
+
+    /// How wide this sheet is. A CONSTANT rather than a number in the body,
+    /// because `SnapshotTests` photographs the sheet at a size of its own and
+    /// the two silently disagreed: the sheet grew and the picture kept the old
+    /// width, so the render came back cropped down the middle with no failure.
+    static let width: CGFloat = 620
+
     let shop: Shop
 
     @State private var project = ""
@@ -67,16 +90,7 @@ struct NewJobSheet: View {
         VStack(alignment: .leading, spacing: 0) {
             header
             Divider()
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    who
-                    cart
-                    money
-                    total
-                    breakdown
-                }
-                .padding(18)
-            }
+            ScrollView { paper }
             Divider()
             footer
         }
@@ -84,7 +98,7 @@ struct NewJobSheet: View {
         // of the sheet blank for a one-part job and would have clipped a
         // six-part one; the cap is there so a long cart scrolls rather than
         // growing the window past the screen.
-        .frame(width: 560)
+        .frame(width: Self.width)
         .frame(maxHeight: 640)
         .onAppear {
             margin = shop.defaultMargin
@@ -293,14 +307,25 @@ struct NewJobSheet: View {
         .padding(18)
     }
 
-    private func percent(_ value: Binding<Double>) -> some View {
-        TextField("", value: value, format: .number.precision(.fractionLength(0...2)))
-            .textFieldStyle(.roundedBorder).frame(width: 70).monospacedDigit()
+    /// A number field and the unit it is in.
+    ///
+    /// The unit is NOT decoration. `discountPct` is a percentage and the field
+    /// said only "0", so a shop knocking fifty riyals off a job would type 50
+    /// and take half the price off instead. Machines and spools already state
+    /// their units this way — "mm" beside the nozzle, the currency beside a
+    /// roll's cost — and money that does not is the field that gets it wrong.
+    private func unit(_ value: Binding<Double>, _ width: CGFloat, _ suffix: String) -> some View {
+        HStack(spacing: 4) {
+            TextField("", value: value, format: .number.precision(.fractionLength(0...2)))
+                .textFieldStyle(.roundedBorder).frame(width: width).monospacedDigit()
+            Text(suffix).foregroundStyle(.secondary)
+        }
     }
 
+    private func percent(_ value: Binding<Double>) -> some View { unit(value, 70, "%") }
+
     private func amount(_ value: Binding<Double>) -> some View {
-        TextField("", value: value, format: .number.precision(.fractionLength(0...2)))
-            .textFieldStyle(.roundedBorder).frame(width: 90).monospacedDigit()
+        unit(value, 90, shop.currency)
     }
 
     // MARK: - What it costs, and what it comes to

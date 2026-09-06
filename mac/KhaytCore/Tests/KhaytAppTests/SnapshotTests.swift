@@ -38,6 +38,62 @@ import AppKit
             return
         }
         try png.write(to: dir.appending(path: name + ".png"))
+        expectInkInTheMiddle(rep, name)
+        expectItRendered(rep, name)
+    }
+
+    /// Did `ImageRenderer` actually render this, or refuse it?
+    ///
+    /// What it draws for a view it cannot host is a flat yellow field with a
+    /// red "no entry" sign across it — and `01-shop` was that, edge to edge,
+    /// for as long as this file has existed: `ImageRenderer` will not host a
+    /// `NavigationSplitView`, so the picture of the whole window was a picture
+    /// of nothing, and it passed every run because writing a PNG cannot fail on
+    /// what is not in it. The placeholder is a specific colour, so say so.
+    private func expectItRendered(_ rep: NSBitmapImageRep, _ name: String) {
+        var placeholder = 0, seen = 0
+        for y in stride(from: 0, to: rep.pixelsHigh, by: 8) {
+            for x in stride(from: 0, to: rep.pixelsWide, by: 8) {
+                guard let c = rep.colorAt(x: x, y: y)?.usingColorSpace(.deviceRGB) else { continue }
+                seen += 1
+                var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+                c.getRed(&r, green: &g, blue: &b, alpha: &a)
+                // The field is around #FFCC00 and the sign around #F5333F.
+                if a > 0.5, r > 0.9, b < 0.35, g > 0.7 || (g < 0.35 && r > 0.9) { placeholder += 1 }
+            }
+        }
+        guard seen > 0 else { return }
+        let fraction = Double(placeholder) / Double(seen)
+        #expect(fraction < 0.5,
+                "\(name) is mostly ImageRenderer's refusal — \(Int(fraction * 100))% of it is the placeholder, so it is a picture of nothing")
+    }
+
+    /// Is there anything on the middle of the page?
+    ///
+    /// The one assertion this file makes, and it is not about pixels shifting.
+    /// `ImageRenderer` draws nothing inside a `ScrollView`, so the New Job
+    /// sheet rendered as a title, two rules and three buttons over an empty
+    /// page — and the test passed, every time, because writing a PNG cannot
+    /// fail on what is not in it. A blank band down the middle of a sheet is
+    /// never right, and it is the shape every "rendered nothing" bug takes.
+    private func expectInkInTheMiddle(_ rep: NSBitmapImageRep, _ name: String) {
+        let top = rep.pixelsHigh / 4, bottom = rep.pixelsHigh * 3 / 4
+        var ink = 0, seen = 0
+        // Every fourth pixel each way: enough to find a line of text, and a
+        // sixteenth of the work on a 2x bitmap.
+        for y in stride(from: top, to: bottom, by: 4) {
+            for x in stride(from: 0, to: rep.pixelsWide, by: 4) {
+                guard let c = rep.colorAt(x: x, y: y) else { continue }
+                seen += 1
+                var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+                c.usingColorSpace(.deviceRGB)?.getRed(&r, green: &g, blue: &b, alpha: &a)
+                if a > 0.1, min(r, min(g, b)) < 0.92 { ink += 1 }
+            }
+        }
+        guard seen > 0 else { return }
+        let fraction = Double(ink) / Double(seen)
+        #expect(fraction > 0.002,
+                "\(name) is blank down the middle — \(ink) of \(seen) sampled pixels have anything in them")
     }
 
     @Test("the sample shop loads and renders")
@@ -49,13 +105,19 @@ import AppKit
         #expect(shop.owed > 0, "a sample with nothing owed cannot show the design working")
         #expect(shop.taxSummary != nil, "the tax line comes from lib/tax.js and is the proof the core is live")
 
-        try render(ShopWindow(shop: shop), "01-shop", size: CGSize(width: 1180, height: 720))
-
+        // NO PICTURES HERE, and that is the finding rather than a gap.
+        //
+        // This test rendered the whole window three times and every one of the
+        // three was `ImageRenderer`'s yellow refusal, edge to edge, because it
+        // will not host a `NavigationSplitView`. Rendering the halves instead
+        // gets the same refusal for the sidebar, which is a `List`, and a
+        // blank page for the dashboard, which is a `ScrollView`. What
+        // `ImageRenderer` can draw is plain SwiftUI layout — the sheets below
+        // — and the window belongs to the app's own capture, which draws
+        // AppKit views properly. The assertions above are what this test is
+        // for; they check the sample shop is worth photographing at all.
         shop.selection = shop.shown.first { !$0.isSettled }?.id
-        try render(ShopWindow(shop: shop), "02-selected", size: CGSize(width: 1180, height: 720))
-
         shop.shelf = .jobs(.printing)
-        try render(ShopWindow(shop: shop), "03-stage", size: CGSize(width: 1180, height: 720))
 
         #expect(!shop.files.isEmpty, "the sample shop has no models, so the library cannot be judged")
         #expect(shop.groups.contains("Saudi Kings"), "the grouped-models case must be in the sample")
@@ -79,23 +141,32 @@ import AppKit
         let job = try #require(shop.orders.first { !$0.parts.isEmpty } ?? shop.orders.first)
         let subject = Shop.PendingHold(id: job.id, project: job.project)
 
+        // The WIDTH comes from the sheet, never from a number typed here. A
+        // sheet that grew was photographed at its old width and the picture
+        // came back cropped through the middle, which no test noticed because
+        // a snapshot has nothing to assert. The height is this test's own
+        // choice — the sheets size themselves vertically to their contents.
         try render(PaymentSheet(shop: shop, subject: subject),
-                   "20-payment-words", size: CGSize(width: 380, height: 281))
+                   "20-payment-words", size: CGSize(width: PaymentSheet.width, height: 281))
         try render(EditJobSheet(shop: shop, subject: subject),
-                   "21-edit-job-words", size: CGSize(width: 360, height: 276))
+                   "21-edit-job-words", size: CGSize(width: EditJobSheet.width, height: 276))
         try render(QcFailSheet(shop: shop, subject: subject),
-                   "22-qc-fail-words", size: CGSize(width: 380, height: 228))
-        try render(NewJobSheet(shop: shop),
-                   "23-new-job-words", size: CGSize(width: 560, height: 478))
+                   "22-qc-fail-words", size: CGSize(width: QcFailSheet.width, height: 228))
+        // The paper rather than the whole sheet: `ImageRenderer` draws nothing
+        // inside the ScrollView the sheet wraps it in, so photographing the
+        // sheet here gave a title and three buttons over an empty page. The
+        // chrome around it is in the app's own capture, `14-new-job`.
+        try render(NewJobSheet(shop: shop).paper,
+                   "23-new-job-words", size: CGSize(width: NewJobSheet.width, height: 420))
         try render(CustomerSheet(shop: shop, existing: Shop.newCustomer()),
-                   "24-new-customer-words", size: CGSize(width: 420, height: 350))
+                   "24-new-customer-words", size: CGSize(width: CustomerSheet.width, height: 350))
         try render(ExpenseSheet(shop: shop),
-                   "26-expense-words", size: CGSize(width: 420, height: 380))
+                   "26-expense-words", size: CGSize(width: ExpenseSheet.width, height: 380))
         try render(WasteSheet(shop: shop),
-                   "27-waste-words", size: CGSize(width: 460, height: 460))
+                   "27-waste-words", size: CGSize(width: WasteSheet.width, height: 460))
         try render(SpoolSheet(shop: shop, existing: shop.spools.first),
-                   "28-spool-words", size: CGSize(width: 440, height: 520))
+                   "28-spool-words", size: CGSize(width: SpoolSheet.width, height: 520))
         try render(MachineSheet(shop: shop, existing: shop.machines.first),
-                   "29-machine-words", size: CGSize(width: 480, height: 560))
+                   "29-machine-words", size: CGSize(width: MachineSheet.width, height: 560))
     }
 }

@@ -8,6 +8,12 @@ import KhaytCore
 /// not a bigger payment, and the field says so by refusing rather than by
 /// explaining afterwards.
 struct PaymentSheet: View {
+    /// How wide this sheet is. A CONSTANT rather than a number in the body,
+    /// because `SnapshotTests` photographs the sheet at a size of its own and
+    /// the two silently disagreed: the sheet grew and the picture kept the old
+    /// width, so the render came back cropped down the middle with no failure.
+    static let width: CGFloat = 380
+
     let shop: Shop
     let subject: Shop.PendingHold
 
@@ -33,11 +39,16 @@ struct PaymentSheet: View {
                 }
                 GridRow {
                     Text(shop.words.callIt("pay.amount_paid")).foregroundStyle(.secondary)
-                    TextField("", value: $amount, format: .number.precision(.fractionLength(0...2)))
-                        .textFieldStyle(.roundedBorder)
-                        .monospacedDigit()
-                        .focused($focused)
-                        .onSubmit(commit)
+                    // The currency beside the box a figure is typed into, not
+                    // only beside the totals it is compared against.
+                    HStack(spacing: 4) {
+                        TextField("", value: $amount, format: .number.precision(.fractionLength(0...2)))
+                            .textFieldStyle(.roundedBorder)
+                            .monospacedDigit()
+                            .focused($focused)
+                            .onSubmit(commit)
+                        Text(currency).foregroundStyle(.secondary)
+                    }
                 }
                 GridRow {
                     Text(shop.words.callIt("pay.payment_method")).foregroundStyle(.secondary)
@@ -84,7 +95,7 @@ struct PaymentSheet: View {
             }
         }
         .padding(18)
-        .frame(width: 380)
+        .frame(width: Self.width)
         .onAppear {
             guard !started else { return }
             started = true

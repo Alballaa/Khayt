@@ -6,6 +6,15 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Changed
 
+- **Money and percentage fields on the Mac now say what unit they are in.**
+  *Discount* on a new job is a percentage, and the box beside it said only
+  "0" — so a shop knocking fifty riyals off a job would type 50 and take half
+  the price off instead. *Target profit margin* now reads `%`, and *Shipping
+  cost*, *Deposit / advance received*, *Amount paid*, an expense's *Amount*, a
+  waste log's *Estimated cost*, *Minimum order amount* and *Default packaging
+  cost* now show the currency, the same way a spool's cost and a machine's
+  nozzle already did.
+
 - **The Mac app no longer freezes solid while macOS asks about your Keychain.**
   The first time a new build reaches for a saved credential, macOS puts a
   permission dialog in front of it. The read was happening on the main thread,

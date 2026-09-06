@@ -479,10 +479,10 @@ struct OperationsPane: View {
                 Section(shop.words.callIt("set.ops_section")) {
                     numberRow("set.min_margin", $draft.minMarginPct)
                     numberRow("set.quote_validity", $draft.quoteValidityDays)
-                    numberRow("set.min_order_amount", $draft.minOrderAmount)
+                    numberRow("set.min_order_amount", $draft.minOrderAmount, unit: shop.currency)
                     Toggle(shop.words.callIt("set.rush_fee_enabled"), isOn: $draft.rushFeeEnabled)
                     numberRow("set.rush_fee_pct", $draft.rushFeePct).disabled(!draft.rushFeeEnabled)
-                    numberRow("set.default_packaging_cost", $draft.defaultPackagingCost)
+                    numberRow("set.default_packaging_cost", $draft.defaultPackagingCost, unit: shop.currency)
                 }
                 Section {
                     HStack(spacing: 8) {
@@ -538,10 +538,20 @@ struct OperationsPane: View {
     }
 
     private func reset() { original = .read(shop.settingsDict, shop: shop); draft = original }
-    private func numberRow(_ key: String, _ value: Binding<Double>) -> some View {
+    /// A number, and the unit it is in where the label does not already say.
+    ///
+    /// Most of these labels carry theirs — "Finishing & QC (days)", "Rush fee
+    /// percentage (%)" — because they were written for a screen with no room
+    /// beside the box. The two money ones do not, and "Minimum order amount"
+    /// is a figure a shop has no way to read as riyals rather than a count.
+    private func numberRow(_ key: String, _ value: Binding<Double>,
+                           unit: String = "") -> some View {
         row(shop.words.callIt(key)) {
-            TextField("", value: value, format: .number.precision(.fractionLength(0...2)))
-                .multilineTextAlignment(.trailing).frame(width: 90)
+            HStack(spacing: 4) {
+                TextField("", value: value, format: .number.precision(.fractionLength(0...2)))
+                    .multilineTextAlignment(.trailing).frame(width: 90)
+                if !unit.isEmpty { Text(unit).foregroundStyle(.secondary) }
+            }
         }
     }
 }
