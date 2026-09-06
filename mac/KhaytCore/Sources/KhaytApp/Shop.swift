@@ -316,6 +316,7 @@ final class Shop {
             await keepTheDaysBackup()
             expenses = Self.decode(root, "expenses", as: Expense.self)
             giftCards = Self.decode(root, "giftCards", as: GiftCard.self)
+            fits = await Self.measureFit(files, machines: machineRows, engine: engine)
             // The status of each, from the shared rule rather than a Swift
             // comparison of two date strings — asked once for all of them,
             // because the table redraws on every keystroke in the search box.
@@ -2263,6 +2264,25 @@ final class Shop {
         }
     }
 
+    /// Which of the shop's machines each measured model goes on.
+    ///
+    /// Only the models that were measured: a model with no `geometryKey` has no
+    /// bounds, and guessing at one would put a warning on a screen about a fact
+    /// nobody has.
+    static func measureFit(_ files: [LibraryFile], machines: [JSONValue],
+                           engine: KhaytEngine?) async -> [String: KhaytEngine.Fit] {
+        guard let engine, !machines.isEmpty else { return [:] }
+        var out: [String: KhaytEngine.Fit] = [:]
+        for file in files {
+            guard let mesh = file.mesh else { continue }
+            if let fit = try? await engine.bestFit((x: mesh.x, y: mesh.y, z: mesh.z),
+                                                   among: machines) {
+                out[file.id] = fit
+            }
+        }
+        return out
+    }
+
     // MARK: - Gift cards
 
     /// A code somebody can read down a telephone: no I/O/0/1, nothing to
@@ -3802,6 +3822,10 @@ final class Shop {
     /// Resolved once when the book loads — thirty-one rows asking the engine
     /// one at a time would be thirty-one bridge crossings for one screen.
     private(set) var clientNames: [String: KhaytEngine.Named] = [:]
+    /// Which machine each model fits, keyed by the model's id. Worked out once
+    /// when the book loads rather than per row: a grid of four hundred models
+    /// asking the runtime on every redraw is four hundred context hops.
+    private(set) var fits: [String: KhaytEngine.Fit] = [:]
     /// The cards the shop has issued, and what each one is today.
     private(set) var giftCards: [GiftCard] = []
     private(set) var giftCardRows: [JSONValue] = []

@@ -119,3 +119,74 @@ struct GiftCardTests {
         #expect(Shelves.shelf("gift-cards", in: shop) == .giftCards)
     }
 }
+
+/// Will it go on a bed the shop owns?
+///
+/// The question a maker asks before any other, and one this app could not
+/// answer: the rule was inside `mf-convert.js`, 1500 lines on top of Node's
+/// zlib, so it could only be asked during a conversion.
+@MainActor
+struct PrintFitTests {
+
+    static func shop() async throws -> Shop {
+        let shop = Shop()
+        await shop.load(.sample)
+        try #require(shop.engine != nil)
+        return shop
+    }
+
+    static func machine(_ name: String, _ x: Double, _ y: Double, _ z: Double) -> JSONValue {
+        .object(["name": .string(name),
+                 "bed": .object(["x": .number(x), "y": .number(y), "z": .number(z)])])
+    }
+
+    /// A real model out of the shop's own library — 555 × 529 mm — against the
+    /// one printer on its floor.
+    @Test("a model far bigger than the bed fits nothing")
+    func tooBig() async throws {
+        let shop = try await Self.shop()
+        let fit = try await #require(shop.engine).bestFit(
+            (x: 555.51, y: 529.07, z: 47.48), among: [Self.machine("Snapmaker U1", 270, 270, 270)])
+        #expect(fit.verdict == "none")
+        #expect(fit.checked == 1, "the machine was not even tried")
+    }
+
+    @Test("a model that fits names the machine it fits")
+    func fits() async throws {
+        let shop = try await Self.shop()
+        let fit = try await #require(shop.engine).bestFit(
+            (x: 100, y: 100, z: 100), among: [Self.machine("Snapmaker U1", 270, 270, 270)])
+        #expect(fit.verdict == "fits")
+        guard case .object(let m)? = fit.machine else { Issue.record("no machine"); return }
+        #expect(m["name"] == .string("Snapmaker U1"))
+    }
+
+    @Test("a model that only fits sideways says so rather than refusing")
+    func sideways() async throws {
+        let shop = try await Self.shop()
+        let fit = try await #require(shop.engine).bestFit(
+            (x: 290, y: 240, z: 50), among: [Self.machine("Narrow", 250, 300, 300)])
+        #expect(fit.verdict == "rotate")
+    }
+
+    /// NOT KNOWING IS NOT A REFUSAL. A machine with no bed recorded is not a
+    /// machine that turns the model away, and the screen stays silent — the
+    /// inspector hides the line entirely when `checked` is zero.
+    @Test("a machine with no bed is not counted as having refused anything")
+    func unknownBed() async throws {
+        let shop = try await Self.shop()
+        let fit = try await #require(shop.engine).bestFit(
+            (x: 555, y: 529, z: 47), among: [.object(["name": .string("Old printer")])])
+        #expect(fit.checked == 0)
+        #expect(fit.verdict == "none")
+    }
+
+    /// The words exist wherever the screen might say them.
+    @Test("every verdict has something to say, in the shop's language")
+    func wordsExist() async throws {
+        let shop = try await Self.shop()
+        for key in ["fit.title", "fit.yes", "fit.rotate", "fit.no"] {
+            #expect(shop.words.callIt(key) != key, "\(key) has no translation")
+        }
+    }
+}

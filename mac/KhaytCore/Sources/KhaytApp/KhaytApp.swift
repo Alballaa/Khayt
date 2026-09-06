@@ -265,6 +265,21 @@ final class Activator: NSObject, NSApplicationDelegate {
             shop.shelf = .library(nil)
             await settle()
             capture(named: "03-library", into: dir)
+            // A model SELECTED, so the inspector is in the picture — the size,
+            // the triangle count and whether it goes on a bed the shop owns all
+            // live there, and a grid shot cannot show any of them. Picked as
+            // the largest measured model, because "too big" is the answer worth
+            // being able to see.
+            if let biggest = shop.files
+                .compactMap({ f in f.mesh.map { (f, max($0.x, $0.y)) } })
+                .max(by: { $0.1 < $1.1 })?.0 {
+                shop.fileSelection = [biggest.id]
+                await settle()
+                capture(named: "03b-library-selected", into: dir)
+                capturePanes(named: "03b-library-selected", into: dir)
+                shop.fileSelection = []
+                await settle()
+            }
 
             shop.fileSelection = Set(shop.shownFiles.prefix(1).map(\.id))
             await settle()

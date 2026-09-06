@@ -46,6 +46,10 @@ public actor KhaytEngine {
         // what an order still owes — the question it used to answer itself, in
         // the renderer, with the credit notes left out.
         "gift-card",
+        // Whether a model goes on a bed. Six numbers, and until it was lifted
+        // out of `mf-convert` it could only be asked during a conversion — by
+        // the one app that can run one.
+        "print-fit",
         "kpi-rows",
         "kpi",
         // What needs a shop's attention, and the figures on the dashboard.
@@ -434,6 +438,32 @@ public actor KhaytEngine {
         try runtime.call2("KhaytColor.gradient(ARG0, ARG1, ARG2)",
                           [.string(a), .string(b), .number(Double(steps))],
                           as: [String].self)
+    }
+
+    // MARK: - Will it fit
+
+    /// The best a shop can do with the machines it owns.
+    ///
+    /// `lib/print-fit.js`. Not a Swift comparison of six numbers, because the
+    /// tolerance, the height rule and whether turning it a quarter turn helps
+    /// are all decisions — and the converter answers the same question from the
+    /// same module, so a model this screen calls too big cannot be one the
+    /// conversion report waves through.
+    public struct Fit: Decodable, Sendable {
+        /// `fits`, `rotate` or `none`.
+        public let verdict: String
+        public let machine: JSONValue?
+        /// How many machines had a bed recorded to try. Zero means nothing is
+        /// known, which is NOT the same as nothing fitting.
+        public let checked: Int
+    }
+
+    public func bestFit(_ bounds: (x: Double, y: Double, z: Double),
+                        among machines: [JSONValue]) throws -> Fit {
+        try runtime.call2("KhaytPrintFit.bestFit({x: ARG0, y: ARG1, z: ARG2}, ARG3)",
+                          [.number(bounds.x), .number(bounds.y), .number(bounds.z),
+                           .array(machines)],
+                          as: Fit.self)
     }
 
     // MARK: - Gift cards

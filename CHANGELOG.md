@@ -6,6 +6,14 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Added
 
+- **The Mac says whether a model will go on a printer you own.** A model's size
+  and a machine's bed were both already in the book, and the rule that compares
+  them lived inside the converter — so the first question a maker asks could
+  only be answered *during a conversion*. The library inspector now says it
+  outright: which machine it fits, whether turning it sideways would do it, or
+  that it is too big for everything on the floor. Silent when a machine has no
+  bed recorded, because not knowing is not a refusal.
+
 - **Gift cards on the Mac.** The cards a shop has issued, what is left on each,
   who it went to and whether it can still be spent — and a button to issue
   another. It was the last screen the Mac app was missing that the Electron one

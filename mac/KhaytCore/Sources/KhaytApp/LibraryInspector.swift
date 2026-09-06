@@ -1,4 +1,5 @@
 import SwiftUI
+import KhaytCore
 
 /// The selected model, in detail.
 ///
@@ -22,7 +23,7 @@ struct LibraryInspector: View {
                     }
                     if let mesh = file.mesh {
                         Divider()
-                        geometry(mesh)
+                        geometry(mesh, file.id)
                     }
                     actions(file)
             if let notes = file.testedNotes, !notes.isEmpty {
@@ -152,10 +153,32 @@ struct LibraryInspector: View {
         }
     }
 
-    private func geometry(_ mesh: LibraryFile.Mesh) -> some View {
+    private func geometry(_ mesh: LibraryFile.Mesh, _ id: String) -> some View {
         DetailSection(shop.words.callIt("mac.mesh")) {
             DetailLine(shop.words.callIt("set.store_size"), "\(Format.mm(mesh.x)) × \(Format.mm(mesh.y)) × \(Format.mm(mesh.z)) mm")
             DetailLine(shop.words.callIt("mac.triangles"), Format.count(mesh.triangles), dim: true)
+            // WHETHER IT GOES ON A BED THE SHOP OWNS, which is the question a
+            // maker asks before any other and which this app could not answer:
+            // the rule lived inside the converter. Silent when nothing is
+            // known — a machine with no bed recorded is not a machine that
+            // refuses the model, and saying so would be a warning about a fact
+            // nobody has.
+            if let fit = shop.fits[id], fit.checked > 0 {
+                DetailLine(shop.words.callIt("fit.title"), fitWords(fit),
+                           warn: fit.verdict == "none")
+            }
+        }
+    }
+
+    private func fitWords(_ fit: KhaytEngine.Fit) -> String {
+        let machine = fit.machine.flatMap { row -> String? in
+            guard case .object(let o) = row, case .string(let name)? = o["name"] else { return nil }
+            return name
+        } ?? ""
+        switch fit.verdict {
+        case "fits": return shop.words.callIt("fit.yes", ["machine": .string(machine)])
+        case "rotate": return shop.words.callIt("fit.rotate", ["machine": .string(machine)])
+        default: return shop.words.callIt("fit.no")
         }
     }
 }
