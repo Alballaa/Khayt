@@ -193,3 +193,49 @@ struct ZipTests {
         }
     }
 }
+
+/// Streaming a member out, which is how a mesh is read.
+@MainActor
+struct ZipStreamTests {
+
+    @Test("streaming a big member gives back exactly what went in")
+    func streamRoundTrip() throws {
+        let dir = try ZipTests.tempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        // Several megabytes of varied text, so it spans many inflate chunks and
+        // compresses like XML rather than like a run of zeros.
+        // Built with `map`/`joined` rather than by appending to a String:
+        // repeated concatenation of 200,000 pieces spent four minutes in the
+        // fixture and seconds in the code under test.
+        let original = Data((0..<120_000).map {
+            "<vertex x=\"\(Double($0) * 1.5)\" y=\"\(-Double($0))\" z=\"0.\($0 % 997)\"/>"
+        }.joined(separator: "\n").utf8)
+        let url = try ZipTests.makeZip(in: dir, named: "big.zip", files: [("part.xml", original)])
+        let entry = try #require(try Zip.entries(of: url).first { $0.name.hasSuffix("part.xml") })
+        #expect(entry.method == 8, "the fixture must be deflated to test inflating")
+
+        var out = Data()
+        try Zip.stream(entry, in: url) { chunk in
+            out.append(contentsOf: chunk.bindMemory(to: UInt8.self))
+            return true
+        }
+        #expect(out.count == original.count,
+                "streamed \(out.count) of \(original.count) bytes")
+        #expect(out == original)
+    }
+
+    @Test("a stored member streams too")
+    func streamStored() throws {
+        let dir = try ZipTests.tempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let original = Data((0..<3_000_000).map { UInt8($0 % 251) })
+        let url = try ZipTests.makeZip(in: dir, named: "s.zip",
+                                       files: [("blob.bin", original)], stored: true)
+        let entry = try #require(try Zip.entries(of: url).first { $0.name.hasSuffix("blob.bin") })
+        var out = Data()
+        try Zip.stream(entry, in: url) { chunk in
+            out.append(contentsOf: chunk.bindMemory(to: UInt8.self)); return true
+        }
+        #expect(out == original)
+    }
+}

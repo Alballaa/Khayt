@@ -74,6 +74,14 @@ enum Mesh {
         }
     }
 
+    /// English, like `Zip.Failure` and `StoreWriter.Refusal` beside it.
+    ///
+    /// These describe a FILE — a header that does not add up, an archive with no
+    /// model in it — and they are read by whoever is working out why an import
+    /// refused, not by a shop going about its day. The wording a shop sees when
+    /// an import fails belongs in `Words`, at the point it is shown, and this is
+    /// deliberately not that. Same gap the cloud readers carry, and named in
+    /// `AssembledSentenceTests` so it stays a decision.
     enum Failure: Error, CustomStringConvertible, Equatable {
         case unreadable(String)
         case notAMesh(String)
@@ -96,6 +104,314 @@ enum Mesh {
     /// 6.3 million triangles; two hundred million is far past any real part and
     /// still finishes.
     static let mostTriangles = 200_000_000
+
+    // MARK: - 3MF
+
+    /// Measure every mesh in a 3MF.
+    ///
+    /// The model lives as XML inside the zip — `<vertex x= y= z=/>` then
+    /// `<triangle v1= v2= v3=/>` indexing into them — and on this shop's files
+    /// that XML is 436 MB uncompressed. It is therefore STREAMED: inflated a
+    /// megabyte at a time and scanned as it arrives, so what is resident is the
+    /// vertex table and nothing else.
+    ///
+    /// TRANSFORMS ARE NOT APPLIED, and that is a compatibility decision rather
+    /// than a shortcut. A 3MF's `<build>` places each object with a matrix, and
+    /// a slicer reports the placed result — which is why PrusaSlicer measures
+    /// this shop's Hulk helmet as 229 × 231 mm and Khayt records it as 1141 ×
+    /// 757. Khayt measures the raw mesh envelope, the key is compared against
+    /// records Khayt wrote, so this measures the raw mesh envelope too. The
+    /// slicer's answer is the more useful one about a plate; Khayt's is the one
+    /// that has to match.
+    /// A 3MF's placement matrix: 3×3 then a translation, row-vector convention.
+    struct Placement: Equatable {
+        var m = [1.0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0]
+
+        /// `"1 0 0 0 1 0 0 0 1 781.8 -184.4 8.1"` — twelve numbers or nothing.
+        init?(_ text: String) {
+            let parts = text.split(whereSeparator: { $0 == " " || $0 == "\t" || $0 == "\n" })
+                .compactMap { Double($0) }
+            guard parts.count == 12 else { return nil }
+            m = parts
+        }
+        init() {}
+
+        /// `self` applied after `inner` — the item's placement on top of the
+        /// component's.
+        func composed(with inner: Placement) -> Placement {
+            var out = Placement()
+            for row in 0..<3 {
+                for col in 0..<3 {
+                    out.m[row * 3 + col] = inner.m[row * 3 + 0] * m[col]
+                                         + inner.m[row * 3 + 1] * m[3 + col]
+                                         + inner.m[row * 3 + 2] * m[6 + col]
+                }
+            }
+            for col in 0..<3 {
+                out.m[9 + col] = inner.m[9] * m[col] + inner.m[10] * m[3 + col]
+                               + inner.m[11] * m[6 + col] + m[9 + col]
+            }
+            return out
+        }
+
+        @inline(__always)
+        func apply(_ x: Double, _ y: Double, _ z: Double) -> (Double, Double, Double) {
+            (x * m[0] + y * m[3] + z * m[6] + m[9],
+             x * m[1] + y * m[4] + z * m[7] + m[10],
+             x * m[2] + y * m[5] + z * m[8] + m[11])
+        }
+
+        var isIdentity: Bool { self == Placement() }
+    }
+
+    static func measure3MF(_ url: URL) throws -> Measurement? {
+        let entries = try Zip.entries(of: url)
+        let models = entries.filter { $0.name.lowercased().hasSuffix(".model") }
+        guard !models.isEmpty else { throw Failure.notAMesh("no model part in the archive") }
+
+        var m = Measurement()
+
+        // THE BUILD PLACES THE OBJECTS, and where they are placed is part of
+        // what Khayt measures.
+        //
+        // A Bambu/Orca 3MF keeps each object in its own `3D/Objects/*.model`
+        // part and the root lists them as `<item objectid= transform=>` under
+        // `<build>`. Measuring the parts where they lie in their own files
+        // gives a box that is right about the meshes and wrong about the model:
+        // on this shop's Hulk helmet — twenty parts — that is 229 × 221 × 244
+        // against the 1141 × 757 × 207 Khayt recorded, because the items are
+        // placed hundreds of millimetres apart.
+        //
+        // The triangle count and the volume are the same either way, which is
+        // why they matched before this existed and why the box did not.
+        if let plan = try buildPlan(entries, in: url), !plan.isEmpty {
+            for (path, placement) in plan {
+                guard let entry = entries.first(where: { equalPath($0.name, path) }) else { continue }
+                try measureModelPart(entry, in: url, placement: placement, into: &m)
+            }
+            if m.triangleCount > 0 { return m.finished() }
+            // A build that named nothing this could find. Fall through and
+            // measure the parts rather than report an empty model.
+        }
+
+        for entry in models.sorted(by: { $0.name < $1.name }) {
+            try measureModelPart(entry, in: url, placement: Placement(), into: &m)
+        }
+        return m.finished()
+    }
+
+    /// `[(part path, placement)]` from the root part's `<build>`, or nil when
+    /// there is no root or no build in it.
+    private static func buildPlan(_ entries: [Zip.Entry], in url: URL)
+        throws -> [(String, Placement)]? {
+        guard let root = entries.first(where: { equalPath($0.name, "3D/3dmodel.model") })
+        else { return nil }
+        // The root is small — ten kilobytes on the file above — so unlike the
+        // mesh parts it is read whole.
+        guard let data = try? Zip.data(of: root, in: url) else { return nil }
+        let xml = String(decoding: data, as: UTF8.self)
+
+        // objectid → (part it lives in, the component's own placement)
+        var componentOf: [String: (String, Placement)] = [:]
+        var currentObject: String?
+        for tag in tags(in: xml) {
+            if tag.hasPrefix("<object") {
+                currentObject = value(of: "id", in: tag)
+            } else if tag.hasPrefix("<component"), let object = currentObject,
+                      let path = value(of: "p:path", in: tag) ?? value(of: "path", in: tag) {
+                let placement = value(of: "transform", in: tag).flatMap(Placement.init) ?? Placement()
+                componentOf[object] = (path, placement)
+            }
+        }
+
+        var plan: [(String, Placement)] = []
+        for tag in tags(in: xml) where tag.hasPrefix("<item") {
+            guard let object = value(of: "objectid", in: tag),
+                  let (path, inner) = componentOf[object] else { continue }
+            let item = value(of: "transform", in: tag).flatMap(Placement.init) ?? Placement()
+            plan.append((path, item.composed(with: inner)))
+        }
+        return plan
+    }
+
+    /// `/3D/Objects/x.model` and `3D/Objects/x.model` are the same member: the
+    /// root writes package paths with a leading slash and the zip does not.
+    private static func equalPath(_ a: String, _ b: String) -> Bool {
+        func strip(_ s: String) -> String {
+            var out = s
+            while out.hasPrefix("/") || out.hasPrefix("./") {
+                out = out.hasPrefix("./") ? String(out.dropFirst(2)) : String(out.dropFirst())
+            }
+            return out.lowercased()
+        }
+        return strip(a) == strip(b)
+    }
+
+    private static func tags(in xml: String) -> [String] {
+        var out: [String] = []
+        var current: String?
+        for ch in xml {
+            if ch == "<" { current = "<" }
+            else if ch == ">" { if let c = current { out.append(c) }; current = nil }
+            else if current != nil { current?.append(ch) }
+        }
+        return out
+    }
+
+    private static func value(of name: String, in tag: String) -> String? {
+        guard let at = tag.range(of: "\(name)=\"") else { return nil }
+        let rest = tag[at.upperBound...]
+        guard let end = rest.firstIndex(of: "\"") else { return nil }
+        return String(rest[..<end])
+    }
+
+    /// One `.model` part, streamed.
+    private static func measureModelPart(_ entry: Zip.Entry, in url: URL,
+                                         placement: Placement,
+                                         into m: inout Measurement) throws {
+        // Vertices, flat: x,y,z,x,y,z… Reserved generously because growing a
+        // 30-million-element array by doubling is most of the cost otherwise.
+        var vertices: [Double] = []
+        vertices.reserveCapacity(min(entry.size / 40, 30_000_000))
+        // A tag can land across a chunk boundary, so the tail after the last
+        // complete `>` is carried into the next chunk.
+        var carry = [UInt8]()
+        var triangles = m
+
+        func consume(_ bytes: UnsafeRawBufferPointer) -> Bool {
+            var buffer = carry
+            buffer.append(contentsOf: bytes.bindMemory(to: UInt8.self))
+            carry.removeAll(keepingCapacity: true)
+
+            var i = 0
+            var lastComplete = 0
+            while i < buffer.count {
+                guard buffer[i] == UInt8(ascii: "<") else { i += 1; continue }
+                guard let close = index(of: UInt8(ascii: ">"), in: buffer, from: i) else { break }
+                let tag = buffer[i..<close]
+                if starts(tag, with: "<mesh") {
+                    // A `.model` part holds one object per model, and every
+                    // one of them numbers its vertices FROM ZERO. Accumulating
+                    // them into a single table makes each object after the
+                    // first index into the previous object's vertices: some
+                    // triangles land on the wrong points and the ones whose
+                    // indices run past the end are dropped.
+                    //
+                    // Measured on this shop's Hulk helmet, which holds twenty
+                    // objects: 4,200,865 triangles against a true 4,295,525,
+                    // and a volume 16% low. Both wrong in the quiet direction —
+                    // a plausible number, not an error.
+                    vertices.removeAll(keepingCapacity: true)
+                } else if starts(tag, with: "<vertex") {
+                    if let x = attribute("x", in: tag), let y = attribute("y", in: tag),
+                       let z = attribute("z", in: tag) {
+                        vertices.append(contentsOf: [x, y, z])
+                    }
+                } else if starts(tag, with: "<triangle") {
+                    if let a = attribute("v1", in: tag), let b = attribute("v2", in: tag),
+                       let c = attribute("v3", in: tag) {
+                        let ia = Int(a) * 3, ib = Int(b) * 3, ic = Int(c) * 3
+                        // An index past the table is a malformed part, not a
+                        // crash: the triangle is dropped and the rest is read.
+                        if ia >= 0, ic >= 0, ib >= 0,
+                           ia + 2 < vertices.count, ib + 2 < vertices.count, ic + 2 < vertices.count {
+                            if placement.isIdentity {
+                                triangles.add(vertices[ia], vertices[ia + 1], vertices[ia + 2],
+                                              vertices[ib], vertices[ib + 1], vertices[ib + 2],
+                                              vertices[ic], vertices[ic + 1], vertices[ic + 2])
+                            } else {
+                                let p = placement.apply(vertices[ia], vertices[ia + 1], vertices[ia + 2])
+                                let q = placement.apply(vertices[ib], vertices[ib + 1], vertices[ib + 2])
+                                let r = placement.apply(vertices[ic], vertices[ic + 1], vertices[ic + 2])
+                                triangles.add(p.0, p.1, p.2, q.0, q.1, q.2, r.0, r.1, r.2)
+                            }
+                        }
+                    }
+                }
+                i = close + 1
+                lastComplete = i
+            }
+            if lastComplete < buffer.count { carry = Array(buffer[lastComplete...]) }
+            return true
+        }
+
+        try Zip.stream(entry, in: url, onChunk: consume)
+        m = triangles
+    }
+
+    // MARK: - Reading a tag
+
+    private static func index(of byte: UInt8, in bytes: [UInt8], from: Int) -> Int? {
+        var i = from
+        while i < bytes.count { if bytes[i] == byte { return i }; i += 1 }
+        return nil
+    }
+
+    private static func isSpace(_ b: UInt8) -> Bool {
+        b == UInt8(ascii: " ") || b == UInt8(ascii: "\t")
+            || b == UInt8(ascii: "\n") || b == UInt8(ascii: "\r")
+    }
+
+    private static func starts(_ tag: ArraySlice<UInt8>, with text: String) -> Bool {
+        let want = Array(text.utf8)
+        guard tag.count > want.count else { return false }
+        var i = tag.startIndex
+        for w in want {
+            if tag[i] != w { return false }
+            i = tag.index(after: i)
+        }
+        // `<triangle` must not match `<trianglesets`, and `<vertex` must not
+        // match a longer name either: the next byte has to end the name.
+        //
+        // ANY whitespace, not just a space. A slicer that wraps a long element
+        // onto several lines puts a newline there, which is legal XML and was
+        // read as "this is not a vertex" — so the whole part measured as
+        // nothing at all.
+        //
+        // And `>`, for a tag with no attributes at all. `<mesh>` is one, and
+        // leaving it out meant the per-mesh reset below never fired: the
+        // numbers came back byte-identical to the run before it was added,
+        // which is what gave it away.
+        //
+        // `<triangle` still does not match `<triangles>`: the byte after
+        // "triangle" there is "s".
+        let next = tag[i]
+        return next == UInt8(ascii: "/") || next == UInt8(ascii: ">") || isSpace(next)
+    }
+
+    /// `name="value"` inside a tag, as a number.
+    ///
+    /// Hand-rolled rather than an XML parser because this runs tens of millions
+    /// of times: `XMLParser` on 436 MB of `<vertex>` elements is minutes, and
+    /// the shape here is fixed by the 3MF spec.
+    private static func attribute(_ name: String, in tag: ArraySlice<UInt8>) -> Double? {
+        let want = Array((name + "=\"").utf8)
+        var i = tag.startIndex
+        let end = tag.endIndex
+        outer: while i < end {
+            guard tag[i] == want[0] else { i = tag.index(after: i); continue }
+            // The character before must not be a name character, or `y=` would
+            // match inside `vy=`.
+            if i > tag.startIndex {
+                let before = tag[tag.index(before: i)]
+                if !isSpace(before) && before != UInt8(ascii: "<") {
+                    i = tag.index(after: i); continue
+                }
+            }
+            var j = i
+            for w in want {
+                guard j < end, tag[j] == w else { i = tag.index(after: i); continue outer }
+                j = tag.index(after: j)
+            }
+            var digits = [UInt8]()
+            while j < end, tag[j] != UInt8(ascii: "\"") {
+                digits.append(tag[j])
+                j = tag.index(after: j)
+            }
+            return Double(String(decoding: digits, as: UTF8.self))
+        }
+        return nil
+    }
 
     // MARK: - STL
 
