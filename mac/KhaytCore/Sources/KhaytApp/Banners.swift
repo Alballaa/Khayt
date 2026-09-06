@@ -38,6 +38,14 @@ struct MoveBanners: View {
                             "name": .string(p.name)]),
                        symbol: "gearshape.arrow.trianglehead.2.clockwise.rotate.90",
                        tint: Khayt.cyan) {
+                    // A BAR AS WELL AS THE NUMBERS. Five hundred models is
+                    // minutes, and "137 of 490" has to be read and divided
+                    // before it means anything; a bar is understood without
+                    // being read. Determinate, because the total is known —
+                    // a spinner here would say only that the app is alive.
+                    ProgressView(value: Double(p.done), total: Double(max(p.total, 1)))
+                        .progressViewStyle(.linear)
+                        .frame(width: 120)
                     Button(shop.words.callIt("mac.stop")) { shop.importCancelled = true }
                         .disabled(shop.importCancelled)
                 }

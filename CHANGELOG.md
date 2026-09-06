@@ -10,8 +10,8 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   one trip through the file picker per file, which is not an import when a shop
   has three thousand of them in nested folders. Pick any mix of files and
   folders now and it walks them, skipping anything Khayt does not read and its
-  own library folder, with a running count, the name of the file it is on, and
-  a Stop button.
+  own library folder, with a progress bar, a running count, the name of the file
+  it is on, and a Stop button.
 
 - **Colour studio on the Mac.** Pick a colour and the app ranks the filament
   you already own by how close it *looks* — perceptual distance, not the
