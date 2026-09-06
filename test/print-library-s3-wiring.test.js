@@ -117,3 +117,32 @@ test('the section is translated everywhere', () => {
     }
   }
 });
+
+// ── the endpoint repair has to be REACHED ─────────────────────────────────
+//
+// `SPROV.repair` is pure and tested next door, which proves nothing about
+// whether the bucket is ever addressed through it. A shop's config was broken
+// for months precisely because the recovery that could have fixed it only ran
+// on the settings page's save path, which that shop had no reason to revisit.
+test('every read of the bucket config goes through the repair', () => {
+  const at = mainJs.indexOf('function printLibS3Settings()');
+  assert.ok(at > -1, 'the repaired accessor went missing');
+  assert.match(mainJs.slice(at, at + 300), /SPROV\.repair\(/,
+    'printLibS3Settings() no longer repairs anything');
+
+  // Nothing reaches around it to the raw setting. This is the assertion that
+  // fails when somebody adds a sixth consumer the easy way.
+  const raw = [...mainJs.matchAll(/printLibSettings\(\)[^\n]*\.s3\b/g)]
+    // The whole line, not the matched fragment: the one legitimate reader is
+    // the repair itself, and `SPROV.repair(` sits to the LEFT of the match.
+    .map((m) => mainJs.slice(mainJs.lastIndexOf('\n', m.index) + 1,
+                             mainJs.indexOf('\n', m.index)).trim())
+    .filter((line) => !line.includes('SPROV.repair('));
+  assert.deepEqual(raw, [],
+    `these read settings.printLibrary.s3 without repairing it: ${raw.join(' | ')}`);
+
+  // And the client is built from the repaired config, not a fresh raw read.
+  const client = mainJs.indexOf('function printLibS3()');
+  assert.match(mainJs.slice(client, client + 400), /printLibS3Settings\(\)/,
+    'the S3 client is built from an unrepaired config');
+});

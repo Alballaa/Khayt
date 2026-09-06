@@ -615,6 +615,18 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **A print library that was quietly never backed up.** Backblaze shows its
+  endpoint as `s3.us-west-001.backblazeb2.com` and the Region box asks for the
+  part in the middle; paste the whole host in and the address that gets saved
+  carries the suffix twice — `s3.s3.us-west-001.backblazeb2.com.backblazeb2.com`
+  — which resolves to nothing. It saved with the bucket switched **on**, and
+  nothing between the settings page and the first upload ever asked whether the
+  address existed, so the library simply never synced and no screen said so.
+  Khayt already recovered this when the settings page was saved, which never
+  helped a shop that had no reason to reopen that tab. The address is now
+  repaired where it is read, so a book already holding a broken one starts
+  working on the next launch.
+
 - **Models the Mac added to the library had a doubled dash in their id.** Khayt
   writes `PF-mtjwvj1w05A`; the Mac built `PF-` and then asked for an id that
   supplies its own dash, so it wrote `PF--mtjwvj1w05A` and named the file's
